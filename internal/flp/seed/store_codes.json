@@ -28,8 +28,8 @@
     "product": "https://shop.foreverliving.com/retail/entry/Shop.do?store={store}&language={language}&itemCode={itemCode}&distribID={distribID}",
     "category": "https://shop.foreverliving.com/retail/entry/Shop.do?store={store}&language={language}&categoryName={categoryName}&distribID={distribID}",
     "recruit": "https://join.foreverliving.com/marketing/joinnow/applicationForm.do?action=display&store={store}&distribID={distribID}&menuoff=n&langID={language}",
-    "profile": "https://marketflowapi.codevertexitsolutions.com/p/{tenantSlug}",
-    "short_link": "https://marketflowapi.codevertexitsolutions.com/s/{code}",
+    "profile": "https://marketflow.codevertexitsolutions.com/p/{tenantSlug}",
+    "short_link": "https://marketflow.codevertexitsolutions.com/s/{code}",
     "whatsapp": "https://wa.me/{phone}?text={message}"
   }
 }

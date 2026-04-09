@@ -17,7 +17,7 @@ const (
 	shopBaseURL    = "https://shop.foreverliving.com/retail/entry/Shop.do"
 	recruitBaseURL = "https://join.foreverliving.com/marketing/joinnow/applicationForm.do"
 	// MarketFlow hosts FBO profile pages — not redirecting to FLP's basic profile
-	profileBaseURL = "https://marketflowapi.codevertexitsolutions.com/p/%s"
+	profileBaseURL = "https://marketflow.codevertexitsolutions.com/p/%s"
 )
 
 // ShopURL returns the FBO's personalized store landing page.
@@ -65,7 +65,7 @@ func (b *LinkBuilder) RecruitURL() string {
 }
 
 // ProfileURL returns the FBO's MarketFlow-hosted profile page.
-// Example: https://marketflowapi.codevertexitsolutions.com/p/my-fbo-slug
+// Example: https://marketflow.codevertexitsolutions.com/p/my-fbo-slug
 // These are dynamically generated pages with AI chatbot, product grid, etc.
 func (b *LinkBuilder) ProfileURL() string {
 	return fmt.Sprintf(profileBaseURL, b.TenantSlug)
