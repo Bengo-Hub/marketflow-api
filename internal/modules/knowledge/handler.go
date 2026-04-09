@@ -49,6 +49,16 @@ type updateEntryRequest struct {
 }
 
 // CreateEntry handles POST /api/v1/knowledge/entries
+// @Summary Create a knowledge base entry
+// @Description Creates a product, FAQ, compliance, or business opportunity KB entry for RAG
+// @Tags KnowledgeBase
+// @Accept json
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param request body createEntryRequest true "KB entry data"
+// @Success 201 {object} map[string]interface{}
+// @Security bearerAuth
+// @Router /knowledge/entries [post]
 func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := extractTenantID(r)
 	if err != nil {
@@ -92,6 +102,16 @@ func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListEntries handles GET /api/v1/knowledge/entries
+// @Summary List knowledge base entries
+// @Tags KnowledgeBase
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param category query string false "Filter: product, faq, compliance, business_opportunity, custom"
+// @Param limit query int false "Page size"
+// @Param offset query int false "Offset"
+// @Success 200 {object} map[string]interface{}
+// @Security bearerAuth
+// @Router /knowledge/entries [get]
 func (h *Handler) ListEntries(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := extractTenantID(r)
 	if err != nil {
@@ -123,6 +143,14 @@ func (h *Handler) ListEntries(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetEntry handles GET /api/v1/knowledge/entries/{id}
+// @Summary Get a knowledge base entry
+// @Tags KnowledgeBase
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Entry UUID"
+// @Success 200 {object} map[string]interface{}
+// @Security bearerAuth
+// @Router /knowledge/entries/{id} [get]
 func (h *Handler) GetEntry(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := extractTenantID(r)
 	if err != nil {
@@ -146,6 +174,17 @@ func (h *Handler) GetEntry(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateEntry handles PUT /api/v1/knowledge/entries/{id}
+// @Summary Update a knowledge base entry
+// @Description Updates content and auto-marks for re-embedding if content changed
+// @Tags KnowledgeBase
+// @Accept json
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Entry UUID"
+// @Param request body updateEntryRequest true "Fields to update"
+// @Success 200 {object} map[string]interface{}
+// @Security bearerAuth
+// @Router /knowledge/entries/{id} [put]
 func (h *Handler) UpdateEntry(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := extractTenantID(r)
 	if err != nil {
@@ -186,6 +225,14 @@ func (h *Handler) UpdateEntry(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteEntry handles DELETE /api/v1/knowledge/entries/{id}
+// @Summary Delete a knowledge base entry
+// @Tags KnowledgeBase
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Entry UUID"
+// @Success 200 {object} map[string]string
+// @Security bearerAuth
+// @Router /knowledge/entries/{id} [delete]
 func (h *Handler) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := extractTenantID(r)
 	if err != nil {

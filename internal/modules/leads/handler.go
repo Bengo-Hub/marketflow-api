@@ -54,6 +54,18 @@ type updateLeadRequest struct {
 }
 
 // Create handles POST /api/v1/leads
+// @Summary Create a new lead
+// @Description Creates a lead from an ad, funnel, chatbot, or manual entry
+// @Tags Leads
+// @Accept json
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param request body createLeadRequest true "Lead data"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} httpapi.ErrorResponse
+// @Failure 500 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /leads [post]
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := extractTenantID(r)
 	if err != nil {
@@ -101,6 +113,19 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 // List handles GET /api/v1/leads
+// @Summary List leads
+// @Description Returns paginated leads with optional filters
+// @Tags Leads
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param status query string false "Filter by status: new, contacted, qualified, converted, lost"
+// @Param source query string false "Filter by source: meta_ad, organic, referral, chatbot, whatsapp, manual"
+// @Param lead_type query string false "Filter by type: customer, recruit"
+// @Param limit query int false "Page size (default 20, max 100)"
+// @Param offset query int false "Offset for pagination"
+// @Success 200 {object} map[string]interface{}
+// @Security bearerAuth
+// @Router /leads [get]
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := extractTenantID(r)
 	if err != nil {
@@ -141,6 +166,15 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 // Get handles GET /api/v1/leads/{id}
+// @Summary Get a lead by ID
+// @Tags Leads
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Lead UUID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 404 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /leads/{id} [get]
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := extractTenantID(r)
 	if err != nil {
@@ -164,6 +198,17 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // Update handles PUT /api/v1/leads/{id}
+// @Summary Update a lead
+// @Tags Leads
+// @Accept json
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Lead UUID"
+// @Param request body updateLeadRequest true "Fields to update"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /leads/{id} [put]
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := extractTenantID(r)
 	if err != nil {
@@ -204,6 +249,14 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 // Delete handles DELETE /api/v1/leads/{id}
+// @Summary Delete a lead (marks as lost)
+// @Tags Leads
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Lead UUID"
+// @Success 200 {object} map[string]string
+// @Security bearerAuth
+// @Router /leads/{id} [delete]
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := extractTenantID(r)
 	if err != nil {

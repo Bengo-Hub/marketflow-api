@@ -128,6 +128,11 @@ func NewRouter(deps RouterDeps) http.Handler {
 		MaxAge:           300,
 	}))
 
+	// Base URL redirects to Swagger docs
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/v1/docs/", http.StatusMovedPermanently)
+	})
+
 	// Health and metrics
 	if deps.HealthHandler != nil {
 		r.Get("/healthz", deps.HealthHandler)
@@ -135,6 +140,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 	if deps.MetricsHandler != nil {
 		r.Method("GET", "/metrics", deps.MetricsHandler)
 	}
+
+	// Swagger UI and OpenAPI spec
+	r.Get("/v1/docs/*", SwaggerUI)
+	r.Get("/api/v1/openapi.json", OpenAPIJSON)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		// Protected routes (require JWT)

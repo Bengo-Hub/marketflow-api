@@ -52,6 +52,16 @@ type updateContactRequest struct {
 }
 
 // Create handles POST /api/v1/contacts
+// @Summary Create a contact
+// @Description Creates a contact with auto-deduplication by email/phone
+// @Tags Contacts
+// @Accept json
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param request body createContactRequest true "Contact data"
+// @Success 201 {object} map[string]interface{}
+// @Security bearerAuth
+// @Router /contacts [post]
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := extractTenantID(r)
 	if err != nil {
@@ -91,6 +101,16 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 // List handles GET /api/v1/contacts
+// @Summary List contacts
+// @Tags Contacts
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param contact_type query string false "Filter: customer, prospect, recruit, downline"
+// @Param limit query int false "Page size"
+// @Param offset query int false "Offset"
+// @Success 200 {object} map[string]interface{}
+// @Security bearerAuth
+// @Router /contacts [get]
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := extractTenantID(r)
 	if err != nil {
@@ -122,6 +142,14 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 // Get handles GET /api/v1/contacts/{id}
+// @Summary Get a contact by ID
+// @Tags Contacts
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Contact UUID"
+// @Success 200 {object} map[string]interface{}
+// @Security bearerAuth
+// @Router /contacts/{id} [get]
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := extractTenantID(r)
 	if err != nil {
@@ -145,6 +173,16 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // Update handles PUT /api/v1/contacts/{id}
+// @Summary Update a contact
+// @Tags Contacts
+// @Accept json
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Contact UUID"
+// @Param request body updateContactRequest true "Fields to update"
+// @Success 200 {object} map[string]interface{}
+// @Security bearerAuth
+// @Router /contacts/{id} [put]
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := extractTenantID(r)
 	if err != nil {
@@ -188,6 +226,14 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 // Delete handles DELETE /api/v1/contacts/{id}
+// @Summary Delete a contact
+// @Tags Contacts
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Contact UUID"
+// @Success 200 {object} map[string]string
+// @Security bearerAuth
+// @Router /contacts/{id} [delete]
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := extractTenantID(r)
 	if err != nil {
