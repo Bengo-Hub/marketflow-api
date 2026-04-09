@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
@@ -21,6 +23,7 @@ type CampaignCreate struct {
 	config
 	mutation *CampaignMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -413,6 +416,7 @@ func (_c *CampaignCreate) createSpec() (*Campaign, *sqlgraph.CreateSpec) {
 		_node = &Campaign{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(campaign.Table, sqlgraph.NewFieldSpec(campaign.FieldID, field.TypeUUID))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
@@ -525,11 +529,787 @@ func (_c *CampaignCreate) createSpec() (*Campaign, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Campaign.Create().
+//		SetTenantID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.CampaignUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *CampaignCreate) OnConflict(opts ...sql.ConflictOption) *CampaignUpsertOne {
+	_c.conflict = opts
+	return &CampaignUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Campaign.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *CampaignCreate) OnConflictColumns(columns ...string) *CampaignUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &CampaignUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// CampaignUpsertOne is the builder for "upsert"-ing
+	//  one Campaign node.
+	CampaignUpsertOne struct {
+		create *CampaignCreate
+	}
+
+	// CampaignUpsert is the "OnConflict" setter.
+	CampaignUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetTenantID sets the "tenant_id" field.
+func (u *CampaignUpsert) SetTenantID(v uuid.UUID) *CampaignUpsert {
+	u.Set(campaign.FieldTenantID, v)
+	return u
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateTenantID() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldTenantID)
+	return u
+}
+
+// SetName sets the "name" field.
+func (u *CampaignUpsert) SetName(v string) *CampaignUpsert {
+	u.Set(campaign.FieldName, v)
+	return u
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateName() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldName)
+	return u
+}
+
+// SetCampaignType sets the "campaign_type" field.
+func (u *CampaignUpsert) SetCampaignType(v string) *CampaignUpsert {
+	u.Set(campaign.FieldCampaignType, v)
+	return u
+}
+
+// UpdateCampaignType sets the "campaign_type" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateCampaignType() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldCampaignType)
+	return u
+}
+
+// SetPlatform sets the "platform" field.
+func (u *CampaignUpsert) SetPlatform(v string) *CampaignUpsert {
+	u.Set(campaign.FieldPlatform, v)
+	return u
+}
+
+// UpdatePlatform sets the "platform" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdatePlatform() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldPlatform)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *CampaignUpsert) SetStatus(v string) *CampaignUpsert {
+	u.Set(campaign.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateStatus() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldStatus)
+	return u
+}
+
+// SetMetaCampaignID sets the "meta_campaign_id" field.
+func (u *CampaignUpsert) SetMetaCampaignID(v string) *CampaignUpsert {
+	u.Set(campaign.FieldMetaCampaignID, v)
+	return u
+}
+
+// UpdateMetaCampaignID sets the "meta_campaign_id" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateMetaCampaignID() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldMetaCampaignID)
+	return u
+}
+
+// ClearMetaCampaignID clears the value of the "meta_campaign_id" field.
+func (u *CampaignUpsert) ClearMetaCampaignID() *CampaignUpsert {
+	u.SetNull(campaign.FieldMetaCampaignID)
+	return u
+}
+
+// SetMetaAdsetID sets the "meta_adset_id" field.
+func (u *CampaignUpsert) SetMetaAdsetID(v string) *CampaignUpsert {
+	u.Set(campaign.FieldMetaAdsetID, v)
+	return u
+}
+
+// UpdateMetaAdsetID sets the "meta_adset_id" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateMetaAdsetID() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldMetaAdsetID)
+	return u
+}
+
+// ClearMetaAdsetID clears the value of the "meta_adset_id" field.
+func (u *CampaignUpsert) ClearMetaAdsetID() *CampaignUpsert {
+	u.SetNull(campaign.FieldMetaAdsetID)
+	return u
+}
+
+// SetMetaAdID sets the "meta_ad_id" field.
+func (u *CampaignUpsert) SetMetaAdID(v string) *CampaignUpsert {
+	u.Set(campaign.FieldMetaAdID, v)
+	return u
+}
+
+// UpdateMetaAdID sets the "meta_ad_id" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateMetaAdID() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldMetaAdID)
+	return u
+}
+
+// ClearMetaAdID clears the value of the "meta_ad_id" field.
+func (u *CampaignUpsert) ClearMetaAdID() *CampaignUpsert {
+	u.SetNull(campaign.FieldMetaAdID)
+	return u
+}
+
+// SetBudgetDaily sets the "budget_daily" field.
+func (u *CampaignUpsert) SetBudgetDaily(v float64) *CampaignUpsert {
+	u.Set(campaign.FieldBudgetDaily, v)
+	return u
+}
+
+// UpdateBudgetDaily sets the "budget_daily" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateBudgetDaily() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldBudgetDaily)
+	return u
+}
+
+// AddBudgetDaily adds v to the "budget_daily" field.
+func (u *CampaignUpsert) AddBudgetDaily(v float64) *CampaignUpsert {
+	u.Add(campaign.FieldBudgetDaily, v)
+	return u
+}
+
+// ClearBudgetDaily clears the value of the "budget_daily" field.
+func (u *CampaignUpsert) ClearBudgetDaily() *CampaignUpsert {
+	u.SetNull(campaign.FieldBudgetDaily)
+	return u
+}
+
+// SetBudgetTotal sets the "budget_total" field.
+func (u *CampaignUpsert) SetBudgetTotal(v float64) *CampaignUpsert {
+	u.Set(campaign.FieldBudgetTotal, v)
+	return u
+}
+
+// UpdateBudgetTotal sets the "budget_total" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateBudgetTotal() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldBudgetTotal)
+	return u
+}
+
+// AddBudgetTotal adds v to the "budget_total" field.
+func (u *CampaignUpsert) AddBudgetTotal(v float64) *CampaignUpsert {
+	u.Add(campaign.FieldBudgetTotal, v)
+	return u
+}
+
+// ClearBudgetTotal clears the value of the "budget_total" field.
+func (u *CampaignUpsert) ClearBudgetTotal() *CampaignUpsert {
+	u.SetNull(campaign.FieldBudgetTotal)
+	return u
+}
+
+// SetCurrency sets the "currency" field.
+func (u *CampaignUpsert) SetCurrency(v string) *CampaignUpsert {
+	u.Set(campaign.FieldCurrency, v)
+	return u
+}
+
+// UpdateCurrency sets the "currency" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateCurrency() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldCurrency)
+	return u
+}
+
+// SetTargetAudience sets the "target_audience" field.
+func (u *CampaignUpsert) SetTargetAudience(v map[string]interface{}) *CampaignUpsert {
+	u.Set(campaign.FieldTargetAudience, v)
+	return u
+}
+
+// UpdateTargetAudience sets the "target_audience" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateTargetAudience() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldTargetAudience)
+	return u
+}
+
+// ClearTargetAudience clears the value of the "target_audience" field.
+func (u *CampaignUpsert) ClearTargetAudience() *CampaignUpsert {
+	u.SetNull(campaign.FieldTargetAudience)
+	return u
+}
+
+// SetFunnelID sets the "funnel_id" field.
+func (u *CampaignUpsert) SetFunnelID(v uuid.UUID) *CampaignUpsert {
+	u.Set(campaign.FieldFunnelID, v)
+	return u
+}
+
+// UpdateFunnelID sets the "funnel_id" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateFunnelID() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldFunnelID)
+	return u
+}
+
+// ClearFunnelID clears the value of the "funnel_id" field.
+func (u *CampaignUpsert) ClearFunnelID() *CampaignUpsert {
+	u.SetNull(campaign.FieldFunnelID)
+	return u
+}
+
+// SetStartDate sets the "start_date" field.
+func (u *CampaignUpsert) SetStartDate(v time.Time) *CampaignUpsert {
+	u.Set(campaign.FieldStartDate, v)
+	return u
+}
+
+// UpdateStartDate sets the "start_date" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateStartDate() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldStartDate)
+	return u
+}
+
+// ClearStartDate clears the value of the "start_date" field.
+func (u *CampaignUpsert) ClearStartDate() *CampaignUpsert {
+	u.SetNull(campaign.FieldStartDate)
+	return u
+}
+
+// SetEndDate sets the "end_date" field.
+func (u *CampaignUpsert) SetEndDate(v time.Time) *CampaignUpsert {
+	u.Set(campaign.FieldEndDate, v)
+	return u
+}
+
+// UpdateEndDate sets the "end_date" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateEndDate() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldEndDate)
+	return u
+}
+
+// ClearEndDate clears the value of the "end_date" field.
+func (u *CampaignUpsert) ClearEndDate() *CampaignUpsert {
+	u.SetNull(campaign.FieldEndDate)
+	return u
+}
+
+// SetMetrics sets the "metrics" field.
+func (u *CampaignUpsert) SetMetrics(v map[string]interface{}) *CampaignUpsert {
+	u.Set(campaign.FieldMetrics, v)
+	return u
+}
+
+// UpdateMetrics sets the "metrics" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateMetrics() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldMetrics)
+	return u
+}
+
+// ClearMetrics clears the value of the "metrics" field.
+func (u *CampaignUpsert) ClearMetrics() *CampaignUpsert {
+	u.SetNull(campaign.FieldMetrics)
+	return u
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *CampaignUpsert) SetMetadata(v map[string]interface{}) *CampaignUpsert {
+	u.Set(campaign.FieldMetadata, v)
+	return u
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateMetadata() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldMetadata)
+	return u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *CampaignUpsert) ClearMetadata() *CampaignUpsert {
+	u.SetNull(campaign.FieldMetadata)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *CampaignUpsert) SetUpdatedAt(v time.Time) *CampaignUpsert {
+	u.Set(campaign.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateUpdatedAt() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldUpdatedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.Campaign.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(campaign.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *CampaignUpsertOne) UpdateNewValues() *CampaignUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(campaign.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(campaign.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Campaign.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *CampaignUpsertOne) Ignore() *CampaignUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *CampaignUpsertOne) DoNothing() *CampaignUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the CampaignCreate.OnConflict
+// documentation for more info.
+func (u *CampaignUpsertOne) Update(set func(*CampaignUpsert)) *CampaignUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&CampaignUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *CampaignUpsertOne) SetTenantID(v uuid.UUID) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateTenantID() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetName sets the "name" field.
+func (u *CampaignUpsertOne) SetName(v string) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetName(v)
+	})
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateName() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateName()
+	})
+}
+
+// SetCampaignType sets the "campaign_type" field.
+func (u *CampaignUpsertOne) SetCampaignType(v string) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetCampaignType(v)
+	})
+}
+
+// UpdateCampaignType sets the "campaign_type" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateCampaignType() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateCampaignType()
+	})
+}
+
+// SetPlatform sets the "platform" field.
+func (u *CampaignUpsertOne) SetPlatform(v string) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetPlatform(v)
+	})
+}
+
+// UpdatePlatform sets the "platform" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdatePlatform() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdatePlatform()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *CampaignUpsertOne) SetStatus(v string) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateStatus() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetMetaCampaignID sets the "meta_campaign_id" field.
+func (u *CampaignUpsertOne) SetMetaCampaignID(v string) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetMetaCampaignID(v)
+	})
+}
+
+// UpdateMetaCampaignID sets the "meta_campaign_id" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateMetaCampaignID() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateMetaCampaignID()
+	})
+}
+
+// ClearMetaCampaignID clears the value of the "meta_campaign_id" field.
+func (u *CampaignUpsertOne) ClearMetaCampaignID() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearMetaCampaignID()
+	})
+}
+
+// SetMetaAdsetID sets the "meta_adset_id" field.
+func (u *CampaignUpsertOne) SetMetaAdsetID(v string) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetMetaAdsetID(v)
+	})
+}
+
+// UpdateMetaAdsetID sets the "meta_adset_id" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateMetaAdsetID() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateMetaAdsetID()
+	})
+}
+
+// ClearMetaAdsetID clears the value of the "meta_adset_id" field.
+func (u *CampaignUpsertOne) ClearMetaAdsetID() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearMetaAdsetID()
+	})
+}
+
+// SetMetaAdID sets the "meta_ad_id" field.
+func (u *CampaignUpsertOne) SetMetaAdID(v string) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetMetaAdID(v)
+	})
+}
+
+// UpdateMetaAdID sets the "meta_ad_id" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateMetaAdID() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateMetaAdID()
+	})
+}
+
+// ClearMetaAdID clears the value of the "meta_ad_id" field.
+func (u *CampaignUpsertOne) ClearMetaAdID() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearMetaAdID()
+	})
+}
+
+// SetBudgetDaily sets the "budget_daily" field.
+func (u *CampaignUpsertOne) SetBudgetDaily(v float64) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetBudgetDaily(v)
+	})
+}
+
+// AddBudgetDaily adds v to the "budget_daily" field.
+func (u *CampaignUpsertOne) AddBudgetDaily(v float64) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.AddBudgetDaily(v)
+	})
+}
+
+// UpdateBudgetDaily sets the "budget_daily" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateBudgetDaily() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateBudgetDaily()
+	})
+}
+
+// ClearBudgetDaily clears the value of the "budget_daily" field.
+func (u *CampaignUpsertOne) ClearBudgetDaily() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearBudgetDaily()
+	})
+}
+
+// SetBudgetTotal sets the "budget_total" field.
+func (u *CampaignUpsertOne) SetBudgetTotal(v float64) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetBudgetTotal(v)
+	})
+}
+
+// AddBudgetTotal adds v to the "budget_total" field.
+func (u *CampaignUpsertOne) AddBudgetTotal(v float64) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.AddBudgetTotal(v)
+	})
+}
+
+// UpdateBudgetTotal sets the "budget_total" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateBudgetTotal() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateBudgetTotal()
+	})
+}
+
+// ClearBudgetTotal clears the value of the "budget_total" field.
+func (u *CampaignUpsertOne) ClearBudgetTotal() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearBudgetTotal()
+	})
+}
+
+// SetCurrency sets the "currency" field.
+func (u *CampaignUpsertOne) SetCurrency(v string) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetCurrency(v)
+	})
+}
+
+// UpdateCurrency sets the "currency" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateCurrency() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateCurrency()
+	})
+}
+
+// SetTargetAudience sets the "target_audience" field.
+func (u *CampaignUpsertOne) SetTargetAudience(v map[string]interface{}) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetTargetAudience(v)
+	})
+}
+
+// UpdateTargetAudience sets the "target_audience" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateTargetAudience() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateTargetAudience()
+	})
+}
+
+// ClearTargetAudience clears the value of the "target_audience" field.
+func (u *CampaignUpsertOne) ClearTargetAudience() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearTargetAudience()
+	})
+}
+
+// SetFunnelID sets the "funnel_id" field.
+func (u *CampaignUpsertOne) SetFunnelID(v uuid.UUID) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetFunnelID(v)
+	})
+}
+
+// UpdateFunnelID sets the "funnel_id" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateFunnelID() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateFunnelID()
+	})
+}
+
+// ClearFunnelID clears the value of the "funnel_id" field.
+func (u *CampaignUpsertOne) ClearFunnelID() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearFunnelID()
+	})
+}
+
+// SetStartDate sets the "start_date" field.
+func (u *CampaignUpsertOne) SetStartDate(v time.Time) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetStartDate(v)
+	})
+}
+
+// UpdateStartDate sets the "start_date" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateStartDate() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateStartDate()
+	})
+}
+
+// ClearStartDate clears the value of the "start_date" field.
+func (u *CampaignUpsertOne) ClearStartDate() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearStartDate()
+	})
+}
+
+// SetEndDate sets the "end_date" field.
+func (u *CampaignUpsertOne) SetEndDate(v time.Time) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetEndDate(v)
+	})
+}
+
+// UpdateEndDate sets the "end_date" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateEndDate() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateEndDate()
+	})
+}
+
+// ClearEndDate clears the value of the "end_date" field.
+func (u *CampaignUpsertOne) ClearEndDate() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearEndDate()
+	})
+}
+
+// SetMetrics sets the "metrics" field.
+func (u *CampaignUpsertOne) SetMetrics(v map[string]interface{}) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetMetrics(v)
+	})
+}
+
+// UpdateMetrics sets the "metrics" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateMetrics() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateMetrics()
+	})
+}
+
+// ClearMetrics clears the value of the "metrics" field.
+func (u *CampaignUpsertOne) ClearMetrics() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearMetrics()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *CampaignUpsertOne) SetMetadata(v map[string]interface{}) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateMetadata() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *CampaignUpsertOne) ClearMetadata() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *CampaignUpsertOne) SetUpdatedAt(v time.Time) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateUpdatedAt() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *CampaignUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for CampaignCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *CampaignUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *CampaignUpsertOne) ID(ctx context.Context) (id uuid.UUID, err error) {
+	if u.create.driver.Dialect() == dialect.MySQL {
+		// In case of "ON CONFLICT", there is no way to get back non-numeric ID
+		// fields from the database since MySQL does not support the RETURNING clause.
+		return id, errors.New("ent: CampaignUpsertOne.ID is not supported by MySQL driver. Use CampaignUpsertOne.Exec instead")
+	}
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *CampaignUpsertOne) IDX(ctx context.Context) uuid.UUID {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // CampaignCreateBulk is the builder for creating many Campaign entities in bulk.
 type CampaignCreateBulk struct {
 	config
 	err      error
 	builders []*CampaignCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the Campaign entities in the database.
@@ -559,6 +1339,7 @@ func (_c *CampaignCreateBulk) Save(ctx context.Context) ([]*Campaign, error) {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -605,6 +1386,466 @@ func (_c *CampaignCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *CampaignCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Campaign.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.CampaignUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *CampaignCreateBulk) OnConflict(opts ...sql.ConflictOption) *CampaignUpsertBulk {
+	_c.conflict = opts
+	return &CampaignUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Campaign.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *CampaignCreateBulk) OnConflictColumns(columns ...string) *CampaignUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &CampaignUpsertBulk{
+		create: _c,
+	}
+}
+
+// CampaignUpsertBulk is the builder for "upsert"-ing
+// a bulk of Campaign nodes.
+type CampaignUpsertBulk struct {
+	create *CampaignCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.Campaign.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(campaign.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *CampaignUpsertBulk) UpdateNewValues() *CampaignUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(campaign.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(campaign.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Campaign.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *CampaignUpsertBulk) Ignore() *CampaignUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *CampaignUpsertBulk) DoNothing() *CampaignUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the CampaignCreateBulk.OnConflict
+// documentation for more info.
+func (u *CampaignUpsertBulk) Update(set func(*CampaignUpsert)) *CampaignUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&CampaignUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *CampaignUpsertBulk) SetTenantID(v uuid.UUID) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateTenantID() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetName sets the "name" field.
+func (u *CampaignUpsertBulk) SetName(v string) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetName(v)
+	})
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateName() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateName()
+	})
+}
+
+// SetCampaignType sets the "campaign_type" field.
+func (u *CampaignUpsertBulk) SetCampaignType(v string) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetCampaignType(v)
+	})
+}
+
+// UpdateCampaignType sets the "campaign_type" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateCampaignType() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateCampaignType()
+	})
+}
+
+// SetPlatform sets the "platform" field.
+func (u *CampaignUpsertBulk) SetPlatform(v string) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetPlatform(v)
+	})
+}
+
+// UpdatePlatform sets the "platform" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdatePlatform() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdatePlatform()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *CampaignUpsertBulk) SetStatus(v string) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateStatus() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetMetaCampaignID sets the "meta_campaign_id" field.
+func (u *CampaignUpsertBulk) SetMetaCampaignID(v string) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetMetaCampaignID(v)
+	})
+}
+
+// UpdateMetaCampaignID sets the "meta_campaign_id" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateMetaCampaignID() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateMetaCampaignID()
+	})
+}
+
+// ClearMetaCampaignID clears the value of the "meta_campaign_id" field.
+func (u *CampaignUpsertBulk) ClearMetaCampaignID() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearMetaCampaignID()
+	})
+}
+
+// SetMetaAdsetID sets the "meta_adset_id" field.
+func (u *CampaignUpsertBulk) SetMetaAdsetID(v string) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetMetaAdsetID(v)
+	})
+}
+
+// UpdateMetaAdsetID sets the "meta_adset_id" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateMetaAdsetID() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateMetaAdsetID()
+	})
+}
+
+// ClearMetaAdsetID clears the value of the "meta_adset_id" field.
+func (u *CampaignUpsertBulk) ClearMetaAdsetID() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearMetaAdsetID()
+	})
+}
+
+// SetMetaAdID sets the "meta_ad_id" field.
+func (u *CampaignUpsertBulk) SetMetaAdID(v string) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetMetaAdID(v)
+	})
+}
+
+// UpdateMetaAdID sets the "meta_ad_id" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateMetaAdID() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateMetaAdID()
+	})
+}
+
+// ClearMetaAdID clears the value of the "meta_ad_id" field.
+func (u *CampaignUpsertBulk) ClearMetaAdID() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearMetaAdID()
+	})
+}
+
+// SetBudgetDaily sets the "budget_daily" field.
+func (u *CampaignUpsertBulk) SetBudgetDaily(v float64) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetBudgetDaily(v)
+	})
+}
+
+// AddBudgetDaily adds v to the "budget_daily" field.
+func (u *CampaignUpsertBulk) AddBudgetDaily(v float64) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.AddBudgetDaily(v)
+	})
+}
+
+// UpdateBudgetDaily sets the "budget_daily" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateBudgetDaily() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateBudgetDaily()
+	})
+}
+
+// ClearBudgetDaily clears the value of the "budget_daily" field.
+func (u *CampaignUpsertBulk) ClearBudgetDaily() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearBudgetDaily()
+	})
+}
+
+// SetBudgetTotal sets the "budget_total" field.
+func (u *CampaignUpsertBulk) SetBudgetTotal(v float64) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetBudgetTotal(v)
+	})
+}
+
+// AddBudgetTotal adds v to the "budget_total" field.
+func (u *CampaignUpsertBulk) AddBudgetTotal(v float64) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.AddBudgetTotal(v)
+	})
+}
+
+// UpdateBudgetTotal sets the "budget_total" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateBudgetTotal() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateBudgetTotal()
+	})
+}
+
+// ClearBudgetTotal clears the value of the "budget_total" field.
+func (u *CampaignUpsertBulk) ClearBudgetTotal() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearBudgetTotal()
+	})
+}
+
+// SetCurrency sets the "currency" field.
+func (u *CampaignUpsertBulk) SetCurrency(v string) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetCurrency(v)
+	})
+}
+
+// UpdateCurrency sets the "currency" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateCurrency() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateCurrency()
+	})
+}
+
+// SetTargetAudience sets the "target_audience" field.
+func (u *CampaignUpsertBulk) SetTargetAudience(v map[string]interface{}) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetTargetAudience(v)
+	})
+}
+
+// UpdateTargetAudience sets the "target_audience" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateTargetAudience() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateTargetAudience()
+	})
+}
+
+// ClearTargetAudience clears the value of the "target_audience" field.
+func (u *CampaignUpsertBulk) ClearTargetAudience() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearTargetAudience()
+	})
+}
+
+// SetFunnelID sets the "funnel_id" field.
+func (u *CampaignUpsertBulk) SetFunnelID(v uuid.UUID) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetFunnelID(v)
+	})
+}
+
+// UpdateFunnelID sets the "funnel_id" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateFunnelID() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateFunnelID()
+	})
+}
+
+// ClearFunnelID clears the value of the "funnel_id" field.
+func (u *CampaignUpsertBulk) ClearFunnelID() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearFunnelID()
+	})
+}
+
+// SetStartDate sets the "start_date" field.
+func (u *CampaignUpsertBulk) SetStartDate(v time.Time) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetStartDate(v)
+	})
+}
+
+// UpdateStartDate sets the "start_date" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateStartDate() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateStartDate()
+	})
+}
+
+// ClearStartDate clears the value of the "start_date" field.
+func (u *CampaignUpsertBulk) ClearStartDate() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearStartDate()
+	})
+}
+
+// SetEndDate sets the "end_date" field.
+func (u *CampaignUpsertBulk) SetEndDate(v time.Time) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetEndDate(v)
+	})
+}
+
+// UpdateEndDate sets the "end_date" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateEndDate() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateEndDate()
+	})
+}
+
+// ClearEndDate clears the value of the "end_date" field.
+func (u *CampaignUpsertBulk) ClearEndDate() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearEndDate()
+	})
+}
+
+// SetMetrics sets the "metrics" field.
+func (u *CampaignUpsertBulk) SetMetrics(v map[string]interface{}) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetMetrics(v)
+	})
+}
+
+// UpdateMetrics sets the "metrics" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateMetrics() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateMetrics()
+	})
+}
+
+// ClearMetrics clears the value of the "metrics" field.
+func (u *CampaignUpsertBulk) ClearMetrics() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearMetrics()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *CampaignUpsertBulk) SetMetadata(v map[string]interface{}) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateMetadata() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *CampaignUpsertBulk) ClearMetadata() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *CampaignUpsertBulk) SetUpdatedAt(v time.Time) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateUpdatedAt() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *CampaignUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the CampaignCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for CampaignCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *CampaignUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

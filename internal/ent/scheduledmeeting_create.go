@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
@@ -21,6 +23,7 @@ type ScheduledMeetingCreate struct {
 	config
 	mutation *ScheduledMeetingMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -320,6 +323,7 @@ func (_c *ScheduledMeetingCreate) createSpec() (*ScheduledMeeting, *sqlgraph.Cre
 		_node = &ScheduledMeeting{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(scheduledmeeting.Table, sqlgraph.NewFieldSpec(scheduledmeeting.FieldID, field.TypeUUID))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
@@ -405,11 +409,553 @@ func (_c *ScheduledMeetingCreate) createSpec() (*ScheduledMeeting, *sqlgraph.Cre
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.ScheduledMeeting.Create().
+//		SetTenantID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.ScheduledMeetingUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *ScheduledMeetingCreate) OnConflict(opts ...sql.ConflictOption) *ScheduledMeetingUpsertOne {
+	_c.conflict = opts
+	return &ScheduledMeetingUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.ScheduledMeeting.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *ScheduledMeetingCreate) OnConflictColumns(columns ...string) *ScheduledMeetingUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &ScheduledMeetingUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// ScheduledMeetingUpsertOne is the builder for "upsert"-ing
+	//  one ScheduledMeeting node.
+	ScheduledMeetingUpsertOne struct {
+		create *ScheduledMeetingCreate
+	}
+
+	// ScheduledMeetingUpsert is the "OnConflict" setter.
+	ScheduledMeetingUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetTenantID sets the "tenant_id" field.
+func (u *ScheduledMeetingUpsert) SetTenantID(v uuid.UUID) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldTenantID, v)
+	return u
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateTenantID() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldTenantID)
+	return u
+}
+
+// SetLeadID sets the "lead_id" field.
+func (u *ScheduledMeetingUpsert) SetLeadID(v uuid.UUID) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldLeadID, v)
+	return u
+}
+
+// UpdateLeadID sets the "lead_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateLeadID() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldLeadID)
+	return u
+}
+
+// ClearLeadID clears the value of the "lead_id" field.
+func (u *ScheduledMeetingUpsert) ClearLeadID() *ScheduledMeetingUpsert {
+	u.SetNull(scheduledmeeting.FieldLeadID)
+	return u
+}
+
+// SetContactID sets the "contact_id" field.
+func (u *ScheduledMeetingUpsert) SetContactID(v uuid.UUID) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldContactID, v)
+	return u
+}
+
+// UpdateContactID sets the "contact_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateContactID() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldContactID)
+	return u
+}
+
+// ClearContactID clears the value of the "contact_id" field.
+func (u *ScheduledMeetingUpsert) ClearContactID() *ScheduledMeetingUpsert {
+	u.SetNull(scheduledmeeting.FieldContactID)
+	return u
+}
+
+// SetCalBookingID sets the "cal_booking_id" field.
+func (u *ScheduledMeetingUpsert) SetCalBookingID(v string) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldCalBookingID, v)
+	return u
+}
+
+// UpdateCalBookingID sets the "cal_booking_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateCalBookingID() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldCalBookingID)
+	return u
+}
+
+// ClearCalBookingID clears the value of the "cal_booking_id" field.
+func (u *ScheduledMeetingUpsert) ClearCalBookingID() *ScheduledMeetingUpsert {
+	u.SetNull(scheduledmeeting.FieldCalBookingID)
+	return u
+}
+
+// SetMeetingURL sets the "meeting_url" field.
+func (u *ScheduledMeetingUpsert) SetMeetingURL(v string) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldMeetingURL, v)
+	return u
+}
+
+// UpdateMeetingURL sets the "meeting_url" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateMeetingURL() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldMeetingURL)
+	return u
+}
+
+// ClearMeetingURL clears the value of the "meeting_url" field.
+func (u *ScheduledMeetingUpsert) ClearMeetingURL() *ScheduledMeetingUpsert {
+	u.SetNull(scheduledmeeting.FieldMeetingURL)
+	return u
+}
+
+// SetScheduledAt sets the "scheduled_at" field.
+func (u *ScheduledMeetingUpsert) SetScheduledAt(v time.Time) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldScheduledAt, v)
+	return u
+}
+
+// UpdateScheduledAt sets the "scheduled_at" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateScheduledAt() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldScheduledAt)
+	return u
+}
+
+// SetDurationMinutes sets the "duration_minutes" field.
+func (u *ScheduledMeetingUpsert) SetDurationMinutes(v int) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldDurationMinutes, v)
+	return u
+}
+
+// UpdateDurationMinutes sets the "duration_minutes" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateDurationMinutes() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldDurationMinutes)
+	return u
+}
+
+// AddDurationMinutes adds v to the "duration_minutes" field.
+func (u *ScheduledMeetingUpsert) AddDurationMinutes(v int) *ScheduledMeetingUpsert {
+	u.Add(scheduledmeeting.FieldDurationMinutes, v)
+	return u
+}
+
+// SetMeetingType sets the "meeting_type" field.
+func (u *ScheduledMeetingUpsert) SetMeetingType(v string) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldMeetingType, v)
+	return u
+}
+
+// UpdateMeetingType sets the "meeting_type" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateMeetingType() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldMeetingType)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *ScheduledMeetingUpsert) SetStatus(v string) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateStatus() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldStatus)
+	return u
+}
+
+// SetNotes sets the "notes" field.
+func (u *ScheduledMeetingUpsert) SetNotes(v string) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldNotes, v)
+	return u
+}
+
+// UpdateNotes sets the "notes" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateNotes() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldNotes)
+	return u
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (u *ScheduledMeetingUpsert) ClearNotes() *ScheduledMeetingUpsert {
+	u.SetNull(scheduledmeeting.FieldNotes)
+	return u
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *ScheduledMeetingUpsert) SetMetadata(v map[string]interface{}) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldMetadata, v)
+	return u
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateMetadata() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldMetadata)
+	return u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *ScheduledMeetingUpsert) ClearMetadata() *ScheduledMeetingUpsert {
+	u.SetNull(scheduledmeeting.FieldMetadata)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ScheduledMeetingUpsert) SetUpdatedAt(v time.Time) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateUpdatedAt() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldUpdatedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.ScheduledMeeting.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(scheduledmeeting.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *ScheduledMeetingUpsertOne) UpdateNewValues() *ScheduledMeetingUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(scheduledmeeting.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(scheduledmeeting.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.ScheduledMeeting.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *ScheduledMeetingUpsertOne) Ignore() *ScheduledMeetingUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *ScheduledMeetingUpsertOne) DoNothing() *ScheduledMeetingUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the ScheduledMeetingCreate.OnConflict
+// documentation for more info.
+func (u *ScheduledMeetingUpsertOne) Update(set func(*ScheduledMeetingUpsert)) *ScheduledMeetingUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&ScheduledMeetingUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *ScheduledMeetingUpsertOne) SetTenantID(v uuid.UUID) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateTenantID() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetLeadID sets the "lead_id" field.
+func (u *ScheduledMeetingUpsertOne) SetLeadID(v uuid.UUID) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetLeadID(v)
+	})
+}
+
+// UpdateLeadID sets the "lead_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateLeadID() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateLeadID()
+	})
+}
+
+// ClearLeadID clears the value of the "lead_id" field.
+func (u *ScheduledMeetingUpsertOne) ClearLeadID() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearLeadID()
+	})
+}
+
+// SetContactID sets the "contact_id" field.
+func (u *ScheduledMeetingUpsertOne) SetContactID(v uuid.UUID) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetContactID(v)
+	})
+}
+
+// UpdateContactID sets the "contact_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateContactID() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateContactID()
+	})
+}
+
+// ClearContactID clears the value of the "contact_id" field.
+func (u *ScheduledMeetingUpsertOne) ClearContactID() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearContactID()
+	})
+}
+
+// SetCalBookingID sets the "cal_booking_id" field.
+func (u *ScheduledMeetingUpsertOne) SetCalBookingID(v string) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetCalBookingID(v)
+	})
+}
+
+// UpdateCalBookingID sets the "cal_booking_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateCalBookingID() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateCalBookingID()
+	})
+}
+
+// ClearCalBookingID clears the value of the "cal_booking_id" field.
+func (u *ScheduledMeetingUpsertOne) ClearCalBookingID() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearCalBookingID()
+	})
+}
+
+// SetMeetingURL sets the "meeting_url" field.
+func (u *ScheduledMeetingUpsertOne) SetMeetingURL(v string) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetMeetingURL(v)
+	})
+}
+
+// UpdateMeetingURL sets the "meeting_url" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateMeetingURL() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateMeetingURL()
+	})
+}
+
+// ClearMeetingURL clears the value of the "meeting_url" field.
+func (u *ScheduledMeetingUpsertOne) ClearMeetingURL() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearMeetingURL()
+	})
+}
+
+// SetScheduledAt sets the "scheduled_at" field.
+func (u *ScheduledMeetingUpsertOne) SetScheduledAt(v time.Time) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetScheduledAt(v)
+	})
+}
+
+// UpdateScheduledAt sets the "scheduled_at" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateScheduledAt() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateScheduledAt()
+	})
+}
+
+// SetDurationMinutes sets the "duration_minutes" field.
+func (u *ScheduledMeetingUpsertOne) SetDurationMinutes(v int) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetDurationMinutes(v)
+	})
+}
+
+// AddDurationMinutes adds v to the "duration_minutes" field.
+func (u *ScheduledMeetingUpsertOne) AddDurationMinutes(v int) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.AddDurationMinutes(v)
+	})
+}
+
+// UpdateDurationMinutes sets the "duration_minutes" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateDurationMinutes() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateDurationMinutes()
+	})
+}
+
+// SetMeetingType sets the "meeting_type" field.
+func (u *ScheduledMeetingUpsertOne) SetMeetingType(v string) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetMeetingType(v)
+	})
+}
+
+// UpdateMeetingType sets the "meeting_type" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateMeetingType() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateMeetingType()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *ScheduledMeetingUpsertOne) SetStatus(v string) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateStatus() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetNotes sets the "notes" field.
+func (u *ScheduledMeetingUpsertOne) SetNotes(v string) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetNotes(v)
+	})
+}
+
+// UpdateNotes sets the "notes" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateNotes() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateNotes()
+	})
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (u *ScheduledMeetingUpsertOne) ClearNotes() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearNotes()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *ScheduledMeetingUpsertOne) SetMetadata(v map[string]interface{}) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateMetadata() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *ScheduledMeetingUpsertOne) ClearMetadata() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ScheduledMeetingUpsertOne) SetUpdatedAt(v time.Time) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateUpdatedAt() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *ScheduledMeetingUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for ScheduledMeetingCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *ScheduledMeetingUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *ScheduledMeetingUpsertOne) ID(ctx context.Context) (id uuid.UUID, err error) {
+	if u.create.driver.Dialect() == dialect.MySQL {
+		// In case of "ON CONFLICT", there is no way to get back non-numeric ID
+		// fields from the database since MySQL does not support the RETURNING clause.
+		return id, errors.New("ent: ScheduledMeetingUpsertOne.ID is not supported by MySQL driver. Use ScheduledMeetingUpsertOne.Exec instead")
+	}
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *ScheduledMeetingUpsertOne) IDX(ctx context.Context) uuid.UUID {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // ScheduledMeetingCreateBulk is the builder for creating many ScheduledMeeting entities in bulk.
 type ScheduledMeetingCreateBulk struct {
 	config
 	err      error
 	builders []*ScheduledMeetingCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the ScheduledMeeting entities in the database.
@@ -439,6 +985,7 @@ func (_c *ScheduledMeetingCreateBulk) Save(ctx context.Context) ([]*ScheduledMee
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -485,6 +1032,340 @@ func (_c *ScheduledMeetingCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *ScheduledMeetingCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.ScheduledMeeting.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.ScheduledMeetingUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *ScheduledMeetingCreateBulk) OnConflict(opts ...sql.ConflictOption) *ScheduledMeetingUpsertBulk {
+	_c.conflict = opts
+	return &ScheduledMeetingUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.ScheduledMeeting.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *ScheduledMeetingCreateBulk) OnConflictColumns(columns ...string) *ScheduledMeetingUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &ScheduledMeetingUpsertBulk{
+		create: _c,
+	}
+}
+
+// ScheduledMeetingUpsertBulk is the builder for "upsert"-ing
+// a bulk of ScheduledMeeting nodes.
+type ScheduledMeetingUpsertBulk struct {
+	create *ScheduledMeetingCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.ScheduledMeeting.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(scheduledmeeting.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *ScheduledMeetingUpsertBulk) UpdateNewValues() *ScheduledMeetingUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(scheduledmeeting.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(scheduledmeeting.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.ScheduledMeeting.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *ScheduledMeetingUpsertBulk) Ignore() *ScheduledMeetingUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *ScheduledMeetingUpsertBulk) DoNothing() *ScheduledMeetingUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the ScheduledMeetingCreateBulk.OnConflict
+// documentation for more info.
+func (u *ScheduledMeetingUpsertBulk) Update(set func(*ScheduledMeetingUpsert)) *ScheduledMeetingUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&ScheduledMeetingUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *ScheduledMeetingUpsertBulk) SetTenantID(v uuid.UUID) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateTenantID() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetLeadID sets the "lead_id" field.
+func (u *ScheduledMeetingUpsertBulk) SetLeadID(v uuid.UUID) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetLeadID(v)
+	})
+}
+
+// UpdateLeadID sets the "lead_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateLeadID() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateLeadID()
+	})
+}
+
+// ClearLeadID clears the value of the "lead_id" field.
+func (u *ScheduledMeetingUpsertBulk) ClearLeadID() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearLeadID()
+	})
+}
+
+// SetContactID sets the "contact_id" field.
+func (u *ScheduledMeetingUpsertBulk) SetContactID(v uuid.UUID) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetContactID(v)
+	})
+}
+
+// UpdateContactID sets the "contact_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateContactID() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateContactID()
+	})
+}
+
+// ClearContactID clears the value of the "contact_id" field.
+func (u *ScheduledMeetingUpsertBulk) ClearContactID() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearContactID()
+	})
+}
+
+// SetCalBookingID sets the "cal_booking_id" field.
+func (u *ScheduledMeetingUpsertBulk) SetCalBookingID(v string) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetCalBookingID(v)
+	})
+}
+
+// UpdateCalBookingID sets the "cal_booking_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateCalBookingID() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateCalBookingID()
+	})
+}
+
+// ClearCalBookingID clears the value of the "cal_booking_id" field.
+func (u *ScheduledMeetingUpsertBulk) ClearCalBookingID() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearCalBookingID()
+	})
+}
+
+// SetMeetingURL sets the "meeting_url" field.
+func (u *ScheduledMeetingUpsertBulk) SetMeetingURL(v string) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetMeetingURL(v)
+	})
+}
+
+// UpdateMeetingURL sets the "meeting_url" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateMeetingURL() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateMeetingURL()
+	})
+}
+
+// ClearMeetingURL clears the value of the "meeting_url" field.
+func (u *ScheduledMeetingUpsertBulk) ClearMeetingURL() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearMeetingURL()
+	})
+}
+
+// SetScheduledAt sets the "scheduled_at" field.
+func (u *ScheduledMeetingUpsertBulk) SetScheduledAt(v time.Time) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetScheduledAt(v)
+	})
+}
+
+// UpdateScheduledAt sets the "scheduled_at" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateScheduledAt() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateScheduledAt()
+	})
+}
+
+// SetDurationMinutes sets the "duration_minutes" field.
+func (u *ScheduledMeetingUpsertBulk) SetDurationMinutes(v int) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetDurationMinutes(v)
+	})
+}
+
+// AddDurationMinutes adds v to the "duration_minutes" field.
+func (u *ScheduledMeetingUpsertBulk) AddDurationMinutes(v int) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.AddDurationMinutes(v)
+	})
+}
+
+// UpdateDurationMinutes sets the "duration_minutes" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateDurationMinutes() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateDurationMinutes()
+	})
+}
+
+// SetMeetingType sets the "meeting_type" field.
+func (u *ScheduledMeetingUpsertBulk) SetMeetingType(v string) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetMeetingType(v)
+	})
+}
+
+// UpdateMeetingType sets the "meeting_type" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateMeetingType() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateMeetingType()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *ScheduledMeetingUpsertBulk) SetStatus(v string) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateStatus() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetNotes sets the "notes" field.
+func (u *ScheduledMeetingUpsertBulk) SetNotes(v string) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetNotes(v)
+	})
+}
+
+// UpdateNotes sets the "notes" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateNotes() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateNotes()
+	})
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (u *ScheduledMeetingUpsertBulk) ClearNotes() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearNotes()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *ScheduledMeetingUpsertBulk) SetMetadata(v map[string]interface{}) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateMetadata() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *ScheduledMeetingUpsertBulk) ClearMetadata() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ScheduledMeetingUpsertBulk) SetUpdatedAt(v time.Time) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateUpdatedAt() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *ScheduledMeetingUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the ScheduledMeetingCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for ScheduledMeetingCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *ScheduledMeetingUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

@@ -34,6 +34,7 @@ type LeadQuery struct {
 	withFunnel            *FunnelQuery
 	withChatSessions      *ChatSessionQuery
 	withScheduledMeetings *ScheduledMeetingQuery
+	modifiers             []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -378,8 +379,9 @@ func (_q *LeadQuery) Clone() *LeadQuery {
 		withChatSessions:      _q.withChatSessions.Clone(),
 		withScheduledMeetings: _q.withScheduledMeetings.Clone(),
 		// clone intermediate query.
-		sql:  _q.sql.Clone(),
-		path: _q.path,
+		sql:       _q.sql.Clone(),
+		path:      _q.path,
+		modifiers: append([]func(*sql.Selector){}, _q.modifiers...),
 	}
 }
 
@@ -532,6 +534,9 @@ func (_q *LeadQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Lead, e
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
+	}
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
 	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
@@ -739,6 +744,9 @@ func (_q *LeadQuery) loadScheduledMeetings(ctx context.Context, query *Scheduled
 
 func (_q *LeadQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
+	}
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
 		_spec.Unique = _q.ctx.Unique != nil && *_q.ctx.Unique
@@ -810,6 +818,9 @@ func (_q *LeadQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if _q.ctx.Unique != nil && *_q.ctx.Unique {
 		selector.Distinct()
 	}
+	for _, m := range _q.modifiers {
+		m(selector)
+	}
 	for _, p := range _q.predicates {
 		p(selector)
 	}
@@ -825,6 +836,12 @@ func (_q *LeadQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (_q *LeadQuery) Modify(modifiers ...func(s *sql.Selector)) *LeadSelect {
+	_q.modifiers = append(_q.modifiers, modifiers...)
+	return _q.Select()
 }
 
 // LeadGroupBy is the group-by builder for Lead entities.
@@ -915,4 +932,10 @@ func (_s *LeadSelect) sqlScan(ctx context.Context, root *LeadQuery, v any) error
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (_s *LeadSelect) Modify(modifiers ...func(s *sql.Selector)) *LeadSelect {
+	_s.modifiers = append(_s.modifiers, modifiers...)
+	return _s
 }

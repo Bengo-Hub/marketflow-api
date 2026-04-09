@@ -23,8 +23,9 @@ import (
 // ChatSessionUpdate is the builder for updating ChatSession entities.
 type ChatSessionUpdate struct {
 	config
-	hooks    []Hook
-	mutation *ChatSessionMutation
+	hooks     []Hook
+	mutation  *ChatSessionMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the ChatSessionUpdate builder.
@@ -328,6 +329,12 @@ func (_u *ChatSessionUpdate) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *ChatSessionUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *ChatSessionUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *ChatSessionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -483,6 +490,7 @@ func (_u *ChatSessionUpdate) sqlSave(ctx context.Context) (_node int, err error)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{chatsession.Label}
@@ -498,9 +506,10 @@ func (_u *ChatSessionUpdate) sqlSave(ctx context.Context) (_node int, err error)
 // ChatSessionUpdateOne is the builder for updating a single ChatSession entity.
 type ChatSessionUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *ChatSessionMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *ChatSessionMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -811,6 +820,12 @@ func (_u *ChatSessionUpdateOne) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *ChatSessionUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *ChatSessionUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *ChatSessionUpdateOne) sqlSave(ctx context.Context) (_node *ChatSession, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -983,6 +998,7 @@ func (_u *ChatSessionUpdateOne) sqlSave(ctx context.Context) (_node *ChatSession
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	_node = &ChatSession{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

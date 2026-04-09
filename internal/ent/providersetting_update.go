@@ -18,8 +18,9 @@ import (
 // ProviderSettingUpdate is the builder for updating ProviderSetting entities.
 type ProviderSettingUpdate struct {
 	config
-	hooks    []Hook
-	mutation *ProviderSettingMutation
+	hooks     []Hook
+	mutation  *ProviderSettingMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the ProviderSettingUpdate builder.
@@ -294,6 +295,12 @@ func (_u *ProviderSettingUpdate) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *ProviderSettingUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *ProviderSettingUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *ProviderSettingUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -354,6 +361,7 @@ func (_u *ProviderSettingUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(providersetting.FieldUpdatedAt, field.TypeTime, value)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{providersetting.Label}
@@ -369,9 +377,10 @@ func (_u *ProviderSettingUpdate) sqlSave(ctx context.Context) (_node int, err er
 // ProviderSettingUpdateOne is the builder for updating a single ProviderSetting entity.
 type ProviderSettingUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *ProviderSettingMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *ProviderSettingMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -653,6 +662,12 @@ func (_u *ProviderSettingUpdateOne) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *ProviderSettingUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *ProviderSettingUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *ProviderSettingUpdateOne) sqlSave(ctx context.Context) (_node *ProviderSetting, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -730,6 +745,7 @@ func (_u *ProviderSettingUpdateOne) sqlSave(ctx context.Context) (_node *Provide
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(providersetting.FieldUpdatedAt, field.TypeTime, value)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	_node = &ProviderSetting{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

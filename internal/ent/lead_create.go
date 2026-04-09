@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
@@ -24,6 +26,7 @@ type LeadCreate struct {
 	config
 	mutation *LeadMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -491,6 +494,7 @@ func (_c *LeadCreate) createSpec() (*Lead, *sqlgraph.CreateSpec) {
 		_node = &Lead{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(lead.Table, sqlgraph.NewFieldSpec(lead.FieldID, field.TypeUUID))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
@@ -657,11 +661,904 @@ func (_c *LeadCreate) createSpec() (*Lead, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Lead.Create().
+//		SetTenantID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.LeadUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *LeadCreate) OnConflict(opts ...sql.ConflictOption) *LeadUpsertOne {
+	_c.conflict = opts
+	return &LeadUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Lead.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *LeadCreate) OnConflictColumns(columns ...string) *LeadUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &LeadUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// LeadUpsertOne is the builder for "upsert"-ing
+	//  one Lead node.
+	LeadUpsertOne struct {
+		create *LeadCreate
+	}
+
+	// LeadUpsert is the "OnConflict" setter.
+	LeadUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetTenantID sets the "tenant_id" field.
+func (u *LeadUpsert) SetTenantID(v uuid.UUID) *LeadUpsert {
+	u.Set(lead.FieldTenantID, v)
+	return u
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateTenantID() *LeadUpsert {
+	u.SetExcluded(lead.FieldTenantID)
+	return u
+}
+
+// SetEmail sets the "email" field.
+func (u *LeadUpsert) SetEmail(v string) *LeadUpsert {
+	u.Set(lead.FieldEmail, v)
+	return u
+}
+
+// UpdateEmail sets the "email" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateEmail() *LeadUpsert {
+	u.SetExcluded(lead.FieldEmail)
+	return u
+}
+
+// ClearEmail clears the value of the "email" field.
+func (u *LeadUpsert) ClearEmail() *LeadUpsert {
+	u.SetNull(lead.FieldEmail)
+	return u
+}
+
+// SetPhone sets the "phone" field.
+func (u *LeadUpsert) SetPhone(v string) *LeadUpsert {
+	u.Set(lead.FieldPhone, v)
+	return u
+}
+
+// UpdatePhone sets the "phone" field to the value that was provided on create.
+func (u *LeadUpsert) UpdatePhone() *LeadUpsert {
+	u.SetExcluded(lead.FieldPhone)
+	return u
+}
+
+// ClearPhone clears the value of the "phone" field.
+func (u *LeadUpsert) ClearPhone() *LeadUpsert {
+	u.SetNull(lead.FieldPhone)
+	return u
+}
+
+// SetFirstName sets the "first_name" field.
+func (u *LeadUpsert) SetFirstName(v string) *LeadUpsert {
+	u.Set(lead.FieldFirstName, v)
+	return u
+}
+
+// UpdateFirstName sets the "first_name" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateFirstName() *LeadUpsert {
+	u.SetExcluded(lead.FieldFirstName)
+	return u
+}
+
+// ClearFirstName clears the value of the "first_name" field.
+func (u *LeadUpsert) ClearFirstName() *LeadUpsert {
+	u.SetNull(lead.FieldFirstName)
+	return u
+}
+
+// SetLastName sets the "last_name" field.
+func (u *LeadUpsert) SetLastName(v string) *LeadUpsert {
+	u.Set(lead.FieldLastName, v)
+	return u
+}
+
+// UpdateLastName sets the "last_name" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateLastName() *LeadUpsert {
+	u.SetExcluded(lead.FieldLastName)
+	return u
+}
+
+// ClearLastName clears the value of the "last_name" field.
+func (u *LeadUpsert) ClearLastName() *LeadUpsert {
+	u.SetNull(lead.FieldLastName)
+	return u
+}
+
+// SetSource sets the "source" field.
+func (u *LeadUpsert) SetSource(v string) *LeadUpsert {
+	u.Set(lead.FieldSource, v)
+	return u
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateSource() *LeadUpsert {
+	u.SetExcluded(lead.FieldSource)
+	return u
+}
+
+// SetCampaignID sets the "campaign_id" field.
+func (u *LeadUpsert) SetCampaignID(v uuid.UUID) *LeadUpsert {
+	u.Set(lead.FieldCampaignID, v)
+	return u
+}
+
+// UpdateCampaignID sets the "campaign_id" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateCampaignID() *LeadUpsert {
+	u.SetExcluded(lead.FieldCampaignID)
+	return u
+}
+
+// ClearCampaignID clears the value of the "campaign_id" field.
+func (u *LeadUpsert) ClearCampaignID() *LeadUpsert {
+	u.SetNull(lead.FieldCampaignID)
+	return u
+}
+
+// SetFunnelID sets the "funnel_id" field.
+func (u *LeadUpsert) SetFunnelID(v uuid.UUID) *LeadUpsert {
+	u.Set(lead.FieldFunnelID, v)
+	return u
+}
+
+// UpdateFunnelID sets the "funnel_id" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateFunnelID() *LeadUpsert {
+	u.SetExcluded(lead.FieldFunnelID)
+	return u
+}
+
+// ClearFunnelID clears the value of the "funnel_id" field.
+func (u *LeadUpsert) ClearFunnelID() *LeadUpsert {
+	u.SetNull(lead.FieldFunnelID)
+	return u
+}
+
+// SetUtmSource sets the "utm_source" field.
+func (u *LeadUpsert) SetUtmSource(v string) *LeadUpsert {
+	u.Set(lead.FieldUtmSource, v)
+	return u
+}
+
+// UpdateUtmSource sets the "utm_source" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateUtmSource() *LeadUpsert {
+	u.SetExcluded(lead.FieldUtmSource)
+	return u
+}
+
+// ClearUtmSource clears the value of the "utm_source" field.
+func (u *LeadUpsert) ClearUtmSource() *LeadUpsert {
+	u.SetNull(lead.FieldUtmSource)
+	return u
+}
+
+// SetUtmMedium sets the "utm_medium" field.
+func (u *LeadUpsert) SetUtmMedium(v string) *LeadUpsert {
+	u.Set(lead.FieldUtmMedium, v)
+	return u
+}
+
+// UpdateUtmMedium sets the "utm_medium" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateUtmMedium() *LeadUpsert {
+	u.SetExcluded(lead.FieldUtmMedium)
+	return u
+}
+
+// ClearUtmMedium clears the value of the "utm_medium" field.
+func (u *LeadUpsert) ClearUtmMedium() *LeadUpsert {
+	u.SetNull(lead.FieldUtmMedium)
+	return u
+}
+
+// SetUtmCampaign sets the "utm_campaign" field.
+func (u *LeadUpsert) SetUtmCampaign(v string) *LeadUpsert {
+	u.Set(lead.FieldUtmCampaign, v)
+	return u
+}
+
+// UpdateUtmCampaign sets the "utm_campaign" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateUtmCampaign() *LeadUpsert {
+	u.SetExcluded(lead.FieldUtmCampaign)
+	return u
+}
+
+// ClearUtmCampaign clears the value of the "utm_campaign" field.
+func (u *LeadUpsert) ClearUtmCampaign() *LeadUpsert {
+	u.SetNull(lead.FieldUtmCampaign)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *LeadUpsert) SetStatus(v string) *LeadUpsert {
+	u.Set(lead.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateStatus() *LeadUpsert {
+	u.SetExcluded(lead.FieldStatus)
+	return u
+}
+
+// SetLeadType sets the "lead_type" field.
+func (u *LeadUpsert) SetLeadType(v string) *LeadUpsert {
+	u.Set(lead.FieldLeadType, v)
+	return u
+}
+
+// UpdateLeadType sets the "lead_type" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateLeadType() *LeadUpsert {
+	u.SetExcluded(lead.FieldLeadType)
+	return u
+}
+
+// SetScore sets the "score" field.
+func (u *LeadUpsert) SetScore(v int) *LeadUpsert {
+	u.Set(lead.FieldScore, v)
+	return u
+}
+
+// UpdateScore sets the "score" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateScore() *LeadUpsert {
+	u.SetExcluded(lead.FieldScore)
+	return u
+}
+
+// AddScore adds v to the "score" field.
+func (u *LeadUpsert) AddScore(v int) *LeadUpsert {
+	u.Add(lead.FieldScore, v)
+	return u
+}
+
+// SetInterest sets the "interest" field.
+func (u *LeadUpsert) SetInterest(v string) *LeadUpsert {
+	u.Set(lead.FieldInterest, v)
+	return u
+}
+
+// UpdateInterest sets the "interest" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateInterest() *LeadUpsert {
+	u.SetExcluded(lead.FieldInterest)
+	return u
+}
+
+// ClearInterest clears the value of the "interest" field.
+func (u *LeadUpsert) ClearInterest() *LeadUpsert {
+	u.SetNull(lead.FieldInterest)
+	return u
+}
+
+// SetQualificationAnswers sets the "qualification_answers" field.
+func (u *LeadUpsert) SetQualificationAnswers(v map[string]interface{}) *LeadUpsert {
+	u.Set(lead.FieldQualificationAnswers, v)
+	return u
+}
+
+// UpdateQualificationAnswers sets the "qualification_answers" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateQualificationAnswers() *LeadUpsert {
+	u.SetExcluded(lead.FieldQualificationAnswers)
+	return u
+}
+
+// ClearQualificationAnswers clears the value of the "qualification_answers" field.
+func (u *LeadUpsert) ClearQualificationAnswers() *LeadUpsert {
+	u.SetNull(lead.FieldQualificationAnswers)
+	return u
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *LeadUpsert) SetMetadata(v map[string]interface{}) *LeadUpsert {
+	u.Set(lead.FieldMetadata, v)
+	return u
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateMetadata() *LeadUpsert {
+	u.SetExcluded(lead.FieldMetadata)
+	return u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *LeadUpsert) ClearMetadata() *LeadUpsert {
+	u.SetNull(lead.FieldMetadata)
+	return u
+}
+
+// SetContactedAt sets the "contacted_at" field.
+func (u *LeadUpsert) SetContactedAt(v time.Time) *LeadUpsert {
+	u.Set(lead.FieldContactedAt, v)
+	return u
+}
+
+// UpdateContactedAt sets the "contacted_at" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateContactedAt() *LeadUpsert {
+	u.SetExcluded(lead.FieldContactedAt)
+	return u
+}
+
+// ClearContactedAt clears the value of the "contacted_at" field.
+func (u *LeadUpsert) ClearContactedAt() *LeadUpsert {
+	u.SetNull(lead.FieldContactedAt)
+	return u
+}
+
+// SetQualifiedAt sets the "qualified_at" field.
+func (u *LeadUpsert) SetQualifiedAt(v time.Time) *LeadUpsert {
+	u.Set(lead.FieldQualifiedAt, v)
+	return u
+}
+
+// UpdateQualifiedAt sets the "qualified_at" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateQualifiedAt() *LeadUpsert {
+	u.SetExcluded(lead.FieldQualifiedAt)
+	return u
+}
+
+// ClearQualifiedAt clears the value of the "qualified_at" field.
+func (u *LeadUpsert) ClearQualifiedAt() *LeadUpsert {
+	u.SetNull(lead.FieldQualifiedAt)
+	return u
+}
+
+// SetConvertedAt sets the "converted_at" field.
+func (u *LeadUpsert) SetConvertedAt(v time.Time) *LeadUpsert {
+	u.Set(lead.FieldConvertedAt, v)
+	return u
+}
+
+// UpdateConvertedAt sets the "converted_at" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateConvertedAt() *LeadUpsert {
+	u.SetExcluded(lead.FieldConvertedAt)
+	return u
+}
+
+// ClearConvertedAt clears the value of the "converted_at" field.
+func (u *LeadUpsert) ClearConvertedAt() *LeadUpsert {
+	u.SetNull(lead.FieldConvertedAt)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *LeadUpsert) SetUpdatedAt(v time.Time) *LeadUpsert {
+	u.Set(lead.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateUpdatedAt() *LeadUpsert {
+	u.SetExcluded(lead.FieldUpdatedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.Lead.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(lead.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *LeadUpsertOne) UpdateNewValues() *LeadUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(lead.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(lead.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Lead.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *LeadUpsertOne) Ignore() *LeadUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *LeadUpsertOne) DoNothing() *LeadUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the LeadCreate.OnConflict
+// documentation for more info.
+func (u *LeadUpsertOne) Update(set func(*LeadUpsert)) *LeadUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&LeadUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *LeadUpsertOne) SetTenantID(v uuid.UUID) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateTenantID() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetEmail sets the "email" field.
+func (u *LeadUpsertOne) SetEmail(v string) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetEmail(v)
+	})
+}
+
+// UpdateEmail sets the "email" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateEmail() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateEmail()
+	})
+}
+
+// ClearEmail clears the value of the "email" field.
+func (u *LeadUpsertOne) ClearEmail() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearEmail()
+	})
+}
+
+// SetPhone sets the "phone" field.
+func (u *LeadUpsertOne) SetPhone(v string) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetPhone(v)
+	})
+}
+
+// UpdatePhone sets the "phone" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdatePhone() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdatePhone()
+	})
+}
+
+// ClearPhone clears the value of the "phone" field.
+func (u *LeadUpsertOne) ClearPhone() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearPhone()
+	})
+}
+
+// SetFirstName sets the "first_name" field.
+func (u *LeadUpsertOne) SetFirstName(v string) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetFirstName(v)
+	})
+}
+
+// UpdateFirstName sets the "first_name" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateFirstName() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateFirstName()
+	})
+}
+
+// ClearFirstName clears the value of the "first_name" field.
+func (u *LeadUpsertOne) ClearFirstName() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearFirstName()
+	})
+}
+
+// SetLastName sets the "last_name" field.
+func (u *LeadUpsertOne) SetLastName(v string) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetLastName(v)
+	})
+}
+
+// UpdateLastName sets the "last_name" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateLastName() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateLastName()
+	})
+}
+
+// ClearLastName clears the value of the "last_name" field.
+func (u *LeadUpsertOne) ClearLastName() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearLastName()
+	})
+}
+
+// SetSource sets the "source" field.
+func (u *LeadUpsertOne) SetSource(v string) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetSource(v)
+	})
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateSource() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateSource()
+	})
+}
+
+// SetCampaignID sets the "campaign_id" field.
+func (u *LeadUpsertOne) SetCampaignID(v uuid.UUID) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetCampaignID(v)
+	})
+}
+
+// UpdateCampaignID sets the "campaign_id" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateCampaignID() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateCampaignID()
+	})
+}
+
+// ClearCampaignID clears the value of the "campaign_id" field.
+func (u *LeadUpsertOne) ClearCampaignID() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearCampaignID()
+	})
+}
+
+// SetFunnelID sets the "funnel_id" field.
+func (u *LeadUpsertOne) SetFunnelID(v uuid.UUID) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetFunnelID(v)
+	})
+}
+
+// UpdateFunnelID sets the "funnel_id" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateFunnelID() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateFunnelID()
+	})
+}
+
+// ClearFunnelID clears the value of the "funnel_id" field.
+func (u *LeadUpsertOne) ClearFunnelID() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearFunnelID()
+	})
+}
+
+// SetUtmSource sets the "utm_source" field.
+func (u *LeadUpsertOne) SetUtmSource(v string) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetUtmSource(v)
+	})
+}
+
+// UpdateUtmSource sets the "utm_source" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateUtmSource() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateUtmSource()
+	})
+}
+
+// ClearUtmSource clears the value of the "utm_source" field.
+func (u *LeadUpsertOne) ClearUtmSource() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearUtmSource()
+	})
+}
+
+// SetUtmMedium sets the "utm_medium" field.
+func (u *LeadUpsertOne) SetUtmMedium(v string) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetUtmMedium(v)
+	})
+}
+
+// UpdateUtmMedium sets the "utm_medium" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateUtmMedium() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateUtmMedium()
+	})
+}
+
+// ClearUtmMedium clears the value of the "utm_medium" field.
+func (u *LeadUpsertOne) ClearUtmMedium() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearUtmMedium()
+	})
+}
+
+// SetUtmCampaign sets the "utm_campaign" field.
+func (u *LeadUpsertOne) SetUtmCampaign(v string) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetUtmCampaign(v)
+	})
+}
+
+// UpdateUtmCampaign sets the "utm_campaign" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateUtmCampaign() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateUtmCampaign()
+	})
+}
+
+// ClearUtmCampaign clears the value of the "utm_campaign" field.
+func (u *LeadUpsertOne) ClearUtmCampaign() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearUtmCampaign()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *LeadUpsertOne) SetStatus(v string) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateStatus() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetLeadType sets the "lead_type" field.
+func (u *LeadUpsertOne) SetLeadType(v string) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetLeadType(v)
+	})
+}
+
+// UpdateLeadType sets the "lead_type" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateLeadType() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateLeadType()
+	})
+}
+
+// SetScore sets the "score" field.
+func (u *LeadUpsertOne) SetScore(v int) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetScore(v)
+	})
+}
+
+// AddScore adds v to the "score" field.
+func (u *LeadUpsertOne) AddScore(v int) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.AddScore(v)
+	})
+}
+
+// UpdateScore sets the "score" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateScore() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateScore()
+	})
+}
+
+// SetInterest sets the "interest" field.
+func (u *LeadUpsertOne) SetInterest(v string) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetInterest(v)
+	})
+}
+
+// UpdateInterest sets the "interest" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateInterest() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateInterest()
+	})
+}
+
+// ClearInterest clears the value of the "interest" field.
+func (u *LeadUpsertOne) ClearInterest() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearInterest()
+	})
+}
+
+// SetQualificationAnswers sets the "qualification_answers" field.
+func (u *LeadUpsertOne) SetQualificationAnswers(v map[string]interface{}) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetQualificationAnswers(v)
+	})
+}
+
+// UpdateQualificationAnswers sets the "qualification_answers" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateQualificationAnswers() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateQualificationAnswers()
+	})
+}
+
+// ClearQualificationAnswers clears the value of the "qualification_answers" field.
+func (u *LeadUpsertOne) ClearQualificationAnswers() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearQualificationAnswers()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *LeadUpsertOne) SetMetadata(v map[string]interface{}) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateMetadata() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *LeadUpsertOne) ClearMetadata() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetContactedAt sets the "contacted_at" field.
+func (u *LeadUpsertOne) SetContactedAt(v time.Time) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetContactedAt(v)
+	})
+}
+
+// UpdateContactedAt sets the "contacted_at" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateContactedAt() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateContactedAt()
+	})
+}
+
+// ClearContactedAt clears the value of the "contacted_at" field.
+func (u *LeadUpsertOne) ClearContactedAt() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearContactedAt()
+	})
+}
+
+// SetQualifiedAt sets the "qualified_at" field.
+func (u *LeadUpsertOne) SetQualifiedAt(v time.Time) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetQualifiedAt(v)
+	})
+}
+
+// UpdateQualifiedAt sets the "qualified_at" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateQualifiedAt() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateQualifiedAt()
+	})
+}
+
+// ClearQualifiedAt clears the value of the "qualified_at" field.
+func (u *LeadUpsertOne) ClearQualifiedAt() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearQualifiedAt()
+	})
+}
+
+// SetConvertedAt sets the "converted_at" field.
+func (u *LeadUpsertOne) SetConvertedAt(v time.Time) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetConvertedAt(v)
+	})
+}
+
+// UpdateConvertedAt sets the "converted_at" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateConvertedAt() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateConvertedAt()
+	})
+}
+
+// ClearConvertedAt clears the value of the "converted_at" field.
+func (u *LeadUpsertOne) ClearConvertedAt() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearConvertedAt()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *LeadUpsertOne) SetUpdatedAt(v time.Time) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateUpdatedAt() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *LeadUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for LeadCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *LeadUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *LeadUpsertOne) ID(ctx context.Context) (id uuid.UUID, err error) {
+	if u.create.driver.Dialect() == dialect.MySQL {
+		// In case of "ON CONFLICT", there is no way to get back non-numeric ID
+		// fields from the database since MySQL does not support the RETURNING clause.
+		return id, errors.New("ent: LeadUpsertOne.ID is not supported by MySQL driver. Use LeadUpsertOne.Exec instead")
+	}
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *LeadUpsertOne) IDX(ctx context.Context) uuid.UUID {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // LeadCreateBulk is the builder for creating many Lead entities in bulk.
 type LeadCreateBulk struct {
 	config
 	err      error
 	builders []*LeadCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the Lead entities in the database.
@@ -691,6 +1588,7 @@ func (_c *LeadCreateBulk) Save(ctx context.Context) ([]*Lead, error) {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -737,6 +1635,529 @@ func (_c *LeadCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *LeadCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Lead.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.LeadUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *LeadCreateBulk) OnConflict(opts ...sql.ConflictOption) *LeadUpsertBulk {
+	_c.conflict = opts
+	return &LeadUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Lead.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *LeadCreateBulk) OnConflictColumns(columns ...string) *LeadUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &LeadUpsertBulk{
+		create: _c,
+	}
+}
+
+// LeadUpsertBulk is the builder for "upsert"-ing
+// a bulk of Lead nodes.
+type LeadUpsertBulk struct {
+	create *LeadCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.Lead.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(lead.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *LeadUpsertBulk) UpdateNewValues() *LeadUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(lead.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(lead.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Lead.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *LeadUpsertBulk) Ignore() *LeadUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *LeadUpsertBulk) DoNothing() *LeadUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the LeadCreateBulk.OnConflict
+// documentation for more info.
+func (u *LeadUpsertBulk) Update(set func(*LeadUpsert)) *LeadUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&LeadUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *LeadUpsertBulk) SetTenantID(v uuid.UUID) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateTenantID() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetEmail sets the "email" field.
+func (u *LeadUpsertBulk) SetEmail(v string) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetEmail(v)
+	})
+}
+
+// UpdateEmail sets the "email" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateEmail() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateEmail()
+	})
+}
+
+// ClearEmail clears the value of the "email" field.
+func (u *LeadUpsertBulk) ClearEmail() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearEmail()
+	})
+}
+
+// SetPhone sets the "phone" field.
+func (u *LeadUpsertBulk) SetPhone(v string) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetPhone(v)
+	})
+}
+
+// UpdatePhone sets the "phone" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdatePhone() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdatePhone()
+	})
+}
+
+// ClearPhone clears the value of the "phone" field.
+func (u *LeadUpsertBulk) ClearPhone() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearPhone()
+	})
+}
+
+// SetFirstName sets the "first_name" field.
+func (u *LeadUpsertBulk) SetFirstName(v string) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetFirstName(v)
+	})
+}
+
+// UpdateFirstName sets the "first_name" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateFirstName() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateFirstName()
+	})
+}
+
+// ClearFirstName clears the value of the "first_name" field.
+func (u *LeadUpsertBulk) ClearFirstName() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearFirstName()
+	})
+}
+
+// SetLastName sets the "last_name" field.
+func (u *LeadUpsertBulk) SetLastName(v string) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetLastName(v)
+	})
+}
+
+// UpdateLastName sets the "last_name" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateLastName() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateLastName()
+	})
+}
+
+// ClearLastName clears the value of the "last_name" field.
+func (u *LeadUpsertBulk) ClearLastName() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearLastName()
+	})
+}
+
+// SetSource sets the "source" field.
+func (u *LeadUpsertBulk) SetSource(v string) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetSource(v)
+	})
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateSource() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateSource()
+	})
+}
+
+// SetCampaignID sets the "campaign_id" field.
+func (u *LeadUpsertBulk) SetCampaignID(v uuid.UUID) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetCampaignID(v)
+	})
+}
+
+// UpdateCampaignID sets the "campaign_id" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateCampaignID() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateCampaignID()
+	})
+}
+
+// ClearCampaignID clears the value of the "campaign_id" field.
+func (u *LeadUpsertBulk) ClearCampaignID() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearCampaignID()
+	})
+}
+
+// SetFunnelID sets the "funnel_id" field.
+func (u *LeadUpsertBulk) SetFunnelID(v uuid.UUID) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetFunnelID(v)
+	})
+}
+
+// UpdateFunnelID sets the "funnel_id" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateFunnelID() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateFunnelID()
+	})
+}
+
+// ClearFunnelID clears the value of the "funnel_id" field.
+func (u *LeadUpsertBulk) ClearFunnelID() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearFunnelID()
+	})
+}
+
+// SetUtmSource sets the "utm_source" field.
+func (u *LeadUpsertBulk) SetUtmSource(v string) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetUtmSource(v)
+	})
+}
+
+// UpdateUtmSource sets the "utm_source" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateUtmSource() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateUtmSource()
+	})
+}
+
+// ClearUtmSource clears the value of the "utm_source" field.
+func (u *LeadUpsertBulk) ClearUtmSource() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearUtmSource()
+	})
+}
+
+// SetUtmMedium sets the "utm_medium" field.
+func (u *LeadUpsertBulk) SetUtmMedium(v string) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetUtmMedium(v)
+	})
+}
+
+// UpdateUtmMedium sets the "utm_medium" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateUtmMedium() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateUtmMedium()
+	})
+}
+
+// ClearUtmMedium clears the value of the "utm_medium" field.
+func (u *LeadUpsertBulk) ClearUtmMedium() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearUtmMedium()
+	})
+}
+
+// SetUtmCampaign sets the "utm_campaign" field.
+func (u *LeadUpsertBulk) SetUtmCampaign(v string) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetUtmCampaign(v)
+	})
+}
+
+// UpdateUtmCampaign sets the "utm_campaign" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateUtmCampaign() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateUtmCampaign()
+	})
+}
+
+// ClearUtmCampaign clears the value of the "utm_campaign" field.
+func (u *LeadUpsertBulk) ClearUtmCampaign() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearUtmCampaign()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *LeadUpsertBulk) SetStatus(v string) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateStatus() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetLeadType sets the "lead_type" field.
+func (u *LeadUpsertBulk) SetLeadType(v string) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetLeadType(v)
+	})
+}
+
+// UpdateLeadType sets the "lead_type" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateLeadType() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateLeadType()
+	})
+}
+
+// SetScore sets the "score" field.
+func (u *LeadUpsertBulk) SetScore(v int) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetScore(v)
+	})
+}
+
+// AddScore adds v to the "score" field.
+func (u *LeadUpsertBulk) AddScore(v int) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.AddScore(v)
+	})
+}
+
+// UpdateScore sets the "score" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateScore() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateScore()
+	})
+}
+
+// SetInterest sets the "interest" field.
+func (u *LeadUpsertBulk) SetInterest(v string) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetInterest(v)
+	})
+}
+
+// UpdateInterest sets the "interest" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateInterest() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateInterest()
+	})
+}
+
+// ClearInterest clears the value of the "interest" field.
+func (u *LeadUpsertBulk) ClearInterest() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearInterest()
+	})
+}
+
+// SetQualificationAnswers sets the "qualification_answers" field.
+func (u *LeadUpsertBulk) SetQualificationAnswers(v map[string]interface{}) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetQualificationAnswers(v)
+	})
+}
+
+// UpdateQualificationAnswers sets the "qualification_answers" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateQualificationAnswers() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateQualificationAnswers()
+	})
+}
+
+// ClearQualificationAnswers clears the value of the "qualification_answers" field.
+func (u *LeadUpsertBulk) ClearQualificationAnswers() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearQualificationAnswers()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *LeadUpsertBulk) SetMetadata(v map[string]interface{}) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateMetadata() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *LeadUpsertBulk) ClearMetadata() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetContactedAt sets the "contacted_at" field.
+func (u *LeadUpsertBulk) SetContactedAt(v time.Time) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetContactedAt(v)
+	})
+}
+
+// UpdateContactedAt sets the "contacted_at" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateContactedAt() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateContactedAt()
+	})
+}
+
+// ClearContactedAt clears the value of the "contacted_at" field.
+func (u *LeadUpsertBulk) ClearContactedAt() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearContactedAt()
+	})
+}
+
+// SetQualifiedAt sets the "qualified_at" field.
+func (u *LeadUpsertBulk) SetQualifiedAt(v time.Time) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetQualifiedAt(v)
+	})
+}
+
+// UpdateQualifiedAt sets the "qualified_at" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateQualifiedAt() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateQualifiedAt()
+	})
+}
+
+// ClearQualifiedAt clears the value of the "qualified_at" field.
+func (u *LeadUpsertBulk) ClearQualifiedAt() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearQualifiedAt()
+	})
+}
+
+// SetConvertedAt sets the "converted_at" field.
+func (u *LeadUpsertBulk) SetConvertedAt(v time.Time) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetConvertedAt(v)
+	})
+}
+
+// UpdateConvertedAt sets the "converted_at" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateConvertedAt() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateConvertedAt()
+	})
+}
+
+// ClearConvertedAt clears the value of the "converted_at" field.
+func (u *LeadUpsertBulk) ClearConvertedAt() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearConvertedAt()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *LeadUpsertBulk) SetUpdatedAt(v time.Time) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateUpdatedAt() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *LeadUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the LeadCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for LeadCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *LeadUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

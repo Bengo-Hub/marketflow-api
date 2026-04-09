@@ -21,8 +21,9 @@ import (
 // KnowledgeBaseEntryUpdate is the builder for updating KnowledgeBaseEntry entities.
 type KnowledgeBaseEntryUpdate struct {
 	config
-	hooks    []Hook
-	mutation *KnowledgeBaseEntryMutation
+	hooks     []Hook
+	mutation  *KnowledgeBaseEntryMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the KnowledgeBaseEntryUpdate builder.
@@ -322,6 +323,12 @@ func (_u *KnowledgeBaseEntryUpdate) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *KnowledgeBaseEntryUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *KnowledgeBaseEntryUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *KnowledgeBaseEntryUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -431,6 +438,7 @@ func (_u *KnowledgeBaseEntryUpdate) sqlSave(ctx context.Context) (_node int, err
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{knowledgebaseentry.Label}
@@ -446,9 +454,10 @@ func (_u *KnowledgeBaseEntryUpdate) sqlSave(ctx context.Context) (_node int, err
 // KnowledgeBaseEntryUpdateOne is the builder for updating a single KnowledgeBaseEntry entity.
 type KnowledgeBaseEntryUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *KnowledgeBaseEntryMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *KnowledgeBaseEntryMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -755,6 +764,12 @@ func (_u *KnowledgeBaseEntryUpdateOne) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *KnowledgeBaseEntryUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *KnowledgeBaseEntryUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *KnowledgeBaseEntryUpdateOne) sqlSave(ctx context.Context) (_node *KnowledgeBaseEntry, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -881,6 +896,7 @@ func (_u *KnowledgeBaseEntryUpdateOne) sqlSave(ctx context.Context) (_node *Know
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	_node = &KnowledgeBaseEntry{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

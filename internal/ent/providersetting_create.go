@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
@@ -19,6 +21,7 @@ type ProviderSettingCreate struct {
 	config
 	mutation *ProviderSettingMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -382,6 +385,7 @@ func (_c *ProviderSettingCreate) createSpec() (*ProviderSetting, *sqlgraph.Creat
 		_node = &ProviderSetting{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(providersetting.Table, sqlgraph.NewFieldSpec(providersetting.FieldID, field.TypeUUID))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
@@ -449,11 +453,540 @@ func (_c *ProviderSettingCreate) createSpec() (*ProviderSetting, *sqlgraph.Creat
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.ProviderSetting.Create().
+//		SetTenantID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.ProviderSettingUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *ProviderSettingCreate) OnConflict(opts ...sql.ConflictOption) *ProviderSettingUpsertOne {
+	_c.conflict = opts
+	return &ProviderSettingUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.ProviderSetting.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *ProviderSettingCreate) OnConflictColumns(columns ...string) *ProviderSettingUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &ProviderSettingUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// ProviderSettingUpsertOne is the builder for "upsert"-ing
+	//  one ProviderSetting node.
+	ProviderSettingUpsertOne struct {
+		create *ProviderSettingCreate
+	}
+
+	// ProviderSettingUpsert is the "OnConflict" setter.
+	ProviderSettingUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetTenantID sets the "tenant_id" field.
+func (u *ProviderSettingUpsert) SetTenantID(v string) *ProviderSettingUpsert {
+	u.Set(providersetting.FieldTenantID, v)
+	return u
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *ProviderSettingUpsert) UpdateTenantID() *ProviderSettingUpsert {
+	u.SetExcluded(providersetting.FieldTenantID)
+	return u
+}
+
+// SetProviderType sets the "provider_type" field.
+func (u *ProviderSettingUpsert) SetProviderType(v string) *ProviderSettingUpsert {
+	u.Set(providersetting.FieldProviderType, v)
+	return u
+}
+
+// UpdateProviderType sets the "provider_type" field to the value that was provided on create.
+func (u *ProviderSettingUpsert) UpdateProviderType() *ProviderSettingUpsert {
+	u.SetExcluded(providersetting.FieldProviderType)
+	return u
+}
+
+// SetProviderName sets the "provider_name" field.
+func (u *ProviderSettingUpsert) SetProviderName(v string) *ProviderSettingUpsert {
+	u.Set(providersetting.FieldProviderName, v)
+	return u
+}
+
+// UpdateProviderName sets the "provider_name" field to the value that was provided on create.
+func (u *ProviderSettingUpsert) UpdateProviderName() *ProviderSettingUpsert {
+	u.SetExcluded(providersetting.FieldProviderName)
+	return u
+}
+
+// SetEnvironment sets the "environment" field.
+func (u *ProviderSettingUpsert) SetEnvironment(v string) *ProviderSettingUpsert {
+	u.Set(providersetting.FieldEnvironment, v)
+	return u
+}
+
+// UpdateEnvironment sets the "environment" field to the value that was provided on create.
+func (u *ProviderSettingUpsert) UpdateEnvironment() *ProviderSettingUpsert {
+	u.SetExcluded(providersetting.FieldEnvironment)
+	return u
+}
+
+// SetKey sets the "key" field.
+func (u *ProviderSettingUpsert) SetKey(v string) *ProviderSettingUpsert {
+	u.Set(providersetting.FieldKey, v)
+	return u
+}
+
+// UpdateKey sets the "key" field to the value that was provided on create.
+func (u *ProviderSettingUpsert) UpdateKey() *ProviderSettingUpsert {
+	u.SetExcluded(providersetting.FieldKey)
+	return u
+}
+
+// SetValue sets the "value" field.
+func (u *ProviderSettingUpsert) SetValue(v string) *ProviderSettingUpsert {
+	u.Set(providersetting.FieldValue, v)
+	return u
+}
+
+// UpdateValue sets the "value" field to the value that was provided on create.
+func (u *ProviderSettingUpsert) UpdateValue() *ProviderSettingUpsert {
+	u.SetExcluded(providersetting.FieldValue)
+	return u
+}
+
+// ClearValue clears the value of the "value" field.
+func (u *ProviderSettingUpsert) ClearValue() *ProviderSettingUpsert {
+	u.SetNull(providersetting.FieldValue)
+	return u
+}
+
+// SetDescription sets the "description" field.
+func (u *ProviderSettingUpsert) SetDescription(v string) *ProviderSettingUpsert {
+	u.Set(providersetting.FieldDescription, v)
+	return u
+}
+
+// UpdateDescription sets the "description" field to the value that was provided on create.
+func (u *ProviderSettingUpsert) UpdateDescription() *ProviderSettingUpsert {
+	u.SetExcluded(providersetting.FieldDescription)
+	return u
+}
+
+// ClearDescription clears the value of the "description" field.
+func (u *ProviderSettingUpsert) ClearDescription() *ProviderSettingUpsert {
+	u.SetNull(providersetting.FieldDescription)
+	return u
+}
+
+// SetIsEncrypted sets the "is_encrypted" field.
+func (u *ProviderSettingUpsert) SetIsEncrypted(v bool) *ProviderSettingUpsert {
+	u.Set(providersetting.FieldIsEncrypted, v)
+	return u
+}
+
+// UpdateIsEncrypted sets the "is_encrypted" field to the value that was provided on create.
+func (u *ProviderSettingUpsert) UpdateIsEncrypted() *ProviderSettingUpsert {
+	u.SetExcluded(providersetting.FieldIsEncrypted)
+	return u
+}
+
+// SetIsSecret sets the "is_secret" field.
+func (u *ProviderSettingUpsert) SetIsSecret(v bool) *ProviderSettingUpsert {
+	u.Set(providersetting.FieldIsSecret, v)
+	return u
+}
+
+// UpdateIsSecret sets the "is_secret" field to the value that was provided on create.
+func (u *ProviderSettingUpsert) UpdateIsSecret() *ProviderSettingUpsert {
+	u.SetExcluded(providersetting.FieldIsSecret)
+	return u
+}
+
+// SetIsPlatform sets the "is_platform" field.
+func (u *ProviderSettingUpsert) SetIsPlatform(v bool) *ProviderSettingUpsert {
+	u.Set(providersetting.FieldIsPlatform, v)
+	return u
+}
+
+// UpdateIsPlatform sets the "is_platform" field to the value that was provided on create.
+func (u *ProviderSettingUpsert) UpdateIsPlatform() *ProviderSettingUpsert {
+	u.SetExcluded(providersetting.FieldIsPlatform)
+	return u
+}
+
+// SetIsPlatformManaged sets the "is_platform_managed" field.
+func (u *ProviderSettingUpsert) SetIsPlatformManaged(v bool) *ProviderSettingUpsert {
+	u.Set(providersetting.FieldIsPlatformManaged, v)
+	return u
+}
+
+// UpdateIsPlatformManaged sets the "is_platform_managed" field to the value that was provided on create.
+func (u *ProviderSettingUpsert) UpdateIsPlatformManaged() *ProviderSettingUpsert {
+	u.SetExcluded(providersetting.FieldIsPlatformManaged)
+	return u
+}
+
+// SetIsActive sets the "is_active" field.
+func (u *ProviderSettingUpsert) SetIsActive(v bool) *ProviderSettingUpsert {
+	u.Set(providersetting.FieldIsActive, v)
+	return u
+}
+
+// UpdateIsActive sets the "is_active" field to the value that was provided on create.
+func (u *ProviderSettingUpsert) UpdateIsActive() *ProviderSettingUpsert {
+	u.SetExcluded(providersetting.FieldIsActive)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *ProviderSettingUpsert) SetStatus(v string) *ProviderSettingUpsert {
+	u.Set(providersetting.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *ProviderSettingUpsert) UpdateStatus() *ProviderSettingUpsert {
+	u.SetExcluded(providersetting.FieldStatus)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ProviderSettingUpsert) SetUpdatedAt(v time.Time) *ProviderSettingUpsert {
+	u.Set(providersetting.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ProviderSettingUpsert) UpdateUpdatedAt() *ProviderSettingUpsert {
+	u.SetExcluded(providersetting.FieldUpdatedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.ProviderSetting.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(providersetting.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *ProviderSettingUpsertOne) UpdateNewValues() *ProviderSettingUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(providersetting.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(providersetting.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.ProviderSetting.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *ProviderSettingUpsertOne) Ignore() *ProviderSettingUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *ProviderSettingUpsertOne) DoNothing() *ProviderSettingUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the ProviderSettingCreate.OnConflict
+// documentation for more info.
+func (u *ProviderSettingUpsertOne) Update(set func(*ProviderSettingUpsert)) *ProviderSettingUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&ProviderSettingUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *ProviderSettingUpsertOne) SetTenantID(v string) *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *ProviderSettingUpsertOne) UpdateTenantID() *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetProviderType sets the "provider_type" field.
+func (u *ProviderSettingUpsertOne) SetProviderType(v string) *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetProviderType(v)
+	})
+}
+
+// UpdateProviderType sets the "provider_type" field to the value that was provided on create.
+func (u *ProviderSettingUpsertOne) UpdateProviderType() *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateProviderType()
+	})
+}
+
+// SetProviderName sets the "provider_name" field.
+func (u *ProviderSettingUpsertOne) SetProviderName(v string) *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetProviderName(v)
+	})
+}
+
+// UpdateProviderName sets the "provider_name" field to the value that was provided on create.
+func (u *ProviderSettingUpsertOne) UpdateProviderName() *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateProviderName()
+	})
+}
+
+// SetEnvironment sets the "environment" field.
+func (u *ProviderSettingUpsertOne) SetEnvironment(v string) *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetEnvironment(v)
+	})
+}
+
+// UpdateEnvironment sets the "environment" field to the value that was provided on create.
+func (u *ProviderSettingUpsertOne) UpdateEnvironment() *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateEnvironment()
+	})
+}
+
+// SetKey sets the "key" field.
+func (u *ProviderSettingUpsertOne) SetKey(v string) *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetKey(v)
+	})
+}
+
+// UpdateKey sets the "key" field to the value that was provided on create.
+func (u *ProviderSettingUpsertOne) UpdateKey() *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateKey()
+	})
+}
+
+// SetValue sets the "value" field.
+func (u *ProviderSettingUpsertOne) SetValue(v string) *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetValue(v)
+	})
+}
+
+// UpdateValue sets the "value" field to the value that was provided on create.
+func (u *ProviderSettingUpsertOne) UpdateValue() *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateValue()
+	})
+}
+
+// ClearValue clears the value of the "value" field.
+func (u *ProviderSettingUpsertOne) ClearValue() *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.ClearValue()
+	})
+}
+
+// SetDescription sets the "description" field.
+func (u *ProviderSettingUpsertOne) SetDescription(v string) *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetDescription(v)
+	})
+}
+
+// UpdateDescription sets the "description" field to the value that was provided on create.
+func (u *ProviderSettingUpsertOne) UpdateDescription() *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateDescription()
+	})
+}
+
+// ClearDescription clears the value of the "description" field.
+func (u *ProviderSettingUpsertOne) ClearDescription() *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.ClearDescription()
+	})
+}
+
+// SetIsEncrypted sets the "is_encrypted" field.
+func (u *ProviderSettingUpsertOne) SetIsEncrypted(v bool) *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetIsEncrypted(v)
+	})
+}
+
+// UpdateIsEncrypted sets the "is_encrypted" field to the value that was provided on create.
+func (u *ProviderSettingUpsertOne) UpdateIsEncrypted() *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateIsEncrypted()
+	})
+}
+
+// SetIsSecret sets the "is_secret" field.
+func (u *ProviderSettingUpsertOne) SetIsSecret(v bool) *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetIsSecret(v)
+	})
+}
+
+// UpdateIsSecret sets the "is_secret" field to the value that was provided on create.
+func (u *ProviderSettingUpsertOne) UpdateIsSecret() *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateIsSecret()
+	})
+}
+
+// SetIsPlatform sets the "is_platform" field.
+func (u *ProviderSettingUpsertOne) SetIsPlatform(v bool) *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetIsPlatform(v)
+	})
+}
+
+// UpdateIsPlatform sets the "is_platform" field to the value that was provided on create.
+func (u *ProviderSettingUpsertOne) UpdateIsPlatform() *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateIsPlatform()
+	})
+}
+
+// SetIsPlatformManaged sets the "is_platform_managed" field.
+func (u *ProviderSettingUpsertOne) SetIsPlatformManaged(v bool) *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetIsPlatformManaged(v)
+	})
+}
+
+// UpdateIsPlatformManaged sets the "is_platform_managed" field to the value that was provided on create.
+func (u *ProviderSettingUpsertOne) UpdateIsPlatformManaged() *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateIsPlatformManaged()
+	})
+}
+
+// SetIsActive sets the "is_active" field.
+func (u *ProviderSettingUpsertOne) SetIsActive(v bool) *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetIsActive(v)
+	})
+}
+
+// UpdateIsActive sets the "is_active" field to the value that was provided on create.
+func (u *ProviderSettingUpsertOne) UpdateIsActive() *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateIsActive()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *ProviderSettingUpsertOne) SetStatus(v string) *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *ProviderSettingUpsertOne) UpdateStatus() *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ProviderSettingUpsertOne) SetUpdatedAt(v time.Time) *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ProviderSettingUpsertOne) UpdateUpdatedAt() *ProviderSettingUpsertOne {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *ProviderSettingUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for ProviderSettingCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *ProviderSettingUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *ProviderSettingUpsertOne) ID(ctx context.Context) (id uuid.UUID, err error) {
+	if u.create.driver.Dialect() == dialect.MySQL {
+		// In case of "ON CONFLICT", there is no way to get back non-numeric ID
+		// fields from the database since MySQL does not support the RETURNING clause.
+		return id, errors.New("ent: ProviderSettingUpsertOne.ID is not supported by MySQL driver. Use ProviderSettingUpsertOne.Exec instead")
+	}
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *ProviderSettingUpsertOne) IDX(ctx context.Context) uuid.UUID {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // ProviderSettingCreateBulk is the builder for creating many ProviderSetting entities in bulk.
 type ProviderSettingCreateBulk struct {
 	config
 	err      error
 	builders []*ProviderSettingCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the ProviderSetting entities in the database.
@@ -483,6 +1016,7 @@ func (_c *ProviderSettingCreateBulk) Save(ctx context.Context) ([]*ProviderSetti
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -529,6 +1063,333 @@ func (_c *ProviderSettingCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *ProviderSettingCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.ProviderSetting.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.ProviderSettingUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *ProviderSettingCreateBulk) OnConflict(opts ...sql.ConflictOption) *ProviderSettingUpsertBulk {
+	_c.conflict = opts
+	return &ProviderSettingUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.ProviderSetting.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *ProviderSettingCreateBulk) OnConflictColumns(columns ...string) *ProviderSettingUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &ProviderSettingUpsertBulk{
+		create: _c,
+	}
+}
+
+// ProviderSettingUpsertBulk is the builder for "upsert"-ing
+// a bulk of ProviderSetting nodes.
+type ProviderSettingUpsertBulk struct {
+	create *ProviderSettingCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.ProviderSetting.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(providersetting.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *ProviderSettingUpsertBulk) UpdateNewValues() *ProviderSettingUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(providersetting.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(providersetting.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.ProviderSetting.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *ProviderSettingUpsertBulk) Ignore() *ProviderSettingUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *ProviderSettingUpsertBulk) DoNothing() *ProviderSettingUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the ProviderSettingCreateBulk.OnConflict
+// documentation for more info.
+func (u *ProviderSettingUpsertBulk) Update(set func(*ProviderSettingUpsert)) *ProviderSettingUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&ProviderSettingUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *ProviderSettingUpsertBulk) SetTenantID(v string) *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *ProviderSettingUpsertBulk) UpdateTenantID() *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetProviderType sets the "provider_type" field.
+func (u *ProviderSettingUpsertBulk) SetProviderType(v string) *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetProviderType(v)
+	})
+}
+
+// UpdateProviderType sets the "provider_type" field to the value that was provided on create.
+func (u *ProviderSettingUpsertBulk) UpdateProviderType() *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateProviderType()
+	})
+}
+
+// SetProviderName sets the "provider_name" field.
+func (u *ProviderSettingUpsertBulk) SetProviderName(v string) *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetProviderName(v)
+	})
+}
+
+// UpdateProviderName sets the "provider_name" field to the value that was provided on create.
+func (u *ProviderSettingUpsertBulk) UpdateProviderName() *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateProviderName()
+	})
+}
+
+// SetEnvironment sets the "environment" field.
+func (u *ProviderSettingUpsertBulk) SetEnvironment(v string) *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetEnvironment(v)
+	})
+}
+
+// UpdateEnvironment sets the "environment" field to the value that was provided on create.
+func (u *ProviderSettingUpsertBulk) UpdateEnvironment() *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateEnvironment()
+	})
+}
+
+// SetKey sets the "key" field.
+func (u *ProviderSettingUpsertBulk) SetKey(v string) *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetKey(v)
+	})
+}
+
+// UpdateKey sets the "key" field to the value that was provided on create.
+func (u *ProviderSettingUpsertBulk) UpdateKey() *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateKey()
+	})
+}
+
+// SetValue sets the "value" field.
+func (u *ProviderSettingUpsertBulk) SetValue(v string) *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetValue(v)
+	})
+}
+
+// UpdateValue sets the "value" field to the value that was provided on create.
+func (u *ProviderSettingUpsertBulk) UpdateValue() *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateValue()
+	})
+}
+
+// ClearValue clears the value of the "value" field.
+func (u *ProviderSettingUpsertBulk) ClearValue() *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.ClearValue()
+	})
+}
+
+// SetDescription sets the "description" field.
+func (u *ProviderSettingUpsertBulk) SetDescription(v string) *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetDescription(v)
+	})
+}
+
+// UpdateDescription sets the "description" field to the value that was provided on create.
+func (u *ProviderSettingUpsertBulk) UpdateDescription() *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateDescription()
+	})
+}
+
+// ClearDescription clears the value of the "description" field.
+func (u *ProviderSettingUpsertBulk) ClearDescription() *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.ClearDescription()
+	})
+}
+
+// SetIsEncrypted sets the "is_encrypted" field.
+func (u *ProviderSettingUpsertBulk) SetIsEncrypted(v bool) *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetIsEncrypted(v)
+	})
+}
+
+// UpdateIsEncrypted sets the "is_encrypted" field to the value that was provided on create.
+func (u *ProviderSettingUpsertBulk) UpdateIsEncrypted() *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateIsEncrypted()
+	})
+}
+
+// SetIsSecret sets the "is_secret" field.
+func (u *ProviderSettingUpsertBulk) SetIsSecret(v bool) *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetIsSecret(v)
+	})
+}
+
+// UpdateIsSecret sets the "is_secret" field to the value that was provided on create.
+func (u *ProviderSettingUpsertBulk) UpdateIsSecret() *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateIsSecret()
+	})
+}
+
+// SetIsPlatform sets the "is_platform" field.
+func (u *ProviderSettingUpsertBulk) SetIsPlatform(v bool) *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetIsPlatform(v)
+	})
+}
+
+// UpdateIsPlatform sets the "is_platform" field to the value that was provided on create.
+func (u *ProviderSettingUpsertBulk) UpdateIsPlatform() *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateIsPlatform()
+	})
+}
+
+// SetIsPlatformManaged sets the "is_platform_managed" field.
+func (u *ProviderSettingUpsertBulk) SetIsPlatformManaged(v bool) *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetIsPlatformManaged(v)
+	})
+}
+
+// UpdateIsPlatformManaged sets the "is_platform_managed" field to the value that was provided on create.
+func (u *ProviderSettingUpsertBulk) UpdateIsPlatformManaged() *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateIsPlatformManaged()
+	})
+}
+
+// SetIsActive sets the "is_active" field.
+func (u *ProviderSettingUpsertBulk) SetIsActive(v bool) *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetIsActive(v)
+	})
+}
+
+// UpdateIsActive sets the "is_active" field to the value that was provided on create.
+func (u *ProviderSettingUpsertBulk) UpdateIsActive() *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateIsActive()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *ProviderSettingUpsertBulk) SetStatus(v string) *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *ProviderSettingUpsertBulk) UpdateStatus() *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ProviderSettingUpsertBulk) SetUpdatedAt(v time.Time) *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ProviderSettingUpsertBulk) UpdateUpdatedAt() *ProviderSettingUpsertBulk {
+	return u.Update(func(s *ProviderSettingUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *ProviderSettingUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the ProviderSettingCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for ProviderSettingCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *ProviderSettingUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

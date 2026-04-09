@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
@@ -26,6 +28,7 @@ type TenantCreate struct {
 	config
 	mutation *TenantMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetName sets the "name" field.
@@ -523,6 +526,7 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 		_node = &Tenant{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(tenant.Table, sqlgraph.NewFieldSpec(tenant.FieldID, field.TypeUUID))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
@@ -718,11 +722,787 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Tenant.Create().
+//		SetName(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.TenantUpsert) {
+//			SetName(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *TenantCreate) OnConflict(opts ...sql.ConflictOption) *TenantUpsertOne {
+	_c.conflict = opts
+	return &TenantUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Tenant.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *TenantCreate) OnConflictColumns(columns ...string) *TenantUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &TenantUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// TenantUpsertOne is the builder for "upsert"-ing
+	//  one Tenant node.
+	TenantUpsertOne struct {
+		create *TenantCreate
+	}
+
+	// TenantUpsert is the "OnConflict" setter.
+	TenantUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetName sets the "name" field.
+func (u *TenantUpsert) SetName(v string) *TenantUpsert {
+	u.Set(tenant.FieldName, v)
+	return u
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateName() *TenantUpsert {
+	u.SetExcluded(tenant.FieldName)
+	return u
+}
+
+// SetSlug sets the "slug" field.
+func (u *TenantUpsert) SetSlug(v string) *TenantUpsert {
+	u.Set(tenant.FieldSlug, v)
+	return u
+}
+
+// UpdateSlug sets the "slug" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateSlug() *TenantUpsert {
+	u.SetExcluded(tenant.FieldSlug)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *TenantUpsert) SetStatus(v string) *TenantUpsert {
+	u.Set(tenant.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateStatus() *TenantUpsert {
+	u.SetExcluded(tenant.FieldStatus)
+	return u
+}
+
+// SetFboDistribID sets the "fbo_distrib_id" field.
+func (u *TenantUpsert) SetFboDistribID(v string) *TenantUpsert {
+	u.Set(tenant.FieldFboDistribID, v)
+	return u
+}
+
+// UpdateFboDistribID sets the "fbo_distrib_id" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateFboDistribID() *TenantUpsert {
+	u.SetExcluded(tenant.FieldFboDistribID)
+	return u
+}
+
+// ClearFboDistribID clears the value of the "fbo_distrib_id" field.
+func (u *TenantUpsert) ClearFboDistribID() *TenantUpsert {
+	u.SetNull(tenant.FieldFboDistribID)
+	return u
+}
+
+// SetWhatsappNumber sets the "whatsapp_number" field.
+func (u *TenantUpsert) SetWhatsappNumber(v string) *TenantUpsert {
+	u.Set(tenant.FieldWhatsappNumber, v)
+	return u
+}
+
+// UpdateWhatsappNumber sets the "whatsapp_number" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateWhatsappNumber() *TenantUpsert {
+	u.SetExcluded(tenant.FieldWhatsappNumber)
+	return u
+}
+
+// ClearWhatsappNumber clears the value of the "whatsapp_number" field.
+func (u *TenantUpsert) ClearWhatsappNumber() *TenantUpsert {
+	u.SetNull(tenant.FieldWhatsappNumber)
+	return u
+}
+
+// SetFlpStoreCode sets the "flp_store_code" field.
+func (u *TenantUpsert) SetFlpStoreCode(v string) *TenantUpsert {
+	u.Set(tenant.FieldFlpStoreCode, v)
+	return u
+}
+
+// UpdateFlpStoreCode sets the "flp_store_code" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateFlpStoreCode() *TenantUpsert {
+	u.SetExcluded(tenant.FieldFlpStoreCode)
+	return u
+}
+
+// ClearFlpStoreCode clears the value of the "flp_store_code" field.
+func (u *TenantUpsert) ClearFlpStoreCode() *TenantUpsert {
+	u.SetNull(tenant.FieldFlpStoreCode)
+	return u
+}
+
+// SetFlpLanguage sets the "flp_language" field.
+func (u *TenantUpsert) SetFlpLanguage(v string) *TenantUpsert {
+	u.Set(tenant.FieldFlpLanguage, v)
+	return u
+}
+
+// UpdateFlpLanguage sets the "flp_language" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateFlpLanguage() *TenantUpsert {
+	u.SetExcluded(tenant.FieldFlpLanguage)
+	return u
+}
+
+// ClearFlpLanguage clears the value of the "flp_language" field.
+func (u *TenantUpsert) ClearFlpLanguage() *TenantUpsert {
+	u.SetNull(tenant.FieldFlpLanguage)
+	return u
+}
+
+// SetFlpProfileUUID sets the "flp_profile_uuid" field.
+func (u *TenantUpsert) SetFlpProfileUUID(v string) *TenantUpsert {
+	u.Set(tenant.FieldFlpProfileUUID, v)
+	return u
+}
+
+// UpdateFlpProfileUUID sets the "flp_profile_uuid" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateFlpProfileUUID() *TenantUpsert {
+	u.SetExcluded(tenant.FieldFlpProfileUUID)
+	return u
+}
+
+// ClearFlpProfileUUID clears the value of the "flp_profile_uuid" field.
+func (u *TenantUpsert) ClearFlpProfileUUID() *TenantUpsert {
+	u.SetNull(tenant.FieldFlpProfileUUID)
+	return u
+}
+
+// SetBusinessType sets the "business_type" field.
+func (u *TenantUpsert) SetBusinessType(v string) *TenantUpsert {
+	u.Set(tenant.FieldBusinessType, v)
+	return u
+}
+
+// UpdateBusinessType sets the "business_type" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateBusinessType() *TenantUpsert {
+	u.SetExcluded(tenant.FieldBusinessType)
+	return u
+}
+
+// SetCountry sets the "country" field.
+func (u *TenantUpsert) SetCountry(v string) *TenantUpsert {
+	u.Set(tenant.FieldCountry, v)
+	return u
+}
+
+// UpdateCountry sets the "country" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateCountry() *TenantUpsert {
+	u.SetExcluded(tenant.FieldCountry)
+	return u
+}
+
+// ClearCountry clears the value of the "country" field.
+func (u *TenantUpsert) ClearCountry() *TenantUpsert {
+	u.SetNull(tenant.FieldCountry)
+	return u
+}
+
+// SetTimezone sets the "timezone" field.
+func (u *TenantUpsert) SetTimezone(v string) *TenantUpsert {
+	u.Set(tenant.FieldTimezone, v)
+	return u
+}
+
+// UpdateTimezone sets the "timezone" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateTimezone() *TenantUpsert {
+	u.SetExcluded(tenant.FieldTimezone)
+	return u
+}
+
+// ClearTimezone clears the value of the "timezone" field.
+func (u *TenantUpsert) ClearTimezone() *TenantUpsert {
+	u.SetNull(tenant.FieldTimezone)
+	return u
+}
+
+// SetMetaAccessToken sets the "meta_access_token" field.
+func (u *TenantUpsert) SetMetaAccessToken(v string) *TenantUpsert {
+	u.Set(tenant.FieldMetaAccessToken, v)
+	return u
+}
+
+// UpdateMetaAccessToken sets the "meta_access_token" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateMetaAccessToken() *TenantUpsert {
+	u.SetExcluded(tenant.FieldMetaAccessToken)
+	return u
+}
+
+// ClearMetaAccessToken clears the value of the "meta_access_token" field.
+func (u *TenantUpsert) ClearMetaAccessToken() *TenantUpsert {
+	u.SetNull(tenant.FieldMetaAccessToken)
+	return u
+}
+
+// SetMetaAdAccountID sets the "meta_ad_account_id" field.
+func (u *TenantUpsert) SetMetaAdAccountID(v string) *TenantUpsert {
+	u.Set(tenant.FieldMetaAdAccountID, v)
+	return u
+}
+
+// UpdateMetaAdAccountID sets the "meta_ad_account_id" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateMetaAdAccountID() *TenantUpsert {
+	u.SetExcluded(tenant.FieldMetaAdAccountID)
+	return u
+}
+
+// ClearMetaAdAccountID clears the value of the "meta_ad_account_id" field.
+func (u *TenantUpsert) ClearMetaAdAccountID() *TenantUpsert {
+	u.SetNull(tenant.FieldMetaAdAccountID)
+	return u
+}
+
+// SetMetaPageID sets the "meta_page_id" field.
+func (u *TenantUpsert) SetMetaPageID(v string) *TenantUpsert {
+	u.Set(tenant.FieldMetaPageID, v)
+	return u
+}
+
+// UpdateMetaPageID sets the "meta_page_id" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateMetaPageID() *TenantUpsert {
+	u.SetExcluded(tenant.FieldMetaPageID)
+	return u
+}
+
+// ClearMetaPageID clears the value of the "meta_page_id" field.
+func (u *TenantUpsert) ClearMetaPageID() *TenantUpsert {
+	u.SetNull(tenant.FieldMetaPageID)
+	return u
+}
+
+// SetSubscriptionPlan sets the "subscription_plan" field.
+func (u *TenantUpsert) SetSubscriptionPlan(v string) *TenantUpsert {
+	u.Set(tenant.FieldSubscriptionPlan, v)
+	return u
+}
+
+// UpdateSubscriptionPlan sets the "subscription_plan" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateSubscriptionPlan() *TenantUpsert {
+	u.SetExcluded(tenant.FieldSubscriptionPlan)
+	return u
+}
+
+// ClearSubscriptionPlan clears the value of the "subscription_plan" field.
+func (u *TenantUpsert) ClearSubscriptionPlan() *TenantUpsert {
+	u.SetNull(tenant.FieldSubscriptionPlan)
+	return u
+}
+
+// SetSubscriptionStatus sets the "subscription_status" field.
+func (u *TenantUpsert) SetSubscriptionStatus(v string) *TenantUpsert {
+	u.Set(tenant.FieldSubscriptionStatus, v)
+	return u
+}
+
+// UpdateSubscriptionStatus sets the "subscription_status" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateSubscriptionStatus() *TenantUpsert {
+	u.SetExcluded(tenant.FieldSubscriptionStatus)
+	return u
+}
+
+// ClearSubscriptionStatus clears the value of the "subscription_status" field.
+func (u *TenantUpsert) ClearSubscriptionStatus() *TenantUpsert {
+	u.SetNull(tenant.FieldSubscriptionStatus)
+	return u
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *TenantUpsert) SetMetadata(v map[string]interface{}) *TenantUpsert {
+	u.Set(tenant.FieldMetadata, v)
+	return u
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateMetadata() *TenantUpsert {
+	u.SetExcluded(tenant.FieldMetadata)
+	return u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *TenantUpsert) ClearMetadata() *TenantUpsert {
+	u.SetNull(tenant.FieldMetadata)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *TenantUpsert) SetUpdatedAt(v time.Time) *TenantUpsert {
+	u.Set(tenant.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *TenantUpsert) UpdateUpdatedAt() *TenantUpsert {
+	u.SetExcluded(tenant.FieldUpdatedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.Tenant.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(tenant.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *TenantUpsertOne) UpdateNewValues() *TenantUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(tenant.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(tenant.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Tenant.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *TenantUpsertOne) Ignore() *TenantUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *TenantUpsertOne) DoNothing() *TenantUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the TenantCreate.OnConflict
+// documentation for more info.
+func (u *TenantUpsertOne) Update(set func(*TenantUpsert)) *TenantUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&TenantUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetName sets the "name" field.
+func (u *TenantUpsertOne) SetName(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetName(v)
+	})
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateName() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateName()
+	})
+}
+
+// SetSlug sets the "slug" field.
+func (u *TenantUpsertOne) SetSlug(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetSlug(v)
+	})
+}
+
+// UpdateSlug sets the "slug" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateSlug() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateSlug()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *TenantUpsertOne) SetStatus(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateStatus() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetFboDistribID sets the "fbo_distrib_id" field.
+func (u *TenantUpsertOne) SetFboDistribID(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetFboDistribID(v)
+	})
+}
+
+// UpdateFboDistribID sets the "fbo_distrib_id" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateFboDistribID() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateFboDistribID()
+	})
+}
+
+// ClearFboDistribID clears the value of the "fbo_distrib_id" field.
+func (u *TenantUpsertOne) ClearFboDistribID() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearFboDistribID()
+	})
+}
+
+// SetWhatsappNumber sets the "whatsapp_number" field.
+func (u *TenantUpsertOne) SetWhatsappNumber(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetWhatsappNumber(v)
+	})
+}
+
+// UpdateWhatsappNumber sets the "whatsapp_number" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateWhatsappNumber() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateWhatsappNumber()
+	})
+}
+
+// ClearWhatsappNumber clears the value of the "whatsapp_number" field.
+func (u *TenantUpsertOne) ClearWhatsappNumber() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearWhatsappNumber()
+	})
+}
+
+// SetFlpStoreCode sets the "flp_store_code" field.
+func (u *TenantUpsertOne) SetFlpStoreCode(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetFlpStoreCode(v)
+	})
+}
+
+// UpdateFlpStoreCode sets the "flp_store_code" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateFlpStoreCode() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateFlpStoreCode()
+	})
+}
+
+// ClearFlpStoreCode clears the value of the "flp_store_code" field.
+func (u *TenantUpsertOne) ClearFlpStoreCode() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearFlpStoreCode()
+	})
+}
+
+// SetFlpLanguage sets the "flp_language" field.
+func (u *TenantUpsertOne) SetFlpLanguage(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetFlpLanguage(v)
+	})
+}
+
+// UpdateFlpLanguage sets the "flp_language" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateFlpLanguage() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateFlpLanguage()
+	})
+}
+
+// ClearFlpLanguage clears the value of the "flp_language" field.
+func (u *TenantUpsertOne) ClearFlpLanguage() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearFlpLanguage()
+	})
+}
+
+// SetFlpProfileUUID sets the "flp_profile_uuid" field.
+func (u *TenantUpsertOne) SetFlpProfileUUID(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetFlpProfileUUID(v)
+	})
+}
+
+// UpdateFlpProfileUUID sets the "flp_profile_uuid" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateFlpProfileUUID() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateFlpProfileUUID()
+	})
+}
+
+// ClearFlpProfileUUID clears the value of the "flp_profile_uuid" field.
+func (u *TenantUpsertOne) ClearFlpProfileUUID() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearFlpProfileUUID()
+	})
+}
+
+// SetBusinessType sets the "business_type" field.
+func (u *TenantUpsertOne) SetBusinessType(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetBusinessType(v)
+	})
+}
+
+// UpdateBusinessType sets the "business_type" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateBusinessType() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateBusinessType()
+	})
+}
+
+// SetCountry sets the "country" field.
+func (u *TenantUpsertOne) SetCountry(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetCountry(v)
+	})
+}
+
+// UpdateCountry sets the "country" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateCountry() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateCountry()
+	})
+}
+
+// ClearCountry clears the value of the "country" field.
+func (u *TenantUpsertOne) ClearCountry() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearCountry()
+	})
+}
+
+// SetTimezone sets the "timezone" field.
+func (u *TenantUpsertOne) SetTimezone(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetTimezone(v)
+	})
+}
+
+// UpdateTimezone sets the "timezone" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateTimezone() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateTimezone()
+	})
+}
+
+// ClearTimezone clears the value of the "timezone" field.
+func (u *TenantUpsertOne) ClearTimezone() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearTimezone()
+	})
+}
+
+// SetMetaAccessToken sets the "meta_access_token" field.
+func (u *TenantUpsertOne) SetMetaAccessToken(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetMetaAccessToken(v)
+	})
+}
+
+// UpdateMetaAccessToken sets the "meta_access_token" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateMetaAccessToken() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateMetaAccessToken()
+	})
+}
+
+// ClearMetaAccessToken clears the value of the "meta_access_token" field.
+func (u *TenantUpsertOne) ClearMetaAccessToken() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearMetaAccessToken()
+	})
+}
+
+// SetMetaAdAccountID sets the "meta_ad_account_id" field.
+func (u *TenantUpsertOne) SetMetaAdAccountID(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetMetaAdAccountID(v)
+	})
+}
+
+// UpdateMetaAdAccountID sets the "meta_ad_account_id" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateMetaAdAccountID() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateMetaAdAccountID()
+	})
+}
+
+// ClearMetaAdAccountID clears the value of the "meta_ad_account_id" field.
+func (u *TenantUpsertOne) ClearMetaAdAccountID() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearMetaAdAccountID()
+	})
+}
+
+// SetMetaPageID sets the "meta_page_id" field.
+func (u *TenantUpsertOne) SetMetaPageID(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetMetaPageID(v)
+	})
+}
+
+// UpdateMetaPageID sets the "meta_page_id" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateMetaPageID() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateMetaPageID()
+	})
+}
+
+// ClearMetaPageID clears the value of the "meta_page_id" field.
+func (u *TenantUpsertOne) ClearMetaPageID() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearMetaPageID()
+	})
+}
+
+// SetSubscriptionPlan sets the "subscription_plan" field.
+func (u *TenantUpsertOne) SetSubscriptionPlan(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetSubscriptionPlan(v)
+	})
+}
+
+// UpdateSubscriptionPlan sets the "subscription_plan" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateSubscriptionPlan() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateSubscriptionPlan()
+	})
+}
+
+// ClearSubscriptionPlan clears the value of the "subscription_plan" field.
+func (u *TenantUpsertOne) ClearSubscriptionPlan() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearSubscriptionPlan()
+	})
+}
+
+// SetSubscriptionStatus sets the "subscription_status" field.
+func (u *TenantUpsertOne) SetSubscriptionStatus(v string) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetSubscriptionStatus(v)
+	})
+}
+
+// UpdateSubscriptionStatus sets the "subscription_status" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateSubscriptionStatus() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateSubscriptionStatus()
+	})
+}
+
+// ClearSubscriptionStatus clears the value of the "subscription_status" field.
+func (u *TenantUpsertOne) ClearSubscriptionStatus() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearSubscriptionStatus()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *TenantUpsertOne) SetMetadata(v map[string]interface{}) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateMetadata() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *TenantUpsertOne) ClearMetadata() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *TenantUpsertOne) SetUpdatedAt(v time.Time) *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *TenantUpsertOne) UpdateUpdatedAt() *TenantUpsertOne {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *TenantUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for TenantCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *TenantUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *TenantUpsertOne) ID(ctx context.Context) (id uuid.UUID, err error) {
+	if u.create.driver.Dialect() == dialect.MySQL {
+		// In case of "ON CONFLICT", there is no way to get back non-numeric ID
+		// fields from the database since MySQL does not support the RETURNING clause.
+		return id, errors.New("ent: TenantUpsertOne.ID is not supported by MySQL driver. Use TenantUpsertOne.Exec instead")
+	}
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *TenantUpsertOne) IDX(ctx context.Context) uuid.UUID {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // TenantCreateBulk is the builder for creating many Tenant entities in bulk.
 type TenantCreateBulk struct {
 	config
 	err      error
 	builders []*TenantCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the Tenant entities in the database.
@@ -752,6 +1532,7 @@ func (_c *TenantCreateBulk) Save(ctx context.Context) ([]*Tenant, error) {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -798,6 +1579,466 @@ func (_c *TenantCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *TenantCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Tenant.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.TenantUpsert) {
+//			SetName(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *TenantCreateBulk) OnConflict(opts ...sql.ConflictOption) *TenantUpsertBulk {
+	_c.conflict = opts
+	return &TenantUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Tenant.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *TenantCreateBulk) OnConflictColumns(columns ...string) *TenantUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &TenantUpsertBulk{
+		create: _c,
+	}
+}
+
+// TenantUpsertBulk is the builder for "upsert"-ing
+// a bulk of Tenant nodes.
+type TenantUpsertBulk struct {
+	create *TenantCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.Tenant.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(tenant.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *TenantUpsertBulk) UpdateNewValues() *TenantUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(tenant.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(tenant.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Tenant.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *TenantUpsertBulk) Ignore() *TenantUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *TenantUpsertBulk) DoNothing() *TenantUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the TenantCreateBulk.OnConflict
+// documentation for more info.
+func (u *TenantUpsertBulk) Update(set func(*TenantUpsert)) *TenantUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&TenantUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetName sets the "name" field.
+func (u *TenantUpsertBulk) SetName(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetName(v)
+	})
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateName() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateName()
+	})
+}
+
+// SetSlug sets the "slug" field.
+func (u *TenantUpsertBulk) SetSlug(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetSlug(v)
+	})
+}
+
+// UpdateSlug sets the "slug" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateSlug() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateSlug()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *TenantUpsertBulk) SetStatus(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateStatus() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetFboDistribID sets the "fbo_distrib_id" field.
+func (u *TenantUpsertBulk) SetFboDistribID(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetFboDistribID(v)
+	})
+}
+
+// UpdateFboDistribID sets the "fbo_distrib_id" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateFboDistribID() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateFboDistribID()
+	})
+}
+
+// ClearFboDistribID clears the value of the "fbo_distrib_id" field.
+func (u *TenantUpsertBulk) ClearFboDistribID() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearFboDistribID()
+	})
+}
+
+// SetWhatsappNumber sets the "whatsapp_number" field.
+func (u *TenantUpsertBulk) SetWhatsappNumber(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetWhatsappNumber(v)
+	})
+}
+
+// UpdateWhatsappNumber sets the "whatsapp_number" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateWhatsappNumber() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateWhatsappNumber()
+	})
+}
+
+// ClearWhatsappNumber clears the value of the "whatsapp_number" field.
+func (u *TenantUpsertBulk) ClearWhatsappNumber() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearWhatsappNumber()
+	})
+}
+
+// SetFlpStoreCode sets the "flp_store_code" field.
+func (u *TenantUpsertBulk) SetFlpStoreCode(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetFlpStoreCode(v)
+	})
+}
+
+// UpdateFlpStoreCode sets the "flp_store_code" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateFlpStoreCode() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateFlpStoreCode()
+	})
+}
+
+// ClearFlpStoreCode clears the value of the "flp_store_code" field.
+func (u *TenantUpsertBulk) ClearFlpStoreCode() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearFlpStoreCode()
+	})
+}
+
+// SetFlpLanguage sets the "flp_language" field.
+func (u *TenantUpsertBulk) SetFlpLanguage(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetFlpLanguage(v)
+	})
+}
+
+// UpdateFlpLanguage sets the "flp_language" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateFlpLanguage() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateFlpLanguage()
+	})
+}
+
+// ClearFlpLanguage clears the value of the "flp_language" field.
+func (u *TenantUpsertBulk) ClearFlpLanguage() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearFlpLanguage()
+	})
+}
+
+// SetFlpProfileUUID sets the "flp_profile_uuid" field.
+func (u *TenantUpsertBulk) SetFlpProfileUUID(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetFlpProfileUUID(v)
+	})
+}
+
+// UpdateFlpProfileUUID sets the "flp_profile_uuid" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateFlpProfileUUID() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateFlpProfileUUID()
+	})
+}
+
+// ClearFlpProfileUUID clears the value of the "flp_profile_uuid" field.
+func (u *TenantUpsertBulk) ClearFlpProfileUUID() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearFlpProfileUUID()
+	})
+}
+
+// SetBusinessType sets the "business_type" field.
+func (u *TenantUpsertBulk) SetBusinessType(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetBusinessType(v)
+	})
+}
+
+// UpdateBusinessType sets the "business_type" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateBusinessType() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateBusinessType()
+	})
+}
+
+// SetCountry sets the "country" field.
+func (u *TenantUpsertBulk) SetCountry(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetCountry(v)
+	})
+}
+
+// UpdateCountry sets the "country" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateCountry() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateCountry()
+	})
+}
+
+// ClearCountry clears the value of the "country" field.
+func (u *TenantUpsertBulk) ClearCountry() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearCountry()
+	})
+}
+
+// SetTimezone sets the "timezone" field.
+func (u *TenantUpsertBulk) SetTimezone(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetTimezone(v)
+	})
+}
+
+// UpdateTimezone sets the "timezone" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateTimezone() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateTimezone()
+	})
+}
+
+// ClearTimezone clears the value of the "timezone" field.
+func (u *TenantUpsertBulk) ClearTimezone() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearTimezone()
+	})
+}
+
+// SetMetaAccessToken sets the "meta_access_token" field.
+func (u *TenantUpsertBulk) SetMetaAccessToken(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetMetaAccessToken(v)
+	})
+}
+
+// UpdateMetaAccessToken sets the "meta_access_token" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateMetaAccessToken() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateMetaAccessToken()
+	})
+}
+
+// ClearMetaAccessToken clears the value of the "meta_access_token" field.
+func (u *TenantUpsertBulk) ClearMetaAccessToken() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearMetaAccessToken()
+	})
+}
+
+// SetMetaAdAccountID sets the "meta_ad_account_id" field.
+func (u *TenantUpsertBulk) SetMetaAdAccountID(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetMetaAdAccountID(v)
+	})
+}
+
+// UpdateMetaAdAccountID sets the "meta_ad_account_id" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateMetaAdAccountID() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateMetaAdAccountID()
+	})
+}
+
+// ClearMetaAdAccountID clears the value of the "meta_ad_account_id" field.
+func (u *TenantUpsertBulk) ClearMetaAdAccountID() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearMetaAdAccountID()
+	})
+}
+
+// SetMetaPageID sets the "meta_page_id" field.
+func (u *TenantUpsertBulk) SetMetaPageID(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetMetaPageID(v)
+	})
+}
+
+// UpdateMetaPageID sets the "meta_page_id" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateMetaPageID() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateMetaPageID()
+	})
+}
+
+// ClearMetaPageID clears the value of the "meta_page_id" field.
+func (u *TenantUpsertBulk) ClearMetaPageID() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearMetaPageID()
+	})
+}
+
+// SetSubscriptionPlan sets the "subscription_plan" field.
+func (u *TenantUpsertBulk) SetSubscriptionPlan(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetSubscriptionPlan(v)
+	})
+}
+
+// UpdateSubscriptionPlan sets the "subscription_plan" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateSubscriptionPlan() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateSubscriptionPlan()
+	})
+}
+
+// ClearSubscriptionPlan clears the value of the "subscription_plan" field.
+func (u *TenantUpsertBulk) ClearSubscriptionPlan() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearSubscriptionPlan()
+	})
+}
+
+// SetSubscriptionStatus sets the "subscription_status" field.
+func (u *TenantUpsertBulk) SetSubscriptionStatus(v string) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetSubscriptionStatus(v)
+	})
+}
+
+// UpdateSubscriptionStatus sets the "subscription_status" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateSubscriptionStatus() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateSubscriptionStatus()
+	})
+}
+
+// ClearSubscriptionStatus clears the value of the "subscription_status" field.
+func (u *TenantUpsertBulk) ClearSubscriptionStatus() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearSubscriptionStatus()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *TenantUpsertBulk) SetMetadata(v map[string]interface{}) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateMetadata() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *TenantUpsertBulk) ClearMetadata() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *TenantUpsertBulk) SetUpdatedAt(v time.Time) *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *TenantUpsertBulk) UpdateUpdatedAt() *TenantUpsertBulk {
+	return u.Update(func(s *TenantUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *TenantUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the TenantCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for TenantCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *TenantUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

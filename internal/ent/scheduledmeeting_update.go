@@ -21,8 +21,9 @@ import (
 // ScheduledMeetingUpdate is the builder for updating ScheduledMeeting entities.
 type ScheduledMeetingUpdate struct {
 	config
-	hooks    []Hook
-	mutation *ScheduledMeetingMutation
+	hooks     []Hook
+	mutation  *ScheduledMeetingMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the ScheduledMeetingUpdate builder.
@@ -289,6 +290,12 @@ func (_u *ScheduledMeetingUpdate) defaults() {
 	}
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *ScheduledMeetingUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *ScheduledMeetingUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *ScheduledMeetingUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	_spec := sqlgraph.NewUpdateSpec(scheduledmeeting.Table, scheduledmeeting.Columns, sqlgraph.NewFieldSpec(scheduledmeeting.FieldID, field.TypeUUID))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
@@ -401,6 +408,7 @@ func (_u *ScheduledMeetingUpdate) sqlSave(ctx context.Context) (_node int, err e
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{scheduledmeeting.Label}
@@ -416,9 +424,10 @@ func (_u *ScheduledMeetingUpdate) sqlSave(ctx context.Context) (_node int, err e
 // ScheduledMeetingUpdateOne is the builder for updating a single ScheduledMeeting entity.
 type ScheduledMeetingUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *ScheduledMeetingMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *ScheduledMeetingMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -692,6 +701,12 @@ func (_u *ScheduledMeetingUpdateOne) defaults() {
 	}
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *ScheduledMeetingUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *ScheduledMeetingUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *ScheduledMeetingUpdateOne) sqlSave(ctx context.Context) (_node *ScheduledMeeting, err error) {
 	_spec := sqlgraph.NewUpdateSpec(scheduledmeeting.Table, scheduledmeeting.Columns, sqlgraph.NewFieldSpec(scheduledmeeting.FieldID, field.TypeUUID))
 	id, ok := _u.mutation.ID()
@@ -821,6 +836,7 @@ func (_u *ScheduledMeetingUpdateOne) sqlSave(ctx context.Context) (_node *Schedu
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	_node = &ScheduledMeeting{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

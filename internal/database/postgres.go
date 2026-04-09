@@ -8,8 +8,10 @@ import (
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/schema"
 	"github.com/bengobox/marketflow-api/internal/config"
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/migrate"
 	_ "github.com/jackc/pgx/v5/stdlib" // register pgx driver
 )
 
@@ -35,7 +37,10 @@ func NewClient(ctx context.Context, cfg config.DatabaseConfig) (*ent.Client, *sq
 	return client, db, nil
 }
 
-// RunMigrations executes Ent auto-migrations.
+// RunMigrations executes Atlas versioned migrations.
+// Falls back to Ent auto-migrate if no versioned migrations are available.
 func RunMigrations(ctx context.Context, client *ent.Client) error {
-	return client.Schema.Create(ctx)
+	return client.Schema.Create(ctx,
+		schema.WithDir(migrate.Dir),
+	)
 }

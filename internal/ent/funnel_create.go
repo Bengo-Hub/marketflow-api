@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/marketflow-api/internal/ent/funnel"
@@ -21,6 +23,7 @@ type FunnelCreate struct {
 	config
 	mutation *FunnelMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -364,6 +367,7 @@ func (_c *FunnelCreate) createSpec() (*Funnel, *sqlgraph.CreateSpec) {
 		_node = &Funnel{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(funnel.Table, sqlgraph.NewFieldSpec(funnel.FieldID, field.TypeUUID))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
@@ -460,11 +464,618 @@ func (_c *FunnelCreate) createSpec() (*Funnel, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Funnel.Create().
+//		SetTenantID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.FunnelUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *FunnelCreate) OnConflict(opts ...sql.ConflictOption) *FunnelUpsertOne {
+	_c.conflict = opts
+	return &FunnelUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Funnel.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *FunnelCreate) OnConflictColumns(columns ...string) *FunnelUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &FunnelUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// FunnelUpsertOne is the builder for "upsert"-ing
+	//  one Funnel node.
+	FunnelUpsertOne struct {
+		create *FunnelCreate
+	}
+
+	// FunnelUpsert is the "OnConflict" setter.
+	FunnelUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetTenantID sets the "tenant_id" field.
+func (u *FunnelUpsert) SetTenantID(v uuid.UUID) *FunnelUpsert {
+	u.Set(funnel.FieldTenantID, v)
+	return u
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *FunnelUpsert) UpdateTenantID() *FunnelUpsert {
+	u.SetExcluded(funnel.FieldTenantID)
+	return u
+}
+
+// SetName sets the "name" field.
+func (u *FunnelUpsert) SetName(v string) *FunnelUpsert {
+	u.Set(funnel.FieldName, v)
+	return u
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *FunnelUpsert) UpdateName() *FunnelUpsert {
+	u.SetExcluded(funnel.FieldName)
+	return u
+}
+
+// SetSlug sets the "slug" field.
+func (u *FunnelUpsert) SetSlug(v string) *FunnelUpsert {
+	u.Set(funnel.FieldSlug, v)
+	return u
+}
+
+// UpdateSlug sets the "slug" field to the value that was provided on create.
+func (u *FunnelUpsert) UpdateSlug() *FunnelUpsert {
+	u.SetExcluded(funnel.FieldSlug)
+	return u
+}
+
+// SetFunnelType sets the "funnel_type" field.
+func (u *FunnelUpsert) SetFunnelType(v string) *FunnelUpsert {
+	u.Set(funnel.FieldFunnelType, v)
+	return u
+}
+
+// UpdateFunnelType sets the "funnel_type" field to the value that was provided on create.
+func (u *FunnelUpsert) UpdateFunnelType() *FunnelUpsert {
+	u.SetExcluded(funnel.FieldFunnelType)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *FunnelUpsert) SetStatus(v string) *FunnelUpsert {
+	u.Set(funnel.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *FunnelUpsert) UpdateStatus() *FunnelUpsert {
+	u.SetExcluded(funnel.FieldStatus)
+	return u
+}
+
+// SetSteps sets the "steps" field.
+func (u *FunnelUpsert) SetSteps(v []map[string]interface{}) *FunnelUpsert {
+	u.Set(funnel.FieldSteps, v)
+	return u
+}
+
+// UpdateSteps sets the "steps" field to the value that was provided on create.
+func (u *FunnelUpsert) UpdateSteps() *FunnelUpsert {
+	u.SetExcluded(funnel.FieldSteps)
+	return u
+}
+
+// ClearSteps clears the value of the "steps" field.
+func (u *FunnelUpsert) ClearSteps() *FunnelUpsert {
+	u.SetNull(funnel.FieldSteps)
+	return u
+}
+
+// SetLandingPageHTML sets the "landing_page_html" field.
+func (u *FunnelUpsert) SetLandingPageHTML(v string) *FunnelUpsert {
+	u.Set(funnel.FieldLandingPageHTML, v)
+	return u
+}
+
+// UpdateLandingPageHTML sets the "landing_page_html" field to the value that was provided on create.
+func (u *FunnelUpsert) UpdateLandingPageHTML() *FunnelUpsert {
+	u.SetExcluded(funnel.FieldLandingPageHTML)
+	return u
+}
+
+// ClearLandingPageHTML clears the value of the "landing_page_html" field.
+func (u *FunnelUpsert) ClearLandingPageHTML() *FunnelUpsert {
+	u.SetNull(funnel.FieldLandingPageHTML)
+	return u
+}
+
+// SetLandingPageCSS sets the "landing_page_css" field.
+func (u *FunnelUpsert) SetLandingPageCSS(v map[string]interface{}) *FunnelUpsert {
+	u.Set(funnel.FieldLandingPageCSS, v)
+	return u
+}
+
+// UpdateLandingPageCSS sets the "landing_page_css" field to the value that was provided on create.
+func (u *FunnelUpsert) UpdateLandingPageCSS() *FunnelUpsert {
+	u.SetExcluded(funnel.FieldLandingPageCSS)
+	return u
+}
+
+// ClearLandingPageCSS clears the value of the "landing_page_css" field.
+func (u *FunnelUpsert) ClearLandingPageCSS() *FunnelUpsert {
+	u.SetNull(funnel.FieldLandingPageCSS)
+	return u
+}
+
+// SetTotalViews sets the "total_views" field.
+func (u *FunnelUpsert) SetTotalViews(v int) *FunnelUpsert {
+	u.Set(funnel.FieldTotalViews, v)
+	return u
+}
+
+// UpdateTotalViews sets the "total_views" field to the value that was provided on create.
+func (u *FunnelUpsert) UpdateTotalViews() *FunnelUpsert {
+	u.SetExcluded(funnel.FieldTotalViews)
+	return u
+}
+
+// AddTotalViews adds v to the "total_views" field.
+func (u *FunnelUpsert) AddTotalViews(v int) *FunnelUpsert {
+	u.Add(funnel.FieldTotalViews, v)
+	return u
+}
+
+// SetTotalSubmissions sets the "total_submissions" field.
+func (u *FunnelUpsert) SetTotalSubmissions(v int) *FunnelUpsert {
+	u.Set(funnel.FieldTotalSubmissions, v)
+	return u
+}
+
+// UpdateTotalSubmissions sets the "total_submissions" field to the value that was provided on create.
+func (u *FunnelUpsert) UpdateTotalSubmissions() *FunnelUpsert {
+	u.SetExcluded(funnel.FieldTotalSubmissions)
+	return u
+}
+
+// AddTotalSubmissions adds v to the "total_submissions" field.
+func (u *FunnelUpsert) AddTotalSubmissions(v int) *FunnelUpsert {
+	u.Add(funnel.FieldTotalSubmissions, v)
+	return u
+}
+
+// SetConversionRate sets the "conversion_rate" field.
+func (u *FunnelUpsert) SetConversionRate(v float64) *FunnelUpsert {
+	u.Set(funnel.FieldConversionRate, v)
+	return u
+}
+
+// UpdateConversionRate sets the "conversion_rate" field to the value that was provided on create.
+func (u *FunnelUpsert) UpdateConversionRate() *FunnelUpsert {
+	u.SetExcluded(funnel.FieldConversionRate)
+	return u
+}
+
+// AddConversionRate adds v to the "conversion_rate" field.
+func (u *FunnelUpsert) AddConversionRate(v float64) *FunnelUpsert {
+	u.Add(funnel.FieldConversionRate, v)
+	return u
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *FunnelUpsert) SetMetadata(v map[string]interface{}) *FunnelUpsert {
+	u.Set(funnel.FieldMetadata, v)
+	return u
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *FunnelUpsert) UpdateMetadata() *FunnelUpsert {
+	u.SetExcluded(funnel.FieldMetadata)
+	return u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *FunnelUpsert) ClearMetadata() *FunnelUpsert {
+	u.SetNull(funnel.FieldMetadata)
+	return u
+}
+
+// SetPublishedAt sets the "published_at" field.
+func (u *FunnelUpsert) SetPublishedAt(v time.Time) *FunnelUpsert {
+	u.Set(funnel.FieldPublishedAt, v)
+	return u
+}
+
+// UpdatePublishedAt sets the "published_at" field to the value that was provided on create.
+func (u *FunnelUpsert) UpdatePublishedAt() *FunnelUpsert {
+	u.SetExcluded(funnel.FieldPublishedAt)
+	return u
+}
+
+// ClearPublishedAt clears the value of the "published_at" field.
+func (u *FunnelUpsert) ClearPublishedAt() *FunnelUpsert {
+	u.SetNull(funnel.FieldPublishedAt)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *FunnelUpsert) SetUpdatedAt(v time.Time) *FunnelUpsert {
+	u.Set(funnel.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *FunnelUpsert) UpdateUpdatedAt() *FunnelUpsert {
+	u.SetExcluded(funnel.FieldUpdatedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.Funnel.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(funnel.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *FunnelUpsertOne) UpdateNewValues() *FunnelUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(funnel.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(funnel.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Funnel.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *FunnelUpsertOne) Ignore() *FunnelUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *FunnelUpsertOne) DoNothing() *FunnelUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the FunnelCreate.OnConflict
+// documentation for more info.
+func (u *FunnelUpsertOne) Update(set func(*FunnelUpsert)) *FunnelUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&FunnelUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *FunnelUpsertOne) SetTenantID(v uuid.UUID) *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *FunnelUpsertOne) UpdateTenantID() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetName sets the "name" field.
+func (u *FunnelUpsertOne) SetName(v string) *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetName(v)
+	})
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *FunnelUpsertOne) UpdateName() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateName()
+	})
+}
+
+// SetSlug sets the "slug" field.
+func (u *FunnelUpsertOne) SetSlug(v string) *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetSlug(v)
+	})
+}
+
+// UpdateSlug sets the "slug" field to the value that was provided on create.
+func (u *FunnelUpsertOne) UpdateSlug() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateSlug()
+	})
+}
+
+// SetFunnelType sets the "funnel_type" field.
+func (u *FunnelUpsertOne) SetFunnelType(v string) *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetFunnelType(v)
+	})
+}
+
+// UpdateFunnelType sets the "funnel_type" field to the value that was provided on create.
+func (u *FunnelUpsertOne) UpdateFunnelType() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateFunnelType()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *FunnelUpsertOne) SetStatus(v string) *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *FunnelUpsertOne) UpdateStatus() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetSteps sets the "steps" field.
+func (u *FunnelUpsertOne) SetSteps(v []map[string]interface{}) *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetSteps(v)
+	})
+}
+
+// UpdateSteps sets the "steps" field to the value that was provided on create.
+func (u *FunnelUpsertOne) UpdateSteps() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateSteps()
+	})
+}
+
+// ClearSteps clears the value of the "steps" field.
+func (u *FunnelUpsertOne) ClearSteps() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.ClearSteps()
+	})
+}
+
+// SetLandingPageHTML sets the "landing_page_html" field.
+func (u *FunnelUpsertOne) SetLandingPageHTML(v string) *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetLandingPageHTML(v)
+	})
+}
+
+// UpdateLandingPageHTML sets the "landing_page_html" field to the value that was provided on create.
+func (u *FunnelUpsertOne) UpdateLandingPageHTML() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateLandingPageHTML()
+	})
+}
+
+// ClearLandingPageHTML clears the value of the "landing_page_html" field.
+func (u *FunnelUpsertOne) ClearLandingPageHTML() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.ClearLandingPageHTML()
+	})
+}
+
+// SetLandingPageCSS sets the "landing_page_css" field.
+func (u *FunnelUpsertOne) SetLandingPageCSS(v map[string]interface{}) *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetLandingPageCSS(v)
+	})
+}
+
+// UpdateLandingPageCSS sets the "landing_page_css" field to the value that was provided on create.
+func (u *FunnelUpsertOne) UpdateLandingPageCSS() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateLandingPageCSS()
+	})
+}
+
+// ClearLandingPageCSS clears the value of the "landing_page_css" field.
+func (u *FunnelUpsertOne) ClearLandingPageCSS() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.ClearLandingPageCSS()
+	})
+}
+
+// SetTotalViews sets the "total_views" field.
+func (u *FunnelUpsertOne) SetTotalViews(v int) *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetTotalViews(v)
+	})
+}
+
+// AddTotalViews adds v to the "total_views" field.
+func (u *FunnelUpsertOne) AddTotalViews(v int) *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.AddTotalViews(v)
+	})
+}
+
+// UpdateTotalViews sets the "total_views" field to the value that was provided on create.
+func (u *FunnelUpsertOne) UpdateTotalViews() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateTotalViews()
+	})
+}
+
+// SetTotalSubmissions sets the "total_submissions" field.
+func (u *FunnelUpsertOne) SetTotalSubmissions(v int) *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetTotalSubmissions(v)
+	})
+}
+
+// AddTotalSubmissions adds v to the "total_submissions" field.
+func (u *FunnelUpsertOne) AddTotalSubmissions(v int) *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.AddTotalSubmissions(v)
+	})
+}
+
+// UpdateTotalSubmissions sets the "total_submissions" field to the value that was provided on create.
+func (u *FunnelUpsertOne) UpdateTotalSubmissions() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateTotalSubmissions()
+	})
+}
+
+// SetConversionRate sets the "conversion_rate" field.
+func (u *FunnelUpsertOne) SetConversionRate(v float64) *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetConversionRate(v)
+	})
+}
+
+// AddConversionRate adds v to the "conversion_rate" field.
+func (u *FunnelUpsertOne) AddConversionRate(v float64) *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.AddConversionRate(v)
+	})
+}
+
+// UpdateConversionRate sets the "conversion_rate" field to the value that was provided on create.
+func (u *FunnelUpsertOne) UpdateConversionRate() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateConversionRate()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *FunnelUpsertOne) SetMetadata(v map[string]interface{}) *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *FunnelUpsertOne) UpdateMetadata() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *FunnelUpsertOne) ClearMetadata() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetPublishedAt sets the "published_at" field.
+func (u *FunnelUpsertOne) SetPublishedAt(v time.Time) *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetPublishedAt(v)
+	})
+}
+
+// UpdatePublishedAt sets the "published_at" field to the value that was provided on create.
+func (u *FunnelUpsertOne) UpdatePublishedAt() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdatePublishedAt()
+	})
+}
+
+// ClearPublishedAt clears the value of the "published_at" field.
+func (u *FunnelUpsertOne) ClearPublishedAt() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.ClearPublishedAt()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *FunnelUpsertOne) SetUpdatedAt(v time.Time) *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *FunnelUpsertOne) UpdateUpdatedAt() *FunnelUpsertOne {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *FunnelUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for FunnelCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *FunnelUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *FunnelUpsertOne) ID(ctx context.Context) (id uuid.UUID, err error) {
+	if u.create.driver.Dialect() == dialect.MySQL {
+		// In case of "ON CONFLICT", there is no way to get back non-numeric ID
+		// fields from the database since MySQL does not support the RETURNING clause.
+		return id, errors.New("ent: FunnelUpsertOne.ID is not supported by MySQL driver. Use FunnelUpsertOne.Exec instead")
+	}
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *FunnelUpsertOne) IDX(ctx context.Context) uuid.UUID {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // FunnelCreateBulk is the builder for creating many Funnel entities in bulk.
 type FunnelCreateBulk struct {
 	config
 	err      error
 	builders []*FunnelCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the Funnel entities in the database.
@@ -494,6 +1105,7 @@ func (_c *FunnelCreateBulk) Save(ctx context.Context) ([]*Funnel, error) {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -540,6 +1152,375 @@ func (_c *FunnelCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *FunnelCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Funnel.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.FunnelUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *FunnelCreateBulk) OnConflict(opts ...sql.ConflictOption) *FunnelUpsertBulk {
+	_c.conflict = opts
+	return &FunnelUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Funnel.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *FunnelCreateBulk) OnConflictColumns(columns ...string) *FunnelUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &FunnelUpsertBulk{
+		create: _c,
+	}
+}
+
+// FunnelUpsertBulk is the builder for "upsert"-ing
+// a bulk of Funnel nodes.
+type FunnelUpsertBulk struct {
+	create *FunnelCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.Funnel.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(funnel.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *FunnelUpsertBulk) UpdateNewValues() *FunnelUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(funnel.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(funnel.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Funnel.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *FunnelUpsertBulk) Ignore() *FunnelUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *FunnelUpsertBulk) DoNothing() *FunnelUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the FunnelCreateBulk.OnConflict
+// documentation for more info.
+func (u *FunnelUpsertBulk) Update(set func(*FunnelUpsert)) *FunnelUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&FunnelUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *FunnelUpsertBulk) SetTenantID(v uuid.UUID) *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *FunnelUpsertBulk) UpdateTenantID() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetName sets the "name" field.
+func (u *FunnelUpsertBulk) SetName(v string) *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetName(v)
+	})
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *FunnelUpsertBulk) UpdateName() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateName()
+	})
+}
+
+// SetSlug sets the "slug" field.
+func (u *FunnelUpsertBulk) SetSlug(v string) *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetSlug(v)
+	})
+}
+
+// UpdateSlug sets the "slug" field to the value that was provided on create.
+func (u *FunnelUpsertBulk) UpdateSlug() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateSlug()
+	})
+}
+
+// SetFunnelType sets the "funnel_type" field.
+func (u *FunnelUpsertBulk) SetFunnelType(v string) *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetFunnelType(v)
+	})
+}
+
+// UpdateFunnelType sets the "funnel_type" field to the value that was provided on create.
+func (u *FunnelUpsertBulk) UpdateFunnelType() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateFunnelType()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *FunnelUpsertBulk) SetStatus(v string) *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *FunnelUpsertBulk) UpdateStatus() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetSteps sets the "steps" field.
+func (u *FunnelUpsertBulk) SetSteps(v []map[string]interface{}) *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetSteps(v)
+	})
+}
+
+// UpdateSteps sets the "steps" field to the value that was provided on create.
+func (u *FunnelUpsertBulk) UpdateSteps() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateSteps()
+	})
+}
+
+// ClearSteps clears the value of the "steps" field.
+func (u *FunnelUpsertBulk) ClearSteps() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.ClearSteps()
+	})
+}
+
+// SetLandingPageHTML sets the "landing_page_html" field.
+func (u *FunnelUpsertBulk) SetLandingPageHTML(v string) *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetLandingPageHTML(v)
+	})
+}
+
+// UpdateLandingPageHTML sets the "landing_page_html" field to the value that was provided on create.
+func (u *FunnelUpsertBulk) UpdateLandingPageHTML() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateLandingPageHTML()
+	})
+}
+
+// ClearLandingPageHTML clears the value of the "landing_page_html" field.
+func (u *FunnelUpsertBulk) ClearLandingPageHTML() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.ClearLandingPageHTML()
+	})
+}
+
+// SetLandingPageCSS sets the "landing_page_css" field.
+func (u *FunnelUpsertBulk) SetLandingPageCSS(v map[string]interface{}) *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetLandingPageCSS(v)
+	})
+}
+
+// UpdateLandingPageCSS sets the "landing_page_css" field to the value that was provided on create.
+func (u *FunnelUpsertBulk) UpdateLandingPageCSS() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateLandingPageCSS()
+	})
+}
+
+// ClearLandingPageCSS clears the value of the "landing_page_css" field.
+func (u *FunnelUpsertBulk) ClearLandingPageCSS() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.ClearLandingPageCSS()
+	})
+}
+
+// SetTotalViews sets the "total_views" field.
+func (u *FunnelUpsertBulk) SetTotalViews(v int) *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetTotalViews(v)
+	})
+}
+
+// AddTotalViews adds v to the "total_views" field.
+func (u *FunnelUpsertBulk) AddTotalViews(v int) *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.AddTotalViews(v)
+	})
+}
+
+// UpdateTotalViews sets the "total_views" field to the value that was provided on create.
+func (u *FunnelUpsertBulk) UpdateTotalViews() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateTotalViews()
+	})
+}
+
+// SetTotalSubmissions sets the "total_submissions" field.
+func (u *FunnelUpsertBulk) SetTotalSubmissions(v int) *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetTotalSubmissions(v)
+	})
+}
+
+// AddTotalSubmissions adds v to the "total_submissions" field.
+func (u *FunnelUpsertBulk) AddTotalSubmissions(v int) *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.AddTotalSubmissions(v)
+	})
+}
+
+// UpdateTotalSubmissions sets the "total_submissions" field to the value that was provided on create.
+func (u *FunnelUpsertBulk) UpdateTotalSubmissions() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateTotalSubmissions()
+	})
+}
+
+// SetConversionRate sets the "conversion_rate" field.
+func (u *FunnelUpsertBulk) SetConversionRate(v float64) *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetConversionRate(v)
+	})
+}
+
+// AddConversionRate adds v to the "conversion_rate" field.
+func (u *FunnelUpsertBulk) AddConversionRate(v float64) *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.AddConversionRate(v)
+	})
+}
+
+// UpdateConversionRate sets the "conversion_rate" field to the value that was provided on create.
+func (u *FunnelUpsertBulk) UpdateConversionRate() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateConversionRate()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *FunnelUpsertBulk) SetMetadata(v map[string]interface{}) *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *FunnelUpsertBulk) UpdateMetadata() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *FunnelUpsertBulk) ClearMetadata() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetPublishedAt sets the "published_at" field.
+func (u *FunnelUpsertBulk) SetPublishedAt(v time.Time) *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetPublishedAt(v)
+	})
+}
+
+// UpdatePublishedAt sets the "published_at" field to the value that was provided on create.
+func (u *FunnelUpsertBulk) UpdatePublishedAt() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdatePublishedAt()
+	})
+}
+
+// ClearPublishedAt clears the value of the "published_at" field.
+func (u *FunnelUpsertBulk) ClearPublishedAt() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.ClearPublishedAt()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *FunnelUpsertBulk) SetUpdatedAt(v time.Time) *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *FunnelUpsertBulk) UpdateUpdatedAt() *FunnelUpsertBulk {
+	return u.Update(func(s *FunnelUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *FunnelUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the FunnelCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for FunnelCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *FunnelUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

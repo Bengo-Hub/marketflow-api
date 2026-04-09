@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
@@ -20,6 +22,7 @@ type KnowledgeBaseEntryCreate struct {
 	config
 	mutation *KnowledgeBaseEntryMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -328,6 +331,7 @@ func (_c *KnowledgeBaseEntryCreate) createSpec() (*KnowledgeBaseEntry, *sqlgraph
 		_node = &KnowledgeBaseEntry{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(knowledgebaseentry.Table, sqlgraph.NewFieldSpec(knowledgebaseentry.FieldID, field.TypeUUID))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
@@ -404,11 +408,605 @@ func (_c *KnowledgeBaseEntryCreate) createSpec() (*KnowledgeBaseEntry, *sqlgraph
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.KnowledgeBaseEntry.Create().
+//		SetTenantID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.KnowledgeBaseEntryUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *KnowledgeBaseEntryCreate) OnConflict(opts ...sql.ConflictOption) *KnowledgeBaseEntryUpsertOne {
+	_c.conflict = opts
+	return &KnowledgeBaseEntryUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.KnowledgeBaseEntry.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *KnowledgeBaseEntryCreate) OnConflictColumns(columns ...string) *KnowledgeBaseEntryUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &KnowledgeBaseEntryUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// KnowledgeBaseEntryUpsertOne is the builder for "upsert"-ing
+	//  one KnowledgeBaseEntry node.
+	KnowledgeBaseEntryUpsertOne struct {
+		create *KnowledgeBaseEntryCreate
+	}
+
+	// KnowledgeBaseEntryUpsert is the "OnConflict" setter.
+	KnowledgeBaseEntryUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetTenantID sets the "tenant_id" field.
+func (u *KnowledgeBaseEntryUpsert) SetTenantID(v uuid.UUID) *KnowledgeBaseEntryUpsert {
+	u.Set(knowledgebaseentry.FieldTenantID, v)
+	return u
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsert) UpdateTenantID() *KnowledgeBaseEntryUpsert {
+	u.SetExcluded(knowledgebaseentry.FieldTenantID)
+	return u
+}
+
+// SetCategory sets the "category" field.
+func (u *KnowledgeBaseEntryUpsert) SetCategory(v string) *KnowledgeBaseEntryUpsert {
+	u.Set(knowledgebaseentry.FieldCategory, v)
+	return u
+}
+
+// UpdateCategory sets the "category" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsert) UpdateCategory() *KnowledgeBaseEntryUpsert {
+	u.SetExcluded(knowledgebaseentry.FieldCategory)
+	return u
+}
+
+// SetTitle sets the "title" field.
+func (u *KnowledgeBaseEntryUpsert) SetTitle(v string) *KnowledgeBaseEntryUpsert {
+	u.Set(knowledgebaseentry.FieldTitle, v)
+	return u
+}
+
+// UpdateTitle sets the "title" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsert) UpdateTitle() *KnowledgeBaseEntryUpsert {
+	u.SetExcluded(knowledgebaseentry.FieldTitle)
+	return u
+}
+
+// SetContent sets the "content" field.
+func (u *KnowledgeBaseEntryUpsert) SetContent(v string) *KnowledgeBaseEntryUpsert {
+	u.Set(knowledgebaseentry.FieldContent, v)
+	return u
+}
+
+// UpdateContent sets the "content" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsert) UpdateContent() *KnowledgeBaseEntryUpsert {
+	u.SetExcluded(knowledgebaseentry.FieldContent)
+	return u
+}
+
+// SetProductCode sets the "product_code" field.
+func (u *KnowledgeBaseEntryUpsert) SetProductCode(v string) *KnowledgeBaseEntryUpsert {
+	u.Set(knowledgebaseentry.FieldProductCode, v)
+	return u
+}
+
+// UpdateProductCode sets the "product_code" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsert) UpdateProductCode() *KnowledgeBaseEntryUpsert {
+	u.SetExcluded(knowledgebaseentry.FieldProductCode)
+	return u
+}
+
+// ClearProductCode clears the value of the "product_code" field.
+func (u *KnowledgeBaseEntryUpsert) ClearProductCode() *KnowledgeBaseEntryUpsert {
+	u.SetNull(knowledgebaseentry.FieldProductCode)
+	return u
+}
+
+// SetProductPrice sets the "product_price" field.
+func (u *KnowledgeBaseEntryUpsert) SetProductPrice(v float64) *KnowledgeBaseEntryUpsert {
+	u.Set(knowledgebaseentry.FieldProductPrice, v)
+	return u
+}
+
+// UpdateProductPrice sets the "product_price" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsert) UpdateProductPrice() *KnowledgeBaseEntryUpsert {
+	u.SetExcluded(knowledgebaseentry.FieldProductPrice)
+	return u
+}
+
+// AddProductPrice adds v to the "product_price" field.
+func (u *KnowledgeBaseEntryUpsert) AddProductPrice(v float64) *KnowledgeBaseEntryUpsert {
+	u.Add(knowledgebaseentry.FieldProductPrice, v)
+	return u
+}
+
+// ClearProductPrice clears the value of the "product_price" field.
+func (u *KnowledgeBaseEntryUpsert) ClearProductPrice() *KnowledgeBaseEntryUpsert {
+	u.SetNull(knowledgebaseentry.FieldProductPrice)
+	return u
+}
+
+// SetProductCc sets the "product_cc" field.
+func (u *KnowledgeBaseEntryUpsert) SetProductCc(v float64) *KnowledgeBaseEntryUpsert {
+	u.Set(knowledgebaseentry.FieldProductCc, v)
+	return u
+}
+
+// UpdateProductCc sets the "product_cc" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsert) UpdateProductCc() *KnowledgeBaseEntryUpsert {
+	u.SetExcluded(knowledgebaseentry.FieldProductCc)
+	return u
+}
+
+// AddProductCc adds v to the "product_cc" field.
+func (u *KnowledgeBaseEntryUpsert) AddProductCc(v float64) *KnowledgeBaseEntryUpsert {
+	u.Add(knowledgebaseentry.FieldProductCc, v)
+	return u
+}
+
+// ClearProductCc clears the value of the "product_cc" field.
+func (u *KnowledgeBaseEntryUpsert) ClearProductCc() *KnowledgeBaseEntryUpsert {
+	u.SetNull(knowledgebaseentry.FieldProductCc)
+	return u
+}
+
+// SetProductImageURL sets the "product_image_url" field.
+func (u *KnowledgeBaseEntryUpsert) SetProductImageURL(v string) *KnowledgeBaseEntryUpsert {
+	u.Set(knowledgebaseentry.FieldProductImageURL, v)
+	return u
+}
+
+// UpdateProductImageURL sets the "product_image_url" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsert) UpdateProductImageURL() *KnowledgeBaseEntryUpsert {
+	u.SetExcluded(knowledgebaseentry.FieldProductImageURL)
+	return u
+}
+
+// ClearProductImageURL clears the value of the "product_image_url" field.
+func (u *KnowledgeBaseEntryUpsert) ClearProductImageURL() *KnowledgeBaseEntryUpsert {
+	u.SetNull(knowledgebaseentry.FieldProductImageURL)
+	return u
+}
+
+// SetEmbedded sets the "embedded" field.
+func (u *KnowledgeBaseEntryUpsert) SetEmbedded(v bool) *KnowledgeBaseEntryUpsert {
+	u.Set(knowledgebaseentry.FieldEmbedded, v)
+	return u
+}
+
+// UpdateEmbedded sets the "embedded" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsert) UpdateEmbedded() *KnowledgeBaseEntryUpsert {
+	u.SetExcluded(knowledgebaseentry.FieldEmbedded)
+	return u
+}
+
+// SetChunkCount sets the "chunk_count" field.
+func (u *KnowledgeBaseEntryUpsert) SetChunkCount(v int) *KnowledgeBaseEntryUpsert {
+	u.Set(knowledgebaseentry.FieldChunkCount, v)
+	return u
+}
+
+// UpdateChunkCount sets the "chunk_count" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsert) UpdateChunkCount() *KnowledgeBaseEntryUpsert {
+	u.SetExcluded(knowledgebaseentry.FieldChunkCount)
+	return u
+}
+
+// AddChunkCount adds v to the "chunk_count" field.
+func (u *KnowledgeBaseEntryUpsert) AddChunkCount(v int) *KnowledgeBaseEntryUpsert {
+	u.Add(knowledgebaseentry.FieldChunkCount, v)
+	return u
+}
+
+// SetTags sets the "tags" field.
+func (u *KnowledgeBaseEntryUpsert) SetTags(v []string) *KnowledgeBaseEntryUpsert {
+	u.Set(knowledgebaseentry.FieldTags, v)
+	return u
+}
+
+// UpdateTags sets the "tags" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsert) UpdateTags() *KnowledgeBaseEntryUpsert {
+	u.SetExcluded(knowledgebaseentry.FieldTags)
+	return u
+}
+
+// ClearTags clears the value of the "tags" field.
+func (u *KnowledgeBaseEntryUpsert) ClearTags() *KnowledgeBaseEntryUpsert {
+	u.SetNull(knowledgebaseentry.FieldTags)
+	return u
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *KnowledgeBaseEntryUpsert) SetMetadata(v map[string]interface{}) *KnowledgeBaseEntryUpsert {
+	u.Set(knowledgebaseentry.FieldMetadata, v)
+	return u
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsert) UpdateMetadata() *KnowledgeBaseEntryUpsert {
+	u.SetExcluded(knowledgebaseentry.FieldMetadata)
+	return u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *KnowledgeBaseEntryUpsert) ClearMetadata() *KnowledgeBaseEntryUpsert {
+	u.SetNull(knowledgebaseentry.FieldMetadata)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *KnowledgeBaseEntryUpsert) SetUpdatedAt(v time.Time) *KnowledgeBaseEntryUpsert {
+	u.Set(knowledgebaseentry.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsert) UpdateUpdatedAt() *KnowledgeBaseEntryUpsert {
+	u.SetExcluded(knowledgebaseentry.FieldUpdatedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.KnowledgeBaseEntry.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(knowledgebaseentry.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *KnowledgeBaseEntryUpsertOne) UpdateNewValues() *KnowledgeBaseEntryUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(knowledgebaseentry.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(knowledgebaseentry.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.KnowledgeBaseEntry.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *KnowledgeBaseEntryUpsertOne) Ignore() *KnowledgeBaseEntryUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *KnowledgeBaseEntryUpsertOne) DoNothing() *KnowledgeBaseEntryUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the KnowledgeBaseEntryCreate.OnConflict
+// documentation for more info.
+func (u *KnowledgeBaseEntryUpsertOne) Update(set func(*KnowledgeBaseEntryUpsert)) *KnowledgeBaseEntryUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&KnowledgeBaseEntryUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *KnowledgeBaseEntryUpsertOne) SetTenantID(v uuid.UUID) *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertOne) UpdateTenantID() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetCategory sets the "category" field.
+func (u *KnowledgeBaseEntryUpsertOne) SetCategory(v string) *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetCategory(v)
+	})
+}
+
+// UpdateCategory sets the "category" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertOne) UpdateCategory() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateCategory()
+	})
+}
+
+// SetTitle sets the "title" field.
+func (u *KnowledgeBaseEntryUpsertOne) SetTitle(v string) *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetTitle(v)
+	})
+}
+
+// UpdateTitle sets the "title" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertOne) UpdateTitle() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateTitle()
+	})
+}
+
+// SetContent sets the "content" field.
+func (u *KnowledgeBaseEntryUpsertOne) SetContent(v string) *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetContent(v)
+	})
+}
+
+// UpdateContent sets the "content" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertOne) UpdateContent() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateContent()
+	})
+}
+
+// SetProductCode sets the "product_code" field.
+func (u *KnowledgeBaseEntryUpsertOne) SetProductCode(v string) *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetProductCode(v)
+	})
+}
+
+// UpdateProductCode sets the "product_code" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertOne) UpdateProductCode() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateProductCode()
+	})
+}
+
+// ClearProductCode clears the value of the "product_code" field.
+func (u *KnowledgeBaseEntryUpsertOne) ClearProductCode() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.ClearProductCode()
+	})
+}
+
+// SetProductPrice sets the "product_price" field.
+func (u *KnowledgeBaseEntryUpsertOne) SetProductPrice(v float64) *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetProductPrice(v)
+	})
+}
+
+// AddProductPrice adds v to the "product_price" field.
+func (u *KnowledgeBaseEntryUpsertOne) AddProductPrice(v float64) *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.AddProductPrice(v)
+	})
+}
+
+// UpdateProductPrice sets the "product_price" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertOne) UpdateProductPrice() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateProductPrice()
+	})
+}
+
+// ClearProductPrice clears the value of the "product_price" field.
+func (u *KnowledgeBaseEntryUpsertOne) ClearProductPrice() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.ClearProductPrice()
+	})
+}
+
+// SetProductCc sets the "product_cc" field.
+func (u *KnowledgeBaseEntryUpsertOne) SetProductCc(v float64) *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetProductCc(v)
+	})
+}
+
+// AddProductCc adds v to the "product_cc" field.
+func (u *KnowledgeBaseEntryUpsertOne) AddProductCc(v float64) *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.AddProductCc(v)
+	})
+}
+
+// UpdateProductCc sets the "product_cc" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertOne) UpdateProductCc() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateProductCc()
+	})
+}
+
+// ClearProductCc clears the value of the "product_cc" field.
+func (u *KnowledgeBaseEntryUpsertOne) ClearProductCc() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.ClearProductCc()
+	})
+}
+
+// SetProductImageURL sets the "product_image_url" field.
+func (u *KnowledgeBaseEntryUpsertOne) SetProductImageURL(v string) *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetProductImageURL(v)
+	})
+}
+
+// UpdateProductImageURL sets the "product_image_url" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertOne) UpdateProductImageURL() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateProductImageURL()
+	})
+}
+
+// ClearProductImageURL clears the value of the "product_image_url" field.
+func (u *KnowledgeBaseEntryUpsertOne) ClearProductImageURL() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.ClearProductImageURL()
+	})
+}
+
+// SetEmbedded sets the "embedded" field.
+func (u *KnowledgeBaseEntryUpsertOne) SetEmbedded(v bool) *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetEmbedded(v)
+	})
+}
+
+// UpdateEmbedded sets the "embedded" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertOne) UpdateEmbedded() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateEmbedded()
+	})
+}
+
+// SetChunkCount sets the "chunk_count" field.
+func (u *KnowledgeBaseEntryUpsertOne) SetChunkCount(v int) *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetChunkCount(v)
+	})
+}
+
+// AddChunkCount adds v to the "chunk_count" field.
+func (u *KnowledgeBaseEntryUpsertOne) AddChunkCount(v int) *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.AddChunkCount(v)
+	})
+}
+
+// UpdateChunkCount sets the "chunk_count" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertOne) UpdateChunkCount() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateChunkCount()
+	})
+}
+
+// SetTags sets the "tags" field.
+func (u *KnowledgeBaseEntryUpsertOne) SetTags(v []string) *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetTags(v)
+	})
+}
+
+// UpdateTags sets the "tags" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertOne) UpdateTags() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateTags()
+	})
+}
+
+// ClearTags clears the value of the "tags" field.
+func (u *KnowledgeBaseEntryUpsertOne) ClearTags() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.ClearTags()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *KnowledgeBaseEntryUpsertOne) SetMetadata(v map[string]interface{}) *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertOne) UpdateMetadata() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *KnowledgeBaseEntryUpsertOne) ClearMetadata() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *KnowledgeBaseEntryUpsertOne) SetUpdatedAt(v time.Time) *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertOne) UpdateUpdatedAt() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *KnowledgeBaseEntryUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for KnowledgeBaseEntryCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *KnowledgeBaseEntryUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *KnowledgeBaseEntryUpsertOne) ID(ctx context.Context) (id uuid.UUID, err error) {
+	if u.create.driver.Dialect() == dialect.MySQL {
+		// In case of "ON CONFLICT", there is no way to get back non-numeric ID
+		// fields from the database since MySQL does not support the RETURNING clause.
+		return id, errors.New("ent: KnowledgeBaseEntryUpsertOne.ID is not supported by MySQL driver. Use KnowledgeBaseEntryUpsertOne.Exec instead")
+	}
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *KnowledgeBaseEntryUpsertOne) IDX(ctx context.Context) uuid.UUID {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // KnowledgeBaseEntryCreateBulk is the builder for creating many KnowledgeBaseEntry entities in bulk.
 type KnowledgeBaseEntryCreateBulk struct {
 	config
 	err      error
 	builders []*KnowledgeBaseEntryCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the KnowledgeBaseEntry entities in the database.
@@ -438,6 +1036,7 @@ func (_c *KnowledgeBaseEntryCreateBulk) Save(ctx context.Context) ([]*KnowledgeB
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -484,6 +1083,368 @@ func (_c *KnowledgeBaseEntryCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *KnowledgeBaseEntryCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.KnowledgeBaseEntry.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.KnowledgeBaseEntryUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *KnowledgeBaseEntryCreateBulk) OnConflict(opts ...sql.ConflictOption) *KnowledgeBaseEntryUpsertBulk {
+	_c.conflict = opts
+	return &KnowledgeBaseEntryUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.KnowledgeBaseEntry.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *KnowledgeBaseEntryCreateBulk) OnConflictColumns(columns ...string) *KnowledgeBaseEntryUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &KnowledgeBaseEntryUpsertBulk{
+		create: _c,
+	}
+}
+
+// KnowledgeBaseEntryUpsertBulk is the builder for "upsert"-ing
+// a bulk of KnowledgeBaseEntry nodes.
+type KnowledgeBaseEntryUpsertBulk struct {
+	create *KnowledgeBaseEntryCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.KnowledgeBaseEntry.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(knowledgebaseentry.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *KnowledgeBaseEntryUpsertBulk) UpdateNewValues() *KnowledgeBaseEntryUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(knowledgebaseentry.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(knowledgebaseentry.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.KnowledgeBaseEntry.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *KnowledgeBaseEntryUpsertBulk) Ignore() *KnowledgeBaseEntryUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *KnowledgeBaseEntryUpsertBulk) DoNothing() *KnowledgeBaseEntryUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the KnowledgeBaseEntryCreateBulk.OnConflict
+// documentation for more info.
+func (u *KnowledgeBaseEntryUpsertBulk) Update(set func(*KnowledgeBaseEntryUpsert)) *KnowledgeBaseEntryUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&KnowledgeBaseEntryUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *KnowledgeBaseEntryUpsertBulk) SetTenantID(v uuid.UUID) *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertBulk) UpdateTenantID() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetCategory sets the "category" field.
+func (u *KnowledgeBaseEntryUpsertBulk) SetCategory(v string) *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetCategory(v)
+	})
+}
+
+// UpdateCategory sets the "category" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertBulk) UpdateCategory() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateCategory()
+	})
+}
+
+// SetTitle sets the "title" field.
+func (u *KnowledgeBaseEntryUpsertBulk) SetTitle(v string) *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetTitle(v)
+	})
+}
+
+// UpdateTitle sets the "title" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertBulk) UpdateTitle() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateTitle()
+	})
+}
+
+// SetContent sets the "content" field.
+func (u *KnowledgeBaseEntryUpsertBulk) SetContent(v string) *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetContent(v)
+	})
+}
+
+// UpdateContent sets the "content" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertBulk) UpdateContent() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateContent()
+	})
+}
+
+// SetProductCode sets the "product_code" field.
+func (u *KnowledgeBaseEntryUpsertBulk) SetProductCode(v string) *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetProductCode(v)
+	})
+}
+
+// UpdateProductCode sets the "product_code" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertBulk) UpdateProductCode() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateProductCode()
+	})
+}
+
+// ClearProductCode clears the value of the "product_code" field.
+func (u *KnowledgeBaseEntryUpsertBulk) ClearProductCode() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.ClearProductCode()
+	})
+}
+
+// SetProductPrice sets the "product_price" field.
+func (u *KnowledgeBaseEntryUpsertBulk) SetProductPrice(v float64) *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetProductPrice(v)
+	})
+}
+
+// AddProductPrice adds v to the "product_price" field.
+func (u *KnowledgeBaseEntryUpsertBulk) AddProductPrice(v float64) *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.AddProductPrice(v)
+	})
+}
+
+// UpdateProductPrice sets the "product_price" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertBulk) UpdateProductPrice() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateProductPrice()
+	})
+}
+
+// ClearProductPrice clears the value of the "product_price" field.
+func (u *KnowledgeBaseEntryUpsertBulk) ClearProductPrice() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.ClearProductPrice()
+	})
+}
+
+// SetProductCc sets the "product_cc" field.
+func (u *KnowledgeBaseEntryUpsertBulk) SetProductCc(v float64) *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetProductCc(v)
+	})
+}
+
+// AddProductCc adds v to the "product_cc" field.
+func (u *KnowledgeBaseEntryUpsertBulk) AddProductCc(v float64) *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.AddProductCc(v)
+	})
+}
+
+// UpdateProductCc sets the "product_cc" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertBulk) UpdateProductCc() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateProductCc()
+	})
+}
+
+// ClearProductCc clears the value of the "product_cc" field.
+func (u *KnowledgeBaseEntryUpsertBulk) ClearProductCc() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.ClearProductCc()
+	})
+}
+
+// SetProductImageURL sets the "product_image_url" field.
+func (u *KnowledgeBaseEntryUpsertBulk) SetProductImageURL(v string) *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetProductImageURL(v)
+	})
+}
+
+// UpdateProductImageURL sets the "product_image_url" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertBulk) UpdateProductImageURL() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateProductImageURL()
+	})
+}
+
+// ClearProductImageURL clears the value of the "product_image_url" field.
+func (u *KnowledgeBaseEntryUpsertBulk) ClearProductImageURL() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.ClearProductImageURL()
+	})
+}
+
+// SetEmbedded sets the "embedded" field.
+func (u *KnowledgeBaseEntryUpsertBulk) SetEmbedded(v bool) *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetEmbedded(v)
+	})
+}
+
+// UpdateEmbedded sets the "embedded" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertBulk) UpdateEmbedded() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateEmbedded()
+	})
+}
+
+// SetChunkCount sets the "chunk_count" field.
+func (u *KnowledgeBaseEntryUpsertBulk) SetChunkCount(v int) *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetChunkCount(v)
+	})
+}
+
+// AddChunkCount adds v to the "chunk_count" field.
+func (u *KnowledgeBaseEntryUpsertBulk) AddChunkCount(v int) *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.AddChunkCount(v)
+	})
+}
+
+// UpdateChunkCount sets the "chunk_count" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertBulk) UpdateChunkCount() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateChunkCount()
+	})
+}
+
+// SetTags sets the "tags" field.
+func (u *KnowledgeBaseEntryUpsertBulk) SetTags(v []string) *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetTags(v)
+	})
+}
+
+// UpdateTags sets the "tags" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertBulk) UpdateTags() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateTags()
+	})
+}
+
+// ClearTags clears the value of the "tags" field.
+func (u *KnowledgeBaseEntryUpsertBulk) ClearTags() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.ClearTags()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *KnowledgeBaseEntryUpsertBulk) SetMetadata(v map[string]interface{}) *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertBulk) UpdateMetadata() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *KnowledgeBaseEntryUpsertBulk) ClearMetadata() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *KnowledgeBaseEntryUpsertBulk) SetUpdatedAt(v time.Time) *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertBulk) UpdateUpdatedAt() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *KnowledgeBaseEntryUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the KnowledgeBaseEntryCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for KnowledgeBaseEntryCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *KnowledgeBaseEntryUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

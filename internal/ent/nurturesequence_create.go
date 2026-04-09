@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
@@ -20,6 +22,7 @@ type NurtureSequenceCreate struct {
 	config
 	mutation *NurtureSequenceMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -289,6 +292,7 @@ func (_c *NurtureSequenceCreate) createSpec() (*NurtureSequence, *sqlgraph.Creat
 		_node = &NurtureSequence{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(nurturesequence.Table, sqlgraph.NewFieldSpec(nurturesequence.FieldID, field.TypeUUID))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
@@ -353,11 +357,462 @@ func (_c *NurtureSequenceCreate) createSpec() (*NurtureSequence, *sqlgraph.Creat
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.NurtureSequence.Create().
+//		SetTenantID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.NurtureSequenceUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *NurtureSequenceCreate) OnConflict(opts ...sql.ConflictOption) *NurtureSequenceUpsertOne {
+	_c.conflict = opts
+	return &NurtureSequenceUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.NurtureSequence.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *NurtureSequenceCreate) OnConflictColumns(columns ...string) *NurtureSequenceUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &NurtureSequenceUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// NurtureSequenceUpsertOne is the builder for "upsert"-ing
+	//  one NurtureSequence node.
+	NurtureSequenceUpsertOne struct {
+		create *NurtureSequenceCreate
+	}
+
+	// NurtureSequenceUpsert is the "OnConflict" setter.
+	NurtureSequenceUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetTenantID sets the "tenant_id" field.
+func (u *NurtureSequenceUpsert) SetTenantID(v uuid.UUID) *NurtureSequenceUpsert {
+	u.Set(nurturesequence.FieldTenantID, v)
+	return u
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *NurtureSequenceUpsert) UpdateTenantID() *NurtureSequenceUpsert {
+	u.SetExcluded(nurturesequence.FieldTenantID)
+	return u
+}
+
+// SetName sets the "name" field.
+func (u *NurtureSequenceUpsert) SetName(v string) *NurtureSequenceUpsert {
+	u.Set(nurturesequence.FieldName, v)
+	return u
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *NurtureSequenceUpsert) UpdateName() *NurtureSequenceUpsert {
+	u.SetExcluded(nurturesequence.FieldName)
+	return u
+}
+
+// SetTriggerEvent sets the "trigger_event" field.
+func (u *NurtureSequenceUpsert) SetTriggerEvent(v string) *NurtureSequenceUpsert {
+	u.Set(nurturesequence.FieldTriggerEvent, v)
+	return u
+}
+
+// UpdateTriggerEvent sets the "trigger_event" field to the value that was provided on create.
+func (u *NurtureSequenceUpsert) UpdateTriggerEvent() *NurtureSequenceUpsert {
+	u.SetExcluded(nurturesequence.FieldTriggerEvent)
+	return u
+}
+
+// SetLeadTypeFilter sets the "lead_type_filter" field.
+func (u *NurtureSequenceUpsert) SetLeadTypeFilter(v string) *NurtureSequenceUpsert {
+	u.Set(nurturesequence.FieldLeadTypeFilter, v)
+	return u
+}
+
+// UpdateLeadTypeFilter sets the "lead_type_filter" field to the value that was provided on create.
+func (u *NurtureSequenceUpsert) UpdateLeadTypeFilter() *NurtureSequenceUpsert {
+	u.SetExcluded(nurturesequence.FieldLeadTypeFilter)
+	return u
+}
+
+// ClearLeadTypeFilter clears the value of the "lead_type_filter" field.
+func (u *NurtureSequenceUpsert) ClearLeadTypeFilter() *NurtureSequenceUpsert {
+	u.SetNull(nurturesequence.FieldLeadTypeFilter)
+	return u
+}
+
+// SetActive sets the "active" field.
+func (u *NurtureSequenceUpsert) SetActive(v bool) *NurtureSequenceUpsert {
+	u.Set(nurturesequence.FieldActive, v)
+	return u
+}
+
+// UpdateActive sets the "active" field to the value that was provided on create.
+func (u *NurtureSequenceUpsert) UpdateActive() *NurtureSequenceUpsert {
+	u.SetExcluded(nurturesequence.FieldActive)
+	return u
+}
+
+// SetSteps sets the "steps" field.
+func (u *NurtureSequenceUpsert) SetSteps(v []map[string]interface{}) *NurtureSequenceUpsert {
+	u.Set(nurturesequence.FieldSteps, v)
+	return u
+}
+
+// UpdateSteps sets the "steps" field to the value that was provided on create.
+func (u *NurtureSequenceUpsert) UpdateSteps() *NurtureSequenceUpsert {
+	u.SetExcluded(nurturesequence.FieldSteps)
+	return u
+}
+
+// SetTotalEnrolled sets the "total_enrolled" field.
+func (u *NurtureSequenceUpsert) SetTotalEnrolled(v int) *NurtureSequenceUpsert {
+	u.Set(nurturesequence.FieldTotalEnrolled, v)
+	return u
+}
+
+// UpdateTotalEnrolled sets the "total_enrolled" field to the value that was provided on create.
+func (u *NurtureSequenceUpsert) UpdateTotalEnrolled() *NurtureSequenceUpsert {
+	u.SetExcluded(nurturesequence.FieldTotalEnrolled)
+	return u
+}
+
+// AddTotalEnrolled adds v to the "total_enrolled" field.
+func (u *NurtureSequenceUpsert) AddTotalEnrolled(v int) *NurtureSequenceUpsert {
+	u.Add(nurturesequence.FieldTotalEnrolled, v)
+	return u
+}
+
+// SetTotalCompleted sets the "total_completed" field.
+func (u *NurtureSequenceUpsert) SetTotalCompleted(v int) *NurtureSequenceUpsert {
+	u.Set(nurturesequence.FieldTotalCompleted, v)
+	return u
+}
+
+// UpdateTotalCompleted sets the "total_completed" field to the value that was provided on create.
+func (u *NurtureSequenceUpsert) UpdateTotalCompleted() *NurtureSequenceUpsert {
+	u.SetExcluded(nurturesequence.FieldTotalCompleted)
+	return u
+}
+
+// AddTotalCompleted adds v to the "total_completed" field.
+func (u *NurtureSequenceUpsert) AddTotalCompleted(v int) *NurtureSequenceUpsert {
+	u.Add(nurturesequence.FieldTotalCompleted, v)
+	return u
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *NurtureSequenceUpsert) SetMetadata(v map[string]interface{}) *NurtureSequenceUpsert {
+	u.Set(nurturesequence.FieldMetadata, v)
+	return u
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *NurtureSequenceUpsert) UpdateMetadata() *NurtureSequenceUpsert {
+	u.SetExcluded(nurturesequence.FieldMetadata)
+	return u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *NurtureSequenceUpsert) ClearMetadata() *NurtureSequenceUpsert {
+	u.SetNull(nurturesequence.FieldMetadata)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *NurtureSequenceUpsert) SetUpdatedAt(v time.Time) *NurtureSequenceUpsert {
+	u.Set(nurturesequence.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *NurtureSequenceUpsert) UpdateUpdatedAt() *NurtureSequenceUpsert {
+	u.SetExcluded(nurturesequence.FieldUpdatedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.NurtureSequence.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(nurturesequence.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *NurtureSequenceUpsertOne) UpdateNewValues() *NurtureSequenceUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(nurturesequence.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(nurturesequence.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.NurtureSequence.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *NurtureSequenceUpsertOne) Ignore() *NurtureSequenceUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *NurtureSequenceUpsertOne) DoNothing() *NurtureSequenceUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the NurtureSequenceCreate.OnConflict
+// documentation for more info.
+func (u *NurtureSequenceUpsertOne) Update(set func(*NurtureSequenceUpsert)) *NurtureSequenceUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&NurtureSequenceUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *NurtureSequenceUpsertOne) SetTenantID(v uuid.UUID) *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertOne) UpdateTenantID() *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetName sets the "name" field.
+func (u *NurtureSequenceUpsertOne) SetName(v string) *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetName(v)
+	})
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertOne) UpdateName() *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateName()
+	})
+}
+
+// SetTriggerEvent sets the "trigger_event" field.
+func (u *NurtureSequenceUpsertOne) SetTriggerEvent(v string) *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetTriggerEvent(v)
+	})
+}
+
+// UpdateTriggerEvent sets the "trigger_event" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertOne) UpdateTriggerEvent() *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateTriggerEvent()
+	})
+}
+
+// SetLeadTypeFilter sets the "lead_type_filter" field.
+func (u *NurtureSequenceUpsertOne) SetLeadTypeFilter(v string) *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetLeadTypeFilter(v)
+	})
+}
+
+// UpdateLeadTypeFilter sets the "lead_type_filter" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertOne) UpdateLeadTypeFilter() *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateLeadTypeFilter()
+	})
+}
+
+// ClearLeadTypeFilter clears the value of the "lead_type_filter" field.
+func (u *NurtureSequenceUpsertOne) ClearLeadTypeFilter() *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.ClearLeadTypeFilter()
+	})
+}
+
+// SetActive sets the "active" field.
+func (u *NurtureSequenceUpsertOne) SetActive(v bool) *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetActive(v)
+	})
+}
+
+// UpdateActive sets the "active" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertOne) UpdateActive() *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateActive()
+	})
+}
+
+// SetSteps sets the "steps" field.
+func (u *NurtureSequenceUpsertOne) SetSteps(v []map[string]interface{}) *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetSteps(v)
+	})
+}
+
+// UpdateSteps sets the "steps" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertOne) UpdateSteps() *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateSteps()
+	})
+}
+
+// SetTotalEnrolled sets the "total_enrolled" field.
+func (u *NurtureSequenceUpsertOne) SetTotalEnrolled(v int) *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetTotalEnrolled(v)
+	})
+}
+
+// AddTotalEnrolled adds v to the "total_enrolled" field.
+func (u *NurtureSequenceUpsertOne) AddTotalEnrolled(v int) *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.AddTotalEnrolled(v)
+	})
+}
+
+// UpdateTotalEnrolled sets the "total_enrolled" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertOne) UpdateTotalEnrolled() *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateTotalEnrolled()
+	})
+}
+
+// SetTotalCompleted sets the "total_completed" field.
+func (u *NurtureSequenceUpsertOne) SetTotalCompleted(v int) *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetTotalCompleted(v)
+	})
+}
+
+// AddTotalCompleted adds v to the "total_completed" field.
+func (u *NurtureSequenceUpsertOne) AddTotalCompleted(v int) *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.AddTotalCompleted(v)
+	})
+}
+
+// UpdateTotalCompleted sets the "total_completed" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertOne) UpdateTotalCompleted() *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateTotalCompleted()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *NurtureSequenceUpsertOne) SetMetadata(v map[string]interface{}) *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertOne) UpdateMetadata() *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *NurtureSequenceUpsertOne) ClearMetadata() *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *NurtureSequenceUpsertOne) SetUpdatedAt(v time.Time) *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertOne) UpdateUpdatedAt() *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *NurtureSequenceUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for NurtureSequenceCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *NurtureSequenceUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *NurtureSequenceUpsertOne) ID(ctx context.Context) (id uuid.UUID, err error) {
+	if u.create.driver.Dialect() == dialect.MySQL {
+		// In case of "ON CONFLICT", there is no way to get back non-numeric ID
+		// fields from the database since MySQL does not support the RETURNING clause.
+		return id, errors.New("ent: NurtureSequenceUpsertOne.ID is not supported by MySQL driver. Use NurtureSequenceUpsertOne.Exec instead")
+	}
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *NurtureSequenceUpsertOne) IDX(ctx context.Context) uuid.UUID {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // NurtureSequenceCreateBulk is the builder for creating many NurtureSequence entities in bulk.
 type NurtureSequenceCreateBulk struct {
 	config
 	err      error
 	builders []*NurtureSequenceCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the NurtureSequence entities in the database.
@@ -387,6 +842,7 @@ func (_c *NurtureSequenceCreateBulk) Save(ctx context.Context) ([]*NurtureSequen
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -433,6 +889,291 @@ func (_c *NurtureSequenceCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *NurtureSequenceCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.NurtureSequence.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.NurtureSequenceUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *NurtureSequenceCreateBulk) OnConflict(opts ...sql.ConflictOption) *NurtureSequenceUpsertBulk {
+	_c.conflict = opts
+	return &NurtureSequenceUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.NurtureSequence.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *NurtureSequenceCreateBulk) OnConflictColumns(columns ...string) *NurtureSequenceUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &NurtureSequenceUpsertBulk{
+		create: _c,
+	}
+}
+
+// NurtureSequenceUpsertBulk is the builder for "upsert"-ing
+// a bulk of NurtureSequence nodes.
+type NurtureSequenceUpsertBulk struct {
+	create *NurtureSequenceCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.NurtureSequence.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(nurturesequence.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *NurtureSequenceUpsertBulk) UpdateNewValues() *NurtureSequenceUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(nurturesequence.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(nurturesequence.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.NurtureSequence.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *NurtureSequenceUpsertBulk) Ignore() *NurtureSequenceUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *NurtureSequenceUpsertBulk) DoNothing() *NurtureSequenceUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the NurtureSequenceCreateBulk.OnConflict
+// documentation for more info.
+func (u *NurtureSequenceUpsertBulk) Update(set func(*NurtureSequenceUpsert)) *NurtureSequenceUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&NurtureSequenceUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *NurtureSequenceUpsertBulk) SetTenantID(v uuid.UUID) *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertBulk) UpdateTenantID() *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetName sets the "name" field.
+func (u *NurtureSequenceUpsertBulk) SetName(v string) *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetName(v)
+	})
+}
+
+// UpdateName sets the "name" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertBulk) UpdateName() *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateName()
+	})
+}
+
+// SetTriggerEvent sets the "trigger_event" field.
+func (u *NurtureSequenceUpsertBulk) SetTriggerEvent(v string) *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetTriggerEvent(v)
+	})
+}
+
+// UpdateTriggerEvent sets the "trigger_event" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertBulk) UpdateTriggerEvent() *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateTriggerEvent()
+	})
+}
+
+// SetLeadTypeFilter sets the "lead_type_filter" field.
+func (u *NurtureSequenceUpsertBulk) SetLeadTypeFilter(v string) *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetLeadTypeFilter(v)
+	})
+}
+
+// UpdateLeadTypeFilter sets the "lead_type_filter" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertBulk) UpdateLeadTypeFilter() *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateLeadTypeFilter()
+	})
+}
+
+// ClearLeadTypeFilter clears the value of the "lead_type_filter" field.
+func (u *NurtureSequenceUpsertBulk) ClearLeadTypeFilter() *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.ClearLeadTypeFilter()
+	})
+}
+
+// SetActive sets the "active" field.
+func (u *NurtureSequenceUpsertBulk) SetActive(v bool) *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetActive(v)
+	})
+}
+
+// UpdateActive sets the "active" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertBulk) UpdateActive() *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateActive()
+	})
+}
+
+// SetSteps sets the "steps" field.
+func (u *NurtureSequenceUpsertBulk) SetSteps(v []map[string]interface{}) *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetSteps(v)
+	})
+}
+
+// UpdateSteps sets the "steps" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertBulk) UpdateSteps() *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateSteps()
+	})
+}
+
+// SetTotalEnrolled sets the "total_enrolled" field.
+func (u *NurtureSequenceUpsertBulk) SetTotalEnrolled(v int) *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetTotalEnrolled(v)
+	})
+}
+
+// AddTotalEnrolled adds v to the "total_enrolled" field.
+func (u *NurtureSequenceUpsertBulk) AddTotalEnrolled(v int) *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.AddTotalEnrolled(v)
+	})
+}
+
+// UpdateTotalEnrolled sets the "total_enrolled" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertBulk) UpdateTotalEnrolled() *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateTotalEnrolled()
+	})
+}
+
+// SetTotalCompleted sets the "total_completed" field.
+func (u *NurtureSequenceUpsertBulk) SetTotalCompleted(v int) *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetTotalCompleted(v)
+	})
+}
+
+// AddTotalCompleted adds v to the "total_completed" field.
+func (u *NurtureSequenceUpsertBulk) AddTotalCompleted(v int) *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.AddTotalCompleted(v)
+	})
+}
+
+// UpdateTotalCompleted sets the "total_completed" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertBulk) UpdateTotalCompleted() *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateTotalCompleted()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *NurtureSequenceUpsertBulk) SetMetadata(v map[string]interface{}) *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertBulk) UpdateMetadata() *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *NurtureSequenceUpsertBulk) ClearMetadata() *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *NurtureSequenceUpsertBulk) SetUpdatedAt(v time.Time) *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertBulk) UpdateUpdatedAt() *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *NurtureSequenceUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the NurtureSequenceCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for NurtureSequenceCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *NurtureSequenceUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

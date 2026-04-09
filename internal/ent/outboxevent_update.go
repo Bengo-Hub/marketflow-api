@@ -19,8 +19,9 @@ import (
 // OutboxEventUpdate is the builder for updating OutboxEvent entities.
 type OutboxEventUpdate struct {
 	config
-	hooks    []Hook
-	mutation *OutboxEventMutation
+	hooks     []Hook
+	mutation  *OutboxEventMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the OutboxEventUpdate builder.
@@ -233,6 +234,12 @@ func (_u *OutboxEventUpdate) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *OutboxEventUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *OutboxEventUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *OutboxEventUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -287,6 +294,7 @@ func (_u *OutboxEventUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if _u.mutation.ErrorMessageCleared() {
 		_spec.ClearField(outboxevent.FieldErrorMessage, field.TypeString)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{outboxevent.Label}
@@ -302,9 +310,10 @@ func (_u *OutboxEventUpdate) sqlSave(ctx context.Context) (_node int, err error)
 // OutboxEventUpdateOne is the builder for updating a single OutboxEvent entity.
 type OutboxEventUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *OutboxEventMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *OutboxEventMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -524,6 +533,12 @@ func (_u *OutboxEventUpdateOne) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *OutboxEventUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *OutboxEventUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *OutboxEventUpdateOne) sqlSave(ctx context.Context) (_node *OutboxEvent, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -595,6 +610,7 @@ func (_u *OutboxEventUpdateOne) sqlSave(ctx context.Context) (_node *OutboxEvent
 	if _u.mutation.ErrorMessageCleared() {
 		_spec.ClearField(outboxevent.FieldErrorMessage, field.TypeString)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	_node = &OutboxEvent{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

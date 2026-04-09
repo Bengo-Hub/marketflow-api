@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
@@ -19,6 +21,7 @@ type ServiceConfigCreate struct {
 	config
 	mutation *ServiceConfigMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -249,6 +252,7 @@ func (_c *ServiceConfigCreate) createSpec() (*ServiceConfig, *sqlgraph.CreateSpe
 		_node = &ServiceConfig{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(serviceconfig.Table, sqlgraph.NewFieldSpec(serviceconfig.FieldID, field.TypeUUID))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
@@ -288,11 +292,358 @@ func (_c *ServiceConfigCreate) createSpec() (*ServiceConfig, *sqlgraph.CreateSpe
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.ServiceConfig.Create().
+//		SetTenantID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.ServiceConfigUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *ServiceConfigCreate) OnConflict(opts ...sql.ConflictOption) *ServiceConfigUpsertOne {
+	_c.conflict = opts
+	return &ServiceConfigUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.ServiceConfig.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *ServiceConfigCreate) OnConflictColumns(columns ...string) *ServiceConfigUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &ServiceConfigUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// ServiceConfigUpsertOne is the builder for "upsert"-ing
+	//  one ServiceConfig node.
+	ServiceConfigUpsertOne struct {
+		create *ServiceConfigCreate
+	}
+
+	// ServiceConfigUpsert is the "OnConflict" setter.
+	ServiceConfigUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetTenantID sets the "tenant_id" field.
+func (u *ServiceConfigUpsert) SetTenantID(v uuid.UUID) *ServiceConfigUpsert {
+	u.Set(serviceconfig.FieldTenantID, v)
+	return u
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *ServiceConfigUpsert) UpdateTenantID() *ServiceConfigUpsert {
+	u.SetExcluded(serviceconfig.FieldTenantID)
+	return u
+}
+
+// ClearTenantID clears the value of the "tenant_id" field.
+func (u *ServiceConfigUpsert) ClearTenantID() *ServiceConfigUpsert {
+	u.SetNull(serviceconfig.FieldTenantID)
+	return u
+}
+
+// SetConfigKey sets the "config_key" field.
+func (u *ServiceConfigUpsert) SetConfigKey(v string) *ServiceConfigUpsert {
+	u.Set(serviceconfig.FieldConfigKey, v)
+	return u
+}
+
+// UpdateConfigKey sets the "config_key" field to the value that was provided on create.
+func (u *ServiceConfigUpsert) UpdateConfigKey() *ServiceConfigUpsert {
+	u.SetExcluded(serviceconfig.FieldConfigKey)
+	return u
+}
+
+// SetConfigValue sets the "config_value" field.
+func (u *ServiceConfigUpsert) SetConfigValue(v string) *ServiceConfigUpsert {
+	u.Set(serviceconfig.FieldConfigValue, v)
+	return u
+}
+
+// UpdateConfigValue sets the "config_value" field to the value that was provided on create.
+func (u *ServiceConfigUpsert) UpdateConfigValue() *ServiceConfigUpsert {
+	u.SetExcluded(serviceconfig.FieldConfigValue)
+	return u
+}
+
+// SetConfigType sets the "config_type" field.
+func (u *ServiceConfigUpsert) SetConfigType(v string) *ServiceConfigUpsert {
+	u.Set(serviceconfig.FieldConfigType, v)
+	return u
+}
+
+// UpdateConfigType sets the "config_type" field to the value that was provided on create.
+func (u *ServiceConfigUpsert) UpdateConfigType() *ServiceConfigUpsert {
+	u.SetExcluded(serviceconfig.FieldConfigType)
+	return u
+}
+
+// SetDescription sets the "description" field.
+func (u *ServiceConfigUpsert) SetDescription(v string) *ServiceConfigUpsert {
+	u.Set(serviceconfig.FieldDescription, v)
+	return u
+}
+
+// UpdateDescription sets the "description" field to the value that was provided on create.
+func (u *ServiceConfigUpsert) UpdateDescription() *ServiceConfigUpsert {
+	u.SetExcluded(serviceconfig.FieldDescription)
+	return u
+}
+
+// ClearDescription clears the value of the "description" field.
+func (u *ServiceConfigUpsert) ClearDescription() *ServiceConfigUpsert {
+	u.SetNull(serviceconfig.FieldDescription)
+	return u
+}
+
+// SetIsSecret sets the "is_secret" field.
+func (u *ServiceConfigUpsert) SetIsSecret(v bool) *ServiceConfigUpsert {
+	u.Set(serviceconfig.FieldIsSecret, v)
+	return u
+}
+
+// UpdateIsSecret sets the "is_secret" field to the value that was provided on create.
+func (u *ServiceConfigUpsert) UpdateIsSecret() *ServiceConfigUpsert {
+	u.SetExcluded(serviceconfig.FieldIsSecret)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ServiceConfigUpsert) SetUpdatedAt(v time.Time) *ServiceConfigUpsert {
+	u.Set(serviceconfig.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ServiceConfigUpsert) UpdateUpdatedAt() *ServiceConfigUpsert {
+	u.SetExcluded(serviceconfig.FieldUpdatedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.ServiceConfig.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(serviceconfig.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *ServiceConfigUpsertOne) UpdateNewValues() *ServiceConfigUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(serviceconfig.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(serviceconfig.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.ServiceConfig.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *ServiceConfigUpsertOne) Ignore() *ServiceConfigUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *ServiceConfigUpsertOne) DoNothing() *ServiceConfigUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the ServiceConfigCreate.OnConflict
+// documentation for more info.
+func (u *ServiceConfigUpsertOne) Update(set func(*ServiceConfigUpsert)) *ServiceConfigUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&ServiceConfigUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *ServiceConfigUpsertOne) SetTenantID(v uuid.UUID) *ServiceConfigUpsertOne {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *ServiceConfigUpsertOne) UpdateTenantID() *ServiceConfigUpsertOne {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// ClearTenantID clears the value of the "tenant_id" field.
+func (u *ServiceConfigUpsertOne) ClearTenantID() *ServiceConfigUpsertOne {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.ClearTenantID()
+	})
+}
+
+// SetConfigKey sets the "config_key" field.
+func (u *ServiceConfigUpsertOne) SetConfigKey(v string) *ServiceConfigUpsertOne {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.SetConfigKey(v)
+	})
+}
+
+// UpdateConfigKey sets the "config_key" field to the value that was provided on create.
+func (u *ServiceConfigUpsertOne) UpdateConfigKey() *ServiceConfigUpsertOne {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.UpdateConfigKey()
+	})
+}
+
+// SetConfigValue sets the "config_value" field.
+func (u *ServiceConfigUpsertOne) SetConfigValue(v string) *ServiceConfigUpsertOne {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.SetConfigValue(v)
+	})
+}
+
+// UpdateConfigValue sets the "config_value" field to the value that was provided on create.
+func (u *ServiceConfigUpsertOne) UpdateConfigValue() *ServiceConfigUpsertOne {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.UpdateConfigValue()
+	})
+}
+
+// SetConfigType sets the "config_type" field.
+func (u *ServiceConfigUpsertOne) SetConfigType(v string) *ServiceConfigUpsertOne {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.SetConfigType(v)
+	})
+}
+
+// UpdateConfigType sets the "config_type" field to the value that was provided on create.
+func (u *ServiceConfigUpsertOne) UpdateConfigType() *ServiceConfigUpsertOne {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.UpdateConfigType()
+	})
+}
+
+// SetDescription sets the "description" field.
+func (u *ServiceConfigUpsertOne) SetDescription(v string) *ServiceConfigUpsertOne {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.SetDescription(v)
+	})
+}
+
+// UpdateDescription sets the "description" field to the value that was provided on create.
+func (u *ServiceConfigUpsertOne) UpdateDescription() *ServiceConfigUpsertOne {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.UpdateDescription()
+	})
+}
+
+// ClearDescription clears the value of the "description" field.
+func (u *ServiceConfigUpsertOne) ClearDescription() *ServiceConfigUpsertOne {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.ClearDescription()
+	})
+}
+
+// SetIsSecret sets the "is_secret" field.
+func (u *ServiceConfigUpsertOne) SetIsSecret(v bool) *ServiceConfigUpsertOne {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.SetIsSecret(v)
+	})
+}
+
+// UpdateIsSecret sets the "is_secret" field to the value that was provided on create.
+func (u *ServiceConfigUpsertOne) UpdateIsSecret() *ServiceConfigUpsertOne {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.UpdateIsSecret()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ServiceConfigUpsertOne) SetUpdatedAt(v time.Time) *ServiceConfigUpsertOne {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ServiceConfigUpsertOne) UpdateUpdatedAt() *ServiceConfigUpsertOne {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *ServiceConfigUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for ServiceConfigCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *ServiceConfigUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *ServiceConfigUpsertOne) ID(ctx context.Context) (id uuid.UUID, err error) {
+	if u.create.driver.Dialect() == dialect.MySQL {
+		// In case of "ON CONFLICT", there is no way to get back non-numeric ID
+		// fields from the database since MySQL does not support the RETURNING clause.
+		return id, errors.New("ent: ServiceConfigUpsertOne.ID is not supported by MySQL driver. Use ServiceConfigUpsertOne.Exec instead")
+	}
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *ServiceConfigUpsertOne) IDX(ctx context.Context) uuid.UUID {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // ServiceConfigCreateBulk is the builder for creating many ServiceConfig entities in bulk.
 type ServiceConfigCreateBulk struct {
 	config
 	err      error
 	builders []*ServiceConfigCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the ServiceConfig entities in the database.
@@ -322,6 +673,7 @@ func (_c *ServiceConfigCreateBulk) Save(ctx context.Context) ([]*ServiceConfig, 
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -368,6 +720,235 @@ func (_c *ServiceConfigCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *ServiceConfigCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.ServiceConfig.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.ServiceConfigUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *ServiceConfigCreateBulk) OnConflict(opts ...sql.ConflictOption) *ServiceConfigUpsertBulk {
+	_c.conflict = opts
+	return &ServiceConfigUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.ServiceConfig.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *ServiceConfigCreateBulk) OnConflictColumns(columns ...string) *ServiceConfigUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &ServiceConfigUpsertBulk{
+		create: _c,
+	}
+}
+
+// ServiceConfigUpsertBulk is the builder for "upsert"-ing
+// a bulk of ServiceConfig nodes.
+type ServiceConfigUpsertBulk struct {
+	create *ServiceConfigCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.ServiceConfig.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(serviceconfig.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *ServiceConfigUpsertBulk) UpdateNewValues() *ServiceConfigUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(serviceconfig.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(serviceconfig.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.ServiceConfig.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *ServiceConfigUpsertBulk) Ignore() *ServiceConfigUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *ServiceConfigUpsertBulk) DoNothing() *ServiceConfigUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the ServiceConfigCreateBulk.OnConflict
+// documentation for more info.
+func (u *ServiceConfigUpsertBulk) Update(set func(*ServiceConfigUpsert)) *ServiceConfigUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&ServiceConfigUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *ServiceConfigUpsertBulk) SetTenantID(v uuid.UUID) *ServiceConfigUpsertBulk {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *ServiceConfigUpsertBulk) UpdateTenantID() *ServiceConfigUpsertBulk {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// ClearTenantID clears the value of the "tenant_id" field.
+func (u *ServiceConfigUpsertBulk) ClearTenantID() *ServiceConfigUpsertBulk {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.ClearTenantID()
+	})
+}
+
+// SetConfigKey sets the "config_key" field.
+func (u *ServiceConfigUpsertBulk) SetConfigKey(v string) *ServiceConfigUpsertBulk {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.SetConfigKey(v)
+	})
+}
+
+// UpdateConfigKey sets the "config_key" field to the value that was provided on create.
+func (u *ServiceConfigUpsertBulk) UpdateConfigKey() *ServiceConfigUpsertBulk {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.UpdateConfigKey()
+	})
+}
+
+// SetConfigValue sets the "config_value" field.
+func (u *ServiceConfigUpsertBulk) SetConfigValue(v string) *ServiceConfigUpsertBulk {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.SetConfigValue(v)
+	})
+}
+
+// UpdateConfigValue sets the "config_value" field to the value that was provided on create.
+func (u *ServiceConfigUpsertBulk) UpdateConfigValue() *ServiceConfigUpsertBulk {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.UpdateConfigValue()
+	})
+}
+
+// SetConfigType sets the "config_type" field.
+func (u *ServiceConfigUpsertBulk) SetConfigType(v string) *ServiceConfigUpsertBulk {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.SetConfigType(v)
+	})
+}
+
+// UpdateConfigType sets the "config_type" field to the value that was provided on create.
+func (u *ServiceConfigUpsertBulk) UpdateConfigType() *ServiceConfigUpsertBulk {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.UpdateConfigType()
+	})
+}
+
+// SetDescription sets the "description" field.
+func (u *ServiceConfigUpsertBulk) SetDescription(v string) *ServiceConfigUpsertBulk {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.SetDescription(v)
+	})
+}
+
+// UpdateDescription sets the "description" field to the value that was provided on create.
+func (u *ServiceConfigUpsertBulk) UpdateDescription() *ServiceConfigUpsertBulk {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.UpdateDescription()
+	})
+}
+
+// ClearDescription clears the value of the "description" field.
+func (u *ServiceConfigUpsertBulk) ClearDescription() *ServiceConfigUpsertBulk {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.ClearDescription()
+	})
+}
+
+// SetIsSecret sets the "is_secret" field.
+func (u *ServiceConfigUpsertBulk) SetIsSecret(v bool) *ServiceConfigUpsertBulk {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.SetIsSecret(v)
+	})
+}
+
+// UpdateIsSecret sets the "is_secret" field to the value that was provided on create.
+func (u *ServiceConfigUpsertBulk) UpdateIsSecret() *ServiceConfigUpsertBulk {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.UpdateIsSecret()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ServiceConfigUpsertBulk) SetUpdatedAt(v time.Time) *ServiceConfigUpsertBulk {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ServiceConfigUpsertBulk) UpdateUpdatedAt() *ServiceConfigUpsertBulk {
+	return u.Update(func(s *ServiceConfigUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *ServiceConfigUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the ServiceConfigCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for ServiceConfigCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *ServiceConfigUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

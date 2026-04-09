@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
@@ -22,6 +24,7 @@ type ContactCreate struct {
 	config
 	mutation *ContactMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -416,6 +419,7 @@ func (_c *ContactCreate) createSpec() (*Contact, *sqlgraph.CreateSpec) {
 		_node = &Contact{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(contact.Table, sqlgraph.NewFieldSpec(contact.FieldID, field.TypeUUID))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
@@ -536,11 +540,709 @@ func (_c *ContactCreate) createSpec() (*Contact, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Contact.Create().
+//		SetTenantID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.ContactUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *ContactCreate) OnConflict(opts ...sql.ConflictOption) *ContactUpsertOne {
+	_c.conflict = opts
+	return &ContactUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Contact.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *ContactCreate) OnConflictColumns(columns ...string) *ContactUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &ContactUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// ContactUpsertOne is the builder for "upsert"-ing
+	//  one Contact node.
+	ContactUpsertOne struct {
+		create *ContactCreate
+	}
+
+	// ContactUpsert is the "OnConflict" setter.
+	ContactUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetTenantID sets the "tenant_id" field.
+func (u *ContactUpsert) SetTenantID(v uuid.UUID) *ContactUpsert {
+	u.Set(contact.FieldTenantID, v)
+	return u
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateTenantID() *ContactUpsert {
+	u.SetExcluded(contact.FieldTenantID)
+	return u
+}
+
+// SetEmail sets the "email" field.
+func (u *ContactUpsert) SetEmail(v string) *ContactUpsert {
+	u.Set(contact.FieldEmail, v)
+	return u
+}
+
+// UpdateEmail sets the "email" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateEmail() *ContactUpsert {
+	u.SetExcluded(contact.FieldEmail)
+	return u
+}
+
+// ClearEmail clears the value of the "email" field.
+func (u *ContactUpsert) ClearEmail() *ContactUpsert {
+	u.SetNull(contact.FieldEmail)
+	return u
+}
+
+// SetPhone sets the "phone" field.
+func (u *ContactUpsert) SetPhone(v string) *ContactUpsert {
+	u.Set(contact.FieldPhone, v)
+	return u
+}
+
+// UpdatePhone sets the "phone" field to the value that was provided on create.
+func (u *ContactUpsert) UpdatePhone() *ContactUpsert {
+	u.SetExcluded(contact.FieldPhone)
+	return u
+}
+
+// ClearPhone clears the value of the "phone" field.
+func (u *ContactUpsert) ClearPhone() *ContactUpsert {
+	u.SetNull(contact.FieldPhone)
+	return u
+}
+
+// SetFirstName sets the "first_name" field.
+func (u *ContactUpsert) SetFirstName(v string) *ContactUpsert {
+	u.Set(contact.FieldFirstName, v)
+	return u
+}
+
+// UpdateFirstName sets the "first_name" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateFirstName() *ContactUpsert {
+	u.SetExcluded(contact.FieldFirstName)
+	return u
+}
+
+// ClearFirstName clears the value of the "first_name" field.
+func (u *ContactUpsert) ClearFirstName() *ContactUpsert {
+	u.SetNull(contact.FieldFirstName)
+	return u
+}
+
+// SetLastName sets the "last_name" field.
+func (u *ContactUpsert) SetLastName(v string) *ContactUpsert {
+	u.Set(contact.FieldLastName, v)
+	return u
+}
+
+// UpdateLastName sets the "last_name" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateLastName() *ContactUpsert {
+	u.SetExcluded(contact.FieldLastName)
+	return u
+}
+
+// ClearLastName clears the value of the "last_name" field.
+func (u *ContactUpsert) ClearLastName() *ContactUpsert {
+	u.SetNull(contact.FieldLastName)
+	return u
+}
+
+// SetContactType sets the "contact_type" field.
+func (u *ContactUpsert) SetContactType(v string) *ContactUpsert {
+	u.Set(contact.FieldContactType, v)
+	return u
+}
+
+// UpdateContactType sets the "contact_type" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateContactType() *ContactUpsert {
+	u.SetExcluded(contact.FieldContactType)
+	return u
+}
+
+// SetLeadID sets the "lead_id" field.
+func (u *ContactUpsert) SetLeadID(v uuid.UUID) *ContactUpsert {
+	u.Set(contact.FieldLeadID, v)
+	return u
+}
+
+// UpdateLeadID sets the "lead_id" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateLeadID() *ContactUpsert {
+	u.SetExcluded(contact.FieldLeadID)
+	return u
+}
+
+// ClearLeadID clears the value of the "lead_id" field.
+func (u *ContactUpsert) ClearLeadID() *ContactUpsert {
+	u.SetNull(contact.FieldLeadID)
+	return u
+}
+
+// SetFlpCustomerID sets the "flp_customer_id" field.
+func (u *ContactUpsert) SetFlpCustomerID(v string) *ContactUpsert {
+	u.Set(contact.FieldFlpCustomerID, v)
+	return u
+}
+
+// UpdateFlpCustomerID sets the "flp_customer_id" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateFlpCustomerID() *ContactUpsert {
+	u.SetExcluded(contact.FieldFlpCustomerID)
+	return u
+}
+
+// ClearFlpCustomerID clears the value of the "flp_customer_id" field.
+func (u *ContactUpsert) ClearFlpCustomerID() *ContactUpsert {
+	u.SetNull(contact.FieldFlpCustomerID)
+	return u
+}
+
+// SetTotalCc sets the "total_cc" field.
+func (u *ContactUpsert) SetTotalCc(v float64) *ContactUpsert {
+	u.Set(contact.FieldTotalCc, v)
+	return u
+}
+
+// UpdateTotalCc sets the "total_cc" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateTotalCc() *ContactUpsert {
+	u.SetExcluded(contact.FieldTotalCc)
+	return u
+}
+
+// AddTotalCc adds v to the "total_cc" field.
+func (u *ContactUpsert) AddTotalCc(v float64) *ContactUpsert {
+	u.Add(contact.FieldTotalCc, v)
+	return u
+}
+
+// SetTotalOrders sets the "total_orders" field.
+func (u *ContactUpsert) SetTotalOrders(v int) *ContactUpsert {
+	u.Set(contact.FieldTotalOrders, v)
+	return u
+}
+
+// UpdateTotalOrders sets the "total_orders" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateTotalOrders() *ContactUpsert {
+	u.SetExcluded(contact.FieldTotalOrders)
+	return u
+}
+
+// AddTotalOrders adds v to the "total_orders" field.
+func (u *ContactUpsert) AddTotalOrders(v int) *ContactUpsert {
+	u.Add(contact.FieldTotalOrders, v)
+	return u
+}
+
+// SetLastOrderAt sets the "last_order_at" field.
+func (u *ContactUpsert) SetLastOrderAt(v time.Time) *ContactUpsert {
+	u.Set(contact.FieldLastOrderAt, v)
+	return u
+}
+
+// UpdateLastOrderAt sets the "last_order_at" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateLastOrderAt() *ContactUpsert {
+	u.SetExcluded(contact.FieldLastOrderAt)
+	return u
+}
+
+// ClearLastOrderAt clears the value of the "last_order_at" field.
+func (u *ContactUpsert) ClearLastOrderAt() *ContactUpsert {
+	u.SetNull(contact.FieldLastOrderAt)
+	return u
+}
+
+// SetProductInterests sets the "product_interests" field.
+func (u *ContactUpsert) SetProductInterests(v []string) *ContactUpsert {
+	u.Set(contact.FieldProductInterests, v)
+	return u
+}
+
+// UpdateProductInterests sets the "product_interests" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateProductInterests() *ContactUpsert {
+	u.SetExcluded(contact.FieldProductInterests)
+	return u
+}
+
+// ClearProductInterests clears the value of the "product_interests" field.
+func (u *ContactUpsert) ClearProductInterests() *ContactUpsert {
+	u.SetNull(contact.FieldProductInterests)
+	return u
+}
+
+// SetSubscribedEmail sets the "subscribed_email" field.
+func (u *ContactUpsert) SetSubscribedEmail(v bool) *ContactUpsert {
+	u.Set(contact.FieldSubscribedEmail, v)
+	return u
+}
+
+// UpdateSubscribedEmail sets the "subscribed_email" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateSubscribedEmail() *ContactUpsert {
+	u.SetExcluded(contact.FieldSubscribedEmail)
+	return u
+}
+
+// SetSubscribedSms sets the "subscribed_sms" field.
+func (u *ContactUpsert) SetSubscribedSms(v bool) *ContactUpsert {
+	u.Set(contact.FieldSubscribedSms, v)
+	return u
+}
+
+// UpdateSubscribedSms sets the "subscribed_sms" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateSubscribedSms() *ContactUpsert {
+	u.SetExcluded(contact.FieldSubscribedSms)
+	return u
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *ContactUpsert) SetMetadata(v map[string]interface{}) *ContactUpsert {
+	u.Set(contact.FieldMetadata, v)
+	return u
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateMetadata() *ContactUpsert {
+	u.SetExcluded(contact.FieldMetadata)
+	return u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *ContactUpsert) ClearMetadata() *ContactUpsert {
+	u.SetNull(contact.FieldMetadata)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ContactUpsert) SetUpdatedAt(v time.Time) *ContactUpsert {
+	u.Set(contact.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateUpdatedAt() *ContactUpsert {
+	u.SetExcluded(contact.FieldUpdatedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.Contact.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(contact.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *ContactUpsertOne) UpdateNewValues() *ContactUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(contact.FieldID)
+		}
+		if _, exists := u.create.mutation.CreatedAt(); exists {
+			s.SetIgnore(contact.FieldCreatedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Contact.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *ContactUpsertOne) Ignore() *ContactUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *ContactUpsertOne) DoNothing() *ContactUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the ContactCreate.OnConflict
+// documentation for more info.
+func (u *ContactUpsertOne) Update(set func(*ContactUpsert)) *ContactUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&ContactUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *ContactUpsertOne) SetTenantID(v uuid.UUID) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateTenantID() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetEmail sets the "email" field.
+func (u *ContactUpsertOne) SetEmail(v string) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetEmail(v)
+	})
+}
+
+// UpdateEmail sets the "email" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateEmail() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateEmail()
+	})
+}
+
+// ClearEmail clears the value of the "email" field.
+func (u *ContactUpsertOne) ClearEmail() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearEmail()
+	})
+}
+
+// SetPhone sets the "phone" field.
+func (u *ContactUpsertOne) SetPhone(v string) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetPhone(v)
+	})
+}
+
+// UpdatePhone sets the "phone" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdatePhone() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdatePhone()
+	})
+}
+
+// ClearPhone clears the value of the "phone" field.
+func (u *ContactUpsertOne) ClearPhone() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearPhone()
+	})
+}
+
+// SetFirstName sets the "first_name" field.
+func (u *ContactUpsertOne) SetFirstName(v string) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetFirstName(v)
+	})
+}
+
+// UpdateFirstName sets the "first_name" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateFirstName() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateFirstName()
+	})
+}
+
+// ClearFirstName clears the value of the "first_name" field.
+func (u *ContactUpsertOne) ClearFirstName() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearFirstName()
+	})
+}
+
+// SetLastName sets the "last_name" field.
+func (u *ContactUpsertOne) SetLastName(v string) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetLastName(v)
+	})
+}
+
+// UpdateLastName sets the "last_name" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateLastName() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateLastName()
+	})
+}
+
+// ClearLastName clears the value of the "last_name" field.
+func (u *ContactUpsertOne) ClearLastName() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearLastName()
+	})
+}
+
+// SetContactType sets the "contact_type" field.
+func (u *ContactUpsertOne) SetContactType(v string) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetContactType(v)
+	})
+}
+
+// UpdateContactType sets the "contact_type" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateContactType() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateContactType()
+	})
+}
+
+// SetLeadID sets the "lead_id" field.
+func (u *ContactUpsertOne) SetLeadID(v uuid.UUID) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetLeadID(v)
+	})
+}
+
+// UpdateLeadID sets the "lead_id" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateLeadID() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateLeadID()
+	})
+}
+
+// ClearLeadID clears the value of the "lead_id" field.
+func (u *ContactUpsertOne) ClearLeadID() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearLeadID()
+	})
+}
+
+// SetFlpCustomerID sets the "flp_customer_id" field.
+func (u *ContactUpsertOne) SetFlpCustomerID(v string) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetFlpCustomerID(v)
+	})
+}
+
+// UpdateFlpCustomerID sets the "flp_customer_id" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateFlpCustomerID() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateFlpCustomerID()
+	})
+}
+
+// ClearFlpCustomerID clears the value of the "flp_customer_id" field.
+func (u *ContactUpsertOne) ClearFlpCustomerID() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearFlpCustomerID()
+	})
+}
+
+// SetTotalCc sets the "total_cc" field.
+func (u *ContactUpsertOne) SetTotalCc(v float64) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetTotalCc(v)
+	})
+}
+
+// AddTotalCc adds v to the "total_cc" field.
+func (u *ContactUpsertOne) AddTotalCc(v float64) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.AddTotalCc(v)
+	})
+}
+
+// UpdateTotalCc sets the "total_cc" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateTotalCc() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateTotalCc()
+	})
+}
+
+// SetTotalOrders sets the "total_orders" field.
+func (u *ContactUpsertOne) SetTotalOrders(v int) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetTotalOrders(v)
+	})
+}
+
+// AddTotalOrders adds v to the "total_orders" field.
+func (u *ContactUpsertOne) AddTotalOrders(v int) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.AddTotalOrders(v)
+	})
+}
+
+// UpdateTotalOrders sets the "total_orders" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateTotalOrders() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateTotalOrders()
+	})
+}
+
+// SetLastOrderAt sets the "last_order_at" field.
+func (u *ContactUpsertOne) SetLastOrderAt(v time.Time) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetLastOrderAt(v)
+	})
+}
+
+// UpdateLastOrderAt sets the "last_order_at" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateLastOrderAt() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateLastOrderAt()
+	})
+}
+
+// ClearLastOrderAt clears the value of the "last_order_at" field.
+func (u *ContactUpsertOne) ClearLastOrderAt() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearLastOrderAt()
+	})
+}
+
+// SetProductInterests sets the "product_interests" field.
+func (u *ContactUpsertOne) SetProductInterests(v []string) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetProductInterests(v)
+	})
+}
+
+// UpdateProductInterests sets the "product_interests" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateProductInterests() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateProductInterests()
+	})
+}
+
+// ClearProductInterests clears the value of the "product_interests" field.
+func (u *ContactUpsertOne) ClearProductInterests() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearProductInterests()
+	})
+}
+
+// SetSubscribedEmail sets the "subscribed_email" field.
+func (u *ContactUpsertOne) SetSubscribedEmail(v bool) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetSubscribedEmail(v)
+	})
+}
+
+// UpdateSubscribedEmail sets the "subscribed_email" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateSubscribedEmail() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateSubscribedEmail()
+	})
+}
+
+// SetSubscribedSms sets the "subscribed_sms" field.
+func (u *ContactUpsertOne) SetSubscribedSms(v bool) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetSubscribedSms(v)
+	})
+}
+
+// UpdateSubscribedSms sets the "subscribed_sms" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateSubscribedSms() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateSubscribedSms()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *ContactUpsertOne) SetMetadata(v map[string]interface{}) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateMetadata() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *ContactUpsertOne) ClearMetadata() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ContactUpsertOne) SetUpdatedAt(v time.Time) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateUpdatedAt() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *ContactUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for ContactCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *ContactUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *ContactUpsertOne) ID(ctx context.Context) (id uuid.UUID, err error) {
+	if u.create.driver.Dialect() == dialect.MySQL {
+		// In case of "ON CONFLICT", there is no way to get back non-numeric ID
+		// fields from the database since MySQL does not support the RETURNING clause.
+		return id, errors.New("ent: ContactUpsertOne.ID is not supported by MySQL driver. Use ContactUpsertOne.Exec instead")
+	}
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *ContactUpsertOne) IDX(ctx context.Context) uuid.UUID {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // ContactCreateBulk is the builder for creating many Contact entities in bulk.
 type ContactCreateBulk struct {
 	config
 	err      error
 	builders []*ContactCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the Contact entities in the database.
@@ -570,6 +1272,7 @@ func (_c *ContactCreateBulk) Save(ctx context.Context) ([]*Contact, error) {
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -616,6 +1319,424 @@ func (_c *ContactCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *ContactCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.Contact.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.ContactUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *ContactCreateBulk) OnConflict(opts ...sql.ConflictOption) *ContactUpsertBulk {
+	_c.conflict = opts
+	return &ContactUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.Contact.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *ContactCreateBulk) OnConflictColumns(columns ...string) *ContactUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &ContactUpsertBulk{
+		create: _c,
+	}
+}
+
+// ContactUpsertBulk is the builder for "upsert"-ing
+// a bulk of Contact nodes.
+type ContactUpsertBulk struct {
+	create *ContactCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.Contact.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(contact.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *ContactUpsertBulk) UpdateNewValues() *ContactUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(contact.FieldID)
+			}
+			if _, exists := b.mutation.CreatedAt(); exists {
+				s.SetIgnore(contact.FieldCreatedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.Contact.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *ContactUpsertBulk) Ignore() *ContactUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *ContactUpsertBulk) DoNothing() *ContactUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the ContactCreateBulk.OnConflict
+// documentation for more info.
+func (u *ContactUpsertBulk) Update(set func(*ContactUpsert)) *ContactUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&ContactUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *ContactUpsertBulk) SetTenantID(v uuid.UUID) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateTenantID() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetEmail sets the "email" field.
+func (u *ContactUpsertBulk) SetEmail(v string) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetEmail(v)
+	})
+}
+
+// UpdateEmail sets the "email" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateEmail() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateEmail()
+	})
+}
+
+// ClearEmail clears the value of the "email" field.
+func (u *ContactUpsertBulk) ClearEmail() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearEmail()
+	})
+}
+
+// SetPhone sets the "phone" field.
+func (u *ContactUpsertBulk) SetPhone(v string) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetPhone(v)
+	})
+}
+
+// UpdatePhone sets the "phone" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdatePhone() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdatePhone()
+	})
+}
+
+// ClearPhone clears the value of the "phone" field.
+func (u *ContactUpsertBulk) ClearPhone() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearPhone()
+	})
+}
+
+// SetFirstName sets the "first_name" field.
+func (u *ContactUpsertBulk) SetFirstName(v string) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetFirstName(v)
+	})
+}
+
+// UpdateFirstName sets the "first_name" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateFirstName() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateFirstName()
+	})
+}
+
+// ClearFirstName clears the value of the "first_name" field.
+func (u *ContactUpsertBulk) ClearFirstName() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearFirstName()
+	})
+}
+
+// SetLastName sets the "last_name" field.
+func (u *ContactUpsertBulk) SetLastName(v string) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetLastName(v)
+	})
+}
+
+// UpdateLastName sets the "last_name" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateLastName() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateLastName()
+	})
+}
+
+// ClearLastName clears the value of the "last_name" field.
+func (u *ContactUpsertBulk) ClearLastName() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearLastName()
+	})
+}
+
+// SetContactType sets the "contact_type" field.
+func (u *ContactUpsertBulk) SetContactType(v string) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetContactType(v)
+	})
+}
+
+// UpdateContactType sets the "contact_type" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateContactType() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateContactType()
+	})
+}
+
+// SetLeadID sets the "lead_id" field.
+func (u *ContactUpsertBulk) SetLeadID(v uuid.UUID) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetLeadID(v)
+	})
+}
+
+// UpdateLeadID sets the "lead_id" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateLeadID() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateLeadID()
+	})
+}
+
+// ClearLeadID clears the value of the "lead_id" field.
+func (u *ContactUpsertBulk) ClearLeadID() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearLeadID()
+	})
+}
+
+// SetFlpCustomerID sets the "flp_customer_id" field.
+func (u *ContactUpsertBulk) SetFlpCustomerID(v string) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetFlpCustomerID(v)
+	})
+}
+
+// UpdateFlpCustomerID sets the "flp_customer_id" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateFlpCustomerID() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateFlpCustomerID()
+	})
+}
+
+// ClearFlpCustomerID clears the value of the "flp_customer_id" field.
+func (u *ContactUpsertBulk) ClearFlpCustomerID() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearFlpCustomerID()
+	})
+}
+
+// SetTotalCc sets the "total_cc" field.
+func (u *ContactUpsertBulk) SetTotalCc(v float64) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetTotalCc(v)
+	})
+}
+
+// AddTotalCc adds v to the "total_cc" field.
+func (u *ContactUpsertBulk) AddTotalCc(v float64) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.AddTotalCc(v)
+	})
+}
+
+// UpdateTotalCc sets the "total_cc" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateTotalCc() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateTotalCc()
+	})
+}
+
+// SetTotalOrders sets the "total_orders" field.
+func (u *ContactUpsertBulk) SetTotalOrders(v int) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetTotalOrders(v)
+	})
+}
+
+// AddTotalOrders adds v to the "total_orders" field.
+func (u *ContactUpsertBulk) AddTotalOrders(v int) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.AddTotalOrders(v)
+	})
+}
+
+// UpdateTotalOrders sets the "total_orders" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateTotalOrders() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateTotalOrders()
+	})
+}
+
+// SetLastOrderAt sets the "last_order_at" field.
+func (u *ContactUpsertBulk) SetLastOrderAt(v time.Time) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetLastOrderAt(v)
+	})
+}
+
+// UpdateLastOrderAt sets the "last_order_at" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateLastOrderAt() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateLastOrderAt()
+	})
+}
+
+// ClearLastOrderAt clears the value of the "last_order_at" field.
+func (u *ContactUpsertBulk) ClearLastOrderAt() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearLastOrderAt()
+	})
+}
+
+// SetProductInterests sets the "product_interests" field.
+func (u *ContactUpsertBulk) SetProductInterests(v []string) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetProductInterests(v)
+	})
+}
+
+// UpdateProductInterests sets the "product_interests" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateProductInterests() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateProductInterests()
+	})
+}
+
+// ClearProductInterests clears the value of the "product_interests" field.
+func (u *ContactUpsertBulk) ClearProductInterests() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearProductInterests()
+	})
+}
+
+// SetSubscribedEmail sets the "subscribed_email" field.
+func (u *ContactUpsertBulk) SetSubscribedEmail(v bool) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetSubscribedEmail(v)
+	})
+}
+
+// UpdateSubscribedEmail sets the "subscribed_email" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateSubscribedEmail() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateSubscribedEmail()
+	})
+}
+
+// SetSubscribedSms sets the "subscribed_sms" field.
+func (u *ContactUpsertBulk) SetSubscribedSms(v bool) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetSubscribedSms(v)
+	})
+}
+
+// UpdateSubscribedSms sets the "subscribed_sms" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateSubscribedSms() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateSubscribedSms()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *ContactUpsertBulk) SetMetadata(v map[string]interface{}) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateMetadata() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *ContactUpsertBulk) ClearMetadata() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *ContactUpsertBulk) SetUpdatedAt(v time.Time) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateUpdatedAt() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *ContactUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the ContactCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for ContactCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *ContactUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

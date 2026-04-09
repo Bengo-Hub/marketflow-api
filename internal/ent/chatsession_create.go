@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
@@ -22,6 +24,7 @@ type ChatSessionCreate struct {
 	config
 	mutation *ChatSessionMutation
 	hooks    []Hook
+	conflict []sql.ConflictOption
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -333,6 +336,7 @@ func (_c *ChatSessionCreate) createSpec() (*ChatSession, *sqlgraph.CreateSpec) {
 		_node = &ChatSession{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(chatsession.Table, sqlgraph.NewFieldSpec(chatsession.FieldID, field.TypeUUID))
 	)
+	_spec.OnConflict = _c.conflict
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
@@ -431,11 +435,592 @@ func (_c *ChatSessionCreate) createSpec() (*ChatSession, *sqlgraph.CreateSpec) {
 	return _node, _spec
 }
 
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.ChatSession.Create().
+//		SetTenantID(v).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.ChatSessionUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *ChatSessionCreate) OnConflict(opts ...sql.ConflictOption) *ChatSessionUpsertOne {
+	_c.conflict = opts
+	return &ChatSessionUpsertOne{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.ChatSession.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *ChatSessionCreate) OnConflictColumns(columns ...string) *ChatSessionUpsertOne {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &ChatSessionUpsertOne{
+		create: _c,
+	}
+}
+
+type (
+	// ChatSessionUpsertOne is the builder for "upsert"-ing
+	//  one ChatSession node.
+	ChatSessionUpsertOne struct {
+		create *ChatSessionCreate
+	}
+
+	// ChatSessionUpsert is the "OnConflict" setter.
+	ChatSessionUpsert struct {
+		*sql.UpdateSet
+	}
+)
+
+// SetTenantID sets the "tenant_id" field.
+func (u *ChatSessionUpsert) SetTenantID(v uuid.UUID) *ChatSessionUpsert {
+	u.Set(chatsession.FieldTenantID, v)
+	return u
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *ChatSessionUpsert) UpdateTenantID() *ChatSessionUpsert {
+	u.SetExcluded(chatsession.FieldTenantID)
+	return u
+}
+
+// SetLeadID sets the "lead_id" field.
+func (u *ChatSessionUpsert) SetLeadID(v uuid.UUID) *ChatSessionUpsert {
+	u.Set(chatsession.FieldLeadID, v)
+	return u
+}
+
+// UpdateLeadID sets the "lead_id" field to the value that was provided on create.
+func (u *ChatSessionUpsert) UpdateLeadID() *ChatSessionUpsert {
+	u.SetExcluded(chatsession.FieldLeadID)
+	return u
+}
+
+// ClearLeadID clears the value of the "lead_id" field.
+func (u *ChatSessionUpsert) ClearLeadID() *ChatSessionUpsert {
+	u.SetNull(chatsession.FieldLeadID)
+	return u
+}
+
+// SetContactID sets the "contact_id" field.
+func (u *ChatSessionUpsert) SetContactID(v uuid.UUID) *ChatSessionUpsert {
+	u.Set(chatsession.FieldContactID, v)
+	return u
+}
+
+// UpdateContactID sets the "contact_id" field to the value that was provided on create.
+func (u *ChatSessionUpsert) UpdateContactID() *ChatSessionUpsert {
+	u.SetExcluded(chatsession.FieldContactID)
+	return u
+}
+
+// ClearContactID clears the value of the "contact_id" field.
+func (u *ChatSessionUpsert) ClearContactID() *ChatSessionUpsert {
+	u.SetNull(chatsession.FieldContactID)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *ChatSessionUpsert) SetStatus(v string) *ChatSessionUpsert {
+	u.Set(chatsession.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *ChatSessionUpsert) UpdateStatus() *ChatSessionUpsert {
+	u.SetExcluded(chatsession.FieldStatus)
+	return u
+}
+
+// SetChannel sets the "channel" field.
+func (u *ChatSessionUpsert) SetChannel(v string) *ChatSessionUpsert {
+	u.Set(chatsession.FieldChannel, v)
+	return u
+}
+
+// UpdateChannel sets the "channel" field to the value that was provided on create.
+func (u *ChatSessionUpsert) UpdateChannel() *ChatSessionUpsert {
+	u.SetExcluded(chatsession.FieldChannel)
+	return u
+}
+
+// SetMessages sets the "messages" field.
+func (u *ChatSessionUpsert) SetMessages(v []map[string]interface{}) *ChatSessionUpsert {
+	u.Set(chatsession.FieldMessages, v)
+	return u
+}
+
+// UpdateMessages sets the "messages" field to the value that was provided on create.
+func (u *ChatSessionUpsert) UpdateMessages() *ChatSessionUpsert {
+	u.SetExcluded(chatsession.FieldMessages)
+	return u
+}
+
+// ClearMessages clears the value of the "messages" field.
+func (u *ChatSessionUpsert) ClearMessages() *ChatSessionUpsert {
+	u.SetNull(chatsession.FieldMessages)
+	return u
+}
+
+// SetMessageCount sets the "message_count" field.
+func (u *ChatSessionUpsert) SetMessageCount(v int) *ChatSessionUpsert {
+	u.Set(chatsession.FieldMessageCount, v)
+	return u
+}
+
+// UpdateMessageCount sets the "message_count" field to the value that was provided on create.
+func (u *ChatSessionUpsert) UpdateMessageCount() *ChatSessionUpsert {
+	u.SetExcluded(chatsession.FieldMessageCount)
+	return u
+}
+
+// AddMessageCount adds v to the "message_count" field.
+func (u *ChatSessionUpsert) AddMessageCount(v int) *ChatSessionUpsert {
+	u.Add(chatsession.FieldMessageCount, v)
+	return u
+}
+
+// SetAiResponses sets the "ai_responses" field.
+func (u *ChatSessionUpsert) SetAiResponses(v int) *ChatSessionUpsert {
+	u.Set(chatsession.FieldAiResponses, v)
+	return u
+}
+
+// UpdateAiResponses sets the "ai_responses" field to the value that was provided on create.
+func (u *ChatSessionUpsert) UpdateAiResponses() *ChatSessionUpsert {
+	u.SetExcluded(chatsession.FieldAiResponses)
+	return u
+}
+
+// AddAiResponses adds v to the "ai_responses" field.
+func (u *ChatSessionUpsert) AddAiResponses(v int) *ChatSessionUpsert {
+	u.Add(chatsession.FieldAiResponses, v)
+	return u
+}
+
+// SetEscalations sets the "escalations" field.
+func (u *ChatSessionUpsert) SetEscalations(v int) *ChatSessionUpsert {
+	u.Set(chatsession.FieldEscalations, v)
+	return u
+}
+
+// UpdateEscalations sets the "escalations" field to the value that was provided on create.
+func (u *ChatSessionUpsert) UpdateEscalations() *ChatSessionUpsert {
+	u.SetExcluded(chatsession.FieldEscalations)
+	return u
+}
+
+// AddEscalations adds v to the "escalations" field.
+func (u *ChatSessionUpsert) AddEscalations(v int) *ChatSessionUpsert {
+	u.Add(chatsession.FieldEscalations, v)
+	return u
+}
+
+// SetAvgConfidence sets the "avg_confidence" field.
+func (u *ChatSessionUpsert) SetAvgConfidence(v float64) *ChatSessionUpsert {
+	u.Set(chatsession.FieldAvgConfidence, v)
+	return u
+}
+
+// UpdateAvgConfidence sets the "avg_confidence" field to the value that was provided on create.
+func (u *ChatSessionUpsert) UpdateAvgConfidence() *ChatSessionUpsert {
+	u.SetExcluded(chatsession.FieldAvgConfidence)
+	return u
+}
+
+// AddAvgConfidence adds v to the "avg_confidence" field.
+func (u *ChatSessionUpsert) AddAvgConfidence(v float64) *ChatSessionUpsert {
+	u.Add(chatsession.FieldAvgConfidence, v)
+	return u
+}
+
+// ClearAvgConfidence clears the value of the "avg_confidence" field.
+func (u *ChatSessionUpsert) ClearAvgConfidence() *ChatSessionUpsert {
+	u.SetNull(chatsession.FieldAvgConfidence)
+	return u
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *ChatSessionUpsert) SetMetadata(v map[string]interface{}) *ChatSessionUpsert {
+	u.Set(chatsession.FieldMetadata, v)
+	return u
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *ChatSessionUpsert) UpdateMetadata() *ChatSessionUpsert {
+	u.SetExcluded(chatsession.FieldMetadata)
+	return u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *ChatSessionUpsert) ClearMetadata() *ChatSessionUpsert {
+	u.SetNull(chatsession.FieldMetadata)
+	return u
+}
+
+// SetEndedAt sets the "ended_at" field.
+func (u *ChatSessionUpsert) SetEndedAt(v time.Time) *ChatSessionUpsert {
+	u.Set(chatsession.FieldEndedAt, v)
+	return u
+}
+
+// UpdateEndedAt sets the "ended_at" field to the value that was provided on create.
+func (u *ChatSessionUpsert) UpdateEndedAt() *ChatSessionUpsert {
+	u.SetExcluded(chatsession.FieldEndedAt)
+	return u
+}
+
+// ClearEndedAt clears the value of the "ended_at" field.
+func (u *ChatSessionUpsert) ClearEndedAt() *ChatSessionUpsert {
+	u.SetNull(chatsession.FieldEndedAt)
+	return u
+}
+
+// UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
+// Using this option is equivalent to using:
+//
+//	client.ChatSession.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(chatsession.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *ChatSessionUpsertOne) UpdateNewValues() *ChatSessionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		if _, exists := u.create.mutation.ID(); exists {
+			s.SetIgnore(chatsession.FieldID)
+		}
+		if _, exists := u.create.mutation.StartedAt(); exists {
+			s.SetIgnore(chatsession.FieldStartedAt)
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.ChatSession.Create().
+//	    OnConflict(sql.ResolveWithIgnore()).
+//	    Exec(ctx)
+func (u *ChatSessionUpsertOne) Ignore() *ChatSessionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *ChatSessionUpsertOne) DoNothing() *ChatSessionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the ChatSessionCreate.OnConflict
+// documentation for more info.
+func (u *ChatSessionUpsertOne) Update(set func(*ChatSessionUpsert)) *ChatSessionUpsertOne {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&ChatSessionUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *ChatSessionUpsertOne) SetTenantID(v uuid.UUID) *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *ChatSessionUpsertOne) UpdateTenantID() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetLeadID sets the "lead_id" field.
+func (u *ChatSessionUpsertOne) SetLeadID(v uuid.UUID) *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetLeadID(v)
+	})
+}
+
+// UpdateLeadID sets the "lead_id" field to the value that was provided on create.
+func (u *ChatSessionUpsertOne) UpdateLeadID() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateLeadID()
+	})
+}
+
+// ClearLeadID clears the value of the "lead_id" field.
+func (u *ChatSessionUpsertOne) ClearLeadID() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.ClearLeadID()
+	})
+}
+
+// SetContactID sets the "contact_id" field.
+func (u *ChatSessionUpsertOne) SetContactID(v uuid.UUID) *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetContactID(v)
+	})
+}
+
+// UpdateContactID sets the "contact_id" field to the value that was provided on create.
+func (u *ChatSessionUpsertOne) UpdateContactID() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateContactID()
+	})
+}
+
+// ClearContactID clears the value of the "contact_id" field.
+func (u *ChatSessionUpsertOne) ClearContactID() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.ClearContactID()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *ChatSessionUpsertOne) SetStatus(v string) *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *ChatSessionUpsertOne) UpdateStatus() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetChannel sets the "channel" field.
+func (u *ChatSessionUpsertOne) SetChannel(v string) *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetChannel(v)
+	})
+}
+
+// UpdateChannel sets the "channel" field to the value that was provided on create.
+func (u *ChatSessionUpsertOne) UpdateChannel() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateChannel()
+	})
+}
+
+// SetMessages sets the "messages" field.
+func (u *ChatSessionUpsertOne) SetMessages(v []map[string]interface{}) *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetMessages(v)
+	})
+}
+
+// UpdateMessages sets the "messages" field to the value that was provided on create.
+func (u *ChatSessionUpsertOne) UpdateMessages() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateMessages()
+	})
+}
+
+// ClearMessages clears the value of the "messages" field.
+func (u *ChatSessionUpsertOne) ClearMessages() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.ClearMessages()
+	})
+}
+
+// SetMessageCount sets the "message_count" field.
+func (u *ChatSessionUpsertOne) SetMessageCount(v int) *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetMessageCount(v)
+	})
+}
+
+// AddMessageCount adds v to the "message_count" field.
+func (u *ChatSessionUpsertOne) AddMessageCount(v int) *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.AddMessageCount(v)
+	})
+}
+
+// UpdateMessageCount sets the "message_count" field to the value that was provided on create.
+func (u *ChatSessionUpsertOne) UpdateMessageCount() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateMessageCount()
+	})
+}
+
+// SetAiResponses sets the "ai_responses" field.
+func (u *ChatSessionUpsertOne) SetAiResponses(v int) *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetAiResponses(v)
+	})
+}
+
+// AddAiResponses adds v to the "ai_responses" field.
+func (u *ChatSessionUpsertOne) AddAiResponses(v int) *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.AddAiResponses(v)
+	})
+}
+
+// UpdateAiResponses sets the "ai_responses" field to the value that was provided on create.
+func (u *ChatSessionUpsertOne) UpdateAiResponses() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateAiResponses()
+	})
+}
+
+// SetEscalations sets the "escalations" field.
+func (u *ChatSessionUpsertOne) SetEscalations(v int) *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetEscalations(v)
+	})
+}
+
+// AddEscalations adds v to the "escalations" field.
+func (u *ChatSessionUpsertOne) AddEscalations(v int) *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.AddEscalations(v)
+	})
+}
+
+// UpdateEscalations sets the "escalations" field to the value that was provided on create.
+func (u *ChatSessionUpsertOne) UpdateEscalations() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateEscalations()
+	})
+}
+
+// SetAvgConfidence sets the "avg_confidence" field.
+func (u *ChatSessionUpsertOne) SetAvgConfidence(v float64) *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetAvgConfidence(v)
+	})
+}
+
+// AddAvgConfidence adds v to the "avg_confidence" field.
+func (u *ChatSessionUpsertOne) AddAvgConfidence(v float64) *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.AddAvgConfidence(v)
+	})
+}
+
+// UpdateAvgConfidence sets the "avg_confidence" field to the value that was provided on create.
+func (u *ChatSessionUpsertOne) UpdateAvgConfidence() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateAvgConfidence()
+	})
+}
+
+// ClearAvgConfidence clears the value of the "avg_confidence" field.
+func (u *ChatSessionUpsertOne) ClearAvgConfidence() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.ClearAvgConfidence()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *ChatSessionUpsertOne) SetMetadata(v map[string]interface{}) *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *ChatSessionUpsertOne) UpdateMetadata() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *ChatSessionUpsertOne) ClearMetadata() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetEndedAt sets the "ended_at" field.
+func (u *ChatSessionUpsertOne) SetEndedAt(v time.Time) *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetEndedAt(v)
+	})
+}
+
+// UpdateEndedAt sets the "ended_at" field to the value that was provided on create.
+func (u *ChatSessionUpsertOne) UpdateEndedAt() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateEndedAt()
+	})
+}
+
+// ClearEndedAt clears the value of the "ended_at" field.
+func (u *ChatSessionUpsertOne) ClearEndedAt() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.ClearEndedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *ChatSessionUpsertOne) Exec(ctx context.Context) error {
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for ChatSessionCreate.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *ChatSessionUpsertOne) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// Exec executes the UPSERT query and returns the inserted/updated ID.
+func (u *ChatSessionUpsertOne) ID(ctx context.Context) (id uuid.UUID, err error) {
+	if u.create.driver.Dialect() == dialect.MySQL {
+		// In case of "ON CONFLICT", there is no way to get back non-numeric ID
+		// fields from the database since MySQL does not support the RETURNING clause.
+		return id, errors.New("ent: ChatSessionUpsertOne.ID is not supported by MySQL driver. Use ChatSessionUpsertOne.Exec instead")
+	}
+	node, err := u.create.Save(ctx)
+	if err != nil {
+		return id, err
+	}
+	return node.ID, nil
+}
+
+// IDX is like ID, but panics if an error occurs.
+func (u *ChatSessionUpsertOne) IDX(ctx context.Context) uuid.UUID {
+	id, err := u.ID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 // ChatSessionCreateBulk is the builder for creating many ChatSession entities in bulk.
 type ChatSessionCreateBulk struct {
 	config
 	err      error
 	builders []*ChatSessionCreate
+	conflict []sql.ConflictOption
 }
 
 // Save creates the ChatSession entities in the database.
@@ -465,6 +1050,7 @@ func (_c *ChatSessionCreateBulk) Save(ctx context.Context) ([]*ChatSession, erro
 					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					spec.OnConflict = _c.conflict
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, _c.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
@@ -511,6 +1097,361 @@ func (_c *ChatSessionCreateBulk) Exec(ctx context.Context) error {
 // ExecX is like Exec, but panics if an error occurs.
 func (_c *ChatSessionCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+// OnConflict allows configuring the `ON CONFLICT` / `ON DUPLICATE KEY` clause
+// of the `INSERT` statement. For example:
+//
+//	client.ChatSession.CreateBulk(builders...).
+//		OnConflict(
+//			// Update the row with the new values
+//			// the was proposed for insertion.
+//			sql.ResolveWithNewValues(),
+//		).
+//		// Override some of the fields with custom
+//		// update values.
+//		Update(func(u *ent.ChatSessionUpsert) {
+//			SetTenantID(v+v).
+//		}).
+//		Exec(ctx)
+func (_c *ChatSessionCreateBulk) OnConflict(opts ...sql.ConflictOption) *ChatSessionUpsertBulk {
+	_c.conflict = opts
+	return &ChatSessionUpsertBulk{
+		create: _c,
+	}
+}
+
+// OnConflictColumns calls `OnConflict` and configures the columns
+// as conflict target. Using this option is equivalent to using:
+//
+//	client.ChatSession.Create().
+//		OnConflict(sql.ConflictColumns(columns...)).
+//		Exec(ctx)
+func (_c *ChatSessionCreateBulk) OnConflictColumns(columns ...string) *ChatSessionUpsertBulk {
+	_c.conflict = append(_c.conflict, sql.ConflictColumns(columns...))
+	return &ChatSessionUpsertBulk{
+		create: _c,
+	}
+}
+
+// ChatSessionUpsertBulk is the builder for "upsert"-ing
+// a bulk of ChatSession nodes.
+type ChatSessionUpsertBulk struct {
+	create *ChatSessionCreateBulk
+}
+
+// UpdateNewValues updates the mutable fields using the new values that
+// were set on create. Using this option is equivalent to using:
+//
+//	client.ChatSession.Create().
+//		OnConflict(
+//			sql.ResolveWithNewValues(),
+//			sql.ResolveWith(func(u *sql.UpdateSet) {
+//				u.SetIgnore(chatsession.FieldID)
+//			}),
+//		).
+//		Exec(ctx)
+func (u *ChatSessionUpsertBulk) UpdateNewValues() *ChatSessionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithNewValues())
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
+		for _, b := range u.create.builders {
+			if _, exists := b.mutation.ID(); exists {
+				s.SetIgnore(chatsession.FieldID)
+			}
+			if _, exists := b.mutation.StartedAt(); exists {
+				s.SetIgnore(chatsession.FieldStartedAt)
+			}
+		}
+	}))
+	return u
+}
+
+// Ignore sets each column to itself in case of conflict.
+// Using this option is equivalent to using:
+//
+//	client.ChatSession.Create().
+//		OnConflict(sql.ResolveWithIgnore()).
+//		Exec(ctx)
+func (u *ChatSessionUpsertBulk) Ignore() *ChatSessionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWithIgnore())
+	return u
+}
+
+// DoNothing configures the conflict_action to `DO NOTHING`.
+// Supported only by SQLite and PostgreSQL.
+func (u *ChatSessionUpsertBulk) DoNothing() *ChatSessionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.DoNothing())
+	return u
+}
+
+// Update allows overriding fields `UPDATE` values. See the ChatSessionCreateBulk.OnConflict
+// documentation for more info.
+func (u *ChatSessionUpsertBulk) Update(set func(*ChatSessionUpsert)) *ChatSessionUpsertBulk {
+	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(update *sql.UpdateSet) {
+		set(&ChatSessionUpsert{UpdateSet: update})
+	}))
+	return u
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (u *ChatSessionUpsertBulk) SetTenantID(v uuid.UUID) *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetTenantID(v)
+	})
+}
+
+// UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
+func (u *ChatSessionUpsertBulk) UpdateTenantID() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateTenantID()
+	})
+}
+
+// SetLeadID sets the "lead_id" field.
+func (u *ChatSessionUpsertBulk) SetLeadID(v uuid.UUID) *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetLeadID(v)
+	})
+}
+
+// UpdateLeadID sets the "lead_id" field to the value that was provided on create.
+func (u *ChatSessionUpsertBulk) UpdateLeadID() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateLeadID()
+	})
+}
+
+// ClearLeadID clears the value of the "lead_id" field.
+func (u *ChatSessionUpsertBulk) ClearLeadID() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.ClearLeadID()
+	})
+}
+
+// SetContactID sets the "contact_id" field.
+func (u *ChatSessionUpsertBulk) SetContactID(v uuid.UUID) *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetContactID(v)
+	})
+}
+
+// UpdateContactID sets the "contact_id" field to the value that was provided on create.
+func (u *ChatSessionUpsertBulk) UpdateContactID() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateContactID()
+	})
+}
+
+// ClearContactID clears the value of the "contact_id" field.
+func (u *ChatSessionUpsertBulk) ClearContactID() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.ClearContactID()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *ChatSessionUpsertBulk) SetStatus(v string) *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *ChatSessionUpsertBulk) UpdateStatus() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetChannel sets the "channel" field.
+func (u *ChatSessionUpsertBulk) SetChannel(v string) *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetChannel(v)
+	})
+}
+
+// UpdateChannel sets the "channel" field to the value that was provided on create.
+func (u *ChatSessionUpsertBulk) UpdateChannel() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateChannel()
+	})
+}
+
+// SetMessages sets the "messages" field.
+func (u *ChatSessionUpsertBulk) SetMessages(v []map[string]interface{}) *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetMessages(v)
+	})
+}
+
+// UpdateMessages sets the "messages" field to the value that was provided on create.
+func (u *ChatSessionUpsertBulk) UpdateMessages() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateMessages()
+	})
+}
+
+// ClearMessages clears the value of the "messages" field.
+func (u *ChatSessionUpsertBulk) ClearMessages() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.ClearMessages()
+	})
+}
+
+// SetMessageCount sets the "message_count" field.
+func (u *ChatSessionUpsertBulk) SetMessageCount(v int) *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetMessageCount(v)
+	})
+}
+
+// AddMessageCount adds v to the "message_count" field.
+func (u *ChatSessionUpsertBulk) AddMessageCount(v int) *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.AddMessageCount(v)
+	})
+}
+
+// UpdateMessageCount sets the "message_count" field to the value that was provided on create.
+func (u *ChatSessionUpsertBulk) UpdateMessageCount() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateMessageCount()
+	})
+}
+
+// SetAiResponses sets the "ai_responses" field.
+func (u *ChatSessionUpsertBulk) SetAiResponses(v int) *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetAiResponses(v)
+	})
+}
+
+// AddAiResponses adds v to the "ai_responses" field.
+func (u *ChatSessionUpsertBulk) AddAiResponses(v int) *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.AddAiResponses(v)
+	})
+}
+
+// UpdateAiResponses sets the "ai_responses" field to the value that was provided on create.
+func (u *ChatSessionUpsertBulk) UpdateAiResponses() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateAiResponses()
+	})
+}
+
+// SetEscalations sets the "escalations" field.
+func (u *ChatSessionUpsertBulk) SetEscalations(v int) *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetEscalations(v)
+	})
+}
+
+// AddEscalations adds v to the "escalations" field.
+func (u *ChatSessionUpsertBulk) AddEscalations(v int) *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.AddEscalations(v)
+	})
+}
+
+// UpdateEscalations sets the "escalations" field to the value that was provided on create.
+func (u *ChatSessionUpsertBulk) UpdateEscalations() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateEscalations()
+	})
+}
+
+// SetAvgConfidence sets the "avg_confidence" field.
+func (u *ChatSessionUpsertBulk) SetAvgConfidence(v float64) *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetAvgConfidence(v)
+	})
+}
+
+// AddAvgConfidence adds v to the "avg_confidence" field.
+func (u *ChatSessionUpsertBulk) AddAvgConfidence(v float64) *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.AddAvgConfidence(v)
+	})
+}
+
+// UpdateAvgConfidence sets the "avg_confidence" field to the value that was provided on create.
+func (u *ChatSessionUpsertBulk) UpdateAvgConfidence() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateAvgConfidence()
+	})
+}
+
+// ClearAvgConfidence clears the value of the "avg_confidence" field.
+func (u *ChatSessionUpsertBulk) ClearAvgConfidence() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.ClearAvgConfidence()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *ChatSessionUpsertBulk) SetMetadata(v map[string]interface{}) *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *ChatSessionUpsertBulk) UpdateMetadata() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *ChatSessionUpsertBulk) ClearMetadata() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.ClearMetadata()
+	})
+}
+
+// SetEndedAt sets the "ended_at" field.
+func (u *ChatSessionUpsertBulk) SetEndedAt(v time.Time) *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetEndedAt(v)
+	})
+}
+
+// UpdateEndedAt sets the "ended_at" field to the value that was provided on create.
+func (u *ChatSessionUpsertBulk) UpdateEndedAt() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateEndedAt()
+	})
+}
+
+// ClearEndedAt clears the value of the "ended_at" field.
+func (u *ChatSessionUpsertBulk) ClearEndedAt() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.ClearEndedAt()
+	})
+}
+
+// Exec executes the query.
+func (u *ChatSessionUpsertBulk) Exec(ctx context.Context) error {
+	if u.create.err != nil {
+		return u.create.err
+	}
+	for i, b := range u.create.builders {
+		if len(b.conflict) != 0 {
+			return fmt.Errorf("ent: OnConflict was set for builder %d. Set it on the ChatSessionCreateBulk instead", i)
+		}
+	}
+	if len(u.create.conflict) == 0 {
+		return errors.New("ent: missing options for ChatSessionCreateBulk.OnConflict")
+	}
+	return u.create.Exec(ctx)
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (u *ChatSessionUpsertBulk) ExecX(ctx context.Context) {
+	if err := u.create.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

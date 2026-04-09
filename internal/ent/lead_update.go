@@ -24,8 +24,9 @@ import (
 // LeadUpdate is the builder for updating Lead entities.
 type LeadUpdate struct {
 	config
-	hooks    []Hook
-	mutation *LeadMutation
+	hooks     []Hook
+	mutation  *LeadMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the LeadUpdate builder.
@@ -555,6 +556,12 @@ func (_u *LeadUpdate) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *LeadUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *LeadUpdate {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *LeadUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -840,6 +847,7 @@ func (_u *LeadUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{lead.Label}
@@ -855,9 +863,10 @@ func (_u *LeadUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 // LeadUpdateOne is the builder for updating a single Lead entity.
 type LeadUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *LeadMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *LeadMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetTenantID sets the "tenant_id" field.
@@ -1394,6 +1403,12 @@ func (_u *LeadUpdateOne) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (_u *LeadUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *LeadUpdateOne {
+	_u.modifiers = append(_u.modifiers, modifiers...)
+	return _u
+}
+
 func (_u *LeadUpdateOne) sqlSave(ctx context.Context) (_node *Lead, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
@@ -1696,6 +1711,7 @@ func (_u *LeadUpdateOne) sqlSave(ctx context.Context) (_node *Lead, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(_u.modifiers...)
 	_node = &Lead{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
