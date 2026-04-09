@@ -1,0 +1,422 @@
+{
+  "source": "Forever Product Brochure 2024/25 (Forever-Product-Brochure-2025-270225-1a-FA.pdf)",
+  "last_updated": "2026-04-09",
+  "categories": {
+    "drinks": "AloeDrinks",
+    "nutrition": "NutritionalSupplements",
+    "weight_management": "WeightManagement",
+    "bee_products": "BeeProducts",
+    "skin_care": "SkinCare",
+    "personal_care": "PersonalCare",
+    "essential_oils": "EssentialOils",
+    "combo_paks": "ComboPaks"
+  },
+  "products": [
+    {
+      "item_code": "015",
+      "name": "Forever Aloe Vera Gel",
+      "category": "drinks",
+      "cc": 0.102,
+      "description": "As close to the real thing as you can get. Our Aloe Vera Gel is made from pure inner leaf aloe vera gel, containing over 200 compounds. A product of our patented aloe stabilization process. First to receive certification by the International Aloe Science Council.",
+      "benefits": ["Supports good digestive health", "Great cleansing power", "Great for immune support", "Contains over 200 compounds", "IASC certified"],
+      "ingredients": "Stabilized Aloe Vera Gel, Sorbitol, Ascorbic Acid (Antioxidant), Citric Acid, Potassium Sorbate, Sodium Benzoate, Xanthan Gum, Tocopherol (Antioxidant)",
+      "contents": "1 ltr",
+      "directions": "Shake well. Refrigerate after opening. Contains 100% Aloe Vera Juice",
+      "tags": ["aloe vera", "digestive health", "immune support", "flagship", "bestseller"]
+    },
+    {
+      "item_code": "034",
+      "name": "Aloe Berry Nectar",
+      "category": "drinks",
+      "cc": 0.102,
+      "description": "All the goodness found in Aloe Vera Gel, plus the added benefits of cranberry and apple. Cranberries are a natural source of powerful antioxidants known as Oligomeric Proanthocyanidins (OPCs).",
+      "benefits": ["Natural support for urinary tract health", "Contains antioxidant bioflavonoids (OPCs)", "All benefits of Aloe Vera Gel"],
+      "ingredients": "Stabilized Aloe Vera Gel, Fructose, Natural Cranberry and Apple Juice Concentrates, Sorbitol, Ascorbic Acid, Citric Acid, Potassium Sorbate, Sodium Benzoate, Xanthan Gum, Tocopherol",
+      "contents": "1 ltr",
+      "directions": "Shake well. Refrigerate after opening. Contains 100% Aloe Vera Juice",
+      "tags": ["aloe vera", "cranberry", "apple", "urinary health", "antioxidant"]
+    },
+    {
+      "item_code": "196",
+      "name": "Forever Freedom",
+      "category": "drinks",
+      "cc": 0.146,
+      "description": "Aloe Vera combined with Glucosamine Sulfate (1500mg), Chondroitin Sulfate (1200mg), MSM (750mg) and Vitamin C (250mg) per serving in orange-flavored juice formula for joint health.",
+      "benefits": ["Supports joint health and mobility", "Easier assimilation due to Aloe Vera carrier", "Contains substances naturally occurring in joints"],
+      "ingredients": "Stabilized Aloe Vera Gel (Juice), Sorbitol, Natural Orange Juice Concentrate, Fructose, Glucosamine Sulfate, Chondroitin Sulfate, Natural Orange Flavor, Methyl Sulfonyl Methane, Ascorbic Acid, Citric Acid, Potassium Sorbate, Sodium Benzoate, Tocopherol. Contains Shellfish.",
+      "contents": "1 ltr",
+      "directions": "Shake well. Refrigerate after opening.",
+      "tags": ["aloe vera", "joint health", "glucosamine", "chondroitin", "MSM", "orange"]
+    },
+    {
+      "item_code": "036",
+      "name": "Forever Aloe Mango",
+      "category": "drinks",
+      "cc": 0.130,
+      "description": "Pure inner leaf aloe vera gel with natural mango puree for a refreshing tropical taste.",
+      "benefits": ["All benefits of aloe vera", "Delicious mango flavor", "Supports digestive health"],
+      "contents": "1 ltr",
+      "tags": ["aloe vera", "mango", "tropical"]
+    },
+    {
+      "item_code": "071",
+      "name": "Forever Aloe Peaches",
+      "category": "drinks",
+      "cc": 0.122,
+      "description": "Aloe vera gel combined with natural peach flavor and peach concentrate.",
+      "benefits": ["Supports digestive health", "Refreshing peach taste"],
+      "contents": "1 ltr",
+      "tags": ["aloe vera", "peach"]
+    },
+    {
+      "item_code": "624",
+      "name": "Forever Daily",
+      "category": "nutrition",
+      "cc": 0.140,
+      "description": "Revolutionary nutrient delivery system with proprietary AOS Complex. A perfectly balanced blend of 55 nutrients including essential vitamins and minerals with phytonutrients, bioflavonoids, and cutting-edge antioxidants.",
+      "benefits": ["Blend of 55 nutrients", "Fills nutrient gaps in everyday diet", "Nourishes and protects the body"],
+      "contents": "60 tablets",
+      "directions": "Take 2 tablets daily as a dietary supplement.",
+      "tags": ["multivitamin", "daily nutrition", "AOS complex", "55 nutrients"]
+    },
+    {
+      "item_code": "439",
+      "name": "Fields of Greens",
+      "category": "nutrition",
+      "cc": 0.080,
+      "description": "Young barley grass, wheat grass, alfalfa and cayenne pepper with honey for energy. Antioxidants and chlorophyll for green food nutrition.",
+      "benefits": ["Excellent green food source", "Antioxidant", "Contains chlorophyll", "Helps maintain healthy circulation and blood sugar levels"],
+      "contents": "80 tablets",
+      "directions": "One tablet, twice a day.",
+      "tags": ["green food", "barley grass", "wheat grass", "chlorophyll"]
+    },
+    {
+      "item_code": "068",
+      "name": "Forever Kids",
+      "category": "nutrition",
+      "cc": 0.052,
+      "description": "Fun, delicious chewable multivitamins for kids ages 2+ and adults with phytonutrients from fruits and vegetables including carrots, beets, broccoli, spinach, blueberries. Now with iron for immune support.",
+      "benefits": ["No artificial colors or preservatives", "Phytonutrient base from raw foods", "Natural grape flavor"],
+      "contents": "120 tablets",
+      "directions": "For children over 4 and adults: 4 tablets daily. Children 2-4: 2 tablets daily.",
+      "tags": ["children", "multivitamin", "chewable", "phytonutrients"]
+    },
+    {
+      "item_code": "354",
+      "name": "Forever iVision",
+      "category": "nutrition",
+      "cc": 0.060,
+      "description": "Dietary supplement with bilberry, lutein and zeaxanthin plus super antioxidants. Bilberry supports normal eyesight and circulation to the eyes. Lutein helps protect the retina.",
+      "benefits": ["Supports normal eyesight", "Keeps you looking into the future", "Supports blue light protection"],
+      "contents": "60 tablets",
+      "directions": "Take two tablets daily.",
+      "tags": ["eye health", "bilberry", "lutein", "zeaxanthin", "vision"]
+    },
+    {
+      "item_code": "188",
+      "name": "Forever B12 Plus",
+      "category": "nutrition",
+      "cc": 0.062,
+      "description": "Vitamin B12 with Folic Acid in time-release formula for metabolic processes including cell division, DNA synthesis, red blood cell production, and nerve function.",
+      "benefits": ["Helps reduce homocysteine levels", "Essential for vegetarian/vegan diets", "Food for the brain", "Must-have for pregnancy"],
+      "contents": "60 tablets",
+      "directions": "One or two tablets daily, preferably after meals.",
+      "tags": ["vitamin B12", "folic acid", "pregnancy", "vegan", "nerve health"]
+    },
+    {
+      "item_code": "037",
+      "name": "Forever Nature-Min",
+      "category": "nutrition",
+      "cc": 0.072,
+      "description": "Advanced multi-mineral formula from natural seabed deposits with bio-available forms for maximum absorption. Provides most minerals found in the human body.",
+      "benefits": ["Contains trace minerals from natural sea bed deposit", "Helps strengthen bones", "Minerals play many roles from regulating fluid balance to activating genes"],
+      "contents": "180 tablets",
+      "directions": "Six tablets daily.",
+      "tags": ["minerals", "trace minerals", "bone health", "seabed"]
+    },
+    {
+      "item_code": "072",
+      "name": "Forever Lycium Plus",
+      "category": "nutrition",
+      "cc": 0.122,
+      "description": "Lycium (goji berry) with licorice flavonoid extract. Antioxidants, bioflavonoids and phytonutrients. Used in traditional Chinese medicine for centuries.",
+      "benefits": ["Powerful antioxidant", "Good source of phytonutrients", "Beneficial to eyesight and skin", "Powerful tonic", "Promotes good digestive health"],
+      "contents": "100 tablets",
+      "directions": "One tablet, three times a day.",
+      "tags": ["lycium", "goji berry", "licorice", "antioxidant", "Chinese medicine"]
+    },
+    {
+      "item_code": "215",
+      "name": "Forever Multi-Maca",
+      "category": "nutrition",
+      "cc": 0.107,
+      "description": "Peruvian Maca (Lepidium Meyenii) combined with powerful herbs. Known as Peruvian Ginseng, revered for over 2,000 years in Peru.",
+      "benefits": ["Helps promote libido, stamina and energy", "Promotes sexual arousal and endurance", "Prevents hot flushes"],
+      "contents": "60 tablets",
+      "directions": "Two tablets every day with water.",
+      "tags": ["maca", "energy", "stamina", "libido", "Peruvian ginseng"]
+    },
+    {
+      "item_code": "376",
+      "name": "Forever Arctic Sea",
+      "category": "nutrition",
+      "cc": 0.120,
+      "description": "Omega-3 fatty acids from fish oil and calamari oil providing DHA and EPA blend for cardiovascular and brain health.",
+      "benefits": ["Supports cardiovascular health", "Supports brain health", "Omega-3 fatty acids"],
+      "contents": "120 softgels",
+      "tags": ["omega-3", "fish oil", "DHA", "EPA", "heart health", "brain health"]
+    },
+    {
+      "item_code": "374",
+      "name": "Forever Active Pro-B",
+      "category": "nutrition",
+      "cc": 0.120,
+      "description": "Proprietary blend of 6 probiotic strains for gut health and immune support.",
+      "benefits": ["Supports digestive health", "Supports immune health", "6 probiotic strains"],
+      "contents": "30 capsules",
+      "tags": ["probiotics", "gut health", "digestive health", "immune"]
+    },
+    {
+      "item_code": "375",
+      "name": "ARGI+",
+      "category": "nutrition",
+      "cc": 0.127,
+      "description": "5g L-Arginine per serving with vitamins, fruit extracts and antioxidants. L-Arginine is a precursor to nitric oxide.",
+      "benefits": ["Supports cardiovascular function", "Supports immune function", "Promotes healthy blood pressure"],
+      "contents": "30 packets",
+      "tags": ["L-arginine", "nitric oxide", "cardiovascular", "energy"]
+    },
+    {
+      "item_code": "048",
+      "name": "Forever Absorbent-C",
+      "category": "nutrition",
+      "cc": 0.069,
+      "description": "Oat bran combined with Vitamin C for better absorption. Powerful antioxidant support.",
+      "benefits": ["Supports immune system", "Powerful antioxidant", "Better absorption with oat bran"],
+      "contents": "100 tablets",
+      "tags": ["vitamin C", "antioxidant", "immune", "oat bran"]
+    },
+    {
+      "item_code": "206",
+      "name": "Forever Garlic-Thyme",
+      "category": "nutrition",
+      "cc": 0.098,
+      "description": "Garlic and thyme combined for powerful antioxidant properties and cardiovascular support.",
+      "benefits": ["Supports cardiovascular health", "Supports immune function", "Antioxidant"],
+      "contents": "100 softgels",
+      "tags": ["garlic", "thyme", "cardiovascular", "immune"]
+    },
+    {
+      "item_code": "355",
+      "name": "Forever Move",
+      "category": "nutrition",
+      "cc": 0.093,
+      "description": "NEM brand eggshell membrane with BioCurc bioavailable turmeric for joint comfort and flexibility.",
+      "benefits": ["Supports joint comfort", "Supports flexibility", "Natural ingredients"],
+      "contents": "90 softgels",
+      "tags": ["joint health", "turmeric", "eggshell membrane", "flexibility"]
+    },
+    {
+      "item_code": "051",
+      "name": "Forever Royal Jelly",
+      "category": "bee_products",
+      "cc": 0.080,
+      "description": "Natural super-food from the beehive containing vitamins, minerals, proteins and amino acids.",
+      "benefits": ["Natural energy booster", "Supports immune health", "Rich in nutrients"],
+      "contents": "60 tablets",
+      "tags": ["royal jelly", "bee product", "energy", "immune"]
+    },
+    {
+      "item_code": "026",
+      "name": "Forever Bee Honey",
+      "category": "bee_products",
+      "cc": 0.060,
+      "description": "All-natural, pure bee honey sourced from diverse flower nectar.",
+      "benefits": ["Natural sweetener", "Contains vitamins and minerals"],
+      "contents": "500g",
+      "tags": ["honey", "bee product", "natural sweetener"]
+    },
+    {
+      "item_code": "064",
+      "name": "Forever Bee Propolis",
+      "category": "bee_products",
+      "cc": 0.058,
+      "description": "Natural substance collected by bees from tree bark and leaves. Nature's protective shield.",
+      "benefits": ["Supports immune system", "Natural antioxidant"],
+      "contents": "60 tablets",
+      "tags": ["propolis", "bee product", "immune", "antioxidant"]
+    },
+    {
+      "item_code": "028",
+      "name": "Forever Bee Pollen",
+      "category": "bee_products",
+      "cc": 0.030,
+      "description": "Multi-vitamin in a single serving. Complete nutrition from nature.",
+      "benefits": ["Rich in vitamins, minerals and amino acids", "Natural energy"],
+      "contents": "100 tablets",
+      "tags": ["bee pollen", "bee product", "multivitamin"]
+    },
+    {
+      "item_code": "475",
+      "name": "C9 (Clean 9)",
+      "category": "weight_management",
+      "cc": 0.000,
+      "description": "9-day cleansing program to jump-start your journey to a slimmer, healthier you. Includes: 2x Aloe Vera Gel, Forever Lite Ultra Shake Mix, Garcinia Plus (54 softgels), Forever Fiber (9 packets), Forever Therm (18 tablets).",
+      "benefits": ["Jump-start weight management", "Easy-to-follow 9-day program", "Complete cleanse system"],
+      "contents": "Complete 9-day pak",
+      "tags": ["C9", "clean 9", "cleanse", "weight management", "gateway product", "bestseller"]
+    },
+    {
+      "item_code": "456",
+      "name": "Vital5",
+      "category": "weight_management",
+      "cc": 1.000,
+      "description": "Combines 5 Forever products: Choice of Aloe drink (4 bottles), Forever Daily (60 tablets), Active Pro-B (30 capsules), Arctic Sea (120 softgels), ARGI+ (30 packets).",
+      "benefits": ["Bridges nutritional gaps", "Provides key nutrients for daily wellness", "Complete nutrition pak"],
+      "contents": "Complete pak",
+      "tags": ["vital5", "complete nutrition", "daily wellness", "bundle"]
+    },
+    {
+      "item_code": "528",
+      "name": "F15 (Fit 15)",
+      "category": "weight_management",
+      "cc": 0.586,
+      "description": "15-day fitness and nutrition program with beginner, intermediate or advanced levels. Includes: 2x Aloe Vera Gel, Forever Lite Ultra, Garcinia Plus (90 softgels), Forever Fiber (15 packets), Forever Therm (30 tablets).",
+      "benefits": ["Continues transformation after C9", "Personalized to fitness level", "15-day structured program"],
+      "contents": "Complete 15-day pak",
+      "tags": ["F15", "fit 15", "fitness", "weight management", "exercise"]
+    },
+    {
+      "item_code": "547",
+      "name": "Forever Lite Ultra (Vanilla)",
+      "category": "weight_management",
+      "cc": 0.482,
+      "description": "Aminotein protein shake with soy protein isolate and aminogen enzyme blend.",
+      "benefits": ["Supports lean muscle mass", "Great meal replacement", "Protein shake"],
+      "tags": ["protein shake", "meal replacement", "vanilla", "soy protein"]
+    },
+    {
+      "item_code": "553",
+      "name": "Infinite by Forever Advanced Skincare Kit",
+      "category": "skin_care",
+      "cc": 0.646,
+      "description": "Complete anti-aging skincare system including hydrating cleanser, firming serum, and restoring creme.",
+      "benefits": ["Reduces appearance of fine lines and wrinkles", "Firms and hydrates"],
+      "tags": ["anti-aging", "skincare kit", "premium", "firming"]
+    },
+    {
+      "item_code": "609",
+      "name": "Sonya Daily Skincare System",
+      "category": "skin_care",
+      "cc": 0.341,
+      "description": "4-piece system: Refreshing Gel Cleanser, Illuminating Gel, Refining Gel Mask, Soothing Gel Moisturizer. For combination skin.",
+      "benefits": ["Supports combination skin", "Brightens and balances", "Complete 4-step system"],
+      "tags": ["skincare system", "combination skin", "daily routine"]
+    },
+    {
+      "item_code": "238",
+      "name": "Forever Aloe Scrub",
+      "category": "personal_care",
+      "cc": 0.064,
+      "description": "Aloe vera gel with solid micro-spheres from pure Jojoba Oil for gentle exfoliation.",
+      "benefits": ["Natural exfoliator for face and body", "Prepares skin for moisturization", "Gentle enough for everyday use"],
+      "contents": "99g",
+      "tags": ["exfoliator", "scrub", "jojoba", "aloe vera"]
+    },
+    {
+      "item_code": "061",
+      "name": "Aloe Vera Gelly",
+      "category": "personal_care",
+      "cc": 0.059,
+      "description": "100% stabilized aloe vera gel for topical application. Translucent, non-staining, rapidly absorbed by skin.",
+      "benefits": ["Quickly soothes the skin", "Does not stain clothing", "Ideal for any first-aid kit"],
+      "contents": "118 ml",
+      "tags": ["first aid", "topical", "soothing", "aloe vera"]
+    },
+    {
+      "item_code": "067",
+      "name": "Forever Bright Toothgel",
+      "category": "personal_care",
+      "cc": 0.029,
+      "description": "Aloe vera and bee propolis toothgel. Natural formula without fluoride.",
+      "benefits": ["Freshens breath", "Whitens teeth naturally", "No fluoride"],
+      "tags": ["toothgel", "oral care", "bee propolis", "no fluoride"]
+    },
+    {
+      "item_code": "022",
+      "name": "Aloe Lips with Jojoba",
+      "category": "personal_care",
+      "cc": 0.014,
+      "description": "Aloe, jojoba and beeswax lip balm. Compact size for on-the-go use.",
+      "benefits": ["Moisturizes chapped and dry lips", "Gives lips gloss", "Great for all-year use"],
+      "contents": "4.4g",
+      "tags": ["lip balm", "jojoba", "beeswax", "moisturizer"]
+    },
+    {
+      "item_code": "617",
+      "name": "Aloe Sunscreen SPF 30",
+      "category": "personal_care",
+      "cc": 0.083,
+      "description": "Broad spectrum UVA/UVB protection with SPF 30. Made with pure stabilized aloe vera gel, rich moisturizers.",
+      "benefits": ["High SPF protection", "Water resistant up to 40 minutes", "Safe and gentle for children"],
+      "contents": "118ml",
+      "tags": ["sunscreen", "SPF 30", "UV protection", "water resistant"]
+    },
+    {
+      "item_code": "646",
+      "name": "Aloe Body Wash",
+      "category": "personal_care",
+      "cc": 0.090,
+      "description": "Sulfate-free body wash with aloe, vitamins A, C, E. pH balanced to retain skin moisture.",
+      "benefits": ["Gentle powerful cleansing", "Retains skin moisture", "Naturally-derived color"],
+      "contents": "236ml",
+      "tags": ["body wash", "sulfate free", "pH balanced"]
+    },
+    {
+      "item_code": "647",
+      "name": "Aloe Body Lotion",
+      "category": "personal_care",
+      "cc": 0.091,
+      "description": "Fast-absorbing lotion with aloe, argan oil, macadamia seed oil, sodium hyaluronate. Silicone-free.",
+      "benefits": ["Promotes skin hydration", "Absorbs quickly", "Silky non-greasy feel", "Promotes healthy youthful-looking skin"],
+      "contents": "236ml",
+      "tags": ["body lotion", "moisturizer", "argan oil", "silicone free"]
+    },
+    {
+      "item_code": "070",
+      "name": "Gentleman's Pride",
+      "category": "personal_care",
+      "cc": 0.060,
+      "description": "Alcohol-free aftershave balm with aloe vera. Lubricates and conditions sensitive skin.",
+      "benefits": ["Helps prevent razor burn", "Soothes without stinging", "Alcohol-free"],
+      "tags": ["aftershave", "men", "alcohol-free", "sensitive skin"]
+    },
+    {
+      "item_code": "284",
+      "name": "Aloe Avocado Face & Body Soap",
+      "category": "personal_care",
+      "cc": 0.027,
+      "description": "Gentle soap with aloe vera, avocado oil and natural fruit oils.",
+      "benefits": ["Cleanses without drying", "Suitable for face and body"],
+      "tags": ["soap", "avocado", "gentle", "face and body"]
+    },
+    {
+      "item_code": "063",
+      "name": "Aloe Moisturizing Lotion",
+      "category": "personal_care",
+      "cc": 0.059,
+      "description": "Rich moisturizer with aloe, jojoba oil, collagen and elastin.",
+      "benefits": ["Conditions and protects skin", "Rich moisturizing formula"],
+      "tags": ["moisturizer", "collagen", "elastin", "jojoba"]
+    },
+    {
+      "item_code": "633",
+      "name": "Forever Hand Sanitizer",
+      "category": "personal_care",
+      "cc": 0.075,
+      "description": "Aloe and honey-based hand sanitizer with soothing moisturizers.",
+      "benefits": ["Kills 99.99% of germs", "Moisturizes while sanitizing"],
+      "tags": ["hand sanitizer", "hygiene", "aloe", "honey"]
+    }
+  ]
+}

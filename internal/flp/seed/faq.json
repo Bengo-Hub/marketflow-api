@@ -1,0 +1,104 @@
+{
+  "source": "Compiled from One-to-One PDF, Product Brochure, and FBO best practices",
+  "last_updated": "2026-04-09",
+  "categories": {
+    "company": "About Forever Living Products",
+    "products": "Product Questions",
+    "business": "Business Opportunity",
+    "getting_started": "Getting Started",
+    "objections": "Common Objections"
+  },
+  "entries": [
+    {
+      "category": "company",
+      "question": "What is Forever Living Products?",
+      "answer": "Forever Living Products International is a privately owned, debt-free company headquartered in Scottsdale, Arizona, USA. Founded in 1978 by Rex Maughan, Forever operates in over 160 countries and is the world's largest grower, manufacturer and distributor of aloe vera products. With over 46 years of uninterrupted growth, Forever is a leader in the $4 trillion global health and wellness industry.",
+      "tags": ["company", "overview", "history"]
+    },
+    {
+      "category": "company",
+      "question": "What makes Forever Living different from other companies?",
+      "answer": "Forever is vertically integrated — we own our aloe vera farms in Texas and the Dominican Republic (over 7,500 acres, 40 million plants annually), our manufacturing facilities, R&D labs, quality control, and distribution channels. This 'Plant to Product to You' philosophy ensures quality control at every step. Our aloe vera plants in the Dominican Republic are USDA Certified Organic and EU Organic.",
+      "tags": ["company", "unique", "vertical integration", "organic"]
+    },
+    {
+      "category": "products",
+      "question": "What is aloe vera and why is it beneficial?",
+      "answer": "Aloe vera has been used since 2200 B.C. for its soothing qualities. Forever grows and harvests Aloe barbadensis Miller, the most nutritionally valuable variety. Aloe vera contains over 200 compounds and supports digestive health, promotes a healthy immune system, supports nutrient absorption, and boosts natural energy levels. Our products contain up to 99.7% pure stabilized aloe vera gel.",
+      "tags": ["aloe vera", "benefits", "nutrition"]
+    },
+    {
+      "category": "products",
+      "question": "What is the C9 Clean 9 program?",
+      "answer": "The C9 (Clean 9) is a 9-day cleansing program designed to jump-start your journey to a slimmer, healthier you. It includes: 2 bottles of Forever Aloe Vera Gel, Forever Lite Ultra Shake Mix, Garcinia Plus (54 softgels), Forever Fiber (9 packets), and Forever Therm (18 tablets). It's our most popular gateway product and a great way to experience Forever products.",
+      "tags": ["C9", "clean 9", "weight management", "cleanse", "gateway"]
+    },
+    {
+      "category": "products",
+      "question": "Are Forever products organic?",
+      "answer": "Forever's aloe vera plants grown in the Dominican Republic, and the inner leaf aloe vera gel extracted from them, are USDA Certified Organic and EU Organic. All Forever products are certified by the International Aloe Science Council (IASC) for aloe content and purity.",
+      "tags": ["organic", "USDA", "EU", "certification", "IASC"]
+    },
+    {
+      "category": "products",
+      "question": "What is the Vital5 pack?",
+      "answer": "Vital5 combines 5 amazing Forever products that work together to bridge nutritional gaps: your choice of aloe drink (4 bottles), Forever Daily (60 tablets), Forever Active Pro-B (30 capsules), Forever Arctic Sea (120 softgels), and ARGI+ (30 packets). At 1.000 CC, it's excellent value for daily wellness.",
+      "tags": ["Vital5", "nutrition", "bundle", "daily wellness"]
+    },
+    {
+      "category": "business",
+      "question": "How does the Forever business opportunity work?",
+      "answer": "As a Forever Business Owner (FBO), you earn through 3 income streams: 1) Retail profit (30-48% discount on products you sell), 2) Team building bonuses (earn on your team's sales and recruitment), 3) Leadership bonuses at senior levels (6% on 1st generation, 3% on 2nd, 2% on 3rd generation Manager groups). You start by purchasing a starter kit and can build at your own pace.",
+      "tags": ["business opportunity", "income streams", "FBO"]
+    },
+    {
+      "category": "business",
+      "question": "How much can I earn with Forever?",
+      "answer": "Earnings depend on your effort and the size of your team. Illustrations from the business presentation show: Assistant Supervisor (2CC) earning USD $337-$463/month, Supervisor (10CC) ~USD $500/month, Manager (120CC) ~USD $2,500/month, up to Diamond Manager (25 Manager lines) ~USD $35,000/month. These are illustrations only and do not reflect typical earnings. Results vary — see the FLP Income Disclosure Statement at foreverliving.com.",
+      "tags": ["earnings", "income", "compensation"],
+      "disclaimer_required": true
+    },
+    {
+      "category": "business",
+      "question": "What are Case Credits (CC)?",
+      "answer": "Case Credits (CC) are the universal volume metric used across all Forever countries. Every product has a CC value (e.g., Aloe Vera Gel = 0.102 CC, Vital5 = 1.000 CC). Your rank and bonuses are determined by your personal CC and group CC (your team's combined volume).",
+      "tags": ["case credits", "CC", "volume", "rank"]
+    },
+    {
+      "category": "business",
+      "question": "What is the Forever2Drive program?",
+      "answer": "Forever2Drive is an incentive where qualifying FBOs earn an extra $400-$800 per month for 3 years: Level 1 = $400/month, Level 2 = $600/month, Level 3 = $800/month. This is on top of regular commissions and bonuses.",
+      "tags": ["Forever2Drive", "car bonus", "incentive"]
+    },
+    {
+      "category": "getting_started",
+      "question": "How do I join Forever Living?",
+      "answer": "Getting started is simple: 1) Fill in the FBO application form (your sponsor will provide the link), 2) Obtain your Forever Business ID, 3) Book a planning meeting with your sponsor to set goals. You'll receive a starter kit with products and business tools to begin.",
+      "tags": ["join", "getting started", "registration"]
+    },
+    {
+      "category": "getting_started",
+      "question": "What does it cost to start a Forever business?",
+      "answer": "The startup cost is the price of a starter kit, which varies by country but typically includes products you can use and sell. Many new FBOs start with the C9 Clean 9 program as their entry point — it lets you experience the products firsthand while building your first testimonial.",
+      "tags": ["cost", "startup", "C9", "starter kit"]
+    },
+    {
+      "category": "objections",
+      "question": "Is Forever Living a pyramid scheme?",
+      "answer": "No. Forever Living Products is a legitimate direct sales company with real products that have real consumer demand. FBOs earn primarily through retail sales to end customers, not just recruitment. The company has been operating for over 46 years across 160+ countries, is a member of the Direct Selling Association, and its products are certified by the International Aloe Science Council. Pyramid schemes have no real products and collapse quickly — Forever has sustained over 4 decades of growth.",
+      "tags": ["pyramid scheme", "objection", "legitimacy"]
+    },
+    {
+      "category": "objections",
+      "question": "I don't have time for this.",
+      "answer": "That's exactly why many people choose Forever — you can build at your own pace, part-time. Many successful FBOs started with just 5-10 hours per week alongside their regular jobs. The beauty of network marketing is that as your team grows, your income can continue even when you're not actively working. Start by using the products yourself and sharing with people you already know.",
+      "tags": ["time", "objection", "part-time", "flexibility"]
+    },
+    {
+      "category": "objections",
+      "question": "The products are too expensive.",
+      "answer": "When you break down the cost per serving, Forever products are very competitive. For example, a 1-litre bottle of Aloe Vera Gel provides about 33 servings — that's a daily wellness routine for about a month. Compare that to a daily coffee or supplement from a pharmacy. Plus, as an FBO you get 30-48% discount off retail, making your personal wellness routine very affordable.",
+      "tags": ["price", "objection", "value", "cost per serving"]
+    }
+  ]
+}

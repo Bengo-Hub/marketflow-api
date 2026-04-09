@@ -1,0 +1,49 @@
+{
+  "source": "FLP compliance guidelines + 2024/25 Product Brochure disclaimers",
+  "last_updated": "2026-04-09",
+  "blocked_phrases": [
+    "cures", "treats disease", "heals disease", "prevents disease", "prevents cancer",
+    "FDA approved", "miracle", "magic", "wonder drug",
+    "guaranteed income", "get rich", "financial freedom guaranteed",
+    "no work required", "passive income guaranteed", "easy money",
+    "make money fast", "pyramid scheme"
+  ],
+  "disclaimers": {
+    "nutritional": "These statements have not been evaluated by the Food and Drug Administration. These products are not intended to diagnose, treat, cure, or prevent any disease.",
+    "skin_care": "These products are not intended to cure or prevent any diseases and are not a substitute for medical advice or therapy. Conduct a patch test if uncertain about sensitivity, and consult a health care professional during pregnancy. Products are for external use only.",
+    "income": "Profits and bonuses shown are illustrations and do not reflect typical earnings. Results vary. See the FLP Income Disclosure Statement at foreverliving.com.",
+    "weight_management": "Individual results may vary. Combined with proper diet and exercise."
+  },
+  "approved_terms": {
+    "instead_of_cures": "supports",
+    "instead_of_treats": "promotes",
+    "instead_of_heals": "helps maintain",
+    "instead_of_prevents": "supports healthy",
+    "instead_of_guaranteed_income": "potential earnings (results vary)"
+  },
+  "factual_claims_allowed": [
+    "Forever has operated for over 46 years",
+    "Operating in over 160 countries",
+    "World's largest grower of aloe vera",
+    "Vertically integrated (plant to product to you)",
+    "IASC (International Aloe Science Council) certified",
+    "USDA Certified Organic and EU Organic (Dominican Republic farms)",
+    "Products contain up to 99.7% pure stabilized aloe vera gel",
+    "Over 7,500 acres of aloe farms in Texas and Dominican Republic",
+    "40 million aloe vera plants annually",
+    "Privately owned and debt free"
+  ],
+  "advertising_restrictions": [
+    "Cannot bid on FLP trademark keywords in paid search ads",
+    "Cannot sell on Amazon, eBay, or third-party marketplaces",
+    "Cannot make income claims or show income screenshots in ads",
+    "Cannot use FLP logos without authorization",
+    "Meta ads must avoid MLM trigger words: earn, income, work from home"
+  ],
+  "disclaimer_triggers": {
+    "nutritional_keywords": ["health", "nutrition", "supplement", "vitamin", "immune", "digestive", "energy", "wellness"],
+    "skin_care_keywords": ["skin", "wrinkle", "anti-aging", "moisturize", "acne", "complexion"],
+    "income_keywords": ["earn", "income", "money", "salary", "commission", "bonus", "profit", "financial"],
+    "weight_keywords": ["weight", "slim", "fat", "diet", "cleanse", "detox", "C9", "F15"]
+  }
+}

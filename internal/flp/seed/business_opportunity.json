@@ -1,0 +1,183 @@
+{
+  "source": "One-to-One Business Presentation (One-to-One-New.pdf)",
+  "last_updated": "2026-04-09",
+  "company": {
+    "name": "Forever Living Products International",
+    "founded": 1978,
+    "headquarters": "Scottsdale, Arizona, USA",
+    "founder": "Rex Maughan",
+    "ceo": "Gregg Maughan",
+    "countries": 160,
+    "years_in_business": 46,
+    "employees_type": "FBO Network",
+    "industry": "Health and Wellness",
+    "industry_value": "$4 Trillion globally",
+    "key_differentiator": "Vertically integrated - owns aloe farms, manufacturing, R&D, quality control, distribution",
+    "aloe_farms": ["Texas, USA", "Dominican Republic"],
+    "annual_plants": "40 million aloe vera plants",
+    "certifications": ["IASC (International Aloe Science Council)", "USDA Organic (DR farms)", "EU Organic (DR farms)"],
+    "debt_status": "Privately owned and debt free"
+  },
+  "product_categories": [
+    "Aloe Drinks",
+    "Bee Products",
+    "Nutrition",
+    "Sports and Weight Management",
+    "Personal Care",
+    "Skincare"
+  ],
+  "what_fbos_do": [
+    "Use the products",
+    "Share the benefits of the products",
+    "Build a team",
+    "Coach your team"
+  ],
+  "income_streams": [
+    {
+      "name": "Retail Business",
+      "description": "Buy at wholesale discount, sell at retail price. Profit is the difference.",
+      "example": "Retailing USD $960/month at 30% profit = USD $289 + cash discount (5-18%) = USD $337-$463 total"
+    },
+    {
+      "name": "Team Building",
+      "description": "Get paid extra for each person who joins your team. Teach them retail and recruiting.",
+      "example": "You earn on everything your team does - both recruitment and retailing."
+    },
+    {
+      "name": "Leadership Bonus",
+      "description": "Earned on breakaway Manager groups at Senior Manager and above.",
+      "percentages": {
+        "1st_generation": "6%",
+        "2nd_generation": "3%",
+        "3rd_generation": "2%"
+      }
+    }
+  ],
+  "rank_ladder": [
+    {
+      "rank": "Preferred Customer",
+      "cc_requirement": "0.465 CC",
+      "discount": "5%",
+      "monthly_income_illustration": null
+    },
+    {
+      "rank": "Assistant Supervisor",
+      "cc_requirement": "2 CC",
+      "discount": "30% (+5% if 4CC active)",
+      "profit_on_retail": "30% (+5% boost)",
+      "profit_on_preferred_customer": "25% (+5% boost)",
+      "monthly_income_illustration": "USD $337-$463"
+    },
+    {
+      "rank": "Supervisor",
+      "cc_requirement": "10 CC (25cc in 2 months to qualify)",
+      "discount": "38%",
+      "profit_on_retail": "38%",
+      "profit_on_preferred_customer": "33%",
+      "team_bonuses": true,
+      "monthly_income_illustration": "USD $500"
+    },
+    {
+      "rank": "Assistant Manager",
+      "cc_requirement": "60 CC (75cc group)",
+      "discount": "43%",
+      "profit_on_retail": "43%",
+      "profit_on_preferred_customer": "38%",
+      "team_bonuses": true,
+      "monthly_income_illustration": "USD $700"
+    },
+    {
+      "rank": "Manager",
+      "cc_requirement": "120 CC or 150 CC",
+      "discount": "48%",
+      "profit_on_retail": "48%",
+      "profit_on_preferred_customer": "43%",
+      "team_bonuses": true,
+      "monthly_income_illustration": "USD $2,500",
+      "notes": "Breakaway status achieved"
+    },
+    {
+      "rank": "Senior Manager",
+      "requirement": "2 personally-sponsored Managers",
+      "leadership_bonus": true,
+      "monthly_income_illustration": "USD $5,000"
+    },
+    {
+      "rank": "Soaring Manager",
+      "requirement": "5 personally-sponsored Manager lines at 60CC/mo each",
+      "monthly_income_illustration": "USD $7,000"
+    },
+    {
+      "rank": "Sapphire Manager",
+      "requirement": "9 Manager lines of 1st, 2nd, 3rd gen at 60CC/mo each",
+      "monthly_income_illustration": "USD $12,000"
+    },
+    {
+      "rank": "Diamond Sapphire Manager",
+      "requirement": "17 Manager lines of 1st, 2nd, 3rd gen at 60CC/mo each",
+      "monthly_income_illustration": "USD $23,000"
+    },
+    {
+      "rank": "Diamond Manager",
+      "requirement": "25 Manager lines of 1st, 2nd, 3rd gen at 60CC/mo each",
+      "monthly_income_illustration": "USD $35,000"
+    },
+    {
+      "rank": "Eagle Manager",
+      "requirement": "Sustained multi-leg volume, global rally qualification",
+      "benefits": ["Chairman's Bonus pool", "Profit sharing", "Luxury incentives"]
+    }
+  ],
+  "incentives": {
+    "forever2drive": {
+      "description": "Qualify for extra monthly payment for 3 years",
+      "levels": [
+        {"level": 1, "amount": "$400/month"},
+        {"level": 2, "amount": "$600/month"},
+        {"level": 3, "amount": "$800/month"}
+      ]
+    },
+    "global_travel": {
+      "description": "Earn two fully paid international trips for two every year - airfare, accommodation and spending money included"
+    },
+    "inheritance": {
+      "description": "FLP businesses can be passed down to heirs - a true legacy asset"
+    }
+  },
+  "how_to_get_started": [
+    {"step": 1, "action": "Fill the FBO Form"},
+    {"step": 2, "action": "Obtain your Forever Business ID"},
+    {"step": 3, "action": "Book a planning meeting"}
+  ],
+  "why_aloe_vera": [
+    "Supports digestive health",
+    "Promotes a healthy immune system",
+    "Supports nutrient absorption",
+    "Boosts natural energy levels",
+    "Use daily to promote health and wellness",
+    "Suitable for vegans"
+  ],
+  "duplication_model": {
+    "description": "Working with 5 key people who each find 5, who each find 5...",
+    "illustration": [
+      {"level": 1, "personal": 5, "team_size": 5},
+      {"level": 2, "personal": 25, "team_size": 30},
+      {"level": 3, "personal": 125, "team_size": 155},
+      {"level": 4, "personal": 625, "team_size": 780},
+      {"level": 5, "personal": 3125, "team_size": 3950},
+      {"level": 6, "personal": 15625, "team_size": 19530},
+      {"level": 7, "personal": 78125, "team_size": 97655}
+    ]
+  },
+  "contact_offices": {
+    "kenya": {
+      "address": "Re-Insurance Plaza, 4th Floor, P.O. Box 44919 - 00100 Nairobi",
+      "phone": "+254 712 434 328",
+      "email": "info@foreverea.com"
+    },
+    "uganda": {
+      "address": "FLP Uganda Ltd, P.O. Box 34271 Kampala, Plot 26 Buganda Road, Park Royal Mall, First floor, Suite B1",
+      "phone": "+256 414 230 184"
+    }
+  }
+}

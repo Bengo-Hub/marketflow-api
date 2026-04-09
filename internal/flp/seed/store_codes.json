@@ -1,0 +1,34 @@
+{
+  "source": "FLP country store codes for link construction",
+  "last_updated": "2026-04-09",
+  "store_codes": {
+    "KE": {"store": "KEN", "language": "en", "currency": "KES", "name": "Kenya"},
+    "UG": {"store": "UGA", "language": "en", "currency": "UGX", "name": "Uganda"},
+    "TZ": {"store": "TZA", "language": "en", "currency": "TZS", "name": "Tanzania"},
+    "NG": {"store": "NGA", "language": "en", "currency": "NGN", "name": "Nigeria"},
+    "ZA": {"store": "ZAF", "language": "en", "currency": "ZAR", "name": "South Africa"},
+    "GH": {"store": "GHA", "language": "en", "currency": "GHS", "name": "Ghana"},
+    "US": {"store": "USA", "language": "en", "currency": "USD", "name": "United States"},
+    "GB": {"store": "GBR", "language": "en", "currency": "GBP", "name": "United Kingdom"},
+    "DE": {"store": "DEU", "language": "de", "currency": "EUR", "name": "Germany"},
+    "FR": {"store": "FRA", "language": "fr", "currency": "EUR", "name": "France"},
+    "IN": {"store": "IND", "language": "en", "currency": "INR", "name": "India"},
+    "AE": {"store": "ARE", "language": "en", "currency": "AED", "name": "UAE"},
+    "SA": {"store": "SAU", "language": "ar", "currency": "SAR", "name": "Saudi Arabia"},
+    "EG": {"store": "EGY", "language": "ar", "currency": "EGP", "name": "Egypt"},
+    "MA": {"store": "MAR", "language": "fr", "currency": "MAD", "name": "Morocco"},
+    "PH": {"store": "PHL", "language": "en", "currency": "PHP", "name": "Philippines"},
+    "MY": {"store": "MYS", "language": "en", "currency": "MYR", "name": "Malaysia"},
+    "JP": {"store": "JPN", "language": "ja", "currency": "JPY", "name": "Japan"},
+    "BR": {"store": "BRA", "language": "pt", "currency": "BRL", "name": "Brazil"},
+    "MX": {"store": "MEX", "language": "es", "currency": "MXN", "name": "Mexico"}
+  },
+  "link_templates": {
+    "shop": "https://shop.foreverliving.com/retail/entry/Shop.do?store={store}&language={language}&distribID={distribID}",
+    "product": "https://shop.foreverliving.com/retail/entry/Shop.do?store={store}&language={language}&itemCode={itemCode}&distribID={distribID}",
+    "category": "https://shop.foreverliving.com/retail/entry/Shop.do?store={store}&language={language}&categoryName={categoryName}&distribID={distribID}",
+    "recruit": "https://join.foreverliving.com/marketing/joinnow/applicationForm.do?action=display&store={store}&distribID={distribID}&menuoff=n&langID={language}",
+    "profile": "https://{distribID}.flp.com/opportunity/{profileUUID}",
+    "whatsapp": "https://wa.me/{phone}?text={message}"
+  }
+}

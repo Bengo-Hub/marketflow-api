@@ -1,0 +1,119 @@
+package config
+
+import (
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/caarlos0/env/v11"
+)
+
+// Config aggregates all runtime settings.
+type Config struct {
+	App      AppConfig      `envPrefix:""`
+	HTTP     HTTPConfig     `envPrefix:"HTTP_"`
+	Database DatabaseConfig `envPrefix:""`
+	Redis    RedisConfig    `envPrefix:"REDIS_"`
+	Security SecurityConfig `envPrefix:"MF_SECURITY_"`
+	Events   EventsConfig   `envPrefix:"MF_EVENTS_"`
+	Meta     MetaConfig     `envPrefix:"MF_META_"`
+	AI       AIConfig       `envPrefix:"MF_AI_"`
+}
+
+type AppConfig struct {
+	Environment string `env:"APP_ENV" envDefault:"development"`
+	ServiceName string `env:"APP_NAME" envDefault:"marketflow-api"`
+}
+
+type HTTPConfig struct {
+	Host              string        `env:"HOST" envDefault:"0.0.0.0"`
+	Port              int           `env:"PORT" envDefault:"4000"`
+	AllowedOrigins    string        `env:"ALLOWED_ORIGINS" envDefault:"http://localhost:3000"`
+	ReadTimeout       time.Duration `env:"READ_TIMEOUT" envDefault:"5s"`
+	WriteTimeout      time.Duration `env:"WRITE_TIMEOUT" envDefault:"10s"`
+	IdleTimeout       time.Duration `env:"IDLE_TIMEOUT" envDefault:"120s"`
+	ReadHeaderTimeout time.Duration `env:"READ_HEADER_TIMEOUT" envDefault:"5s"`
+	ShutdownTimeout   time.Duration `env:"SHUTDOWN_TIMEOUT" envDefault:"25s"`
+}
+
+type DatabaseConfig struct {
+	URL             string        `env:"POSTGRES_URL"`
+	MaxOpenConns    int           `env:"POSTGRES_MAX_OPEN_CONNS" envDefault:"8"`
+	MaxIdleConns    int           `env:"POSTGRES_MAX_IDLE_CONNS" envDefault:"3"`
+	ConnMaxLifetime time.Duration `env:"POSTGRES_CONN_MAX_LIFETIME" envDefault:"15m"`
+	RunMigrations   bool          `env:"POSTGRES_RUN_MIGRATIONS" envDefault:"true"`
+}
+
+type RedisConfig struct {
+	Addr      string `env:"ADDR" envDefault:"127.0.0.1:6379"`
+	Password  string `env:"PASSWORD"`
+	DB        int    `env:"DB" envDefault:"0"`
+	EnableTLS bool   `env:"ENABLE_TLS" envDefault:"false"`
+	Namespace string `env:"NAMESPACE" envDefault:"marketflow"`
+}
+
+type SecurityConfig struct {
+	JWKSUrl        string `env:"JWKS_URL" envDefault:"https://sso.codevertexitsolutions.com/api/v1/.well-known/jwks.json"`
+	JWTIssuer      string `env:"JWT_ISSUER" envDefault:"https://sso.codevertexitsolutions.com"`
+	JWTAudience    string `env:"JWT_AUDIENCE" envDefault:"codevertex"`
+	RequireJWT     bool   `env:"REQUIRE_JWT" envDefault:"true"`
+	EncryptionKey  string `env:"ENCRYPTION_KEY" comment:"32-byte base64-encoded key for AES-256-GCM encryption of provider secrets"`
+	PlatformTenant string `env:"PLATFORM_TENANT" envDefault:"codevertex" comment:"Platform owner tenant slug for provider config hierarchy"`
+}
+
+type EventsConfig struct {
+	NATSURL          string        `env:"NATS_URL" envDefault:"nats://127.0.0.1:4222"`
+	Enabled          bool          `env:"ENABLED" envDefault:"false"`
+	OutboxPollPeriod time.Duration `env:"OUTBOX_POLL_PERIOD" envDefault:"5s"`
+	OutboxBatchSize  int           `env:"OUTBOX_BATCH_SIZE" envDefault:"100"`
+}
+
+// MetaConfig holds Facebook/Instagram Marketing API settings.
+type MetaConfig struct {
+	AppID     string `env:"APP_ID"`
+	AppSecret string `env:"APP_SECRET"`
+	// GraphAPIVersion is the version of the Graph API to use.
+	GraphAPIVersion string `env:"GRAPH_API_VERSION" envDefault:"v21.0"`
+}
+
+// AIConfig holds AI/LLM integration settings.
+type AIConfig struct {
+	OllamaURL       string `env:"OLLAMA_URL" envDefault:"http://ollama.marketflow.svc.cluster.local:11434"`
+	OllamaModel     string `env:"OLLAMA_MODEL" envDefault:"llama3.1:8b"`
+	ClaudeAPIKey    string `env:"CLAUDE_API_KEY"`
+	ClaudeModel     string `env:"CLAUDE_MODEL" envDefault:"claude-haiku-4-5-20251001"`
+	EmbeddingModel  string `env:"EMBEDDING_MODEL" envDefault:"nomic-embed-text"`
+	EmbeddingDim    int    `env:"EMBEDDING_DIM" envDefault:"768"`
+}
+
+// Load parses environment variables into Config and performs validation.
+func Load() (*Config, error) {
+	cfg := &Config{}
+	if err := env.Parse(cfg); err != nil {
+		return nil, fmt.Errorf("parse env: %w", err)
+	}
+
+	if cfg.Database.URL == "" {
+		return nil, fmt.Errorf("POSTGRES_URL is required")
+	}
+	// Standardized NATS URL: accept EVENTS_NATS_URL when MF_EVENTS_NATS_URL is not set
+	if cfg.Events.NATSURL == "" {
+		cfg.Events.NATSURL = os.Getenv("EVENTS_NATS_URL")
+	}
+	return cfg, nil
+}
+
+// LoadDatabaseOnly parses only database-related environment variables.
+func LoadDatabaseOnly() (DatabaseConfig, error) {
+	type dbOnlyConfig struct {
+		Database DatabaseConfig `envPrefix:""`
+	}
+	cfg := &dbOnlyConfig{}
+	if err := env.Parse(cfg); err != nil {
+		return DatabaseConfig{}, fmt.Errorf("parse env: %w", err)
+	}
+	if cfg.Database.URL == "" {
+		return DatabaseConfig{}, fmt.Errorf("POSTGRES_URL is required")
+	}
+	return cfg.Database, nil
+}

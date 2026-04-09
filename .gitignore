@@ -1,0 +1,23 @@
+# Environment
+.env
+*.pem
+*-key.pem
+
+# Binaries
+/bin/
+/marketflow-api
+/marketflow-migrate
+/marketflow-setup-db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+vendor/

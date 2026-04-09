@@ -1,0 +1,126 @@
+{
+  "source": "Groq API documentation + model benchmarks",
+  "last_updated": "2026-04-09",
+  "providers": {
+    "groq": {
+      "name": "Groq",
+      "base_url": "https://api.groq.com/openai/v1",
+      "api_format": "openai_compatible",
+      "auth_type": "bearer",
+      "api_key_prefix": "gsk_",
+      "free_tier": {
+        "requests_per_minute": 30,
+        "requests_per_day": 14400,
+        "tokens_per_day": 500000
+      },
+      "models": {
+        "router": {
+          "model_id": "llama-3.1-8b-instant",
+          "context_window": 131072,
+          "max_output": 8192,
+          "use_case": "Intent classification, FAQ routing, simple Q&A",
+          "speed": "750 tok/s",
+          "cost_per_million_input": 0.05,
+          "cost_per_million_output": 0.08
+        },
+        "responder": {
+          "model_id": "llama-3.3-70b-versatile",
+          "context_window": 131072,
+          "max_output": 32768,
+          "use_case": "Complex product Q&A, business explanations, nuanced responses",
+          "speed": "300 tok/s",
+          "cost_per_million_input": 0.59,
+          "cost_per_million_output": 0.79
+        },
+        "fallback": {
+          "model_id": "gemma2-9b-it",
+          "context_window": 8192,
+          "max_output": 8192,
+          "use_case": "Fallback when 70B rate-limited",
+          "speed": "500 tok/s",
+          "cost_per_million_input": 0.20,
+          "cost_per_million_output": 0.20
+        }
+      }
+    },
+    "ollama": {
+      "name": "Ollama (Local)",
+      "base_url": "http://ollama.marketflow.svc.cluster.local:11434/v1",
+      "api_format": "openai_compatible",
+      "auth_type": "none",
+      "models": {
+        "embeddings": {
+          "model_id": "nomic-embed-text",
+          "dimensions": 768,
+          "use_case": "Vector embeddings for RAG knowledge base",
+          "cost": 0
+        },
+        "fallback_llm": {
+          "model_id": "llama3.1:8b",
+          "use_case": "Fallback LLM when all cloud providers unavailable",
+          "cost": 0
+        }
+      }
+    },
+    "anthropic": {
+      "name": "Anthropic Claude",
+      "base_url": "https://api.anthropic.com/v1",
+      "api_format": "anthropic_native",
+      "auth_type": "x-api-key",
+      "models": {
+        "haiku": {
+          "model_id": "claude-haiku-4-5-20251001",
+          "use_case": "Premium fallback for complex reasoning",
+          "cost_per_million_input": 0.80,
+          "cost_per_million_output": 4.00
+        }
+      }
+    }
+  },
+  "routing_strategy": {
+    "description": "Two-tier model: fast classifier + quality responder",
+    "flow": [
+      {
+        "step": 1,
+        "model": "groq:llama-3.1-8b-instant",
+        "purpose": "Classify question intent",
+        "categories": ["simple_faq", "product_qa", "business_opportunity", "recruitment", "off_topic", "escalate"]
+      },
+      {
+        "step": 2,
+        "routing": {
+          "simple_faq": "Return cached/template answer (no LLM call needed)",
+          "product_qa": "groq:llama-3.3-70b-versatile + RAG context from pgvector",
+          "business_opportunity": "groq:llama-3.3-70b-versatile + business opportunity seed data",
+          "recruitment": "groq:llama-3.3-70b-versatile + recruitment templates",
+          "off_topic": "Polite redirect template (no LLM call needed)",
+          "escalate": "WhatsApp redirect to FBO (wa.me link)"
+        }
+      }
+    ],
+    "fallback_chain": [
+      "groq:llama-3.3-70b-versatile",
+      "groq:gemma2-9b-it",
+      "ollama:llama3.1:8b",
+      "anthropic:claude-haiku-4-5-20251001"
+    ]
+  },
+  "caching_strategy": {
+    "exact_match": {
+      "key_format": "mf:chat:exact:{sha256(question+context)}",
+      "ttl_hours": 24,
+      "backend": "redis"
+    },
+    "semantic_cache": {
+      "similarity_threshold": 0.95,
+      "backend": "pgvector",
+      "ttl_hours": 48
+    },
+    "template_cache": {
+      "key_format": "mf:chat:template:{category}",
+      "ttl_hours": 168,
+      "backend": "redis"
+    },
+    "estimated_hit_rate": "40-60% for product Q&A"
+  }
+}
