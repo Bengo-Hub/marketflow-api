@@ -39,5 +39,8 @@ type ScheduledMeeting func(*sql.Selector)
 // ServiceConfig is the predicate function for serviceconfig builders.
 type ServiceConfig func(*sql.Selector)
 
+// ShortLink is the predicate function for shortlink builders.
+type ShortLink func(*sql.Selector)
+
 // Tenant is the predicate function for tenant builders.
 type Tenant func(*sql.Selector)

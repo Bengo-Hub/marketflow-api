@@ -577,6 +577,49 @@ var (
 			},
 		},
 	}
+	// ShortLinksColumns holds the columns for the "short_links" table.
+	ShortLinksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "code", Type: field.TypeString, Unique: true},
+		{Name: "target_url", Type: field.TypeString, Size: 2147483647},
+		{Name: "link_type", Type: field.TypeString, Default: "product"},
+		{Name: "title", Type: field.TypeString, Nullable: true},
+		{Name: "campaign_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "click_count", Type: field.TypeInt, Default: 0},
+		{Name: "last_clicked_at", Type: field.TypeTime, Nullable: true},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// ShortLinksTable holds the schema information for the "short_links" table.
+	ShortLinksTable = &schema.Table{
+		Name:       "short_links",
+		Columns:    ShortLinksColumns,
+		PrimaryKey: []*schema.Column{ShortLinksColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "shortlink_code",
+				Unique:  true,
+				Columns: []*schema.Column{ShortLinksColumns[2]},
+			},
+			{
+				Name:    "shortlink_tenant_id_link_type",
+				Unique:  false,
+				Columns: []*schema.Column{ShortLinksColumns[1], ShortLinksColumns[4]},
+			},
+			{
+				Name:    "shortlink_tenant_id_campaign_id",
+				Unique:  false,
+				Columns: []*schema.Column{ShortLinksColumns[1], ShortLinksColumns[6]},
+			},
+			{
+				Name:    "shortlink_tenant_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ShortLinksColumns[1], ShortLinksColumns[11]},
+			},
+		},
+	}
 	// TenantsColumns holds the columns for the "tenants" table.
 	TenantsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -636,6 +679,7 @@ var (
 		ProviderSettingsTable,
 		ScheduledMeetingsTable,
 		ServiceConfigsTable,
+		ShortLinksTable,
 		TenantsTable,
 	}
 )

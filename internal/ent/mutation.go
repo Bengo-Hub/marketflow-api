@@ -23,6 +23,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
+	"github.com/bengobox/marketflow-api/internal/ent/shortlink"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/google/uuid"
 )
@@ -47,6 +48,7 @@ const (
 	TypeProviderSetting    = "ProviderSetting"
 	TypeScheduledMeeting   = "ScheduledMeeting"
 	TypeServiceConfig      = "ServiceConfig"
+	TypeShortLink          = "ShortLink"
 	TypeTenant             = "Tenant"
 )
 
@@ -14855,6 +14857,993 @@ func (m *ServiceConfigMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *ServiceConfigMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown ServiceConfig edge %s", name)
+}
+
+// ShortLinkMutation represents an operation that mutates the ShortLink nodes in the graph.
+type ShortLinkMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *uuid.UUID
+	tenant_id       *uuid.UUID
+	code            *string
+	target_url      *string
+	link_type       *string
+	title           *string
+	campaign_id     *uuid.UUID
+	click_count     *int
+	addclick_count  *int
+	last_clicked_at *time.Time
+	expires_at      *time.Time
+	is_active       *bool
+	created_at      *time.Time
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*ShortLink, error)
+	predicates      []predicate.ShortLink
+}
+
+var _ ent.Mutation = (*ShortLinkMutation)(nil)
+
+// shortlinkOption allows management of the mutation configuration using functional options.
+type shortlinkOption func(*ShortLinkMutation)
+
+// newShortLinkMutation creates new mutation for the ShortLink entity.
+func newShortLinkMutation(c config, op Op, opts ...shortlinkOption) *ShortLinkMutation {
+	m := &ShortLinkMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeShortLink,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withShortLinkID sets the ID field of the mutation.
+func withShortLinkID(id uuid.UUID) shortlinkOption {
+	return func(m *ShortLinkMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ShortLink
+		)
+		m.oldValue = func(ctx context.Context) (*ShortLink, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ShortLink.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withShortLink sets the old ShortLink of the mutation.
+func withShortLink(node *ShortLink) shortlinkOption {
+	return func(m *ShortLinkMutation) {
+		m.oldValue = func(context.Context) (*ShortLink, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ShortLinkMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ShortLinkMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of ShortLink entities.
+func (m *ShortLinkMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ShortLinkMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ShortLinkMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ShortLink.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *ShortLinkMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *ShortLinkMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the ShortLink entity.
+// If the ShortLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ShortLinkMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *ShortLinkMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetCode sets the "code" field.
+func (m *ShortLinkMutation) SetCode(s string) {
+	m.code = &s
+}
+
+// Code returns the value of the "code" field in the mutation.
+func (m *ShortLinkMutation) Code() (r string, exists bool) {
+	v := m.code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCode returns the old "code" field's value of the ShortLink entity.
+// If the ShortLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ShortLinkMutation) OldCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCode: %w", err)
+	}
+	return oldValue.Code, nil
+}
+
+// ResetCode resets all changes to the "code" field.
+func (m *ShortLinkMutation) ResetCode() {
+	m.code = nil
+}
+
+// SetTargetURL sets the "target_url" field.
+func (m *ShortLinkMutation) SetTargetURL(s string) {
+	m.target_url = &s
+}
+
+// TargetURL returns the value of the "target_url" field in the mutation.
+func (m *ShortLinkMutation) TargetURL() (r string, exists bool) {
+	v := m.target_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTargetURL returns the old "target_url" field's value of the ShortLink entity.
+// If the ShortLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ShortLinkMutation) OldTargetURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTargetURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTargetURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTargetURL: %w", err)
+	}
+	return oldValue.TargetURL, nil
+}
+
+// ResetTargetURL resets all changes to the "target_url" field.
+func (m *ShortLinkMutation) ResetTargetURL() {
+	m.target_url = nil
+}
+
+// SetLinkType sets the "link_type" field.
+func (m *ShortLinkMutation) SetLinkType(s string) {
+	m.link_type = &s
+}
+
+// LinkType returns the value of the "link_type" field in the mutation.
+func (m *ShortLinkMutation) LinkType() (r string, exists bool) {
+	v := m.link_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLinkType returns the old "link_type" field's value of the ShortLink entity.
+// If the ShortLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ShortLinkMutation) OldLinkType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLinkType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLinkType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLinkType: %w", err)
+	}
+	return oldValue.LinkType, nil
+}
+
+// ResetLinkType resets all changes to the "link_type" field.
+func (m *ShortLinkMutation) ResetLinkType() {
+	m.link_type = nil
+}
+
+// SetTitle sets the "title" field.
+func (m *ShortLinkMutation) SetTitle(s string) {
+	m.title = &s
+}
+
+// Title returns the value of the "title" field in the mutation.
+func (m *ShortLinkMutation) Title() (r string, exists bool) {
+	v := m.title
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTitle returns the old "title" field's value of the ShortLink entity.
+// If the ShortLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ShortLinkMutation) OldTitle(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTitle is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTitle requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTitle: %w", err)
+	}
+	return oldValue.Title, nil
+}
+
+// ClearTitle clears the value of the "title" field.
+func (m *ShortLinkMutation) ClearTitle() {
+	m.title = nil
+	m.clearedFields[shortlink.FieldTitle] = struct{}{}
+}
+
+// TitleCleared returns if the "title" field was cleared in this mutation.
+func (m *ShortLinkMutation) TitleCleared() bool {
+	_, ok := m.clearedFields[shortlink.FieldTitle]
+	return ok
+}
+
+// ResetTitle resets all changes to the "title" field.
+func (m *ShortLinkMutation) ResetTitle() {
+	m.title = nil
+	delete(m.clearedFields, shortlink.FieldTitle)
+}
+
+// SetCampaignID sets the "campaign_id" field.
+func (m *ShortLinkMutation) SetCampaignID(u uuid.UUID) {
+	m.campaign_id = &u
+}
+
+// CampaignID returns the value of the "campaign_id" field in the mutation.
+func (m *ShortLinkMutation) CampaignID() (r uuid.UUID, exists bool) {
+	v := m.campaign_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCampaignID returns the old "campaign_id" field's value of the ShortLink entity.
+// If the ShortLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ShortLinkMutation) OldCampaignID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCampaignID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCampaignID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCampaignID: %w", err)
+	}
+	return oldValue.CampaignID, nil
+}
+
+// ClearCampaignID clears the value of the "campaign_id" field.
+func (m *ShortLinkMutation) ClearCampaignID() {
+	m.campaign_id = nil
+	m.clearedFields[shortlink.FieldCampaignID] = struct{}{}
+}
+
+// CampaignIDCleared returns if the "campaign_id" field was cleared in this mutation.
+func (m *ShortLinkMutation) CampaignIDCleared() bool {
+	_, ok := m.clearedFields[shortlink.FieldCampaignID]
+	return ok
+}
+
+// ResetCampaignID resets all changes to the "campaign_id" field.
+func (m *ShortLinkMutation) ResetCampaignID() {
+	m.campaign_id = nil
+	delete(m.clearedFields, shortlink.FieldCampaignID)
+}
+
+// SetClickCount sets the "click_count" field.
+func (m *ShortLinkMutation) SetClickCount(i int) {
+	m.click_count = &i
+	m.addclick_count = nil
+}
+
+// ClickCount returns the value of the "click_count" field in the mutation.
+func (m *ShortLinkMutation) ClickCount() (r int, exists bool) {
+	v := m.click_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClickCount returns the old "click_count" field's value of the ShortLink entity.
+// If the ShortLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ShortLinkMutation) OldClickCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClickCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClickCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClickCount: %w", err)
+	}
+	return oldValue.ClickCount, nil
+}
+
+// AddClickCount adds i to the "click_count" field.
+func (m *ShortLinkMutation) AddClickCount(i int) {
+	if m.addclick_count != nil {
+		*m.addclick_count += i
+	} else {
+		m.addclick_count = &i
+	}
+}
+
+// AddedClickCount returns the value that was added to the "click_count" field in this mutation.
+func (m *ShortLinkMutation) AddedClickCount() (r int, exists bool) {
+	v := m.addclick_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetClickCount resets all changes to the "click_count" field.
+func (m *ShortLinkMutation) ResetClickCount() {
+	m.click_count = nil
+	m.addclick_count = nil
+}
+
+// SetLastClickedAt sets the "last_clicked_at" field.
+func (m *ShortLinkMutation) SetLastClickedAt(t time.Time) {
+	m.last_clicked_at = &t
+}
+
+// LastClickedAt returns the value of the "last_clicked_at" field in the mutation.
+func (m *ShortLinkMutation) LastClickedAt() (r time.Time, exists bool) {
+	v := m.last_clicked_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastClickedAt returns the old "last_clicked_at" field's value of the ShortLink entity.
+// If the ShortLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ShortLinkMutation) OldLastClickedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastClickedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastClickedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastClickedAt: %w", err)
+	}
+	return oldValue.LastClickedAt, nil
+}
+
+// ClearLastClickedAt clears the value of the "last_clicked_at" field.
+func (m *ShortLinkMutation) ClearLastClickedAt() {
+	m.last_clicked_at = nil
+	m.clearedFields[shortlink.FieldLastClickedAt] = struct{}{}
+}
+
+// LastClickedAtCleared returns if the "last_clicked_at" field was cleared in this mutation.
+func (m *ShortLinkMutation) LastClickedAtCleared() bool {
+	_, ok := m.clearedFields[shortlink.FieldLastClickedAt]
+	return ok
+}
+
+// ResetLastClickedAt resets all changes to the "last_clicked_at" field.
+func (m *ShortLinkMutation) ResetLastClickedAt() {
+	m.last_clicked_at = nil
+	delete(m.clearedFields, shortlink.FieldLastClickedAt)
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *ShortLinkMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *ShortLinkMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the ShortLink entity.
+// If the ShortLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ShortLinkMutation) OldExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (m *ShortLinkMutation) ClearExpiresAt() {
+	m.expires_at = nil
+	m.clearedFields[shortlink.FieldExpiresAt] = struct{}{}
+}
+
+// ExpiresAtCleared returns if the "expires_at" field was cleared in this mutation.
+func (m *ShortLinkMutation) ExpiresAtCleared() bool {
+	_, ok := m.clearedFields[shortlink.FieldExpiresAt]
+	return ok
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *ShortLinkMutation) ResetExpiresAt() {
+	m.expires_at = nil
+	delete(m.clearedFields, shortlink.FieldExpiresAt)
+}
+
+// SetIsActive sets the "is_active" field.
+func (m *ShortLinkMutation) SetIsActive(b bool) {
+	m.is_active = &b
+}
+
+// IsActive returns the value of the "is_active" field in the mutation.
+func (m *ShortLinkMutation) IsActive() (r bool, exists bool) {
+	v := m.is_active
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsActive returns the old "is_active" field's value of the ShortLink entity.
+// If the ShortLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ShortLinkMutation) OldIsActive(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsActive is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsActive requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsActive: %w", err)
+	}
+	return oldValue.IsActive, nil
+}
+
+// ResetIsActive resets all changes to the "is_active" field.
+func (m *ShortLinkMutation) ResetIsActive() {
+	m.is_active = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ShortLinkMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ShortLinkMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ShortLink entity.
+// If the ShortLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ShortLinkMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ShortLinkMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the ShortLinkMutation builder.
+func (m *ShortLinkMutation) Where(ps ...predicate.ShortLink) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ShortLinkMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ShortLinkMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ShortLink, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ShortLinkMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ShortLinkMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ShortLink).
+func (m *ShortLinkMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ShortLinkMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.tenant_id != nil {
+		fields = append(fields, shortlink.FieldTenantID)
+	}
+	if m.code != nil {
+		fields = append(fields, shortlink.FieldCode)
+	}
+	if m.target_url != nil {
+		fields = append(fields, shortlink.FieldTargetURL)
+	}
+	if m.link_type != nil {
+		fields = append(fields, shortlink.FieldLinkType)
+	}
+	if m.title != nil {
+		fields = append(fields, shortlink.FieldTitle)
+	}
+	if m.campaign_id != nil {
+		fields = append(fields, shortlink.FieldCampaignID)
+	}
+	if m.click_count != nil {
+		fields = append(fields, shortlink.FieldClickCount)
+	}
+	if m.last_clicked_at != nil {
+		fields = append(fields, shortlink.FieldLastClickedAt)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, shortlink.FieldExpiresAt)
+	}
+	if m.is_active != nil {
+		fields = append(fields, shortlink.FieldIsActive)
+	}
+	if m.created_at != nil {
+		fields = append(fields, shortlink.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ShortLinkMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case shortlink.FieldTenantID:
+		return m.TenantID()
+	case shortlink.FieldCode:
+		return m.Code()
+	case shortlink.FieldTargetURL:
+		return m.TargetURL()
+	case shortlink.FieldLinkType:
+		return m.LinkType()
+	case shortlink.FieldTitle:
+		return m.Title()
+	case shortlink.FieldCampaignID:
+		return m.CampaignID()
+	case shortlink.FieldClickCount:
+		return m.ClickCount()
+	case shortlink.FieldLastClickedAt:
+		return m.LastClickedAt()
+	case shortlink.FieldExpiresAt:
+		return m.ExpiresAt()
+	case shortlink.FieldIsActive:
+		return m.IsActive()
+	case shortlink.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ShortLinkMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case shortlink.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case shortlink.FieldCode:
+		return m.OldCode(ctx)
+	case shortlink.FieldTargetURL:
+		return m.OldTargetURL(ctx)
+	case shortlink.FieldLinkType:
+		return m.OldLinkType(ctx)
+	case shortlink.FieldTitle:
+		return m.OldTitle(ctx)
+	case shortlink.FieldCampaignID:
+		return m.OldCampaignID(ctx)
+	case shortlink.FieldClickCount:
+		return m.OldClickCount(ctx)
+	case shortlink.FieldLastClickedAt:
+		return m.OldLastClickedAt(ctx)
+	case shortlink.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	case shortlink.FieldIsActive:
+		return m.OldIsActive(ctx)
+	case shortlink.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown ShortLink field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ShortLinkMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case shortlink.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case shortlink.FieldCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCode(v)
+		return nil
+	case shortlink.FieldTargetURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTargetURL(v)
+		return nil
+	case shortlink.FieldLinkType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLinkType(v)
+		return nil
+	case shortlink.FieldTitle:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTitle(v)
+		return nil
+	case shortlink.FieldCampaignID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCampaignID(v)
+		return nil
+	case shortlink.FieldClickCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClickCount(v)
+		return nil
+	case shortlink.FieldLastClickedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastClickedAt(v)
+		return nil
+	case shortlink.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	case shortlink.FieldIsActive:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsActive(v)
+		return nil
+	case shortlink.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ShortLink field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ShortLinkMutation) AddedFields() []string {
+	var fields []string
+	if m.addclick_count != nil {
+		fields = append(fields, shortlink.FieldClickCount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ShortLinkMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case shortlink.FieldClickCount:
+		return m.AddedClickCount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ShortLinkMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case shortlink.FieldClickCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddClickCount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ShortLink numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ShortLinkMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(shortlink.FieldTitle) {
+		fields = append(fields, shortlink.FieldTitle)
+	}
+	if m.FieldCleared(shortlink.FieldCampaignID) {
+		fields = append(fields, shortlink.FieldCampaignID)
+	}
+	if m.FieldCleared(shortlink.FieldLastClickedAt) {
+		fields = append(fields, shortlink.FieldLastClickedAt)
+	}
+	if m.FieldCleared(shortlink.FieldExpiresAt) {
+		fields = append(fields, shortlink.FieldExpiresAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ShortLinkMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ShortLinkMutation) ClearField(name string) error {
+	switch name {
+	case shortlink.FieldTitle:
+		m.ClearTitle()
+		return nil
+	case shortlink.FieldCampaignID:
+		m.ClearCampaignID()
+		return nil
+	case shortlink.FieldLastClickedAt:
+		m.ClearLastClickedAt()
+		return nil
+	case shortlink.FieldExpiresAt:
+		m.ClearExpiresAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ShortLink nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ShortLinkMutation) ResetField(name string) error {
+	switch name {
+	case shortlink.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case shortlink.FieldCode:
+		m.ResetCode()
+		return nil
+	case shortlink.FieldTargetURL:
+		m.ResetTargetURL()
+		return nil
+	case shortlink.FieldLinkType:
+		m.ResetLinkType()
+		return nil
+	case shortlink.FieldTitle:
+		m.ResetTitle()
+		return nil
+	case shortlink.FieldCampaignID:
+		m.ResetCampaignID()
+		return nil
+	case shortlink.FieldClickCount:
+		m.ResetClickCount()
+		return nil
+	case shortlink.FieldLastClickedAt:
+		m.ResetLastClickedAt()
+		return nil
+	case shortlink.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	case shortlink.FieldIsActive:
+		m.ResetIsActive()
+		return nil
+	case shortlink.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ShortLink field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ShortLinkMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ShortLinkMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ShortLinkMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ShortLinkMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ShortLinkMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ShortLinkMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ShortLinkMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown ShortLink unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ShortLinkMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown ShortLink edge %s", name)
 }
 
 // TenantMutation represents an operation that mutates the Tenant nodes in the graph.

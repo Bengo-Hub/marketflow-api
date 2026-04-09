@@ -10,13 +10,14 @@ type LinkBuilder struct {
 	DistribID   string // e.g., "254200047984"
 	StoreCode   string // e.g., "KEN"
 	Language    string // e.g., "en"
-	ProfileUUID string // e.g., "2c64be1f-f2cc-47a8-b357-39e9780d02e1"
+	TenantSlug  string // e.g., "my-fbo-business" — used for MarketFlow-hosted profile pages
 }
 
 const (
 	shopBaseURL    = "https://shop.foreverliving.com/retail/entry/Shop.do"
 	recruitBaseURL = "https://join.foreverliving.com/marketing/joinnow/applicationForm.do"
-	profileBaseURL = "https://%s.flp.com/opportunity/%s"
+	// MarketFlow hosts FBO profile pages — not redirecting to FLP's basic profile
+	profileBaseURL = "https://marketflowapi.codevertexitsolutions.com/p/%s"
 )
 
 // ShopURL returns the FBO's personalized store landing page.
@@ -63,13 +64,11 @@ func (b *LinkBuilder) RecruitURL() string {
 	return recruitBaseURL + "?" + params.Encode()
 }
 
-// ProfileURL returns the FBO's personalized opportunity/profile website.
-// Example: https://254000328986.flp.com/opportunity/2c64be1f-f2cc-47a8-b357-39e9780d02e1
+// ProfileURL returns the FBO's MarketFlow-hosted profile page.
+// Example: https://marketflowapi.codevertexitsolutions.com/p/my-fbo-slug
+// These are dynamically generated pages with AI chatbot, product grid, etc.
 func (b *LinkBuilder) ProfileURL() string {
-	if b.ProfileUUID == "" {
-		return ""
-	}
-	return fmt.Sprintf(profileBaseURL, b.DistribID, b.ProfileUUID)
+	return fmt.Sprintf(profileBaseURL, b.TenantSlug)
 }
 
 // WhatsAppURL returns a wa.me deep link for the FBO's WhatsApp number.

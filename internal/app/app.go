@@ -19,6 +19,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
 	"github.com/bengobox/marketflow-api/internal/modules/outbox"
+	"github.com/bengobox/marketflow-api/internal/modules/shortlinks"
 	platformevents "github.com/bengobox/marketflow-api/internal/platform/events"
 	"github.com/bengobox/marketflow-api/internal/providers"
 	"github.com/nats-io/nats.go"
@@ -111,6 +112,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	contactService := contacts.NewService(entClient, logger)
 	contactHandler := contacts.NewHandler(contactService, logger)
 
+	shortLinkService := shortlinks.NewService(entClient, logger, "")
+	shortLinkHandler := shortlinks.NewHandler(shortLinkService, logger)
+
 	kbService := knowledge.NewService(entClient, logger)
 	kbHandler := knowledge.NewHandler(kbService, logger)
 
@@ -165,6 +169,11 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Update:  placeholder,
 			Delete:  placeholder,
 			Publish: placeholder,
+		},
+		ShortLinkHandlers: httpapi.ShortLinkHandlers{
+			Create:   shortLinkHandler.Create,
+			List:     shortLinkHandler.List,
+			Redirect: shortLinkHandler.Redirect,
 		},
 		RequireAuthHandler: requireAuth,
 		AllowedOrigins:     cfg.HTTP.AllowedOrigins,

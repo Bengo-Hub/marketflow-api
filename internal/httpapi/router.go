@@ -30,6 +30,9 @@ type RouterDeps struct {
 	// Funnel handlers
 	FunnelHandlers FunnelHandlers
 
+	// Short link handlers
+	ShortLinkHandlers ShortLinkHandlers
+
 	// Auth middleware
 	RequireAuthHandler func(http.Handler) http.Handler
 
@@ -83,6 +86,13 @@ type FunnelHandlers struct {
 	Update  http.HandlerFunc
 	Delete  http.HandlerFunc
 	Publish http.HandlerFunc
+}
+
+// ShortLinkHandlers groups short link HTTP handlers.
+type ShortLinkHandlers struct {
+	Create   http.HandlerFunc
+	List     http.HandlerFunc
+	Redirect http.HandlerFunc // Public — no auth, GET /s/{code}
 }
 
 // NewRouter wires HTTP routes.
@@ -199,13 +209,29 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Delete("/{id}", deps.FunnelHandlers.Delete)
 				r.Post("/{id}/publish", deps.FunnelHandlers.Publish)
 			})
+
+			// Short link management (authenticated)
+			r.Route("/short-links", func(r chi.Router) {
+				r.Post("/", deps.ShortLinkHandlers.Create)
+				r.Get("/", deps.ShortLinkHandlers.List)
+			})
 		})
 	})
+
+	// Public short link redirect (no auth required)
+	// GET /s/{code} → 302 redirect to target URL
+	r.Get("/s/{code}", deps.ShortLinkHandlers.Redirect)
 
 	// Public funnel hosting (no auth required)
 	r.Get("/f/{slug}", func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Serve published funnel page by slug
 		JSON(w, http.StatusOK, map[string]any{"message": "funnel page", "slug": chi.URLParam(r, "slug")})
+	})
+
+	// Public FBO profile page (no auth required)
+	r.Get("/p/{slug}", func(w http.ResponseWriter, r *http.Request) {
+		// TODO: Serve dynamic FBO profile page by tenant slug (Sprint 3)
+		JSON(w, http.StatusOK, map[string]any{"message": "FBO profile page", "slug": chi.URLParam(r, "slug")})
 	})
 
 	return r

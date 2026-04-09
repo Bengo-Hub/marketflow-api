@@ -34,6 +34,8 @@ type Tx struct {
 	ScheduledMeeting *ScheduledMeetingClient
 	// ServiceConfig is the client for interacting with the ServiceConfig builders.
 	ServiceConfig *ServiceConfigClient
+	// ShortLink is the client for interacting with the ShortLink builders.
+	ShortLink *ShortLinkClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
 
@@ -178,6 +180,7 @@ func (tx *Tx) init() {
 	tx.ProviderSetting = NewProviderSettingClient(tx.config)
 	tx.ScheduledMeeting = NewScheduledMeetingClient(tx.config)
 	tx.ServiceConfig = NewServiceConfigClient(tx.config)
+	tx.ShortLink = NewShortLinkClient(tx.config)
 	tx.Tenant = NewTenantClient(tx.config)
 }
 

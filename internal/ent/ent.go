@@ -23,6 +23,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
+	"github.com/bengobox/marketflow-api/internal/ent/shortlink"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 )
 
@@ -95,6 +96,7 @@ func checkColumn(t, c string) error {
 			providersetting.Table:    providersetting.ValidColumn,
 			scheduledmeeting.Table:   scheduledmeeting.ValidColumn,
 			serviceconfig.Table:      serviceconfig.ValidColumn,
+			shortlink.Table:          shortlink.ValidColumn,
 			tenant.Table:             tenant.ValidColumn,
 		})
 	})

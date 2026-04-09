@@ -17,6 +17,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/schema"
 	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
+	"github.com/bengobox/marketflow-api/internal/ent/shortlink"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/google/uuid"
 )
@@ -421,6 +422,36 @@ func init() {
 	serviceconfigDescID := serviceconfigFields[0].Descriptor()
 	// serviceconfig.DefaultID holds the default value on creation for the id field.
 	serviceconfig.DefaultID = serviceconfigDescID.Default.(func() uuid.UUID)
+	shortlinkFields := schema.ShortLink{}.Fields()
+	_ = shortlinkFields
+	// shortlinkDescCode is the schema descriptor for code field.
+	shortlinkDescCode := shortlinkFields[2].Descriptor()
+	// shortlink.CodeValidator is a validator for the "code" field. It is called by the builders before save.
+	shortlink.CodeValidator = shortlinkDescCode.Validators[0].(func(string) error)
+	// shortlinkDescTargetURL is the schema descriptor for target_url field.
+	shortlinkDescTargetURL := shortlinkFields[3].Descriptor()
+	// shortlink.TargetURLValidator is a validator for the "target_url" field. It is called by the builders before save.
+	shortlink.TargetURLValidator = shortlinkDescTargetURL.Validators[0].(func(string) error)
+	// shortlinkDescLinkType is the schema descriptor for link_type field.
+	shortlinkDescLinkType := shortlinkFields[4].Descriptor()
+	// shortlink.DefaultLinkType holds the default value on creation for the link_type field.
+	shortlink.DefaultLinkType = shortlinkDescLinkType.Default.(string)
+	// shortlinkDescClickCount is the schema descriptor for click_count field.
+	shortlinkDescClickCount := shortlinkFields[7].Descriptor()
+	// shortlink.DefaultClickCount holds the default value on creation for the click_count field.
+	shortlink.DefaultClickCount = shortlinkDescClickCount.Default.(int)
+	// shortlinkDescIsActive is the schema descriptor for is_active field.
+	shortlinkDescIsActive := shortlinkFields[10].Descriptor()
+	// shortlink.DefaultIsActive holds the default value on creation for the is_active field.
+	shortlink.DefaultIsActive = shortlinkDescIsActive.Default.(bool)
+	// shortlinkDescCreatedAt is the schema descriptor for created_at field.
+	shortlinkDescCreatedAt := shortlinkFields[11].Descriptor()
+	// shortlink.DefaultCreatedAt holds the default value on creation for the created_at field.
+	shortlink.DefaultCreatedAt = shortlinkDescCreatedAt.Default.(func() time.Time)
+	// shortlinkDescID is the schema descriptor for id field.
+	shortlinkDescID := shortlinkFields[0].Descriptor()
+	// shortlink.DefaultID holds the default value on creation for the id field.
+	shortlink.DefaultID = shortlinkDescID.Default.(func() uuid.UUID)
 	tenantFields := schema.Tenant{}.Fields()
 	_ = tenantFields
 	// tenantDescName is the schema descriptor for name field.

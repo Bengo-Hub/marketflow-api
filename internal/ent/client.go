@@ -27,6 +27,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
+	"github.com/bengobox/marketflow-api/internal/ent/shortlink"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 )
 
@@ -57,6 +58,8 @@ type Client struct {
 	ScheduledMeeting *ScheduledMeetingClient
 	// ServiceConfig is the client for interacting with the ServiceConfig builders.
 	ServiceConfig *ServiceConfigClient
+	// ShortLink is the client for interacting with the ShortLink builders.
+	ShortLink *ShortLinkClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
 }
@@ -81,6 +84,7 @@ func (c *Client) init() {
 	c.ProviderSetting = NewProviderSettingClient(c.config)
 	c.ScheduledMeeting = NewScheduledMeetingClient(c.config)
 	c.ServiceConfig = NewServiceConfigClient(c.config)
+	c.ShortLink = NewShortLinkClient(c.config)
 	c.Tenant = NewTenantClient(c.config)
 }
 
@@ -185,6 +189,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ProviderSetting:    NewProviderSettingClient(cfg),
 		ScheduledMeeting:   NewScheduledMeetingClient(cfg),
 		ServiceConfig:      NewServiceConfigClient(cfg),
+		ShortLink:          NewShortLinkClient(cfg),
 		Tenant:             NewTenantClient(cfg),
 	}, nil
 }
@@ -216,6 +221,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ProviderSetting:    NewProviderSettingClient(cfg),
 		ScheduledMeeting:   NewScheduledMeetingClient(cfg),
 		ServiceConfig:      NewServiceConfigClient(cfg),
+		ShortLink:          NewShortLinkClient(cfg),
 		Tenant:             NewTenantClient(cfg),
 	}, nil
 }
@@ -248,7 +254,7 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Campaign, c.ChatSession, c.Contact, c.Funnel, c.KnowledgeBaseEntry, c.Lead,
 		c.NurtureSequence, c.OutboxEvent, c.ProviderSetting, c.ScheduledMeeting,
-		c.ServiceConfig, c.Tenant,
+		c.ServiceConfig, c.ShortLink, c.Tenant,
 	} {
 		n.Use(hooks...)
 	}
@@ -260,7 +266,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Campaign, c.ChatSession, c.Contact, c.Funnel, c.KnowledgeBaseEntry, c.Lead,
 		c.NurtureSequence, c.OutboxEvent, c.ProviderSetting, c.ScheduledMeeting,
-		c.ServiceConfig, c.Tenant,
+		c.ServiceConfig, c.ShortLink, c.Tenant,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -291,6 +297,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ScheduledMeeting.mutate(ctx, m)
 	case *ServiceConfigMutation:
 		return c.ServiceConfig.mutate(ctx, m)
+	case *ShortLinkMutation:
+		return c.ShortLink.mutate(ctx, m)
 	case *TenantMutation:
 		return c.Tenant.mutate(ctx, m)
 	default:
@@ -2065,6 +2073,139 @@ func (c *ServiceConfigClient) mutate(ctx context.Context, m *ServiceConfigMutati
 	}
 }
 
+// ShortLinkClient is a client for the ShortLink schema.
+type ShortLinkClient struct {
+	config
+}
+
+// NewShortLinkClient returns a client for the ShortLink from the given config.
+func NewShortLinkClient(c config) *ShortLinkClient {
+	return &ShortLinkClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `shortlink.Hooks(f(g(h())))`.
+func (c *ShortLinkClient) Use(hooks ...Hook) {
+	c.hooks.ShortLink = append(c.hooks.ShortLink, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `shortlink.Intercept(f(g(h())))`.
+func (c *ShortLinkClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ShortLink = append(c.inters.ShortLink, interceptors...)
+}
+
+// Create returns a builder for creating a ShortLink entity.
+func (c *ShortLinkClient) Create() *ShortLinkCreate {
+	mutation := newShortLinkMutation(c.config, OpCreate)
+	return &ShortLinkCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ShortLink entities.
+func (c *ShortLinkClient) CreateBulk(builders ...*ShortLinkCreate) *ShortLinkCreateBulk {
+	return &ShortLinkCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ShortLinkClient) MapCreateBulk(slice any, setFunc func(*ShortLinkCreate, int)) *ShortLinkCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ShortLinkCreateBulk{err: fmt.Errorf("calling to ShortLinkClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ShortLinkCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ShortLinkCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ShortLink.
+func (c *ShortLinkClient) Update() *ShortLinkUpdate {
+	mutation := newShortLinkMutation(c.config, OpUpdate)
+	return &ShortLinkUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ShortLinkClient) UpdateOne(_m *ShortLink) *ShortLinkUpdateOne {
+	mutation := newShortLinkMutation(c.config, OpUpdateOne, withShortLink(_m))
+	return &ShortLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ShortLinkClient) UpdateOneID(id uuid.UUID) *ShortLinkUpdateOne {
+	mutation := newShortLinkMutation(c.config, OpUpdateOne, withShortLinkID(id))
+	return &ShortLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ShortLink.
+func (c *ShortLinkClient) Delete() *ShortLinkDelete {
+	mutation := newShortLinkMutation(c.config, OpDelete)
+	return &ShortLinkDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ShortLinkClient) DeleteOne(_m *ShortLink) *ShortLinkDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ShortLinkClient) DeleteOneID(id uuid.UUID) *ShortLinkDeleteOne {
+	builder := c.Delete().Where(shortlink.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ShortLinkDeleteOne{builder}
+}
+
+// Query returns a query builder for ShortLink.
+func (c *ShortLinkClient) Query() *ShortLinkQuery {
+	return &ShortLinkQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeShortLink},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ShortLink entity by its id.
+func (c *ShortLinkClient) Get(ctx context.Context, id uuid.UUID) (*ShortLink, error) {
+	return c.Query().Where(shortlink.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ShortLinkClient) GetX(ctx context.Context, id uuid.UUID) *ShortLink {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ShortLinkClient) Hooks() []Hook {
+	return c.hooks.ShortLink
+}
+
+// Interceptors returns the client interceptors.
+func (c *ShortLinkClient) Interceptors() []Interceptor {
+	return c.inters.ShortLink
+}
+
+func (c *ShortLinkClient) mutate(ctx context.Context, m *ShortLinkMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ShortLinkCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ShortLinkUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ShortLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ShortLinkDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ShortLink mutation op: %q", m.Op())
+	}
+}
+
 // TenantClient is a client for the Tenant schema.
 type TenantClient struct {
 	config
@@ -2315,11 +2456,11 @@ type (
 	hooks struct {
 		Campaign, ChatSession, Contact, Funnel, KnowledgeBaseEntry, Lead,
 		NurtureSequence, OutboxEvent, ProviderSetting, ScheduledMeeting, ServiceConfig,
-		Tenant []ent.Hook
+		ShortLink, Tenant []ent.Hook
 	}
 	inters struct {
 		Campaign, ChatSession, Contact, Funnel, KnowledgeBaseEntry, Lead,
 		NurtureSequence, OutboxEvent, ProviderSetting, ScheduledMeeting, ServiceConfig,
-		Tenant []ent.Interceptor
+		ShortLink, Tenant []ent.Interceptor
 	}
 )
