@@ -16,13 +16,18 @@ import (
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/httpapi/handlers"
 	"github.com/bengobox/marketflow-api/internal/modules/admin"
+	"github.com/bengobox/marketflow-api/internal/modules/campaigns"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
+	"github.com/bengobox/marketflow-api/internal/modules/funnels"
 	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
+	"github.com/bengobox/marketflow-api/internal/modules/meetings"
 	"github.com/bengobox/marketflow-api/internal/modules/outbox"
 	"github.com/bengobox/marketflow-api/internal/modules/rbac"
+	"github.com/bengobox/marketflow-api/internal/modules/sequences"
 	"github.com/bengobox/marketflow-api/internal/modules/shortlinks"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant"
+	"github.com/bengobox/marketflow-api/internal/modules/webhooks"
 	platformevents "github.com/bengobox/marketflow-api/internal/platform/events"
 	"github.com/bengobox/marketflow-api/internal/providers"
 	"github.com/nats-io/nats.go"
@@ -142,10 +147,24 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	kbService := knowledge.NewService(entClient, logger)
 	kbHandler := knowledge.NewHandler(kbService, logger)
 
-	// Placeholder for modules not yet implemented (Sprint 4+)
-	placeholder := func(w http.ResponseWriter, r *http.Request) {
-		httpapi.JSON(w, http.StatusNotImplemented, map[string]any{"error": "not implemented yet"})
-	}
+	campaignService := campaigns.NewService(entClient, logger)
+	campaignHandler := campaigns.NewHandler(campaignService, logger)
+
+	funnelService := funnels.NewService(entClient, logger)
+	funnelHandler := funnels.NewHandler(funnelService, logger)
+
+	sequenceService := sequences.NewService(entClient, logger)
+	sequenceHandler := sequences.NewHandler(sequenceService, logger)
+
+	meetingService := meetings.NewService(entClient, logger)
+	meetingHandler := meetings.NewHandler(meetingService, logger)
+
+	// Webhook handlers
+	metaWebhookHandler := webhooks.NewMetaHandler(leadService, logger)
+	calcomWebhookHandler := webhooks.NewCalcomHandler(meetingService, leadService, logger)
+
+	// Public handlers
+	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, logger)
 
 	// ── Router ────────────────────────────────────────────────────────────
 	var requireAuth func(http.Handler) http.Handler
@@ -178,21 +197,42 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			DeleteEntry: kbHandler.DeleteEntry,
 		},
 		CampaignHandlers: httpapi.CampaignHandlers{
-			Create: placeholder,
-			List:   placeholder,
-			Get:    placeholder,
-			Update: placeholder,
-			Delete: placeholder,
-			Pause:  placeholder,
-			Resume: placeholder,
+			Create: campaignHandler.Create,
+			List:   campaignHandler.List,
+			Get:    campaignHandler.Get,
+			Update: campaignHandler.Update,
+			Delete: campaignHandler.Delete,
+			Pause:  campaignHandler.Pause,
+			Resume: campaignHandler.Resume,
 		},
 		FunnelHandlers: httpapi.FunnelHandlers{
-			Create:  placeholder,
-			List:    placeholder,
-			Get:     placeholder,
-			Update:  placeholder,
-			Delete:  placeholder,
-			Publish: placeholder,
+			Create:  funnelHandler.Create,
+			List:    funnelHandler.List,
+			Get:     funnelHandler.Get,
+			Update:  funnelHandler.Update,
+			Delete:  funnelHandler.Delete,
+			Publish: funnelHandler.Publish,
+		},
+		SequenceHandlers: httpapi.SequenceHandlers{
+			Create: sequenceHandler.Create,
+			List:   sequenceHandler.List,
+			Get:    sequenceHandler.Get,
+			Update: sequenceHandler.Update,
+			Delete: sequenceHandler.Delete,
+		},
+		MeetingHandlers: httpapi.MeetingHandlers{
+			Create: meetingHandler.Create,
+			List:   meetingHandler.List,
+			Get:    meetingHandler.Get,
+			Update: meetingHandler.Update,
+		},
+		WebhookHandlers: httpapi.WebhookHandlers{
+			MetaLeadgen:   metaWebhookHandler.HandleLeadgen,
+			CalcomBooking: calcomWebhookHandler.HandleBooking,
+		},
+		PublicHandlers: httpapi.PublicHandlers{
+			GetProfile: publicHandler.GetProfile,
+			GetFunnel:  publicHandler.GetFunnel,
 		},
 		ShortLinkHandlers: httpapi.ShortLinkHandlers{
 			Create:   shortLinkHandler.Create,

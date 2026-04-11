@@ -30,8 +30,20 @@ type RouterDeps struct {
 	// Funnel handlers
 	FunnelHandlers FunnelHandlers
 
+	// Nurture sequence handlers
+	SequenceHandlers SequenceHandlers
+
+	// Scheduled meeting handlers
+	MeetingHandlers MeetingHandlers
+
 	// Short link handlers
 	ShortLinkHandlers ShortLinkHandlers
+
+	// Webhook handlers (public, no auth)
+	WebhookHandlers WebhookHandlers
+
+	// Public handlers (no auth)
+	PublicHandlers PublicHandlers
 
 	// Admin provider handlers (platform owner only)
 	AdminProviderHandlers AdminProviderHandlers
@@ -98,6 +110,35 @@ type FunnelHandlers struct {
 	Update  http.HandlerFunc
 	Delete  http.HandlerFunc
 	Publish http.HandlerFunc
+}
+
+// SequenceHandlers groups nurture sequence HTTP handlers.
+type SequenceHandlers struct {
+	Create http.HandlerFunc
+	List   http.HandlerFunc
+	Get    http.HandlerFunc
+	Update http.HandlerFunc
+	Delete http.HandlerFunc
+}
+
+// MeetingHandlers groups scheduled meeting HTTP handlers.
+type MeetingHandlers struct {
+	Create http.HandlerFunc
+	List   http.HandlerFunc
+	Get    http.HandlerFunc
+	Update http.HandlerFunc
+}
+
+// WebhookHandlers groups webhook HTTP handlers (public, no auth).
+type WebhookHandlers struct {
+	MetaLeadgen  http.HandlerFunc
+	CalcomBooking http.HandlerFunc
+}
+
+// PublicHandlers groups public HTTP handlers (no auth).
+type PublicHandlers struct {
+	GetProfile    http.HandlerFunc
+	GetFunnel     http.HandlerFunc
 }
 
 // ShortLinkHandlers groups short link HTTP handlers.
@@ -222,6 +263,23 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Post("/{id}/publish", deps.FunnelHandlers.Publish)
 			})
 
+			// Nurture sequence management
+			r.Route("/sequences", func(r chi.Router) {
+				r.Post("/", deps.SequenceHandlers.Create)
+				r.Get("/", deps.SequenceHandlers.List)
+				r.Get("/{id}", deps.SequenceHandlers.Get)
+				r.Put("/{id}", deps.SequenceHandlers.Update)
+				r.Delete("/{id}", deps.SequenceHandlers.Delete)
+			})
+
+			// Scheduled meeting management
+			r.Route("/meetings", func(r chi.Router) {
+				r.Post("/", deps.MeetingHandlers.Create)
+				r.Get("/", deps.MeetingHandlers.List)
+				r.Get("/{id}", deps.MeetingHandlers.Get)
+				r.Put("/{id}", deps.MeetingHandlers.Update)
+			})
+
 			// Short link management (authenticated)
 			r.Route("/short-links", func(r chi.Router) {
 				r.Post("/", deps.ShortLinkHandlers.Create)
@@ -243,6 +301,18 @@ func NewRouter(deps RouterDeps) http.Handler {
 				})
 			})
 		})
+
+		// Webhook routes (public, no auth)
+		r.Route("/webhooks", func(r chi.Router) {
+			r.Post("/meta/leadgen", deps.WebhookHandlers.MetaLeadgen)
+			r.Post("/calcom/booking", deps.WebhookHandlers.CalcomBooking)
+		})
+
+		// Public API routes (no auth)
+		r.Route("/public", func(r chi.Router) {
+			r.Get("/profile/{slug}", deps.PublicHandlers.GetProfile)
+			r.Get("/funnels/{slug}", deps.PublicHandlers.GetFunnel)
+		})
 	})
 
 	// Public short link redirect (no auth required)
@@ -250,16 +320,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 	r.Get("/s/{code}", deps.ShortLinkHandlers.Redirect)
 
 	// Public funnel hosting (no auth required)
-	r.Get("/f/{slug}", func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Serve published funnel page by slug
-		JSON(w, http.StatusOK, map[string]any{"message": "funnel page", "slug": chi.URLParam(r, "slug")})
-	})
+	r.Get("/f/{slug}", deps.PublicHandlers.GetFunnel)
 
 	// Public FBO profile page (no auth required)
-	r.Get("/p/{slug}", func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Serve dynamic FBO profile page by tenant slug (Sprint 3)
-		JSON(w, http.StatusOK, map[string]any{"message": "FBO profile page", "slug": chi.URLParam(r, "slug")})
-	})
+	r.Get("/p/{slug}", deps.PublicHandlers.GetProfile)
 
 	return r
 }
