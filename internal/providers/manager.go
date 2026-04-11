@@ -13,11 +13,10 @@ import (
 // Settings is a key-value map of provider configuration.
 type Settings map[string]string
 
-// Manager resolves provider configuration per-tenant using the ProviderSetting entity.
-// Follows the same three-level hierarchy as notifications-api:
-//  1. Platform-managed settings (is_platform_managed=true, tenant_id="platform")
-//  2. Tenant-specific overrides (tenant_id=<actual UUID>)
-//  3. Platform fallback settings (is_platform_managed=false, tenant_id="platform")
+// Manager resolves provider configuration using the ProviderSetting entity.
+// All API keys and secrets (Groq, Meta, WhatsApp, etc.) are platform-level — NOT per-tenant.
+// Tenant-specific non-secret data (FBO distrib ID, WhatsApp number, ad account ID)
+// lives on the Tenant schema directly, not in ProviderSetting.
 type Manager struct {
 	client        *ent.Client
 	decryptionKey []byte
@@ -108,29 +107,32 @@ func (m *Manager) LoadSettings(ctx context.Context, tenantID, providerType, prov
 	return merged, nil
 }
 
-// GetAILLMSettings loads AI LLM provider settings for a tenant.
-func (m *Manager) GetAILLMSettings(ctx context.Context, tenantID string) (Settings, error) {
-	// Try tenant's preferred provider first
-	preferred, _ := m.getPreferred(ctx, tenantID, "ai_llm")
+// GetAILLMSettings loads AI LLM provider settings.
+// AI models are platform-level shared resources — NOT per-tenant.
+func (m *Manager) GetAILLMSettings(ctx context.Context) (Settings, error) {
+	preferred, _ := m.getPreferred(ctx, "platform", "ai_llm")
 	if preferred == "" {
-		preferred = "groq" // default
+		preferred = "groq"
 	}
-	return m.LoadSettings(ctx, tenantID, "ai_llm", preferred)
+	return m.LoadSettings(ctx, "platform", "ai_llm", preferred)
 }
 
-// GetAIEmbeddingSettings loads AI embedding provider settings for a tenant.
-func (m *Manager) GetAIEmbeddingSettings(ctx context.Context, tenantID string) (Settings, error) {
-	return m.LoadSettings(ctx, tenantID, "ai_embedding", "ollama")
+// GetAIEmbeddingSettings loads AI embedding provider settings.
+// Embeddings are platform-level shared resources — NOT per-tenant.
+func (m *Manager) GetAIEmbeddingSettings(ctx context.Context) (Settings, error) {
+	return m.LoadSettings(ctx, "platform", "ai_embedding", "ollama")
 }
 
-// GetMetaAdsSettings loads Meta Marketing API settings for a tenant.
-func (m *Manager) GetMetaAdsSettings(ctx context.Context, tenantID string) (Settings, error) {
-	return m.LoadSettings(ctx, tenantID, "meta_ads", "meta")
+// GetMetaAdsSettings loads Meta Marketing API settings (platform-level secrets).
+// The Meta App ID/Secret are platform-level. Tenant-specific data (ad account ID,
+// page ID, access token) lives on the Tenant schema directly.
+func (m *Manager) GetMetaAdsSettings(ctx context.Context) (Settings, error) {
+	return m.LoadSettings(ctx, "platform", "meta_ads", "meta")
 }
 
-// GetSchedulingSettings loads Cal.com scheduling settings for a tenant.
-func (m *Manager) GetSchedulingSettings(ctx context.Context, tenantID string) (Settings, error) {
-	return m.LoadSettings(ctx, tenantID, "scheduling", "calcom")
+// GetSchedulingSettings loads Cal.com scheduling settings (platform-level).
+func (m *Manager) GetSchedulingSettings(ctx context.Context) (Settings, error) {
+	return m.LoadSettings(ctx, "platform", "scheduling", "calcom")
 }
 
 // getPreferred returns the tenant's preferred provider for a given type.
