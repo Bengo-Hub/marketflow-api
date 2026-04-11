@@ -24,6 +24,15 @@ type KnowledgeBaseEntry func(*sql.Selector)
 // Lead is the predicate function for lead builders.
 type Lead func(*sql.Selector)
 
+// MarketflowPermission is the predicate function for marketflowpermission builders.
+type MarketflowPermission func(*sql.Selector)
+
+// MarketflowRole is the predicate function for marketflowrole builders.
+type MarketflowRole func(*sql.Selector)
+
+// MarketflowUser is the predicate function for marketflowuser builders.
+type MarketflowUser func(*sql.Selector)
+
 // NurtureSequence is the predicate function for nurturesequence builders.
 type NurtureSequence func(*sql.Selector)
 
@@ -32,6 +41,9 @@ type OutboxEvent func(*sql.Selector)
 
 // ProviderSetting is the predicate function for providersetting builders.
 type ProviderSetting func(*sql.Selector)
+
+// RolePermission is the predicate function for rolepermission builders.
+type RolePermission func(*sql.Selector)
 
 // ScheduledMeeting is the predicate function for scheduledmeeting builders.
 type ScheduledMeeting func(*sql.Selector)
@@ -44,3 +56,6 @@ type ShortLink func(*sql.Selector)
 
 // Tenant is the predicate function for tenant builders.
 type Tenant func(*sql.Selector)
+
+// UserRoleAssignment is the predicate function for userroleassignment builders.
+type UserRoleAssignment func(*sql.Selector)

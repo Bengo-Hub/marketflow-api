@@ -17,14 +17,19 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
+	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
+	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/outboxevent"
 	"github.com/bengobox/marketflow-api/internal/ent/predicate"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
+	"github.com/bengobox/marketflow-api/internal/ent/rolepermission"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
 	"github.com/bengobox/marketflow-api/internal/ent/shortlink"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
+	"github.com/bengobox/marketflow-api/internal/ent/userroleassignment"
 	"github.com/google/uuid"
 )
 
@@ -37,19 +42,24 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeCampaign           = "Campaign"
-	TypeChatSession        = "ChatSession"
-	TypeContact            = "Contact"
-	TypeFunnel             = "Funnel"
-	TypeKnowledgeBaseEntry = "KnowledgeBaseEntry"
-	TypeLead               = "Lead"
-	TypeNurtureSequence    = "NurtureSequence"
-	TypeOutboxEvent        = "OutboxEvent"
-	TypeProviderSetting    = "ProviderSetting"
-	TypeScheduledMeeting   = "ScheduledMeeting"
-	TypeServiceConfig      = "ServiceConfig"
-	TypeShortLink          = "ShortLink"
-	TypeTenant             = "Tenant"
+	TypeCampaign             = "Campaign"
+	TypeChatSession          = "ChatSession"
+	TypeContact              = "Contact"
+	TypeFunnel               = "Funnel"
+	TypeKnowledgeBaseEntry   = "KnowledgeBaseEntry"
+	TypeLead                 = "Lead"
+	TypeMarketflowPermission = "MarketflowPermission"
+	TypeMarketflowRole       = "MarketflowRole"
+	TypeMarketflowUser       = "MarketflowUser"
+	TypeNurtureSequence      = "NurtureSequence"
+	TypeOutboxEvent          = "OutboxEvent"
+	TypeProviderSetting      = "ProviderSetting"
+	TypeRolePermission       = "RolePermission"
+	TypeScheduledMeeting     = "ScheduledMeeting"
+	TypeServiceConfig        = "ServiceConfig"
+	TypeShortLink            = "ShortLink"
+	TypeTenant               = "Tenant"
+	TypeUserRoleAssignment   = "UserRoleAssignment"
 )
 
 // CampaignMutation represents an operation that mutates the Campaign nodes in the graph.
@@ -9726,6 +9736,2548 @@ func (m *LeadMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Lead edge %s", name)
 }
 
+// MarketflowPermissionMutation represents an operation that mutates the MarketflowPermission nodes in the graph.
+type MarketflowPermissionMutation struct {
+	config
+	op                      Op
+	typ                     string
+	id                      *uuid.UUID
+	permission_code         *string
+	name                    *string
+	module                  *string
+	action                  *string
+	resource                *string
+	description             *string
+	created_at              *time.Time
+	clearedFields           map[string]struct{}
+	roles                   map[uuid.UUID]struct{}
+	removedroles            map[uuid.UUID]struct{}
+	clearedroles            bool
+	role_permissions        map[int]struct{}
+	removedrole_permissions map[int]struct{}
+	clearedrole_permissions bool
+	done                    bool
+	oldValue                func(context.Context) (*MarketflowPermission, error)
+	predicates              []predicate.MarketflowPermission
+}
+
+var _ ent.Mutation = (*MarketflowPermissionMutation)(nil)
+
+// marketflowpermissionOption allows management of the mutation configuration using functional options.
+type marketflowpermissionOption func(*MarketflowPermissionMutation)
+
+// newMarketflowPermissionMutation creates new mutation for the MarketflowPermission entity.
+func newMarketflowPermissionMutation(c config, op Op, opts ...marketflowpermissionOption) *MarketflowPermissionMutation {
+	m := &MarketflowPermissionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMarketflowPermission,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMarketflowPermissionID sets the ID field of the mutation.
+func withMarketflowPermissionID(id uuid.UUID) marketflowpermissionOption {
+	return func(m *MarketflowPermissionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MarketflowPermission
+		)
+		m.oldValue = func(ctx context.Context) (*MarketflowPermission, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MarketflowPermission.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMarketflowPermission sets the old MarketflowPermission of the mutation.
+func withMarketflowPermission(node *MarketflowPermission) marketflowpermissionOption {
+	return func(m *MarketflowPermissionMutation) {
+		m.oldValue = func(context.Context) (*MarketflowPermission, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MarketflowPermissionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MarketflowPermissionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of MarketflowPermission entities.
+func (m *MarketflowPermissionMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MarketflowPermissionMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MarketflowPermissionMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MarketflowPermission.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPermissionCode sets the "permission_code" field.
+func (m *MarketflowPermissionMutation) SetPermissionCode(s string) {
+	m.permission_code = &s
+}
+
+// PermissionCode returns the value of the "permission_code" field in the mutation.
+func (m *MarketflowPermissionMutation) PermissionCode() (r string, exists bool) {
+	v := m.permission_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPermissionCode returns the old "permission_code" field's value of the MarketflowPermission entity.
+// If the MarketflowPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowPermissionMutation) OldPermissionCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPermissionCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPermissionCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPermissionCode: %w", err)
+	}
+	return oldValue.PermissionCode, nil
+}
+
+// ResetPermissionCode resets all changes to the "permission_code" field.
+func (m *MarketflowPermissionMutation) ResetPermissionCode() {
+	m.permission_code = nil
+}
+
+// SetName sets the "name" field.
+func (m *MarketflowPermissionMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *MarketflowPermissionMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the MarketflowPermission entity.
+// If the MarketflowPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowPermissionMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *MarketflowPermissionMutation) ResetName() {
+	m.name = nil
+}
+
+// SetModule sets the "module" field.
+func (m *MarketflowPermissionMutation) SetModule(s string) {
+	m.module = &s
+}
+
+// Module returns the value of the "module" field in the mutation.
+func (m *MarketflowPermissionMutation) Module() (r string, exists bool) {
+	v := m.module
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModule returns the old "module" field's value of the MarketflowPermission entity.
+// If the MarketflowPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowPermissionMutation) OldModule(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModule is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModule requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModule: %w", err)
+	}
+	return oldValue.Module, nil
+}
+
+// ResetModule resets all changes to the "module" field.
+func (m *MarketflowPermissionMutation) ResetModule() {
+	m.module = nil
+}
+
+// SetAction sets the "action" field.
+func (m *MarketflowPermissionMutation) SetAction(s string) {
+	m.action = &s
+}
+
+// Action returns the value of the "action" field in the mutation.
+func (m *MarketflowPermissionMutation) Action() (r string, exists bool) {
+	v := m.action
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAction returns the old "action" field's value of the MarketflowPermission entity.
+// If the MarketflowPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowPermissionMutation) OldAction(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAction is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAction requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAction: %w", err)
+	}
+	return oldValue.Action, nil
+}
+
+// ResetAction resets all changes to the "action" field.
+func (m *MarketflowPermissionMutation) ResetAction() {
+	m.action = nil
+}
+
+// SetResource sets the "resource" field.
+func (m *MarketflowPermissionMutation) SetResource(s string) {
+	m.resource = &s
+}
+
+// Resource returns the value of the "resource" field in the mutation.
+func (m *MarketflowPermissionMutation) Resource() (r string, exists bool) {
+	v := m.resource
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResource returns the old "resource" field's value of the MarketflowPermission entity.
+// If the MarketflowPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowPermissionMutation) OldResource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResource: %w", err)
+	}
+	return oldValue.Resource, nil
+}
+
+// ClearResource clears the value of the "resource" field.
+func (m *MarketflowPermissionMutation) ClearResource() {
+	m.resource = nil
+	m.clearedFields[marketflowpermission.FieldResource] = struct{}{}
+}
+
+// ResourceCleared returns if the "resource" field was cleared in this mutation.
+func (m *MarketflowPermissionMutation) ResourceCleared() bool {
+	_, ok := m.clearedFields[marketflowpermission.FieldResource]
+	return ok
+}
+
+// ResetResource resets all changes to the "resource" field.
+func (m *MarketflowPermissionMutation) ResetResource() {
+	m.resource = nil
+	delete(m.clearedFields, marketflowpermission.FieldResource)
+}
+
+// SetDescription sets the "description" field.
+func (m *MarketflowPermissionMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *MarketflowPermissionMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the MarketflowPermission entity.
+// If the MarketflowPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowPermissionMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ClearDescription clears the value of the "description" field.
+func (m *MarketflowPermissionMutation) ClearDescription() {
+	m.description = nil
+	m.clearedFields[marketflowpermission.FieldDescription] = struct{}{}
+}
+
+// DescriptionCleared returns if the "description" field was cleared in this mutation.
+func (m *MarketflowPermissionMutation) DescriptionCleared() bool {
+	_, ok := m.clearedFields[marketflowpermission.FieldDescription]
+	return ok
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *MarketflowPermissionMutation) ResetDescription() {
+	m.description = nil
+	delete(m.clearedFields, marketflowpermission.FieldDescription)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *MarketflowPermissionMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *MarketflowPermissionMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the MarketflowPermission entity.
+// If the MarketflowPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowPermissionMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *MarketflowPermissionMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// AddRoleIDs adds the "roles" edge to the MarketflowRole entity by ids.
+func (m *MarketflowPermissionMutation) AddRoleIDs(ids ...uuid.UUID) {
+	if m.roles == nil {
+		m.roles = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.roles[ids[i]] = struct{}{}
+	}
+}
+
+// ClearRoles clears the "roles" edge to the MarketflowRole entity.
+func (m *MarketflowPermissionMutation) ClearRoles() {
+	m.clearedroles = true
+}
+
+// RolesCleared reports if the "roles" edge to the MarketflowRole entity was cleared.
+func (m *MarketflowPermissionMutation) RolesCleared() bool {
+	return m.clearedroles
+}
+
+// RemoveRoleIDs removes the "roles" edge to the MarketflowRole entity by IDs.
+func (m *MarketflowPermissionMutation) RemoveRoleIDs(ids ...uuid.UUID) {
+	if m.removedroles == nil {
+		m.removedroles = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.roles, ids[i])
+		m.removedroles[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedRoles returns the removed IDs of the "roles" edge to the MarketflowRole entity.
+func (m *MarketflowPermissionMutation) RemovedRolesIDs() (ids []uuid.UUID) {
+	for id := range m.removedroles {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// RolesIDs returns the "roles" edge IDs in the mutation.
+func (m *MarketflowPermissionMutation) RolesIDs() (ids []uuid.UUID) {
+	for id := range m.roles {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetRoles resets all changes to the "roles" edge.
+func (m *MarketflowPermissionMutation) ResetRoles() {
+	m.roles = nil
+	m.clearedroles = false
+	m.removedroles = nil
+}
+
+// AddRolePermissionIDs adds the "role_permissions" edge to the RolePermission entity by ids.
+func (m *MarketflowPermissionMutation) AddRolePermissionIDs(ids ...int) {
+	if m.role_permissions == nil {
+		m.role_permissions = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.role_permissions[ids[i]] = struct{}{}
+	}
+}
+
+// ClearRolePermissions clears the "role_permissions" edge to the RolePermission entity.
+func (m *MarketflowPermissionMutation) ClearRolePermissions() {
+	m.clearedrole_permissions = true
+}
+
+// RolePermissionsCleared reports if the "role_permissions" edge to the RolePermission entity was cleared.
+func (m *MarketflowPermissionMutation) RolePermissionsCleared() bool {
+	return m.clearedrole_permissions
+}
+
+// RemoveRolePermissionIDs removes the "role_permissions" edge to the RolePermission entity by IDs.
+func (m *MarketflowPermissionMutation) RemoveRolePermissionIDs(ids ...int) {
+	if m.removedrole_permissions == nil {
+		m.removedrole_permissions = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.role_permissions, ids[i])
+		m.removedrole_permissions[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedRolePermissions returns the removed IDs of the "role_permissions" edge to the RolePermission entity.
+func (m *MarketflowPermissionMutation) RemovedRolePermissionsIDs() (ids []int) {
+	for id := range m.removedrole_permissions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// RolePermissionsIDs returns the "role_permissions" edge IDs in the mutation.
+func (m *MarketflowPermissionMutation) RolePermissionsIDs() (ids []int) {
+	for id := range m.role_permissions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetRolePermissions resets all changes to the "role_permissions" edge.
+func (m *MarketflowPermissionMutation) ResetRolePermissions() {
+	m.role_permissions = nil
+	m.clearedrole_permissions = false
+	m.removedrole_permissions = nil
+}
+
+// Where appends a list predicates to the MarketflowPermissionMutation builder.
+func (m *MarketflowPermissionMutation) Where(ps ...predicate.MarketflowPermission) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MarketflowPermissionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MarketflowPermissionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MarketflowPermission, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MarketflowPermissionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MarketflowPermissionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (MarketflowPermission).
+func (m *MarketflowPermissionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MarketflowPermissionMutation) Fields() []string {
+	fields := make([]string, 0, 7)
+	if m.permission_code != nil {
+		fields = append(fields, marketflowpermission.FieldPermissionCode)
+	}
+	if m.name != nil {
+		fields = append(fields, marketflowpermission.FieldName)
+	}
+	if m.module != nil {
+		fields = append(fields, marketflowpermission.FieldModule)
+	}
+	if m.action != nil {
+		fields = append(fields, marketflowpermission.FieldAction)
+	}
+	if m.resource != nil {
+		fields = append(fields, marketflowpermission.FieldResource)
+	}
+	if m.description != nil {
+		fields = append(fields, marketflowpermission.FieldDescription)
+	}
+	if m.created_at != nil {
+		fields = append(fields, marketflowpermission.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MarketflowPermissionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case marketflowpermission.FieldPermissionCode:
+		return m.PermissionCode()
+	case marketflowpermission.FieldName:
+		return m.Name()
+	case marketflowpermission.FieldModule:
+		return m.Module()
+	case marketflowpermission.FieldAction:
+		return m.Action()
+	case marketflowpermission.FieldResource:
+		return m.Resource()
+	case marketflowpermission.FieldDescription:
+		return m.Description()
+	case marketflowpermission.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MarketflowPermissionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case marketflowpermission.FieldPermissionCode:
+		return m.OldPermissionCode(ctx)
+	case marketflowpermission.FieldName:
+		return m.OldName(ctx)
+	case marketflowpermission.FieldModule:
+		return m.OldModule(ctx)
+	case marketflowpermission.FieldAction:
+		return m.OldAction(ctx)
+	case marketflowpermission.FieldResource:
+		return m.OldResource(ctx)
+	case marketflowpermission.FieldDescription:
+		return m.OldDescription(ctx)
+	case marketflowpermission.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown MarketflowPermission field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MarketflowPermissionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case marketflowpermission.FieldPermissionCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPermissionCode(v)
+		return nil
+	case marketflowpermission.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case marketflowpermission.FieldModule:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModule(v)
+		return nil
+	case marketflowpermission.FieldAction:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAction(v)
+		return nil
+	case marketflowpermission.FieldResource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResource(v)
+		return nil
+	case marketflowpermission.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case marketflowpermission.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MarketflowPermission field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MarketflowPermissionMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MarketflowPermissionMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MarketflowPermissionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown MarketflowPermission numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MarketflowPermissionMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(marketflowpermission.FieldResource) {
+		fields = append(fields, marketflowpermission.FieldResource)
+	}
+	if m.FieldCleared(marketflowpermission.FieldDescription) {
+		fields = append(fields, marketflowpermission.FieldDescription)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MarketflowPermissionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MarketflowPermissionMutation) ClearField(name string) error {
+	switch name {
+	case marketflowpermission.FieldResource:
+		m.ClearResource()
+		return nil
+	case marketflowpermission.FieldDescription:
+		m.ClearDescription()
+		return nil
+	}
+	return fmt.Errorf("unknown MarketflowPermission nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MarketflowPermissionMutation) ResetField(name string) error {
+	switch name {
+	case marketflowpermission.FieldPermissionCode:
+		m.ResetPermissionCode()
+		return nil
+	case marketflowpermission.FieldName:
+		m.ResetName()
+		return nil
+	case marketflowpermission.FieldModule:
+		m.ResetModule()
+		return nil
+	case marketflowpermission.FieldAction:
+		m.ResetAction()
+		return nil
+	case marketflowpermission.FieldResource:
+		m.ResetResource()
+		return nil
+	case marketflowpermission.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case marketflowpermission.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MarketflowPermission field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MarketflowPermissionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.roles != nil {
+		edges = append(edges, marketflowpermission.EdgeRoles)
+	}
+	if m.role_permissions != nil {
+		edges = append(edges, marketflowpermission.EdgeRolePermissions)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MarketflowPermissionMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case marketflowpermission.EdgeRoles:
+		ids := make([]ent.Value, 0, len(m.roles))
+		for id := range m.roles {
+			ids = append(ids, id)
+		}
+		return ids
+	case marketflowpermission.EdgeRolePermissions:
+		ids := make([]ent.Value, 0, len(m.role_permissions))
+		for id := range m.role_permissions {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MarketflowPermissionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.removedroles != nil {
+		edges = append(edges, marketflowpermission.EdgeRoles)
+	}
+	if m.removedrole_permissions != nil {
+		edges = append(edges, marketflowpermission.EdgeRolePermissions)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MarketflowPermissionMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case marketflowpermission.EdgeRoles:
+		ids := make([]ent.Value, 0, len(m.removedroles))
+		for id := range m.removedroles {
+			ids = append(ids, id)
+		}
+		return ids
+	case marketflowpermission.EdgeRolePermissions:
+		ids := make([]ent.Value, 0, len(m.removedrole_permissions))
+		for id := range m.removedrole_permissions {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MarketflowPermissionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedroles {
+		edges = append(edges, marketflowpermission.EdgeRoles)
+	}
+	if m.clearedrole_permissions {
+		edges = append(edges, marketflowpermission.EdgeRolePermissions)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MarketflowPermissionMutation) EdgeCleared(name string) bool {
+	switch name {
+	case marketflowpermission.EdgeRoles:
+		return m.clearedroles
+	case marketflowpermission.EdgeRolePermissions:
+		return m.clearedrole_permissions
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MarketflowPermissionMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown MarketflowPermission unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MarketflowPermissionMutation) ResetEdge(name string) error {
+	switch name {
+	case marketflowpermission.EdgeRoles:
+		m.ResetRoles()
+		return nil
+	case marketflowpermission.EdgeRolePermissions:
+		m.ResetRolePermissions()
+		return nil
+	}
+	return fmt.Errorf("unknown MarketflowPermission edge %s", name)
+}
+
+// MarketflowRoleMutation represents an operation that mutates the MarketflowRole nodes in the graph.
+type MarketflowRoleMutation struct {
+	config
+	op                      Op
+	typ                     string
+	id                      *uuid.UUID
+	tenant_id               *uuid.UUID
+	role_code               *string
+	name                    *string
+	description             *string
+	is_system_role          *bool
+	created_at              *time.Time
+	updated_at              *time.Time
+	clearedFields           map[string]struct{}
+	permissions             map[uuid.UUID]struct{}
+	removedpermissions      map[uuid.UUID]struct{}
+	clearedpermissions      bool
+	user_assignments        map[uuid.UUID]struct{}
+	removeduser_assignments map[uuid.UUID]struct{}
+	cleareduser_assignments bool
+	role_permissions        map[int]struct{}
+	removedrole_permissions map[int]struct{}
+	clearedrole_permissions bool
+	done                    bool
+	oldValue                func(context.Context) (*MarketflowRole, error)
+	predicates              []predicate.MarketflowRole
+}
+
+var _ ent.Mutation = (*MarketflowRoleMutation)(nil)
+
+// marketflowroleOption allows management of the mutation configuration using functional options.
+type marketflowroleOption func(*MarketflowRoleMutation)
+
+// newMarketflowRoleMutation creates new mutation for the MarketflowRole entity.
+func newMarketflowRoleMutation(c config, op Op, opts ...marketflowroleOption) *MarketflowRoleMutation {
+	m := &MarketflowRoleMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMarketflowRole,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMarketflowRoleID sets the ID field of the mutation.
+func withMarketflowRoleID(id uuid.UUID) marketflowroleOption {
+	return func(m *MarketflowRoleMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MarketflowRole
+		)
+		m.oldValue = func(ctx context.Context) (*MarketflowRole, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MarketflowRole.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMarketflowRole sets the old MarketflowRole of the mutation.
+func withMarketflowRole(node *MarketflowRole) marketflowroleOption {
+	return func(m *MarketflowRoleMutation) {
+		m.oldValue = func(context.Context) (*MarketflowRole, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MarketflowRoleMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MarketflowRoleMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of MarketflowRole entities.
+func (m *MarketflowRoleMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MarketflowRoleMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MarketflowRoleMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MarketflowRole.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *MarketflowRoleMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *MarketflowRoleMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the MarketflowRole entity.
+// If the MarketflowRole object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowRoleMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *MarketflowRoleMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetRoleCode sets the "role_code" field.
+func (m *MarketflowRoleMutation) SetRoleCode(s string) {
+	m.role_code = &s
+}
+
+// RoleCode returns the value of the "role_code" field in the mutation.
+func (m *MarketflowRoleMutation) RoleCode() (r string, exists bool) {
+	v := m.role_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRoleCode returns the old "role_code" field's value of the MarketflowRole entity.
+// If the MarketflowRole object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowRoleMutation) OldRoleCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRoleCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRoleCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRoleCode: %w", err)
+	}
+	return oldValue.RoleCode, nil
+}
+
+// ResetRoleCode resets all changes to the "role_code" field.
+func (m *MarketflowRoleMutation) ResetRoleCode() {
+	m.role_code = nil
+}
+
+// SetName sets the "name" field.
+func (m *MarketflowRoleMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *MarketflowRoleMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the MarketflowRole entity.
+// If the MarketflowRole object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowRoleMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *MarketflowRoleMutation) ResetName() {
+	m.name = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *MarketflowRoleMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *MarketflowRoleMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the MarketflowRole entity.
+// If the MarketflowRole object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowRoleMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ClearDescription clears the value of the "description" field.
+func (m *MarketflowRoleMutation) ClearDescription() {
+	m.description = nil
+	m.clearedFields[marketflowrole.FieldDescription] = struct{}{}
+}
+
+// DescriptionCleared returns if the "description" field was cleared in this mutation.
+func (m *MarketflowRoleMutation) DescriptionCleared() bool {
+	_, ok := m.clearedFields[marketflowrole.FieldDescription]
+	return ok
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *MarketflowRoleMutation) ResetDescription() {
+	m.description = nil
+	delete(m.clearedFields, marketflowrole.FieldDescription)
+}
+
+// SetIsSystemRole sets the "is_system_role" field.
+func (m *MarketflowRoleMutation) SetIsSystemRole(b bool) {
+	m.is_system_role = &b
+}
+
+// IsSystemRole returns the value of the "is_system_role" field in the mutation.
+func (m *MarketflowRoleMutation) IsSystemRole() (r bool, exists bool) {
+	v := m.is_system_role
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsSystemRole returns the old "is_system_role" field's value of the MarketflowRole entity.
+// If the MarketflowRole object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowRoleMutation) OldIsSystemRole(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsSystemRole is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsSystemRole requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsSystemRole: %w", err)
+	}
+	return oldValue.IsSystemRole, nil
+}
+
+// ResetIsSystemRole resets all changes to the "is_system_role" field.
+func (m *MarketflowRoleMutation) ResetIsSystemRole() {
+	m.is_system_role = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *MarketflowRoleMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *MarketflowRoleMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the MarketflowRole entity.
+// If the MarketflowRole object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowRoleMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *MarketflowRoleMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *MarketflowRoleMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *MarketflowRoleMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the MarketflowRole entity.
+// If the MarketflowRole object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowRoleMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *MarketflowRoleMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// AddPermissionIDs adds the "permissions" edge to the MarketflowPermission entity by ids.
+func (m *MarketflowRoleMutation) AddPermissionIDs(ids ...uuid.UUID) {
+	if m.permissions == nil {
+		m.permissions = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.permissions[ids[i]] = struct{}{}
+	}
+}
+
+// ClearPermissions clears the "permissions" edge to the MarketflowPermission entity.
+func (m *MarketflowRoleMutation) ClearPermissions() {
+	m.clearedpermissions = true
+}
+
+// PermissionsCleared reports if the "permissions" edge to the MarketflowPermission entity was cleared.
+func (m *MarketflowRoleMutation) PermissionsCleared() bool {
+	return m.clearedpermissions
+}
+
+// RemovePermissionIDs removes the "permissions" edge to the MarketflowPermission entity by IDs.
+func (m *MarketflowRoleMutation) RemovePermissionIDs(ids ...uuid.UUID) {
+	if m.removedpermissions == nil {
+		m.removedpermissions = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.permissions, ids[i])
+		m.removedpermissions[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedPermissions returns the removed IDs of the "permissions" edge to the MarketflowPermission entity.
+func (m *MarketflowRoleMutation) RemovedPermissionsIDs() (ids []uuid.UUID) {
+	for id := range m.removedpermissions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// PermissionsIDs returns the "permissions" edge IDs in the mutation.
+func (m *MarketflowRoleMutation) PermissionsIDs() (ids []uuid.UUID) {
+	for id := range m.permissions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetPermissions resets all changes to the "permissions" edge.
+func (m *MarketflowRoleMutation) ResetPermissions() {
+	m.permissions = nil
+	m.clearedpermissions = false
+	m.removedpermissions = nil
+}
+
+// AddUserAssignmentIDs adds the "user_assignments" edge to the UserRoleAssignment entity by ids.
+func (m *MarketflowRoleMutation) AddUserAssignmentIDs(ids ...uuid.UUID) {
+	if m.user_assignments == nil {
+		m.user_assignments = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.user_assignments[ids[i]] = struct{}{}
+	}
+}
+
+// ClearUserAssignments clears the "user_assignments" edge to the UserRoleAssignment entity.
+func (m *MarketflowRoleMutation) ClearUserAssignments() {
+	m.cleareduser_assignments = true
+}
+
+// UserAssignmentsCleared reports if the "user_assignments" edge to the UserRoleAssignment entity was cleared.
+func (m *MarketflowRoleMutation) UserAssignmentsCleared() bool {
+	return m.cleareduser_assignments
+}
+
+// RemoveUserAssignmentIDs removes the "user_assignments" edge to the UserRoleAssignment entity by IDs.
+func (m *MarketflowRoleMutation) RemoveUserAssignmentIDs(ids ...uuid.UUID) {
+	if m.removeduser_assignments == nil {
+		m.removeduser_assignments = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.user_assignments, ids[i])
+		m.removeduser_assignments[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedUserAssignments returns the removed IDs of the "user_assignments" edge to the UserRoleAssignment entity.
+func (m *MarketflowRoleMutation) RemovedUserAssignmentsIDs() (ids []uuid.UUID) {
+	for id := range m.removeduser_assignments {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// UserAssignmentsIDs returns the "user_assignments" edge IDs in the mutation.
+func (m *MarketflowRoleMutation) UserAssignmentsIDs() (ids []uuid.UUID) {
+	for id := range m.user_assignments {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetUserAssignments resets all changes to the "user_assignments" edge.
+func (m *MarketflowRoleMutation) ResetUserAssignments() {
+	m.user_assignments = nil
+	m.cleareduser_assignments = false
+	m.removeduser_assignments = nil
+}
+
+// AddRolePermissionIDs adds the "role_permissions" edge to the RolePermission entity by ids.
+func (m *MarketflowRoleMutation) AddRolePermissionIDs(ids ...int) {
+	if m.role_permissions == nil {
+		m.role_permissions = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.role_permissions[ids[i]] = struct{}{}
+	}
+}
+
+// ClearRolePermissions clears the "role_permissions" edge to the RolePermission entity.
+func (m *MarketflowRoleMutation) ClearRolePermissions() {
+	m.clearedrole_permissions = true
+}
+
+// RolePermissionsCleared reports if the "role_permissions" edge to the RolePermission entity was cleared.
+func (m *MarketflowRoleMutation) RolePermissionsCleared() bool {
+	return m.clearedrole_permissions
+}
+
+// RemoveRolePermissionIDs removes the "role_permissions" edge to the RolePermission entity by IDs.
+func (m *MarketflowRoleMutation) RemoveRolePermissionIDs(ids ...int) {
+	if m.removedrole_permissions == nil {
+		m.removedrole_permissions = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.role_permissions, ids[i])
+		m.removedrole_permissions[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedRolePermissions returns the removed IDs of the "role_permissions" edge to the RolePermission entity.
+func (m *MarketflowRoleMutation) RemovedRolePermissionsIDs() (ids []int) {
+	for id := range m.removedrole_permissions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// RolePermissionsIDs returns the "role_permissions" edge IDs in the mutation.
+func (m *MarketflowRoleMutation) RolePermissionsIDs() (ids []int) {
+	for id := range m.role_permissions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetRolePermissions resets all changes to the "role_permissions" edge.
+func (m *MarketflowRoleMutation) ResetRolePermissions() {
+	m.role_permissions = nil
+	m.clearedrole_permissions = false
+	m.removedrole_permissions = nil
+}
+
+// Where appends a list predicates to the MarketflowRoleMutation builder.
+func (m *MarketflowRoleMutation) Where(ps ...predicate.MarketflowRole) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MarketflowRoleMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MarketflowRoleMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MarketflowRole, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MarketflowRoleMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MarketflowRoleMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (MarketflowRole).
+func (m *MarketflowRoleMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MarketflowRoleMutation) Fields() []string {
+	fields := make([]string, 0, 7)
+	if m.tenant_id != nil {
+		fields = append(fields, marketflowrole.FieldTenantID)
+	}
+	if m.role_code != nil {
+		fields = append(fields, marketflowrole.FieldRoleCode)
+	}
+	if m.name != nil {
+		fields = append(fields, marketflowrole.FieldName)
+	}
+	if m.description != nil {
+		fields = append(fields, marketflowrole.FieldDescription)
+	}
+	if m.is_system_role != nil {
+		fields = append(fields, marketflowrole.FieldIsSystemRole)
+	}
+	if m.created_at != nil {
+		fields = append(fields, marketflowrole.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, marketflowrole.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MarketflowRoleMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case marketflowrole.FieldTenantID:
+		return m.TenantID()
+	case marketflowrole.FieldRoleCode:
+		return m.RoleCode()
+	case marketflowrole.FieldName:
+		return m.Name()
+	case marketflowrole.FieldDescription:
+		return m.Description()
+	case marketflowrole.FieldIsSystemRole:
+		return m.IsSystemRole()
+	case marketflowrole.FieldCreatedAt:
+		return m.CreatedAt()
+	case marketflowrole.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MarketflowRoleMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case marketflowrole.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case marketflowrole.FieldRoleCode:
+		return m.OldRoleCode(ctx)
+	case marketflowrole.FieldName:
+		return m.OldName(ctx)
+	case marketflowrole.FieldDescription:
+		return m.OldDescription(ctx)
+	case marketflowrole.FieldIsSystemRole:
+		return m.OldIsSystemRole(ctx)
+	case marketflowrole.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case marketflowrole.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown MarketflowRole field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MarketflowRoleMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case marketflowrole.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case marketflowrole.FieldRoleCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRoleCode(v)
+		return nil
+	case marketflowrole.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case marketflowrole.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case marketflowrole.FieldIsSystemRole:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsSystemRole(v)
+		return nil
+	case marketflowrole.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case marketflowrole.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MarketflowRole field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MarketflowRoleMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MarketflowRoleMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MarketflowRoleMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown MarketflowRole numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MarketflowRoleMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(marketflowrole.FieldDescription) {
+		fields = append(fields, marketflowrole.FieldDescription)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MarketflowRoleMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MarketflowRoleMutation) ClearField(name string) error {
+	switch name {
+	case marketflowrole.FieldDescription:
+		m.ClearDescription()
+		return nil
+	}
+	return fmt.Errorf("unknown MarketflowRole nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MarketflowRoleMutation) ResetField(name string) error {
+	switch name {
+	case marketflowrole.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case marketflowrole.FieldRoleCode:
+		m.ResetRoleCode()
+		return nil
+	case marketflowrole.FieldName:
+		m.ResetName()
+		return nil
+	case marketflowrole.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case marketflowrole.FieldIsSystemRole:
+		m.ResetIsSystemRole()
+		return nil
+	case marketflowrole.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case marketflowrole.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MarketflowRole field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MarketflowRoleMutation) AddedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.permissions != nil {
+		edges = append(edges, marketflowrole.EdgePermissions)
+	}
+	if m.user_assignments != nil {
+		edges = append(edges, marketflowrole.EdgeUserAssignments)
+	}
+	if m.role_permissions != nil {
+		edges = append(edges, marketflowrole.EdgeRolePermissions)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MarketflowRoleMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case marketflowrole.EdgePermissions:
+		ids := make([]ent.Value, 0, len(m.permissions))
+		for id := range m.permissions {
+			ids = append(ids, id)
+		}
+		return ids
+	case marketflowrole.EdgeUserAssignments:
+		ids := make([]ent.Value, 0, len(m.user_assignments))
+		for id := range m.user_assignments {
+			ids = append(ids, id)
+		}
+		return ids
+	case marketflowrole.EdgeRolePermissions:
+		ids := make([]ent.Value, 0, len(m.role_permissions))
+		for id := range m.role_permissions {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MarketflowRoleMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.removedpermissions != nil {
+		edges = append(edges, marketflowrole.EdgePermissions)
+	}
+	if m.removeduser_assignments != nil {
+		edges = append(edges, marketflowrole.EdgeUserAssignments)
+	}
+	if m.removedrole_permissions != nil {
+		edges = append(edges, marketflowrole.EdgeRolePermissions)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MarketflowRoleMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case marketflowrole.EdgePermissions:
+		ids := make([]ent.Value, 0, len(m.removedpermissions))
+		for id := range m.removedpermissions {
+			ids = append(ids, id)
+		}
+		return ids
+	case marketflowrole.EdgeUserAssignments:
+		ids := make([]ent.Value, 0, len(m.removeduser_assignments))
+		for id := range m.removeduser_assignments {
+			ids = append(ids, id)
+		}
+		return ids
+	case marketflowrole.EdgeRolePermissions:
+		ids := make([]ent.Value, 0, len(m.removedrole_permissions))
+		for id := range m.removedrole_permissions {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MarketflowRoleMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.clearedpermissions {
+		edges = append(edges, marketflowrole.EdgePermissions)
+	}
+	if m.cleareduser_assignments {
+		edges = append(edges, marketflowrole.EdgeUserAssignments)
+	}
+	if m.clearedrole_permissions {
+		edges = append(edges, marketflowrole.EdgeRolePermissions)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MarketflowRoleMutation) EdgeCleared(name string) bool {
+	switch name {
+	case marketflowrole.EdgePermissions:
+		return m.clearedpermissions
+	case marketflowrole.EdgeUserAssignments:
+		return m.cleareduser_assignments
+	case marketflowrole.EdgeRolePermissions:
+		return m.clearedrole_permissions
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MarketflowRoleMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown MarketflowRole unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MarketflowRoleMutation) ResetEdge(name string) error {
+	switch name {
+	case marketflowrole.EdgePermissions:
+		m.ResetPermissions()
+		return nil
+	case marketflowrole.EdgeUserAssignments:
+		m.ResetUserAssignments()
+		return nil
+	case marketflowrole.EdgeRolePermissions:
+		m.ResetRolePermissions()
+		return nil
+	}
+	return fmt.Errorf("unknown MarketflowRole edge %s", name)
+}
+
+// MarketflowUserMutation represents an operation that mutates the MarketflowUser nodes in the graph.
+type MarketflowUserMutation struct {
+	config
+	op                   Op
+	typ                  string
+	id                   *uuid.UUID
+	tenant_id            *uuid.UUID
+	auth_service_user_id *uuid.UUID
+	email                *string
+	status               *string
+	sync_status          *string
+	last_sync_at         *time.Time
+	created_at           *time.Time
+	updated_at           *time.Time
+	clearedFields        map[string]struct{}
+	done                 bool
+	oldValue             func(context.Context) (*MarketflowUser, error)
+	predicates           []predicate.MarketflowUser
+}
+
+var _ ent.Mutation = (*MarketflowUserMutation)(nil)
+
+// marketflowuserOption allows management of the mutation configuration using functional options.
+type marketflowuserOption func(*MarketflowUserMutation)
+
+// newMarketflowUserMutation creates new mutation for the MarketflowUser entity.
+func newMarketflowUserMutation(c config, op Op, opts ...marketflowuserOption) *MarketflowUserMutation {
+	m := &MarketflowUserMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMarketflowUser,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMarketflowUserID sets the ID field of the mutation.
+func withMarketflowUserID(id uuid.UUID) marketflowuserOption {
+	return func(m *MarketflowUserMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MarketflowUser
+		)
+		m.oldValue = func(ctx context.Context) (*MarketflowUser, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MarketflowUser.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMarketflowUser sets the old MarketflowUser of the mutation.
+func withMarketflowUser(node *MarketflowUser) marketflowuserOption {
+	return func(m *MarketflowUserMutation) {
+		m.oldValue = func(context.Context) (*MarketflowUser, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MarketflowUserMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MarketflowUserMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of MarketflowUser entities.
+func (m *MarketflowUserMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MarketflowUserMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MarketflowUserMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MarketflowUser.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *MarketflowUserMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *MarketflowUserMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the MarketflowUser entity.
+// If the MarketflowUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowUserMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *MarketflowUserMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetAuthServiceUserID sets the "auth_service_user_id" field.
+func (m *MarketflowUserMutation) SetAuthServiceUserID(u uuid.UUID) {
+	m.auth_service_user_id = &u
+}
+
+// AuthServiceUserID returns the value of the "auth_service_user_id" field in the mutation.
+func (m *MarketflowUserMutation) AuthServiceUserID() (r uuid.UUID, exists bool) {
+	v := m.auth_service_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAuthServiceUserID returns the old "auth_service_user_id" field's value of the MarketflowUser entity.
+// If the MarketflowUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowUserMutation) OldAuthServiceUserID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAuthServiceUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAuthServiceUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAuthServiceUserID: %w", err)
+	}
+	return oldValue.AuthServiceUserID, nil
+}
+
+// ResetAuthServiceUserID resets all changes to the "auth_service_user_id" field.
+func (m *MarketflowUserMutation) ResetAuthServiceUserID() {
+	m.auth_service_user_id = nil
+}
+
+// SetEmail sets the "email" field.
+func (m *MarketflowUserMutation) SetEmail(s string) {
+	m.email = &s
+}
+
+// Email returns the value of the "email" field in the mutation.
+func (m *MarketflowUserMutation) Email() (r string, exists bool) {
+	v := m.email
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEmail returns the old "email" field's value of the MarketflowUser entity.
+// If the MarketflowUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowUserMutation) OldEmail(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEmail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEmail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEmail: %w", err)
+	}
+	return oldValue.Email, nil
+}
+
+// ResetEmail resets all changes to the "email" field.
+func (m *MarketflowUserMutation) ResetEmail() {
+	m.email = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *MarketflowUserMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *MarketflowUserMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the MarketflowUser entity.
+// If the MarketflowUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowUserMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *MarketflowUserMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetSyncStatus sets the "sync_status" field.
+func (m *MarketflowUserMutation) SetSyncStatus(s string) {
+	m.sync_status = &s
+}
+
+// SyncStatus returns the value of the "sync_status" field in the mutation.
+func (m *MarketflowUserMutation) SyncStatus() (r string, exists bool) {
+	v := m.sync_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSyncStatus returns the old "sync_status" field's value of the MarketflowUser entity.
+// If the MarketflowUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowUserMutation) OldSyncStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSyncStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSyncStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSyncStatus: %w", err)
+	}
+	return oldValue.SyncStatus, nil
+}
+
+// ResetSyncStatus resets all changes to the "sync_status" field.
+func (m *MarketflowUserMutation) ResetSyncStatus() {
+	m.sync_status = nil
+}
+
+// SetLastSyncAt sets the "last_sync_at" field.
+func (m *MarketflowUserMutation) SetLastSyncAt(t time.Time) {
+	m.last_sync_at = &t
+}
+
+// LastSyncAt returns the value of the "last_sync_at" field in the mutation.
+func (m *MarketflowUserMutation) LastSyncAt() (r time.Time, exists bool) {
+	v := m.last_sync_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastSyncAt returns the old "last_sync_at" field's value of the MarketflowUser entity.
+// If the MarketflowUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowUserMutation) OldLastSyncAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastSyncAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastSyncAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastSyncAt: %w", err)
+	}
+	return oldValue.LastSyncAt, nil
+}
+
+// ClearLastSyncAt clears the value of the "last_sync_at" field.
+func (m *MarketflowUserMutation) ClearLastSyncAt() {
+	m.last_sync_at = nil
+	m.clearedFields[marketflowuser.FieldLastSyncAt] = struct{}{}
+}
+
+// LastSyncAtCleared returns if the "last_sync_at" field was cleared in this mutation.
+func (m *MarketflowUserMutation) LastSyncAtCleared() bool {
+	_, ok := m.clearedFields[marketflowuser.FieldLastSyncAt]
+	return ok
+}
+
+// ResetLastSyncAt resets all changes to the "last_sync_at" field.
+func (m *MarketflowUserMutation) ResetLastSyncAt() {
+	m.last_sync_at = nil
+	delete(m.clearedFields, marketflowuser.FieldLastSyncAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *MarketflowUserMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *MarketflowUserMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the MarketflowUser entity.
+// If the MarketflowUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowUserMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *MarketflowUserMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *MarketflowUserMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *MarketflowUserMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the MarketflowUser entity.
+// If the MarketflowUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowUserMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *MarketflowUserMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the MarketflowUserMutation builder.
+func (m *MarketflowUserMutation) Where(ps ...predicate.MarketflowUser) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MarketflowUserMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MarketflowUserMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MarketflowUser, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MarketflowUserMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MarketflowUserMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (MarketflowUser).
+func (m *MarketflowUserMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MarketflowUserMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.tenant_id != nil {
+		fields = append(fields, marketflowuser.FieldTenantID)
+	}
+	if m.auth_service_user_id != nil {
+		fields = append(fields, marketflowuser.FieldAuthServiceUserID)
+	}
+	if m.email != nil {
+		fields = append(fields, marketflowuser.FieldEmail)
+	}
+	if m.status != nil {
+		fields = append(fields, marketflowuser.FieldStatus)
+	}
+	if m.sync_status != nil {
+		fields = append(fields, marketflowuser.FieldSyncStatus)
+	}
+	if m.last_sync_at != nil {
+		fields = append(fields, marketflowuser.FieldLastSyncAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, marketflowuser.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, marketflowuser.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MarketflowUserMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case marketflowuser.FieldTenantID:
+		return m.TenantID()
+	case marketflowuser.FieldAuthServiceUserID:
+		return m.AuthServiceUserID()
+	case marketflowuser.FieldEmail:
+		return m.Email()
+	case marketflowuser.FieldStatus:
+		return m.Status()
+	case marketflowuser.FieldSyncStatus:
+		return m.SyncStatus()
+	case marketflowuser.FieldLastSyncAt:
+		return m.LastSyncAt()
+	case marketflowuser.FieldCreatedAt:
+		return m.CreatedAt()
+	case marketflowuser.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MarketflowUserMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case marketflowuser.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case marketflowuser.FieldAuthServiceUserID:
+		return m.OldAuthServiceUserID(ctx)
+	case marketflowuser.FieldEmail:
+		return m.OldEmail(ctx)
+	case marketflowuser.FieldStatus:
+		return m.OldStatus(ctx)
+	case marketflowuser.FieldSyncStatus:
+		return m.OldSyncStatus(ctx)
+	case marketflowuser.FieldLastSyncAt:
+		return m.OldLastSyncAt(ctx)
+	case marketflowuser.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case marketflowuser.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown MarketflowUser field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MarketflowUserMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case marketflowuser.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case marketflowuser.FieldAuthServiceUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAuthServiceUserID(v)
+		return nil
+	case marketflowuser.FieldEmail:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEmail(v)
+		return nil
+	case marketflowuser.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case marketflowuser.FieldSyncStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSyncStatus(v)
+		return nil
+	case marketflowuser.FieldLastSyncAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastSyncAt(v)
+		return nil
+	case marketflowuser.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case marketflowuser.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MarketflowUser field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MarketflowUserMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MarketflowUserMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MarketflowUserMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown MarketflowUser numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MarketflowUserMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(marketflowuser.FieldLastSyncAt) {
+		fields = append(fields, marketflowuser.FieldLastSyncAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MarketflowUserMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MarketflowUserMutation) ClearField(name string) error {
+	switch name {
+	case marketflowuser.FieldLastSyncAt:
+		m.ClearLastSyncAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MarketflowUser nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MarketflowUserMutation) ResetField(name string) error {
+	switch name {
+	case marketflowuser.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case marketflowuser.FieldAuthServiceUserID:
+		m.ResetAuthServiceUserID()
+		return nil
+	case marketflowuser.FieldEmail:
+		m.ResetEmail()
+		return nil
+	case marketflowuser.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case marketflowuser.FieldSyncStatus:
+		m.ResetSyncStatus()
+		return nil
+	case marketflowuser.FieldLastSyncAt:
+		m.ResetLastSyncAt()
+		return nil
+	case marketflowuser.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case marketflowuser.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MarketflowUser field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MarketflowUserMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MarketflowUserMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MarketflowUserMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MarketflowUserMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MarketflowUserMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MarketflowUserMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MarketflowUserMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown MarketflowUser unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MarketflowUserMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown MarketflowUser edge %s", name)
+}
+
 // NurtureSequenceMutation represents an operation that mutates the NurtureSequence nodes in the graph.
 type NurtureSequenceMutation struct {
 	config
@@ -12873,6 +15425,486 @@ func (m *ProviderSettingMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *ProviderSettingMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown ProviderSetting edge %s", name)
+}
+
+// RolePermissionMutation represents an operation that mutates the RolePermission nodes in the graph.
+type RolePermissionMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *int
+	clearedFields     map[string]struct{}
+	role              *uuid.UUID
+	clearedrole       bool
+	permission        *uuid.UUID
+	clearedpermission bool
+	done              bool
+	oldValue          func(context.Context) (*RolePermission, error)
+	predicates        []predicate.RolePermission
+}
+
+var _ ent.Mutation = (*RolePermissionMutation)(nil)
+
+// rolepermissionOption allows management of the mutation configuration using functional options.
+type rolepermissionOption func(*RolePermissionMutation)
+
+// newRolePermissionMutation creates new mutation for the RolePermission entity.
+func newRolePermissionMutation(c config, op Op, opts ...rolepermissionOption) *RolePermissionMutation {
+	m := &RolePermissionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeRolePermission,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withRolePermissionID sets the ID field of the mutation.
+func withRolePermissionID(id int) rolepermissionOption {
+	return func(m *RolePermissionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *RolePermission
+		)
+		m.oldValue = func(ctx context.Context) (*RolePermission, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().RolePermission.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withRolePermission sets the old RolePermission of the mutation.
+func withRolePermission(node *RolePermission) rolepermissionOption {
+	return func(m *RolePermissionMutation) {
+		m.oldValue = func(context.Context) (*RolePermission, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m RolePermissionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m RolePermissionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *RolePermissionMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *RolePermissionMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().RolePermission.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetRoleID sets the "role_id" field.
+func (m *RolePermissionMutation) SetRoleID(u uuid.UUID) {
+	m.role = &u
+}
+
+// RoleID returns the value of the "role_id" field in the mutation.
+func (m *RolePermissionMutation) RoleID() (r uuid.UUID, exists bool) {
+	v := m.role
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRoleID returns the old "role_id" field's value of the RolePermission entity.
+// If the RolePermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RolePermissionMutation) OldRoleID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRoleID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRoleID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRoleID: %w", err)
+	}
+	return oldValue.RoleID, nil
+}
+
+// ResetRoleID resets all changes to the "role_id" field.
+func (m *RolePermissionMutation) ResetRoleID() {
+	m.role = nil
+}
+
+// SetPermissionID sets the "permission_id" field.
+func (m *RolePermissionMutation) SetPermissionID(u uuid.UUID) {
+	m.permission = &u
+}
+
+// PermissionID returns the value of the "permission_id" field in the mutation.
+func (m *RolePermissionMutation) PermissionID() (r uuid.UUID, exists bool) {
+	v := m.permission
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPermissionID returns the old "permission_id" field's value of the RolePermission entity.
+// If the RolePermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RolePermissionMutation) OldPermissionID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPermissionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPermissionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPermissionID: %w", err)
+	}
+	return oldValue.PermissionID, nil
+}
+
+// ResetPermissionID resets all changes to the "permission_id" field.
+func (m *RolePermissionMutation) ResetPermissionID() {
+	m.permission = nil
+}
+
+// ClearRole clears the "role" edge to the MarketflowRole entity.
+func (m *RolePermissionMutation) ClearRole() {
+	m.clearedrole = true
+	m.clearedFields[rolepermission.FieldRoleID] = struct{}{}
+}
+
+// RoleCleared reports if the "role" edge to the MarketflowRole entity was cleared.
+func (m *RolePermissionMutation) RoleCleared() bool {
+	return m.clearedrole
+}
+
+// RoleIDs returns the "role" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// RoleID instead. It exists only for internal usage by the builders.
+func (m *RolePermissionMutation) RoleIDs() (ids []uuid.UUID) {
+	if id := m.role; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetRole resets all changes to the "role" edge.
+func (m *RolePermissionMutation) ResetRole() {
+	m.role = nil
+	m.clearedrole = false
+}
+
+// ClearPermission clears the "permission" edge to the MarketflowPermission entity.
+func (m *RolePermissionMutation) ClearPermission() {
+	m.clearedpermission = true
+	m.clearedFields[rolepermission.FieldPermissionID] = struct{}{}
+}
+
+// PermissionCleared reports if the "permission" edge to the MarketflowPermission entity was cleared.
+func (m *RolePermissionMutation) PermissionCleared() bool {
+	return m.clearedpermission
+}
+
+// PermissionIDs returns the "permission" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// PermissionID instead. It exists only for internal usage by the builders.
+func (m *RolePermissionMutation) PermissionIDs() (ids []uuid.UUID) {
+	if id := m.permission; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetPermission resets all changes to the "permission" edge.
+func (m *RolePermissionMutation) ResetPermission() {
+	m.permission = nil
+	m.clearedpermission = false
+}
+
+// Where appends a list predicates to the RolePermissionMutation builder.
+func (m *RolePermissionMutation) Where(ps ...predicate.RolePermission) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the RolePermissionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *RolePermissionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.RolePermission, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *RolePermissionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *RolePermissionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (RolePermission).
+func (m *RolePermissionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *RolePermissionMutation) Fields() []string {
+	fields := make([]string, 0, 2)
+	if m.role != nil {
+		fields = append(fields, rolepermission.FieldRoleID)
+	}
+	if m.permission != nil {
+		fields = append(fields, rolepermission.FieldPermissionID)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *RolePermissionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case rolepermission.FieldRoleID:
+		return m.RoleID()
+	case rolepermission.FieldPermissionID:
+		return m.PermissionID()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *RolePermissionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case rolepermission.FieldRoleID:
+		return m.OldRoleID(ctx)
+	case rolepermission.FieldPermissionID:
+		return m.OldPermissionID(ctx)
+	}
+	return nil, fmt.Errorf("unknown RolePermission field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RolePermissionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case rolepermission.FieldRoleID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRoleID(v)
+		return nil
+	case rolepermission.FieldPermissionID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPermissionID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RolePermission field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *RolePermissionMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *RolePermissionMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RolePermissionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown RolePermission numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *RolePermissionMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *RolePermissionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *RolePermissionMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown RolePermission nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *RolePermissionMutation) ResetField(name string) error {
+	switch name {
+	case rolepermission.FieldRoleID:
+		m.ResetRoleID()
+		return nil
+	case rolepermission.FieldPermissionID:
+		m.ResetPermissionID()
+		return nil
+	}
+	return fmt.Errorf("unknown RolePermission field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *RolePermissionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.role != nil {
+		edges = append(edges, rolepermission.EdgeRole)
+	}
+	if m.permission != nil {
+		edges = append(edges, rolepermission.EdgePermission)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *RolePermissionMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case rolepermission.EdgeRole:
+		if id := m.role; id != nil {
+			return []ent.Value{*id}
+		}
+	case rolepermission.EdgePermission:
+		if id := m.permission; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *RolePermissionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *RolePermissionMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *RolePermissionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedrole {
+		edges = append(edges, rolepermission.EdgeRole)
+	}
+	if m.clearedpermission {
+		edges = append(edges, rolepermission.EdgePermission)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *RolePermissionMutation) EdgeCleared(name string) bool {
+	switch name {
+	case rolepermission.EdgeRole:
+		return m.clearedrole
+	case rolepermission.EdgePermission:
+		return m.clearedpermission
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *RolePermissionMutation) ClearEdge(name string) error {
+	switch name {
+	case rolepermission.EdgeRole:
+		m.ClearRole()
+		return nil
+	case rolepermission.EdgePermission:
+		m.ClearPermission()
+		return nil
+	}
+	return fmt.Errorf("unknown RolePermission unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *RolePermissionMutation) ResetEdge(name string) error {
+	switch name {
+	case rolepermission.EdgeRole:
+		m.ResetRole()
+		return nil
+	case rolepermission.EdgePermission:
+		m.ResetPermission()
+		return nil
+	}
+	return fmt.Errorf("unknown RolePermission edge %s", name)
 }
 
 // ScheduledMeetingMutation represents an operation that mutates the ScheduledMeeting nodes in the graph.
@@ -17989,4 +21021,728 @@ func (m *TenantMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Tenant edge %s", name)
+}
+
+// UserRoleAssignmentMutation represents an operation that mutates the UserRoleAssignment nodes in the graph.
+type UserRoleAssignmentMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *uuid.UUID
+	tenant_id     *uuid.UUID
+	assigned_by   *uuid.UUID
+	assigned_at   *time.Time
+	expires_at    *time.Time
+	clearedFields map[string]struct{}
+	user          *uuid.UUID
+	cleareduser   bool
+	role          *uuid.UUID
+	clearedrole   bool
+	done          bool
+	oldValue      func(context.Context) (*UserRoleAssignment, error)
+	predicates    []predicate.UserRoleAssignment
+}
+
+var _ ent.Mutation = (*UserRoleAssignmentMutation)(nil)
+
+// userroleassignmentOption allows management of the mutation configuration using functional options.
+type userroleassignmentOption func(*UserRoleAssignmentMutation)
+
+// newUserRoleAssignmentMutation creates new mutation for the UserRoleAssignment entity.
+func newUserRoleAssignmentMutation(c config, op Op, opts ...userroleassignmentOption) *UserRoleAssignmentMutation {
+	m := &UserRoleAssignmentMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeUserRoleAssignment,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withUserRoleAssignmentID sets the ID field of the mutation.
+func withUserRoleAssignmentID(id uuid.UUID) userroleassignmentOption {
+	return func(m *UserRoleAssignmentMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *UserRoleAssignment
+		)
+		m.oldValue = func(ctx context.Context) (*UserRoleAssignment, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().UserRoleAssignment.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withUserRoleAssignment sets the old UserRoleAssignment of the mutation.
+func withUserRoleAssignment(node *UserRoleAssignment) userroleassignmentOption {
+	return func(m *UserRoleAssignmentMutation) {
+		m.oldValue = func(context.Context) (*UserRoleAssignment, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m UserRoleAssignmentMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m UserRoleAssignmentMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of UserRoleAssignment entities.
+func (m *UserRoleAssignmentMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *UserRoleAssignmentMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *UserRoleAssignmentMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().UserRoleAssignment.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *UserRoleAssignmentMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *UserRoleAssignmentMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the UserRoleAssignment entity.
+// If the UserRoleAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRoleAssignmentMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *UserRoleAssignmentMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *UserRoleAssignmentMutation) SetUserID(u uuid.UUID) {
+	m.user = &u
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *UserRoleAssignmentMutation) UserID() (r uuid.UUID, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the UserRoleAssignment entity.
+// If the UserRoleAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRoleAssignmentMutation) OldUserID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *UserRoleAssignmentMutation) ResetUserID() {
+	m.user = nil
+}
+
+// SetRoleID sets the "role_id" field.
+func (m *UserRoleAssignmentMutation) SetRoleID(u uuid.UUID) {
+	m.role = &u
+}
+
+// RoleID returns the value of the "role_id" field in the mutation.
+func (m *UserRoleAssignmentMutation) RoleID() (r uuid.UUID, exists bool) {
+	v := m.role
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRoleID returns the old "role_id" field's value of the UserRoleAssignment entity.
+// If the UserRoleAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRoleAssignmentMutation) OldRoleID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRoleID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRoleID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRoleID: %w", err)
+	}
+	return oldValue.RoleID, nil
+}
+
+// ResetRoleID resets all changes to the "role_id" field.
+func (m *UserRoleAssignmentMutation) ResetRoleID() {
+	m.role = nil
+}
+
+// SetAssignedBy sets the "assigned_by" field.
+func (m *UserRoleAssignmentMutation) SetAssignedBy(u uuid.UUID) {
+	m.assigned_by = &u
+}
+
+// AssignedBy returns the value of the "assigned_by" field in the mutation.
+func (m *UserRoleAssignmentMutation) AssignedBy() (r uuid.UUID, exists bool) {
+	v := m.assigned_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAssignedBy returns the old "assigned_by" field's value of the UserRoleAssignment entity.
+// If the UserRoleAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRoleAssignmentMutation) OldAssignedBy(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAssignedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAssignedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAssignedBy: %w", err)
+	}
+	return oldValue.AssignedBy, nil
+}
+
+// ResetAssignedBy resets all changes to the "assigned_by" field.
+func (m *UserRoleAssignmentMutation) ResetAssignedBy() {
+	m.assigned_by = nil
+}
+
+// SetAssignedAt sets the "assigned_at" field.
+func (m *UserRoleAssignmentMutation) SetAssignedAt(t time.Time) {
+	m.assigned_at = &t
+}
+
+// AssignedAt returns the value of the "assigned_at" field in the mutation.
+func (m *UserRoleAssignmentMutation) AssignedAt() (r time.Time, exists bool) {
+	v := m.assigned_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAssignedAt returns the old "assigned_at" field's value of the UserRoleAssignment entity.
+// If the UserRoleAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRoleAssignmentMutation) OldAssignedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAssignedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAssignedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAssignedAt: %w", err)
+	}
+	return oldValue.AssignedAt, nil
+}
+
+// ResetAssignedAt resets all changes to the "assigned_at" field.
+func (m *UserRoleAssignmentMutation) ResetAssignedAt() {
+	m.assigned_at = nil
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *UserRoleAssignmentMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *UserRoleAssignmentMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the UserRoleAssignment entity.
+// If the UserRoleAssignment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRoleAssignmentMutation) OldExpiresAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (m *UserRoleAssignmentMutation) ClearExpiresAt() {
+	m.expires_at = nil
+	m.clearedFields[userroleassignment.FieldExpiresAt] = struct{}{}
+}
+
+// ExpiresAtCleared returns if the "expires_at" field was cleared in this mutation.
+func (m *UserRoleAssignmentMutation) ExpiresAtCleared() bool {
+	_, ok := m.clearedFields[userroleassignment.FieldExpiresAt]
+	return ok
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *UserRoleAssignmentMutation) ResetExpiresAt() {
+	m.expires_at = nil
+	delete(m.clearedFields, userroleassignment.FieldExpiresAt)
+}
+
+// ClearUser clears the "user" edge to the MarketflowUser entity.
+func (m *UserRoleAssignmentMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[userroleassignment.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the MarketflowUser entity was cleared.
+func (m *UserRoleAssignmentMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *UserRoleAssignmentMutation) UserIDs() (ids []uuid.UUID) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *UserRoleAssignmentMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// ClearRole clears the "role" edge to the MarketflowRole entity.
+func (m *UserRoleAssignmentMutation) ClearRole() {
+	m.clearedrole = true
+	m.clearedFields[userroleassignment.FieldRoleID] = struct{}{}
+}
+
+// RoleCleared reports if the "role" edge to the MarketflowRole entity was cleared.
+func (m *UserRoleAssignmentMutation) RoleCleared() bool {
+	return m.clearedrole
+}
+
+// RoleIDs returns the "role" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// RoleID instead. It exists only for internal usage by the builders.
+func (m *UserRoleAssignmentMutation) RoleIDs() (ids []uuid.UUID) {
+	if id := m.role; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetRole resets all changes to the "role" edge.
+func (m *UserRoleAssignmentMutation) ResetRole() {
+	m.role = nil
+	m.clearedrole = false
+}
+
+// Where appends a list predicates to the UserRoleAssignmentMutation builder.
+func (m *UserRoleAssignmentMutation) Where(ps ...predicate.UserRoleAssignment) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the UserRoleAssignmentMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *UserRoleAssignmentMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.UserRoleAssignment, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *UserRoleAssignmentMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *UserRoleAssignmentMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (UserRoleAssignment).
+func (m *UserRoleAssignmentMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *UserRoleAssignmentMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.tenant_id != nil {
+		fields = append(fields, userroleassignment.FieldTenantID)
+	}
+	if m.user != nil {
+		fields = append(fields, userroleassignment.FieldUserID)
+	}
+	if m.role != nil {
+		fields = append(fields, userroleassignment.FieldRoleID)
+	}
+	if m.assigned_by != nil {
+		fields = append(fields, userroleassignment.FieldAssignedBy)
+	}
+	if m.assigned_at != nil {
+		fields = append(fields, userroleassignment.FieldAssignedAt)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, userroleassignment.FieldExpiresAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *UserRoleAssignmentMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case userroleassignment.FieldTenantID:
+		return m.TenantID()
+	case userroleassignment.FieldUserID:
+		return m.UserID()
+	case userroleassignment.FieldRoleID:
+		return m.RoleID()
+	case userroleassignment.FieldAssignedBy:
+		return m.AssignedBy()
+	case userroleassignment.FieldAssignedAt:
+		return m.AssignedAt()
+	case userroleassignment.FieldExpiresAt:
+		return m.ExpiresAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *UserRoleAssignmentMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case userroleassignment.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case userroleassignment.FieldUserID:
+		return m.OldUserID(ctx)
+	case userroleassignment.FieldRoleID:
+		return m.OldRoleID(ctx)
+	case userroleassignment.FieldAssignedBy:
+		return m.OldAssignedBy(ctx)
+	case userroleassignment.FieldAssignedAt:
+		return m.OldAssignedAt(ctx)
+	case userroleassignment.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown UserRoleAssignment field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserRoleAssignmentMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case userroleassignment.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case userroleassignment.FieldUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case userroleassignment.FieldRoleID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRoleID(v)
+		return nil
+	case userroleassignment.FieldAssignedBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAssignedBy(v)
+		return nil
+	case userroleassignment.FieldAssignedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAssignedAt(v)
+		return nil
+	case userroleassignment.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserRoleAssignment field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *UserRoleAssignmentMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *UserRoleAssignmentMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserRoleAssignmentMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown UserRoleAssignment numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *UserRoleAssignmentMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(userroleassignment.FieldExpiresAt) {
+		fields = append(fields, userroleassignment.FieldExpiresAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *UserRoleAssignmentMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *UserRoleAssignmentMutation) ClearField(name string) error {
+	switch name {
+	case userroleassignment.FieldExpiresAt:
+		m.ClearExpiresAt()
+		return nil
+	}
+	return fmt.Errorf("unknown UserRoleAssignment nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *UserRoleAssignmentMutation) ResetField(name string) error {
+	switch name {
+	case userroleassignment.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case userroleassignment.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case userroleassignment.FieldRoleID:
+		m.ResetRoleID()
+		return nil
+	case userroleassignment.FieldAssignedBy:
+		m.ResetAssignedBy()
+		return nil
+	case userroleassignment.FieldAssignedAt:
+		m.ResetAssignedAt()
+		return nil
+	case userroleassignment.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	}
+	return fmt.Errorf("unknown UserRoleAssignment field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *UserRoleAssignmentMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.user != nil {
+		edges = append(edges, userroleassignment.EdgeUser)
+	}
+	if m.role != nil {
+		edges = append(edges, userroleassignment.EdgeRole)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *UserRoleAssignmentMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case userroleassignment.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	case userroleassignment.EdgeRole:
+		if id := m.role; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *UserRoleAssignmentMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *UserRoleAssignmentMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *UserRoleAssignmentMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.cleareduser {
+		edges = append(edges, userroleassignment.EdgeUser)
+	}
+	if m.clearedrole {
+		edges = append(edges, userroleassignment.EdgeRole)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *UserRoleAssignmentMutation) EdgeCleared(name string) bool {
+	switch name {
+	case userroleassignment.EdgeUser:
+		return m.cleareduser
+	case userroleassignment.EdgeRole:
+		return m.clearedrole
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *UserRoleAssignmentMutation) ClearEdge(name string) error {
+	switch name {
+	case userroleassignment.EdgeUser:
+		m.ClearUser()
+		return nil
+	case userroleassignment.EdgeRole:
+		m.ClearRole()
+		return nil
+	}
+	return fmt.Errorf("unknown UserRoleAssignment unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *UserRoleAssignmentMutation) ResetEdge(name string) error {
+	switch name {
+	case userroleassignment.EdgeUser:
+		m.ResetUser()
+		return nil
+	case userroleassignment.EdgeRole:
+		m.ResetRole()
+		return nil
+	}
+	return fmt.Errorf("unknown UserRoleAssignment edge %s", name)
 }

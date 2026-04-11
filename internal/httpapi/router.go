@@ -33,11 +33,23 @@ type RouterDeps struct {
 	// Short link handlers
 	ShortLinkHandlers ShortLinkHandlers
 
+	// Admin provider handlers (platform owner only)
+	AdminProviderHandlers AdminProviderHandlers
+
 	// Auth middleware
-	RequireAuthHandler func(http.Handler) http.Handler
+	RequireAuthHandler      func(http.Handler) http.Handler
+	RequirePlatformOwner    func(http.Handler) http.Handler
 
 	// Allowed origins for CORS
 	AllowedOrigins string
+}
+
+// AdminProviderHandlers groups platform provider management handlers.
+type AdminProviderHandlers struct {
+	Configure   http.HandlerFunc
+	List        http.HandlerFunc
+	GetSettings http.HandlerFunc
+	Deactivate  http.HandlerFunc
 }
 
 // LeadHandlers groups lead management HTTP handlers.
@@ -214,6 +226,21 @@ func NewRouter(deps RouterDeps) http.Handler {
 			r.Route("/short-links", func(r chi.Router) {
 				r.Post("/", deps.ShortLinkHandlers.Create)
 				r.Get("/", deps.ShortLinkHandlers.List)
+			})
+
+			// Admin routes (platform owner only)
+			r.Route("/admin", func(r chi.Router) {
+				if deps.RequirePlatformOwner != nil {
+					r.Use(deps.RequirePlatformOwner)
+				}
+
+				// Provider configuration management
+				r.Route("/providers", func(r chi.Router) {
+					r.Post("/configure", deps.AdminProviderHandlers.Configure)
+					r.Get("/", deps.AdminProviderHandlers.List)
+					r.Get("/settings", deps.AdminProviderHandlers.GetSettings)
+					r.Delete("/{id}", deps.AdminProviderHandlers.Deactivate)
+				})
 			})
 		})
 	})

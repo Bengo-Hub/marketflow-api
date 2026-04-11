@@ -15,11 +15,14 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/httpapi/handlers"
+	"github.com/bengobox/marketflow-api/internal/modules/admin"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
 	"github.com/bengobox/marketflow-api/internal/modules/outbox"
+	"github.com/bengobox/marketflow-api/internal/modules/rbac"
 	"github.com/bengobox/marketflow-api/internal/modules/shortlinks"
+	"github.com/bengobox/marketflow-api/internal/modules/tenant"
 	platformevents "github.com/bengobox/marketflow-api/internal/platform/events"
 	"github.com/bengobox/marketflow-api/internal/providers"
 	"github.com/nats-io/nats.go"
@@ -37,7 +40,9 @@ type App struct {
 	redis           *redis.Client
 	natsConn        *nats.Conn
 	outboxPublisher *outbox.Publisher
+	tenantConsumer  *platformevents.TenantConsumer
 	providerManager *providers.Manager
+	rbacService     *rbac.Service
 	httpServer      *http.Server
 }
 
@@ -82,6 +87,25 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// ── Provider Config Manager ───────────────────────────────────────────
 	encKey := encryption.KeyFromEnv(cfg.Security.EncryptionKey)
 	providerMgr := providers.NewManager(entClient, encKey, cfg.App.Environment, cfg.Security.PlatformTenant, logger)
+
+	// ── Tenant Syncer ─────────────────────────────────────────────────────
+	tenantSyncer := tenant.NewSyncer(entClient, logger)
+
+	// ── RBAC ──────────────────────────────────────────────────────────────
+	rbacRepo := rbac.NewEntRepository(entClient)
+	rbacService := rbac.NewService(rbacRepo, logger)
+
+	// ── NATS Tenant Consumer ──────────────────────────────────────────────
+	var tenantConsumer *platformevents.TenantConsumer
+	if natsConn != nil {
+		tenantConsumer = platformevents.NewTenantConsumer(natsConn, tenantSyncer, logger)
+		if err := tenantConsumer.Start(); err != nil {
+			logger.Warn("failed to start tenant consumer", zap.Error(err))
+		}
+	}
+
+	// ── Platform Provider Admin Handler ────────────────────────────────────
+	platformProviderHandler := admin.NewPlatformProviderHandler(entClient, encKey, logger)
 
 	// ── Auth Middleware (JWT via shared auth-client JWKS) ──────────────────
 	var authMiddleware *authclient.AuthMiddleware
@@ -175,7 +199,14 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			List:     shortLinkHandler.List,
 			Redirect: shortLinkHandler.Redirect,
 		},
+		AdminProviderHandlers: httpapi.AdminProviderHandlers{
+			Configure:   platformProviderHandler.ConfigureProvider,
+			List:        platformProviderHandler.ListProviders,
+			GetSettings: platformProviderHandler.GetProviderSettings,
+			Deactivate:  platformProviderHandler.DeactivateProvider,
+		},
 		RequireAuthHandler: requireAuth,
+		RequirePlatformOwner: requirePlatformOwner(authMiddleware),
 		AllowedOrigins:     cfg.HTTP.AllowedOrigins,
 	})
 
@@ -197,9 +228,42 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		redis:           redisClient,
 		natsConn:        natsConn,
 		outboxPublisher: outboxPub,
+		tenantConsumer:  tenantConsumer,
 		providerManager: providerMgr,
+		rbacService:     rbacService,
 		httpServer:      server,
 	}, nil
+}
+
+// requirePlatformOwner creates middleware that restricts access to platform owners (superuser role).
+func requirePlatformOwner(authMw *authclient.AuthMiddleware) func(http.Handler) http.Handler {
+	if authMw == nil {
+		return nil
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claims, ok := authclient.ClaimsFromContext(r.Context())
+			if !ok || claims == nil {
+				httpapi.Error(w, http.StatusUnauthorized, "unauthorized", "authentication required", nil)
+				return
+			}
+
+			// Check for superuser or platform owner
+			isSuperuser := false
+			for _, role := range claims.Roles {
+				if role == "superuser" || role == "admin" {
+					isSuperuser = true
+					break
+				}
+			}
+			if !isSuperuser && !claims.IsPlatformOwner {
+				httpapi.Error(w, http.StatusForbidden, "forbidden", "platform owner access required", nil)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // Run starts the HTTP server.
@@ -211,6 +275,10 @@ func (a *App) Run() error {
 // Shutdown gracefully stops the HTTP server and closes resources.
 func (a *App) Shutdown(ctx context.Context) error {
 	shutdownErr := a.httpServer.Shutdown(ctx)
+
+	if a.tenantConsumer != nil {
+		a.tenantConsumer.Stop()
+	}
 
 	if a.outboxPublisher != nil {
 		a.outboxPublisher.Stop()

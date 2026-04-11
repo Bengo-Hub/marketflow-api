@@ -2,17 +2,22 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
+	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
+	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
+	"github.com/bengobox/marketflow-api/internal/ent/rolepermission"
 	"github.com/bengobox/marketflow-api/internal/flp/seed"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
@@ -52,14 +57,21 @@ func main() {
 	client := ent.NewClient(ent.Driver(drv))
 	defer client.Close()
 
-	log.Printf("Seeding knowledge base for tenant %s...", tenantID)
+	log.Printf("Seeding for tenant %s...", tenantID)
 
+	// Phase 1: RBAC — permissions, roles, role-permission mappings (Django-style)
+	permsSeeded := seedPermissions(ctx, client)
+	rolesSeeded := seedRoles(ctx, client, tid)
+	mappingsSeeded := seedRolePermissionMappings(ctx, client, tid)
+	log.Printf("RBAC: %d permissions, %d roles, %d mappings seeded", permsSeeded, rolesSeeded, mappingsSeeded)
+
+	// Phase 2: Knowledge base seed data
 	productsSeeded := seedProducts(ctx, client, tid)
 	faqSeeded := seedFAQ(ctx, client, tid)
 	bizSeeded := seedBusinessOpportunity(ctx, client, tid)
 	complianceSeeded := seedCompliance(ctx, client, tid)
 
-	log.Printf("Seeding complete: %d products, %d FAQ, %d business, %d compliance entries",
+	log.Printf("KB: %d products, %d FAQ, %d business, %d compliance entries",
 		productsSeeded, faqSeeded, bizSeeded, complianceSeeded)
 }
 
@@ -343,4 +355,222 @@ func createIfNotExists(ctx context.Context, client *ent.Client, tenantID uuid.UU
 		return false
 	}
 	return true
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// RBAC Seeding — Django-style permissions, roles, and role-permission mappings
+// ════════════════════════════════════════════════════════════════════════════
+
+// permUUID generates a deterministic UUID from a permission code.
+func permUUID(code string) uuid.UUID {
+	hash := sha256.Sum256([]byte("marketflow:" + code))
+	return uuid.UUID(hash[:16])
+}
+
+// roleUUID generates a deterministic UUID from tenant + role code.
+func roleUUID(tenantID uuid.UUID, roleCode string) uuid.UUID {
+	hash := sha256.Sum256([]byte("marketflow_role:" + tenantID.String() + ":" + roleCode))
+	return uuid.UUID(hash[:16])
+}
+
+// Django-style permission definition: marketflow.{module}.{action}
+type permDef struct {
+	code   string // marketflow.leads.add
+	module string // leads
+	action string // add
+	name   string // Add Leads
+	desc   string // Create new leads
+}
+
+// All marketflow modules and actions
+var allPermDefs []permDef
+
+func init() {
+	modules := []struct {
+		name string
+		desc string
+	}{
+		{"leads", "Lead"},
+		{"contacts", "Contact"},
+		{"knowledge", "Knowledge Base"},
+		{"campaigns", "Campaign"},
+		{"funnels", "Funnel"},
+		{"shortlinks", "Short Link"},
+		{"providers", "Provider Config"},
+		{"config", "Service Config"},
+		{"analytics", "Analytics"},
+		{"chat", "AI Chat"},
+	}
+
+	actions := []struct {
+		code string
+		name string
+		desc string
+	}{
+		{"add", "Add", "Create new"},
+		{"view", "View", "View all"},
+		{"view_own", "View Own", "View own"},
+		{"change", "Change", "Edit any"},
+		{"change_own", "Change Own", "Edit own"},
+		{"delete", "Delete", "Delete"},
+		{"manage", "Manage", "Full management"},
+	}
+
+	for _, m := range modules {
+		for _, a := range actions {
+			code := "marketflow." + m.name + "." + a.code
+			allPermDefs = append(allPermDefs, permDef{
+				code:   code,
+				module: m.name,
+				action: a.code,
+				name:   a.name + " " + m.desc,
+				desc:   a.desc + " " + strings.ToLower(m.desc) + " records",
+			})
+		}
+	}
+}
+
+// seedPermissions creates all Django-style permissions (global, not tenant-scoped).
+func seedPermissions(ctx context.Context, client *ent.Client) int {
+	count := 0
+	for _, p := range allPermDefs {
+		id := permUUID(p.code)
+		exists, _ := client.MarketflowPermission.Query().
+			Where(marketflowpermission.PermissionCodeEQ(p.code)).
+			Exist(ctx)
+		if exists {
+			continue
+		}
+
+		err := client.MarketflowPermission.Create().
+			SetID(id).
+			SetPermissionCode(p.code).
+			SetName(p.name).
+			SetModule(p.module).
+			SetAction(p.action).
+			SetDescription(p.desc).
+			Exec(ctx)
+		if err != nil {
+			log.Printf("  ! permission %s: %v", p.code, err)
+			continue
+		}
+		count++
+	}
+	if count > 0 {
+		log.Printf("  seeded %d permissions (of %d total)", count, len(allPermDefs))
+	}
+	return count
+}
+
+// roleDef defines a system role with its permission scope.
+type roleDef struct {
+	code string
+	name string
+	desc string
+}
+
+var systemRoles = []roleDef{
+	{"marketflow_admin", "MarketFlow Admin", "Full administrative access to all modules"},
+	{"fbo_owner", "FBO Owner", "Manage own leads, contacts, knowledge, campaigns, funnels, shortlinks, chat"},
+	{"viewer", "Viewer", "Read-only access to all data"},
+}
+
+// seedRoles creates system roles for a tenant.
+func seedRoles(ctx context.Context, client *ent.Client, tenantID uuid.UUID) int {
+	count := 0
+	for _, r := range systemRoles {
+		id := roleUUID(tenantID, r.code)
+		exists, _ := client.MarketflowRole.Query().
+			Where(
+				marketflowrole.TenantID(tenantID),
+				marketflowrole.RoleCodeEQ(r.code),
+			).Exist(ctx)
+		if exists {
+			continue
+		}
+
+		desc := r.desc
+		err := client.MarketflowRole.Create().
+			SetID(id).
+			SetTenantID(tenantID).
+			SetRoleCode(r.code).
+			SetName(r.name).
+			SetDescription(desc).
+			SetIsSystemRole(true).
+			Exec(ctx)
+		if err != nil {
+			log.Printf("  ! role %s: %v", r.code, err)
+			continue
+		}
+		count++
+	}
+	if count > 0 {
+		log.Printf("  seeded %d roles for tenant %s", count, tenantID)
+	}
+	return count
+}
+
+// Role → permission mappings
+// marketflow_admin: ALL permissions
+// fbo_owner: all except providers.manage, config.manage
+// viewer: only *.view and *.view_own
+var rolePermissionMap = map[string]func(code string) bool{
+	"marketflow_admin": func(code string) bool {
+		return true // all permissions
+	},
+	"fbo_owner": func(code string) bool {
+		// Exclude provider/config management
+		if strings.Contains(code, "providers.manage") || strings.Contains(code, "config.manage") {
+			return false
+		}
+		return true
+	},
+	"viewer": func(code string) bool {
+		// Only view and view_own
+		return strings.HasSuffix(code, ".view") || strings.HasSuffix(code, ".view_own")
+	},
+}
+
+// seedRolePermissionMappings assigns permissions to roles for a tenant.
+func seedRolePermissionMappings(ctx context.Context, client *ent.Client, tenantID uuid.UUID) int {
+	count := 0
+	for _, r := range systemRoles {
+		matcher, ok := rolePermissionMap[r.code]
+		if !ok {
+			continue
+		}
+
+		roleID := roleUUID(tenantID, r.code)
+
+		for _, p := range allPermDefs {
+			if !matcher(p.code) {
+				continue
+			}
+
+			permID := permUUID(p.code)
+
+			// Check if mapping already exists
+			exists, _ := client.RolePermission.Query().
+				Where(
+					rolepermission.RoleID(roleID),
+					rolepermission.PermissionID(permID),
+				).Exist(ctx)
+			if exists {
+				continue
+			}
+
+			err := client.RolePermission.Create().
+				SetRoleID(roleID).
+				SetPermissionID(permID).
+				Exec(ctx)
+			if err != nil {
+				continue // likely role/perm not found yet
+			}
+			count++
+		}
+	}
+	if count > 0 {
+		log.Printf("  seeded %d role-permission mappings", count)
+	}
+	return count
 }

@@ -81,6 +81,42 @@ func (f LeadFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LeadMutation", m)
 }
 
+// The MarketflowPermissionFunc type is an adapter to allow the use of ordinary
+// function as MarketflowPermission mutator.
+type MarketflowPermissionFunc func(context.Context, *ent.MarketflowPermissionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MarketflowPermissionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MarketflowPermissionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MarketflowPermissionMutation", m)
+}
+
+// The MarketflowRoleFunc type is an adapter to allow the use of ordinary
+// function as MarketflowRole mutator.
+type MarketflowRoleFunc func(context.Context, *ent.MarketflowRoleMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MarketflowRoleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MarketflowRoleMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MarketflowRoleMutation", m)
+}
+
+// The MarketflowUserFunc type is an adapter to allow the use of ordinary
+// function as MarketflowUser mutator.
+type MarketflowUserFunc func(context.Context, *ent.MarketflowUserMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MarketflowUserFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MarketflowUserMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MarketflowUserMutation", m)
+}
+
 // The NurtureSequenceFunc type is an adapter to allow the use of ordinary
 // function as NurtureSequence mutator.
 type NurtureSequenceFunc func(context.Context, *ent.NurtureSequenceMutation) (ent.Value, error)
@@ -115,6 +151,18 @@ func (f ProviderSettingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Va
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProviderSettingMutation", m)
+}
+
+// The RolePermissionFunc type is an adapter to allow the use of ordinary
+// function as RolePermission mutator.
+type RolePermissionFunc func(context.Context, *ent.RolePermissionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RolePermissionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RolePermissionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RolePermissionMutation", m)
 }
 
 // The ScheduledMeetingFunc type is an adapter to allow the use of ordinary
@@ -163,6 +211,18 @@ func (f TenantFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TenantMutation", m)
+}
+
+// The UserRoleAssignmentFunc type is an adapter to allow the use of ordinary
+// function as UserRoleAssignment mutator.
+type UserRoleAssignmentFunc func(context.Context, *ent.UserRoleAssignmentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UserRoleAssignmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UserRoleAssignmentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserRoleAssignmentMutation", m)
 }
 
 // Condition is a hook condition function.

@@ -11,6 +11,9 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
+	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
+	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/outboxevent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
@@ -19,6 +22,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
 	"github.com/bengobox/marketflow-api/internal/ent/shortlink"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
+	"github.com/bengobox/marketflow-api/internal/ent/userroleassignment"
 	"github.com/google/uuid"
 )
 
@@ -240,6 +244,88 @@ func init() {
 	leadDescID := leadFields[0].Descriptor()
 	// lead.DefaultID holds the default value on creation for the id field.
 	lead.DefaultID = leadDescID.Default.(func() uuid.UUID)
+	marketflowpermissionFields := schema.MarketflowPermission{}.Fields()
+	_ = marketflowpermissionFields
+	// marketflowpermissionDescPermissionCode is the schema descriptor for permission_code field.
+	marketflowpermissionDescPermissionCode := marketflowpermissionFields[1].Descriptor()
+	// marketflowpermission.PermissionCodeValidator is a validator for the "permission_code" field. It is called by the builders before save.
+	marketflowpermission.PermissionCodeValidator = marketflowpermissionDescPermissionCode.Validators[0].(func(string) error)
+	// marketflowpermissionDescName is the schema descriptor for name field.
+	marketflowpermissionDescName := marketflowpermissionFields[2].Descriptor()
+	// marketflowpermission.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	marketflowpermission.NameValidator = marketflowpermissionDescName.Validators[0].(func(string) error)
+	// marketflowpermissionDescModule is the schema descriptor for module field.
+	marketflowpermissionDescModule := marketflowpermissionFields[3].Descriptor()
+	// marketflowpermission.ModuleValidator is a validator for the "module" field. It is called by the builders before save.
+	marketflowpermission.ModuleValidator = marketflowpermissionDescModule.Validators[0].(func(string) error)
+	// marketflowpermissionDescAction is the schema descriptor for action field.
+	marketflowpermissionDescAction := marketflowpermissionFields[4].Descriptor()
+	// marketflowpermission.ActionValidator is a validator for the "action" field. It is called by the builders before save.
+	marketflowpermission.ActionValidator = marketflowpermissionDescAction.Validators[0].(func(string) error)
+	// marketflowpermissionDescCreatedAt is the schema descriptor for created_at field.
+	marketflowpermissionDescCreatedAt := marketflowpermissionFields[7].Descriptor()
+	// marketflowpermission.DefaultCreatedAt holds the default value on creation for the created_at field.
+	marketflowpermission.DefaultCreatedAt = marketflowpermissionDescCreatedAt.Default.(func() time.Time)
+	// marketflowpermissionDescID is the schema descriptor for id field.
+	marketflowpermissionDescID := marketflowpermissionFields[0].Descriptor()
+	// marketflowpermission.DefaultID holds the default value on creation for the id field.
+	marketflowpermission.DefaultID = marketflowpermissionDescID.Default.(func() uuid.UUID)
+	marketflowroleFields := schema.MarketflowRole{}.Fields()
+	_ = marketflowroleFields
+	// marketflowroleDescRoleCode is the schema descriptor for role_code field.
+	marketflowroleDescRoleCode := marketflowroleFields[2].Descriptor()
+	// marketflowrole.RoleCodeValidator is a validator for the "role_code" field. It is called by the builders before save.
+	marketflowrole.RoleCodeValidator = marketflowroleDescRoleCode.Validators[0].(func(string) error)
+	// marketflowroleDescName is the schema descriptor for name field.
+	marketflowroleDescName := marketflowroleFields[3].Descriptor()
+	// marketflowrole.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	marketflowrole.NameValidator = marketflowroleDescName.Validators[0].(func(string) error)
+	// marketflowroleDescIsSystemRole is the schema descriptor for is_system_role field.
+	marketflowroleDescIsSystemRole := marketflowroleFields[5].Descriptor()
+	// marketflowrole.DefaultIsSystemRole holds the default value on creation for the is_system_role field.
+	marketflowrole.DefaultIsSystemRole = marketflowroleDescIsSystemRole.Default.(bool)
+	// marketflowroleDescCreatedAt is the schema descriptor for created_at field.
+	marketflowroleDescCreatedAt := marketflowroleFields[6].Descriptor()
+	// marketflowrole.DefaultCreatedAt holds the default value on creation for the created_at field.
+	marketflowrole.DefaultCreatedAt = marketflowroleDescCreatedAt.Default.(func() time.Time)
+	// marketflowroleDescUpdatedAt is the schema descriptor for updated_at field.
+	marketflowroleDescUpdatedAt := marketflowroleFields[7].Descriptor()
+	// marketflowrole.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	marketflowrole.DefaultUpdatedAt = marketflowroleDescUpdatedAt.Default.(func() time.Time)
+	// marketflowrole.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	marketflowrole.UpdateDefaultUpdatedAt = marketflowroleDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// marketflowroleDescID is the schema descriptor for id field.
+	marketflowroleDescID := marketflowroleFields[0].Descriptor()
+	// marketflowrole.DefaultID holds the default value on creation for the id field.
+	marketflowrole.DefaultID = marketflowroleDescID.Default.(func() uuid.UUID)
+	marketflowuserFields := schema.MarketflowUser{}.Fields()
+	_ = marketflowuserFields
+	// marketflowuserDescEmail is the schema descriptor for email field.
+	marketflowuserDescEmail := marketflowuserFields[3].Descriptor()
+	// marketflowuser.EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	marketflowuser.EmailValidator = marketflowuserDescEmail.Validators[0].(func(string) error)
+	// marketflowuserDescStatus is the schema descriptor for status field.
+	marketflowuserDescStatus := marketflowuserFields[4].Descriptor()
+	// marketflowuser.DefaultStatus holds the default value on creation for the status field.
+	marketflowuser.DefaultStatus = marketflowuserDescStatus.Default.(string)
+	// marketflowuserDescSyncStatus is the schema descriptor for sync_status field.
+	marketflowuserDescSyncStatus := marketflowuserFields[5].Descriptor()
+	// marketflowuser.DefaultSyncStatus holds the default value on creation for the sync_status field.
+	marketflowuser.DefaultSyncStatus = marketflowuserDescSyncStatus.Default.(string)
+	// marketflowuserDescCreatedAt is the schema descriptor for created_at field.
+	marketflowuserDescCreatedAt := marketflowuserFields[7].Descriptor()
+	// marketflowuser.DefaultCreatedAt holds the default value on creation for the created_at field.
+	marketflowuser.DefaultCreatedAt = marketflowuserDescCreatedAt.Default.(func() time.Time)
+	// marketflowuserDescUpdatedAt is the schema descriptor for updated_at field.
+	marketflowuserDescUpdatedAt := marketflowuserFields[8].Descriptor()
+	// marketflowuser.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	marketflowuser.DefaultUpdatedAt = marketflowuserDescUpdatedAt.Default.(func() time.Time)
+	// marketflowuser.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	marketflowuser.UpdateDefaultUpdatedAt = marketflowuserDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// marketflowuserDescID is the schema descriptor for id field.
+	marketflowuserDescID := marketflowuserFields[0].Descriptor()
+	// marketflowuser.DefaultID holds the default value on creation for the id field.
+	marketflowuser.DefaultID = marketflowuserDescID.Default.(func() uuid.UUID)
 	nurturesequenceFields := schema.NurtureSequence{}.Fields()
 	_ = nurturesequenceFields
 	// nurturesequenceDescName is the schema descriptor for name field.
@@ -500,4 +586,14 @@ func init() {
 	tenantDescID := tenantFields[0].Descriptor()
 	// tenant.DefaultID holds the default value on creation for the id field.
 	tenant.DefaultID = tenantDescID.Default.(func() uuid.UUID)
+	userroleassignmentFields := schema.UserRoleAssignment{}.Fields()
+	_ = userroleassignmentFields
+	// userroleassignmentDescAssignedAt is the schema descriptor for assigned_at field.
+	userroleassignmentDescAssignedAt := userroleassignmentFields[5].Descriptor()
+	// userroleassignment.DefaultAssignedAt holds the default value on creation for the assigned_at field.
+	userroleassignment.DefaultAssignedAt = userroleassignmentDescAssignedAt.Default.(func() time.Time)
+	// userroleassignmentDescID is the schema descriptor for id field.
+	userroleassignmentDescID := userroleassignmentFields[0].Descriptor()
+	// userroleassignment.DefaultID holds the default value on creation for the id field.
+	userroleassignment.DefaultID = userroleassignmentDescID.Default.(func() uuid.UUID)
 }

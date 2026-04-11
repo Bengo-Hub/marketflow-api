@@ -1,4 +1,5 @@
-h1:/p9mNE9wCKAgauuE9WsPoxEDcR7ZrIX+4+VM4fy5qXo=
+h1:y4fuwshyFVpqWbj0z74TbKFx4SYu00Tisd6zoCmBcJQ=
 20260409124338_initial_schema.sql h1:iNv9wYlWyj89NJ9fwXRtTK7/piL1QJoDgZ8I/Jez73Y=
 20260409172839_add_short_links.sql h1:5iB2/aEIkLcG9hJLXz6Q8LKgSy3XgdFs/FDeSEX9x+4=
-20260409183000_add_kb_embeddings.sql h1:FMWvd6O1uFa16I4aNPokgqMlggNO5Uv0HBSR+4V2bio=
+20260409183000_add_kb_embeddings.sql h1:j/jjGpiINXbc0CDLNDsb5R71JnmluZcewD0NdGFEZ5Q=
+20260411052306_add_rbac_tables.sql h1:+KuXqES8HJ2YHXHW1nCNzGE7ODKqBXqOuTUJa/glmso=

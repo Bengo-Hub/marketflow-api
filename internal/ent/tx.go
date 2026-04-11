@@ -24,12 +24,20 @@ type Tx struct {
 	KnowledgeBaseEntry *KnowledgeBaseEntryClient
 	// Lead is the client for interacting with the Lead builders.
 	Lead *LeadClient
+	// MarketflowPermission is the client for interacting with the MarketflowPermission builders.
+	MarketflowPermission *MarketflowPermissionClient
+	// MarketflowRole is the client for interacting with the MarketflowRole builders.
+	MarketflowRole *MarketflowRoleClient
+	// MarketflowUser is the client for interacting with the MarketflowUser builders.
+	MarketflowUser *MarketflowUserClient
 	// NurtureSequence is the client for interacting with the NurtureSequence builders.
 	NurtureSequence *NurtureSequenceClient
 	// OutboxEvent is the client for interacting with the OutboxEvent builders.
 	OutboxEvent *OutboxEventClient
 	// ProviderSetting is the client for interacting with the ProviderSetting builders.
 	ProviderSetting *ProviderSettingClient
+	// RolePermission is the client for interacting with the RolePermission builders.
+	RolePermission *RolePermissionClient
 	// ScheduledMeeting is the client for interacting with the ScheduledMeeting builders.
 	ScheduledMeeting *ScheduledMeetingClient
 	// ServiceConfig is the client for interacting with the ServiceConfig builders.
@@ -38,6 +46,8 @@ type Tx struct {
 	ShortLink *ShortLinkClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
+	// UserRoleAssignment is the client for interacting with the UserRoleAssignment builders.
+	UserRoleAssignment *UserRoleAssignmentClient
 
 	// lazily loaded.
 	client     *Client
@@ -175,13 +185,18 @@ func (tx *Tx) init() {
 	tx.Funnel = NewFunnelClient(tx.config)
 	tx.KnowledgeBaseEntry = NewKnowledgeBaseEntryClient(tx.config)
 	tx.Lead = NewLeadClient(tx.config)
+	tx.MarketflowPermission = NewMarketflowPermissionClient(tx.config)
+	tx.MarketflowRole = NewMarketflowRoleClient(tx.config)
+	tx.MarketflowUser = NewMarketflowUserClient(tx.config)
 	tx.NurtureSequence = NewNurtureSequenceClient(tx.config)
 	tx.OutboxEvent = NewOutboxEventClient(tx.config)
 	tx.ProviderSetting = NewProviderSettingClient(tx.config)
+	tx.RolePermission = NewRolePermissionClient(tx.config)
 	tx.ScheduledMeeting = NewScheduledMeetingClient(tx.config)
 	tx.ServiceConfig = NewServiceConfigClient(tx.config)
 	tx.ShortLink = NewShortLinkClient(tx.config)
 	tx.Tenant = NewTenantClient(tx.config)
+	tx.UserRoleAssignment = NewUserRoleAssignmentClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

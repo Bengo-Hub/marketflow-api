@@ -18,13 +18,18 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
+	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
+	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/outboxevent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
+	"github.com/bengobox/marketflow-api/internal/ent/rolepermission"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
 	"github.com/bengobox/marketflow-api/internal/ent/shortlink"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
+	"github.com/bengobox/marketflow-api/internal/ent/userroleassignment"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -85,19 +90,24 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			campaign.Table:           campaign.ValidColumn,
-			chatsession.Table:        chatsession.ValidColumn,
-			contact.Table:            contact.ValidColumn,
-			funnel.Table:             funnel.ValidColumn,
-			knowledgebaseentry.Table: knowledgebaseentry.ValidColumn,
-			lead.Table:               lead.ValidColumn,
-			nurturesequence.Table:    nurturesequence.ValidColumn,
-			outboxevent.Table:        outboxevent.ValidColumn,
-			providersetting.Table:    providersetting.ValidColumn,
-			scheduledmeeting.Table:   scheduledmeeting.ValidColumn,
-			serviceconfig.Table:      serviceconfig.ValidColumn,
-			shortlink.Table:          shortlink.ValidColumn,
-			tenant.Table:             tenant.ValidColumn,
+			campaign.Table:             campaign.ValidColumn,
+			chatsession.Table:          chatsession.ValidColumn,
+			contact.Table:              contact.ValidColumn,
+			funnel.Table:               funnel.ValidColumn,
+			knowledgebaseentry.Table:   knowledgebaseentry.ValidColumn,
+			lead.Table:                 lead.ValidColumn,
+			marketflowpermission.Table: marketflowpermission.ValidColumn,
+			marketflowrole.Table:       marketflowrole.ValidColumn,
+			marketflowuser.Table:       marketflowuser.ValidColumn,
+			nurturesequence.Table:      nurturesequence.ValidColumn,
+			outboxevent.Table:          outboxevent.ValidColumn,
+			providersetting.Table:      providersetting.ValidColumn,
+			rolepermission.Table:       rolepermission.ValidColumn,
+			scheduledmeeting.Table:     scheduledmeeting.ValidColumn,
+			serviceconfig.Table:        serviceconfig.ValidColumn,
+			shortlink.Table:            shortlink.ValidColumn,
+			tenant.Table:               tenant.ValidColumn,
+			userroleassignment.Table:   userroleassignment.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

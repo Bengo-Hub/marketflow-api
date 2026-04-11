@@ -38,13 +38,16 @@ func main() {
 		log.Fatalln("POSTGRES_URL is required for migration generation")
 	}
 
-	// Use a separate search_path (schema) for dev migration generation
+	// Use a separate search_path (schema) for dev migration generation.
+	// Include public schema so pgvector extension types are visible.
 	devURL := dbURL
 	if strings.Contains(devURL, "?") {
 		devURL += "&search_path=ent_dev"
 	} else {
 		devURL += "?search_path=ent_dev"
 	}
+	// NOTE: For pgvector compatibility, ensure the vector extension is
+	// installed in ent_dev schema: CREATE EXTENSION IF NOT EXISTS vector SCHEMA ent_dev;
 
 	err = migrate.NamedDiff(ctx, devURL, os.Args[1], opts...)
 	if err != nil {

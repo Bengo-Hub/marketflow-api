@@ -22,13 +22,18 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
+	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
+	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/outboxevent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
+	"github.com/bengobox/marketflow-api/internal/ent/rolepermission"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
 	"github.com/bengobox/marketflow-api/internal/ent/shortlink"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
+	"github.com/bengobox/marketflow-api/internal/ent/userroleassignment"
 )
 
 // Client is the client that holds all ent builders.
@@ -48,12 +53,20 @@ type Client struct {
 	KnowledgeBaseEntry *KnowledgeBaseEntryClient
 	// Lead is the client for interacting with the Lead builders.
 	Lead *LeadClient
+	// MarketflowPermission is the client for interacting with the MarketflowPermission builders.
+	MarketflowPermission *MarketflowPermissionClient
+	// MarketflowRole is the client for interacting with the MarketflowRole builders.
+	MarketflowRole *MarketflowRoleClient
+	// MarketflowUser is the client for interacting with the MarketflowUser builders.
+	MarketflowUser *MarketflowUserClient
 	// NurtureSequence is the client for interacting with the NurtureSequence builders.
 	NurtureSequence *NurtureSequenceClient
 	// OutboxEvent is the client for interacting with the OutboxEvent builders.
 	OutboxEvent *OutboxEventClient
 	// ProviderSetting is the client for interacting with the ProviderSetting builders.
 	ProviderSetting *ProviderSettingClient
+	// RolePermission is the client for interacting with the RolePermission builders.
+	RolePermission *RolePermissionClient
 	// ScheduledMeeting is the client for interacting with the ScheduledMeeting builders.
 	ScheduledMeeting *ScheduledMeetingClient
 	// ServiceConfig is the client for interacting with the ServiceConfig builders.
@@ -62,6 +75,8 @@ type Client struct {
 	ShortLink *ShortLinkClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
+	// UserRoleAssignment is the client for interacting with the UserRoleAssignment builders.
+	UserRoleAssignment *UserRoleAssignmentClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -79,13 +94,18 @@ func (c *Client) init() {
 	c.Funnel = NewFunnelClient(c.config)
 	c.KnowledgeBaseEntry = NewKnowledgeBaseEntryClient(c.config)
 	c.Lead = NewLeadClient(c.config)
+	c.MarketflowPermission = NewMarketflowPermissionClient(c.config)
+	c.MarketflowRole = NewMarketflowRoleClient(c.config)
+	c.MarketflowUser = NewMarketflowUserClient(c.config)
 	c.NurtureSequence = NewNurtureSequenceClient(c.config)
 	c.OutboxEvent = NewOutboxEventClient(c.config)
 	c.ProviderSetting = NewProviderSettingClient(c.config)
+	c.RolePermission = NewRolePermissionClient(c.config)
 	c.ScheduledMeeting = NewScheduledMeetingClient(c.config)
 	c.ServiceConfig = NewServiceConfigClient(c.config)
 	c.ShortLink = NewShortLinkClient(c.config)
 	c.Tenant = NewTenantClient(c.config)
+	c.UserRoleAssignment = NewUserRoleAssignmentClient(c.config)
 }
 
 type (
@@ -176,21 +196,26 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:                ctx,
-		config:             cfg,
-		Campaign:           NewCampaignClient(cfg),
-		ChatSession:        NewChatSessionClient(cfg),
-		Contact:            NewContactClient(cfg),
-		Funnel:             NewFunnelClient(cfg),
-		KnowledgeBaseEntry: NewKnowledgeBaseEntryClient(cfg),
-		Lead:               NewLeadClient(cfg),
-		NurtureSequence:    NewNurtureSequenceClient(cfg),
-		OutboxEvent:        NewOutboxEventClient(cfg),
-		ProviderSetting:    NewProviderSettingClient(cfg),
-		ScheduledMeeting:   NewScheduledMeetingClient(cfg),
-		ServiceConfig:      NewServiceConfigClient(cfg),
-		ShortLink:          NewShortLinkClient(cfg),
-		Tenant:             NewTenantClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		Campaign:             NewCampaignClient(cfg),
+		ChatSession:          NewChatSessionClient(cfg),
+		Contact:              NewContactClient(cfg),
+		Funnel:               NewFunnelClient(cfg),
+		KnowledgeBaseEntry:   NewKnowledgeBaseEntryClient(cfg),
+		Lead:                 NewLeadClient(cfg),
+		MarketflowPermission: NewMarketflowPermissionClient(cfg),
+		MarketflowRole:       NewMarketflowRoleClient(cfg),
+		MarketflowUser:       NewMarketflowUserClient(cfg),
+		NurtureSequence:      NewNurtureSequenceClient(cfg),
+		OutboxEvent:          NewOutboxEventClient(cfg),
+		ProviderSetting:      NewProviderSettingClient(cfg),
+		RolePermission:       NewRolePermissionClient(cfg),
+		ScheduledMeeting:     NewScheduledMeetingClient(cfg),
+		ServiceConfig:        NewServiceConfigClient(cfg),
+		ShortLink:            NewShortLinkClient(cfg),
+		Tenant:               NewTenantClient(cfg),
+		UserRoleAssignment:   NewUserRoleAssignmentClient(cfg),
 	}, nil
 }
 
@@ -208,21 +233,26 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:                ctx,
-		config:             cfg,
-		Campaign:           NewCampaignClient(cfg),
-		ChatSession:        NewChatSessionClient(cfg),
-		Contact:            NewContactClient(cfg),
-		Funnel:             NewFunnelClient(cfg),
-		KnowledgeBaseEntry: NewKnowledgeBaseEntryClient(cfg),
-		Lead:               NewLeadClient(cfg),
-		NurtureSequence:    NewNurtureSequenceClient(cfg),
-		OutboxEvent:        NewOutboxEventClient(cfg),
-		ProviderSetting:    NewProviderSettingClient(cfg),
-		ScheduledMeeting:   NewScheduledMeetingClient(cfg),
-		ServiceConfig:      NewServiceConfigClient(cfg),
-		ShortLink:          NewShortLinkClient(cfg),
-		Tenant:             NewTenantClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		Campaign:             NewCampaignClient(cfg),
+		ChatSession:          NewChatSessionClient(cfg),
+		Contact:              NewContactClient(cfg),
+		Funnel:               NewFunnelClient(cfg),
+		KnowledgeBaseEntry:   NewKnowledgeBaseEntryClient(cfg),
+		Lead:                 NewLeadClient(cfg),
+		MarketflowPermission: NewMarketflowPermissionClient(cfg),
+		MarketflowRole:       NewMarketflowRoleClient(cfg),
+		MarketflowUser:       NewMarketflowUserClient(cfg),
+		NurtureSequence:      NewNurtureSequenceClient(cfg),
+		OutboxEvent:          NewOutboxEventClient(cfg),
+		ProviderSetting:      NewProviderSettingClient(cfg),
+		RolePermission:       NewRolePermissionClient(cfg),
+		ScheduledMeeting:     NewScheduledMeetingClient(cfg),
+		ServiceConfig:        NewServiceConfigClient(cfg),
+		ShortLink:            NewShortLinkClient(cfg),
+		Tenant:               NewTenantClient(cfg),
+		UserRoleAssignment:   NewUserRoleAssignmentClient(cfg),
 	}, nil
 }
 
@@ -253,8 +283,9 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Campaign, c.ChatSession, c.Contact, c.Funnel, c.KnowledgeBaseEntry, c.Lead,
-		c.NurtureSequence, c.OutboxEvent, c.ProviderSetting, c.ScheduledMeeting,
-		c.ServiceConfig, c.ShortLink, c.Tenant,
+		c.MarketflowPermission, c.MarketflowRole, c.MarketflowUser, c.NurtureSequence,
+		c.OutboxEvent, c.ProviderSetting, c.RolePermission, c.ScheduledMeeting,
+		c.ServiceConfig, c.ShortLink, c.Tenant, c.UserRoleAssignment,
 	} {
 		n.Use(hooks...)
 	}
@@ -265,8 +296,9 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Campaign, c.ChatSession, c.Contact, c.Funnel, c.KnowledgeBaseEntry, c.Lead,
-		c.NurtureSequence, c.OutboxEvent, c.ProviderSetting, c.ScheduledMeeting,
-		c.ServiceConfig, c.ShortLink, c.Tenant,
+		c.MarketflowPermission, c.MarketflowRole, c.MarketflowUser, c.NurtureSequence,
+		c.OutboxEvent, c.ProviderSetting, c.RolePermission, c.ScheduledMeeting,
+		c.ServiceConfig, c.ShortLink, c.Tenant, c.UserRoleAssignment,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -287,12 +319,20 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.KnowledgeBaseEntry.mutate(ctx, m)
 	case *LeadMutation:
 		return c.Lead.mutate(ctx, m)
+	case *MarketflowPermissionMutation:
+		return c.MarketflowPermission.mutate(ctx, m)
+	case *MarketflowRoleMutation:
+		return c.MarketflowRole.mutate(ctx, m)
+	case *MarketflowUserMutation:
+		return c.MarketflowUser.mutate(ctx, m)
 	case *NurtureSequenceMutation:
 		return c.NurtureSequence.mutate(ctx, m)
 	case *OutboxEventMutation:
 		return c.OutboxEvent.mutate(ctx, m)
 	case *ProviderSettingMutation:
 		return c.ProviderSetting.mutate(ctx, m)
+	case *RolePermissionMutation:
+		return c.RolePermission.mutate(ctx, m)
 	case *ScheduledMeetingMutation:
 		return c.ScheduledMeeting.mutate(ctx, m)
 	case *ServiceConfigMutation:
@@ -301,6 +341,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ShortLink.mutate(ctx, m)
 	case *TenantMutation:
 		return c.Tenant.mutate(ctx, m)
+	case *UserRoleAssignmentMutation:
+		return c.UserRoleAssignment.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -1360,6 +1402,485 @@ func (c *LeadClient) mutate(ctx context.Context, m *LeadMutation) (Value, error)
 	}
 }
 
+// MarketflowPermissionClient is a client for the MarketflowPermission schema.
+type MarketflowPermissionClient struct {
+	config
+}
+
+// NewMarketflowPermissionClient returns a client for the MarketflowPermission from the given config.
+func NewMarketflowPermissionClient(c config) *MarketflowPermissionClient {
+	return &MarketflowPermissionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `marketflowpermission.Hooks(f(g(h())))`.
+func (c *MarketflowPermissionClient) Use(hooks ...Hook) {
+	c.hooks.MarketflowPermission = append(c.hooks.MarketflowPermission, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `marketflowpermission.Intercept(f(g(h())))`.
+func (c *MarketflowPermissionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MarketflowPermission = append(c.inters.MarketflowPermission, interceptors...)
+}
+
+// Create returns a builder for creating a MarketflowPermission entity.
+func (c *MarketflowPermissionClient) Create() *MarketflowPermissionCreate {
+	mutation := newMarketflowPermissionMutation(c.config, OpCreate)
+	return &MarketflowPermissionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MarketflowPermission entities.
+func (c *MarketflowPermissionClient) CreateBulk(builders ...*MarketflowPermissionCreate) *MarketflowPermissionCreateBulk {
+	return &MarketflowPermissionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MarketflowPermissionClient) MapCreateBulk(slice any, setFunc func(*MarketflowPermissionCreate, int)) *MarketflowPermissionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MarketflowPermissionCreateBulk{err: fmt.Errorf("calling to MarketflowPermissionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MarketflowPermissionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MarketflowPermissionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MarketflowPermission.
+func (c *MarketflowPermissionClient) Update() *MarketflowPermissionUpdate {
+	mutation := newMarketflowPermissionMutation(c.config, OpUpdate)
+	return &MarketflowPermissionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MarketflowPermissionClient) UpdateOne(_m *MarketflowPermission) *MarketflowPermissionUpdateOne {
+	mutation := newMarketflowPermissionMutation(c.config, OpUpdateOne, withMarketflowPermission(_m))
+	return &MarketflowPermissionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MarketflowPermissionClient) UpdateOneID(id uuid.UUID) *MarketflowPermissionUpdateOne {
+	mutation := newMarketflowPermissionMutation(c.config, OpUpdateOne, withMarketflowPermissionID(id))
+	return &MarketflowPermissionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MarketflowPermission.
+func (c *MarketflowPermissionClient) Delete() *MarketflowPermissionDelete {
+	mutation := newMarketflowPermissionMutation(c.config, OpDelete)
+	return &MarketflowPermissionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MarketflowPermissionClient) DeleteOne(_m *MarketflowPermission) *MarketflowPermissionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MarketflowPermissionClient) DeleteOneID(id uuid.UUID) *MarketflowPermissionDeleteOne {
+	builder := c.Delete().Where(marketflowpermission.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MarketflowPermissionDeleteOne{builder}
+}
+
+// Query returns a query builder for MarketflowPermission.
+func (c *MarketflowPermissionClient) Query() *MarketflowPermissionQuery {
+	return &MarketflowPermissionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMarketflowPermission},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MarketflowPermission entity by its id.
+func (c *MarketflowPermissionClient) Get(ctx context.Context, id uuid.UUID) (*MarketflowPermission, error) {
+	return c.Query().Where(marketflowpermission.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MarketflowPermissionClient) GetX(ctx context.Context, id uuid.UUID) *MarketflowPermission {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryRoles queries the roles edge of a MarketflowPermission.
+func (c *MarketflowPermissionClient) QueryRoles(_m *MarketflowPermission) *MarketflowRoleQuery {
+	query := (&MarketflowRoleClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(marketflowpermission.Table, marketflowpermission.FieldID, id),
+			sqlgraph.To(marketflowrole.Table, marketflowrole.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, marketflowpermission.RolesTable, marketflowpermission.RolesPrimaryKey...),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryRolePermissions queries the role_permissions edge of a MarketflowPermission.
+func (c *MarketflowPermissionClient) QueryRolePermissions(_m *MarketflowPermission) *RolePermissionQuery {
+	query := (&RolePermissionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(marketflowpermission.Table, marketflowpermission.FieldID, id),
+			sqlgraph.To(rolepermission.Table, rolepermission.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, marketflowpermission.RolePermissionsTable, marketflowpermission.RolePermissionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *MarketflowPermissionClient) Hooks() []Hook {
+	return c.hooks.MarketflowPermission
+}
+
+// Interceptors returns the client interceptors.
+func (c *MarketflowPermissionClient) Interceptors() []Interceptor {
+	return c.inters.MarketflowPermission
+}
+
+func (c *MarketflowPermissionClient) mutate(ctx context.Context, m *MarketflowPermissionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MarketflowPermissionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MarketflowPermissionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MarketflowPermissionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MarketflowPermissionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MarketflowPermission mutation op: %q", m.Op())
+	}
+}
+
+// MarketflowRoleClient is a client for the MarketflowRole schema.
+type MarketflowRoleClient struct {
+	config
+}
+
+// NewMarketflowRoleClient returns a client for the MarketflowRole from the given config.
+func NewMarketflowRoleClient(c config) *MarketflowRoleClient {
+	return &MarketflowRoleClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `marketflowrole.Hooks(f(g(h())))`.
+func (c *MarketflowRoleClient) Use(hooks ...Hook) {
+	c.hooks.MarketflowRole = append(c.hooks.MarketflowRole, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `marketflowrole.Intercept(f(g(h())))`.
+func (c *MarketflowRoleClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MarketflowRole = append(c.inters.MarketflowRole, interceptors...)
+}
+
+// Create returns a builder for creating a MarketflowRole entity.
+func (c *MarketflowRoleClient) Create() *MarketflowRoleCreate {
+	mutation := newMarketflowRoleMutation(c.config, OpCreate)
+	return &MarketflowRoleCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MarketflowRole entities.
+func (c *MarketflowRoleClient) CreateBulk(builders ...*MarketflowRoleCreate) *MarketflowRoleCreateBulk {
+	return &MarketflowRoleCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MarketflowRoleClient) MapCreateBulk(slice any, setFunc func(*MarketflowRoleCreate, int)) *MarketflowRoleCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MarketflowRoleCreateBulk{err: fmt.Errorf("calling to MarketflowRoleClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MarketflowRoleCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MarketflowRoleCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MarketflowRole.
+func (c *MarketflowRoleClient) Update() *MarketflowRoleUpdate {
+	mutation := newMarketflowRoleMutation(c.config, OpUpdate)
+	return &MarketflowRoleUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MarketflowRoleClient) UpdateOne(_m *MarketflowRole) *MarketflowRoleUpdateOne {
+	mutation := newMarketflowRoleMutation(c.config, OpUpdateOne, withMarketflowRole(_m))
+	return &MarketflowRoleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MarketflowRoleClient) UpdateOneID(id uuid.UUID) *MarketflowRoleUpdateOne {
+	mutation := newMarketflowRoleMutation(c.config, OpUpdateOne, withMarketflowRoleID(id))
+	return &MarketflowRoleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MarketflowRole.
+func (c *MarketflowRoleClient) Delete() *MarketflowRoleDelete {
+	mutation := newMarketflowRoleMutation(c.config, OpDelete)
+	return &MarketflowRoleDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MarketflowRoleClient) DeleteOne(_m *MarketflowRole) *MarketflowRoleDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MarketflowRoleClient) DeleteOneID(id uuid.UUID) *MarketflowRoleDeleteOne {
+	builder := c.Delete().Where(marketflowrole.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MarketflowRoleDeleteOne{builder}
+}
+
+// Query returns a query builder for MarketflowRole.
+func (c *MarketflowRoleClient) Query() *MarketflowRoleQuery {
+	return &MarketflowRoleQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMarketflowRole},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MarketflowRole entity by its id.
+func (c *MarketflowRoleClient) Get(ctx context.Context, id uuid.UUID) (*MarketflowRole, error) {
+	return c.Query().Where(marketflowrole.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MarketflowRoleClient) GetX(ctx context.Context, id uuid.UUID) *MarketflowRole {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryPermissions queries the permissions edge of a MarketflowRole.
+func (c *MarketflowRoleClient) QueryPermissions(_m *MarketflowRole) *MarketflowPermissionQuery {
+	query := (&MarketflowPermissionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(marketflowrole.Table, marketflowrole.FieldID, id),
+			sqlgraph.To(marketflowpermission.Table, marketflowpermission.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, false, marketflowrole.PermissionsTable, marketflowrole.PermissionsPrimaryKey...),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryUserAssignments queries the user_assignments edge of a MarketflowRole.
+func (c *MarketflowRoleClient) QueryUserAssignments(_m *MarketflowRole) *UserRoleAssignmentQuery {
+	query := (&UserRoleAssignmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(marketflowrole.Table, marketflowrole.FieldID, id),
+			sqlgraph.To(userroleassignment.Table, userroleassignment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, marketflowrole.UserAssignmentsTable, marketflowrole.UserAssignmentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryRolePermissions queries the role_permissions edge of a MarketflowRole.
+func (c *MarketflowRoleClient) QueryRolePermissions(_m *MarketflowRole) *RolePermissionQuery {
+	query := (&RolePermissionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(marketflowrole.Table, marketflowrole.FieldID, id),
+			sqlgraph.To(rolepermission.Table, rolepermission.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, marketflowrole.RolePermissionsTable, marketflowrole.RolePermissionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *MarketflowRoleClient) Hooks() []Hook {
+	return c.hooks.MarketflowRole
+}
+
+// Interceptors returns the client interceptors.
+func (c *MarketflowRoleClient) Interceptors() []Interceptor {
+	return c.inters.MarketflowRole
+}
+
+func (c *MarketflowRoleClient) mutate(ctx context.Context, m *MarketflowRoleMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MarketflowRoleCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MarketflowRoleUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MarketflowRoleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MarketflowRoleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MarketflowRole mutation op: %q", m.Op())
+	}
+}
+
+// MarketflowUserClient is a client for the MarketflowUser schema.
+type MarketflowUserClient struct {
+	config
+}
+
+// NewMarketflowUserClient returns a client for the MarketflowUser from the given config.
+func NewMarketflowUserClient(c config) *MarketflowUserClient {
+	return &MarketflowUserClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `marketflowuser.Hooks(f(g(h())))`.
+func (c *MarketflowUserClient) Use(hooks ...Hook) {
+	c.hooks.MarketflowUser = append(c.hooks.MarketflowUser, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `marketflowuser.Intercept(f(g(h())))`.
+func (c *MarketflowUserClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MarketflowUser = append(c.inters.MarketflowUser, interceptors...)
+}
+
+// Create returns a builder for creating a MarketflowUser entity.
+func (c *MarketflowUserClient) Create() *MarketflowUserCreate {
+	mutation := newMarketflowUserMutation(c.config, OpCreate)
+	return &MarketflowUserCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MarketflowUser entities.
+func (c *MarketflowUserClient) CreateBulk(builders ...*MarketflowUserCreate) *MarketflowUserCreateBulk {
+	return &MarketflowUserCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MarketflowUserClient) MapCreateBulk(slice any, setFunc func(*MarketflowUserCreate, int)) *MarketflowUserCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MarketflowUserCreateBulk{err: fmt.Errorf("calling to MarketflowUserClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MarketflowUserCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MarketflowUserCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MarketflowUser.
+func (c *MarketflowUserClient) Update() *MarketflowUserUpdate {
+	mutation := newMarketflowUserMutation(c.config, OpUpdate)
+	return &MarketflowUserUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MarketflowUserClient) UpdateOne(_m *MarketflowUser) *MarketflowUserUpdateOne {
+	mutation := newMarketflowUserMutation(c.config, OpUpdateOne, withMarketflowUser(_m))
+	return &MarketflowUserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MarketflowUserClient) UpdateOneID(id uuid.UUID) *MarketflowUserUpdateOne {
+	mutation := newMarketflowUserMutation(c.config, OpUpdateOne, withMarketflowUserID(id))
+	return &MarketflowUserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MarketflowUser.
+func (c *MarketflowUserClient) Delete() *MarketflowUserDelete {
+	mutation := newMarketflowUserMutation(c.config, OpDelete)
+	return &MarketflowUserDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MarketflowUserClient) DeleteOne(_m *MarketflowUser) *MarketflowUserDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MarketflowUserClient) DeleteOneID(id uuid.UUID) *MarketflowUserDeleteOne {
+	builder := c.Delete().Where(marketflowuser.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MarketflowUserDeleteOne{builder}
+}
+
+// Query returns a query builder for MarketflowUser.
+func (c *MarketflowUserClient) Query() *MarketflowUserQuery {
+	return &MarketflowUserQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMarketflowUser},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MarketflowUser entity by its id.
+func (c *MarketflowUserClient) Get(ctx context.Context, id uuid.UUID) (*MarketflowUser, error) {
+	return c.Query().Where(marketflowuser.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MarketflowUserClient) GetX(ctx context.Context, id uuid.UUID) *MarketflowUser {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *MarketflowUserClient) Hooks() []Hook {
+	return c.hooks.MarketflowUser
+}
+
+// Interceptors returns the client interceptors.
+func (c *MarketflowUserClient) Interceptors() []Interceptor {
+	return c.inters.MarketflowUser
+}
+
+func (c *MarketflowUserClient) mutate(ctx context.Context, m *MarketflowUserMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MarketflowUserCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MarketflowUserUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MarketflowUserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MarketflowUserDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MarketflowUser mutation op: %q", m.Op())
+	}
+}
+
 // NurtureSequenceClient is a client for the NurtureSequence schema.
 type NurtureSequenceClient struct {
 	config
@@ -1772,6 +2293,171 @@ func (c *ProviderSettingClient) mutate(ctx context.Context, m *ProviderSettingMu
 		return (&ProviderSettingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ProviderSetting mutation op: %q", m.Op())
+	}
+}
+
+// RolePermissionClient is a client for the RolePermission schema.
+type RolePermissionClient struct {
+	config
+}
+
+// NewRolePermissionClient returns a client for the RolePermission from the given config.
+func NewRolePermissionClient(c config) *RolePermissionClient {
+	return &RolePermissionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `rolepermission.Hooks(f(g(h())))`.
+func (c *RolePermissionClient) Use(hooks ...Hook) {
+	c.hooks.RolePermission = append(c.hooks.RolePermission, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `rolepermission.Intercept(f(g(h())))`.
+func (c *RolePermissionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.RolePermission = append(c.inters.RolePermission, interceptors...)
+}
+
+// Create returns a builder for creating a RolePermission entity.
+func (c *RolePermissionClient) Create() *RolePermissionCreate {
+	mutation := newRolePermissionMutation(c.config, OpCreate)
+	return &RolePermissionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of RolePermission entities.
+func (c *RolePermissionClient) CreateBulk(builders ...*RolePermissionCreate) *RolePermissionCreateBulk {
+	return &RolePermissionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *RolePermissionClient) MapCreateBulk(slice any, setFunc func(*RolePermissionCreate, int)) *RolePermissionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &RolePermissionCreateBulk{err: fmt.Errorf("calling to RolePermissionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*RolePermissionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &RolePermissionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for RolePermission.
+func (c *RolePermissionClient) Update() *RolePermissionUpdate {
+	mutation := newRolePermissionMutation(c.config, OpUpdate)
+	return &RolePermissionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *RolePermissionClient) UpdateOne(_m *RolePermission) *RolePermissionUpdateOne {
+	mutation := newRolePermissionMutation(c.config, OpUpdateOne, withRolePermission(_m))
+	return &RolePermissionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *RolePermissionClient) UpdateOneID(id int) *RolePermissionUpdateOne {
+	mutation := newRolePermissionMutation(c.config, OpUpdateOne, withRolePermissionID(id))
+	return &RolePermissionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for RolePermission.
+func (c *RolePermissionClient) Delete() *RolePermissionDelete {
+	mutation := newRolePermissionMutation(c.config, OpDelete)
+	return &RolePermissionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *RolePermissionClient) DeleteOne(_m *RolePermission) *RolePermissionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *RolePermissionClient) DeleteOneID(id int) *RolePermissionDeleteOne {
+	builder := c.Delete().Where(rolepermission.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &RolePermissionDeleteOne{builder}
+}
+
+// Query returns a query builder for RolePermission.
+func (c *RolePermissionClient) Query() *RolePermissionQuery {
+	return &RolePermissionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeRolePermission},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a RolePermission entity by its id.
+func (c *RolePermissionClient) Get(ctx context.Context, id int) (*RolePermission, error) {
+	return c.Query().Where(rolepermission.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *RolePermissionClient) GetX(ctx context.Context, id int) *RolePermission {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryRole queries the role edge of a RolePermission.
+func (c *RolePermissionClient) QueryRole(_m *RolePermission) *MarketflowRoleQuery {
+	query := (&MarketflowRoleClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(rolepermission.Table, rolepermission.FieldID, id),
+			sqlgraph.To(marketflowrole.Table, marketflowrole.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, rolepermission.RoleTable, rolepermission.RoleColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryPermission queries the permission edge of a RolePermission.
+func (c *RolePermissionClient) QueryPermission(_m *RolePermission) *MarketflowPermissionQuery {
+	query := (&MarketflowPermissionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(rolepermission.Table, rolepermission.FieldID, id),
+			sqlgraph.To(marketflowpermission.Table, marketflowpermission.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, rolepermission.PermissionTable, rolepermission.PermissionColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *RolePermissionClient) Hooks() []Hook {
+	return c.hooks.RolePermission
+}
+
+// Interceptors returns the client interceptors.
+func (c *RolePermissionClient) Interceptors() []Interceptor {
+	return c.inters.RolePermission
+}
+
+func (c *RolePermissionClient) mutate(ctx context.Context, m *RolePermissionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&RolePermissionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&RolePermissionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&RolePermissionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&RolePermissionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown RolePermission mutation op: %q", m.Op())
 	}
 }
 
@@ -2451,16 +3137,183 @@ func (c *TenantClient) mutate(ctx context.Context, m *TenantMutation) (Value, er
 	}
 }
 
+// UserRoleAssignmentClient is a client for the UserRoleAssignment schema.
+type UserRoleAssignmentClient struct {
+	config
+}
+
+// NewUserRoleAssignmentClient returns a client for the UserRoleAssignment from the given config.
+func NewUserRoleAssignmentClient(c config) *UserRoleAssignmentClient {
+	return &UserRoleAssignmentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `userroleassignment.Hooks(f(g(h())))`.
+func (c *UserRoleAssignmentClient) Use(hooks ...Hook) {
+	c.hooks.UserRoleAssignment = append(c.hooks.UserRoleAssignment, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `userroleassignment.Intercept(f(g(h())))`.
+func (c *UserRoleAssignmentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UserRoleAssignment = append(c.inters.UserRoleAssignment, interceptors...)
+}
+
+// Create returns a builder for creating a UserRoleAssignment entity.
+func (c *UserRoleAssignmentClient) Create() *UserRoleAssignmentCreate {
+	mutation := newUserRoleAssignmentMutation(c.config, OpCreate)
+	return &UserRoleAssignmentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UserRoleAssignment entities.
+func (c *UserRoleAssignmentClient) CreateBulk(builders ...*UserRoleAssignmentCreate) *UserRoleAssignmentCreateBulk {
+	return &UserRoleAssignmentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UserRoleAssignmentClient) MapCreateBulk(slice any, setFunc func(*UserRoleAssignmentCreate, int)) *UserRoleAssignmentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UserRoleAssignmentCreateBulk{err: fmt.Errorf("calling to UserRoleAssignmentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UserRoleAssignmentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UserRoleAssignmentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UserRoleAssignment.
+func (c *UserRoleAssignmentClient) Update() *UserRoleAssignmentUpdate {
+	mutation := newUserRoleAssignmentMutation(c.config, OpUpdate)
+	return &UserRoleAssignmentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UserRoleAssignmentClient) UpdateOne(_m *UserRoleAssignment) *UserRoleAssignmentUpdateOne {
+	mutation := newUserRoleAssignmentMutation(c.config, OpUpdateOne, withUserRoleAssignment(_m))
+	return &UserRoleAssignmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UserRoleAssignmentClient) UpdateOneID(id uuid.UUID) *UserRoleAssignmentUpdateOne {
+	mutation := newUserRoleAssignmentMutation(c.config, OpUpdateOne, withUserRoleAssignmentID(id))
+	return &UserRoleAssignmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UserRoleAssignment.
+func (c *UserRoleAssignmentClient) Delete() *UserRoleAssignmentDelete {
+	mutation := newUserRoleAssignmentMutation(c.config, OpDelete)
+	return &UserRoleAssignmentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UserRoleAssignmentClient) DeleteOne(_m *UserRoleAssignment) *UserRoleAssignmentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UserRoleAssignmentClient) DeleteOneID(id uuid.UUID) *UserRoleAssignmentDeleteOne {
+	builder := c.Delete().Where(userroleassignment.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UserRoleAssignmentDeleteOne{builder}
+}
+
+// Query returns a query builder for UserRoleAssignment.
+func (c *UserRoleAssignmentClient) Query() *UserRoleAssignmentQuery {
+	return &UserRoleAssignmentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUserRoleAssignment},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UserRoleAssignment entity by its id.
+func (c *UserRoleAssignmentClient) Get(ctx context.Context, id uuid.UUID) (*UserRoleAssignment, error) {
+	return c.Query().Where(userroleassignment.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UserRoleAssignmentClient) GetX(ctx context.Context, id uuid.UUID) *UserRoleAssignment {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a UserRoleAssignment.
+func (c *UserRoleAssignmentClient) QueryUser(_m *UserRoleAssignment) *MarketflowUserQuery {
+	query := (&MarketflowUserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(userroleassignment.Table, userroleassignment.FieldID, id),
+			sqlgraph.To(marketflowuser.Table, marketflowuser.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, userroleassignment.UserTable, userroleassignment.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryRole queries the role edge of a UserRoleAssignment.
+func (c *UserRoleAssignmentClient) QueryRole(_m *UserRoleAssignment) *MarketflowRoleQuery {
+	query := (&MarketflowRoleClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(userroleassignment.Table, userroleassignment.FieldID, id),
+			sqlgraph.To(marketflowrole.Table, marketflowrole.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, userroleassignment.RoleTable, userroleassignment.RoleColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *UserRoleAssignmentClient) Hooks() []Hook {
+	return c.hooks.UserRoleAssignment
+}
+
+// Interceptors returns the client interceptors.
+func (c *UserRoleAssignmentClient) Interceptors() []Interceptor {
+	return c.inters.UserRoleAssignment
+}
+
+func (c *UserRoleAssignmentClient) mutate(ctx context.Context, m *UserRoleAssignmentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UserRoleAssignmentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UserRoleAssignmentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UserRoleAssignmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UserRoleAssignmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UserRoleAssignment mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
 		Campaign, ChatSession, Contact, Funnel, KnowledgeBaseEntry, Lead,
-		NurtureSequence, OutboxEvent, ProviderSetting, ScheduledMeeting, ServiceConfig,
-		ShortLink, Tenant []ent.Hook
+		MarketflowPermission, MarketflowRole, MarketflowUser, NurtureSequence,
+		OutboxEvent, ProviderSetting, RolePermission, ScheduledMeeting, ServiceConfig,
+		ShortLink, Tenant, UserRoleAssignment []ent.Hook
 	}
 	inters struct {
 		Campaign, ChatSession, Contact, Funnel, KnowledgeBaseEntry, Lead,
-		NurtureSequence, OutboxEvent, ProviderSetting, ScheduledMeeting, ServiceConfig,
-		ShortLink, Tenant []ent.Interceptor
+		MarketflowPermission, MarketflowRole, MarketflowUser, NurtureSequence,
+		OutboxEvent, ProviderSetting, RolePermission, ScheduledMeeting, ServiceConfig,
+		ShortLink, Tenant, UserRoleAssignment []ent.Interceptor
 	}
 )
