@@ -6,11 +6,12 @@ import (
 )
 
 // LinkBuilder constructs FLP-specific URLs for an FBO tenant.
+// For FBO tenants, the tenant slug IS the distributor ID (e.g., "254200047984").
 type LinkBuilder struct {
-	DistribID   string // e.g., "254200047984"
+	DistribID   string // e.g., "254200047984" — also used as tenant slug for FBOs
 	StoreCode   string // e.g., "KEN"
 	Language    string // e.g., "en"
-	TenantSlug  string // e.g., "my-fbo-business" — used for MarketFlow-hosted profile pages
+	TenantSlug  string // For FBOs: same as DistribID. For generic: business slug.
 }
 
 const (
@@ -65,10 +66,14 @@ func (b *LinkBuilder) RecruitURL() string {
 }
 
 // ProfileURL returns the FBO's MarketFlow-hosted profile page.
-// Example: https://marketflow.codevertexitsolutions.com/p/my-fbo-slug
-// These are dynamically generated pages with AI chatbot, product grid, etc.
+// For FBO tenants, slug = distribID, so profile URL uses the distribID directly.
+// Example: https://marketflow.codevertexitsolutions.com/p/254200047984
 func (b *LinkBuilder) ProfileURL() string {
-	return fmt.Sprintf(profileBaseURL, b.TenantSlug)
+	slug := b.TenantSlug
+	if slug == "" {
+		slug = b.DistribID // FBO fallback: use distribID as slug
+	}
+	return fmt.Sprintf(profileBaseURL, slug)
 }
 
 // WhatsAppURL returns a wa.me deep link for the FBO's WhatsApp number.
