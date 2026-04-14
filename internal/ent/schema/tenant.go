@@ -127,6 +127,7 @@ func (Tenant) Edges() []ent.Edge {
 		edge.To("knowledge_base_entries", KnowledgeBaseEntry.Type),
 		edge.To("chat_sessions", ChatSession.Type),
 		edge.To("nurture_sequences", NurtureSequence.Type),
+		edge.To("nurture_enrollments", NurtureEnrollment.Type),
 	}
 }
 

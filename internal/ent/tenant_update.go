@@ -17,6 +17,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/predicate"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
@@ -456,6 +457,21 @@ func (_u *TenantUpdate) AddNurtureSequences(v ...*NurtureSequence) *TenantUpdate
 	return _u.AddNurtureSequenceIDs(ids...)
 }
 
+// AddNurtureEnrollmentIDs adds the "nurture_enrollments" edge to the NurtureEnrollment entity by IDs.
+func (_u *TenantUpdate) AddNurtureEnrollmentIDs(ids ...uuid.UUID) *TenantUpdate {
+	_u.mutation.AddNurtureEnrollmentIDs(ids...)
+	return _u
+}
+
+// AddNurtureEnrollments adds the "nurture_enrollments" edges to the NurtureEnrollment entity.
+func (_u *TenantUpdate) AddNurtureEnrollments(v ...*NurtureEnrollment) *TenantUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddNurtureEnrollmentIDs(ids...)
+}
+
 // Mutation returns the TenantMutation object of the builder.
 func (_u *TenantUpdate) Mutation() *TenantMutation {
 	return _u.mutation
@@ -606,6 +622,27 @@ func (_u *TenantUpdate) RemoveNurtureSequences(v ...*NurtureSequence) *TenantUpd
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveNurtureSequenceIDs(ids...)
+}
+
+// ClearNurtureEnrollments clears all "nurture_enrollments" edges to the NurtureEnrollment entity.
+func (_u *TenantUpdate) ClearNurtureEnrollments() *TenantUpdate {
+	_u.mutation.ClearNurtureEnrollments()
+	return _u
+}
+
+// RemoveNurtureEnrollmentIDs removes the "nurture_enrollments" edge to NurtureEnrollment entities by IDs.
+func (_u *TenantUpdate) RemoveNurtureEnrollmentIDs(ids ...uuid.UUID) *TenantUpdate {
+	_u.mutation.RemoveNurtureEnrollmentIDs(ids...)
+	return _u
+}
+
+// RemoveNurtureEnrollments removes "nurture_enrollments" edges to NurtureEnrollment entities.
+func (_u *TenantUpdate) RemoveNurtureEnrollments(v ...*NurtureEnrollment) *TenantUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveNurtureEnrollmentIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -1085,6 +1122,51 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.NurtureEnrollmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NurtureEnrollmentsTable,
+			Columns: []string{tenant.NurtureEnrollmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurtureenrollment.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedNurtureEnrollmentsIDs(); len(nodes) > 0 && !_u.mutation.NurtureEnrollmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NurtureEnrollmentsTable,
+			Columns: []string{tenant.NurtureEnrollmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurtureenrollment.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.NurtureEnrollmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NurtureEnrollmentsTable,
+			Columns: []string{tenant.NurtureEnrollmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurtureenrollment.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -1526,6 +1608,21 @@ func (_u *TenantUpdateOne) AddNurtureSequences(v ...*NurtureSequence) *TenantUpd
 	return _u.AddNurtureSequenceIDs(ids...)
 }
 
+// AddNurtureEnrollmentIDs adds the "nurture_enrollments" edge to the NurtureEnrollment entity by IDs.
+func (_u *TenantUpdateOne) AddNurtureEnrollmentIDs(ids ...uuid.UUID) *TenantUpdateOne {
+	_u.mutation.AddNurtureEnrollmentIDs(ids...)
+	return _u
+}
+
+// AddNurtureEnrollments adds the "nurture_enrollments" edges to the NurtureEnrollment entity.
+func (_u *TenantUpdateOne) AddNurtureEnrollments(v ...*NurtureEnrollment) *TenantUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddNurtureEnrollmentIDs(ids...)
+}
+
 // Mutation returns the TenantMutation object of the builder.
 func (_u *TenantUpdateOne) Mutation() *TenantMutation {
 	return _u.mutation
@@ -1676,6 +1773,27 @@ func (_u *TenantUpdateOne) RemoveNurtureSequences(v ...*NurtureSequence) *Tenant
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveNurtureSequenceIDs(ids...)
+}
+
+// ClearNurtureEnrollments clears all "nurture_enrollments" edges to the NurtureEnrollment entity.
+func (_u *TenantUpdateOne) ClearNurtureEnrollments() *TenantUpdateOne {
+	_u.mutation.ClearNurtureEnrollments()
+	return _u
+}
+
+// RemoveNurtureEnrollmentIDs removes the "nurture_enrollments" edge to NurtureEnrollment entities by IDs.
+func (_u *TenantUpdateOne) RemoveNurtureEnrollmentIDs(ids ...uuid.UUID) *TenantUpdateOne {
+	_u.mutation.RemoveNurtureEnrollmentIDs(ids...)
+	return _u
+}
+
+// RemoveNurtureEnrollments removes "nurture_enrollments" edges to NurtureEnrollment entities.
+func (_u *TenantUpdateOne) RemoveNurtureEnrollments(v ...*NurtureEnrollment) *TenantUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveNurtureEnrollmentIDs(ids...)
 }
 
 // Where appends a list predicates to the TenantUpdate builder.
@@ -2178,6 +2296,51 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(nurturesequence.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.NurtureEnrollmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NurtureEnrollmentsTable,
+			Columns: []string{tenant.NurtureEnrollmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurtureenrollment.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedNurtureEnrollmentsIDs(); len(nodes) > 0 && !_u.mutation.NurtureEnrollmentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NurtureEnrollmentsTable,
+			Columns: []string{tenant.NurtureEnrollmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurtureenrollment.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.NurtureEnrollmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NurtureEnrollmentsTable,
+			Columns: []string{tenant.NurtureEnrollmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurtureenrollment.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

@@ -21,6 +21,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
+	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/outboxevent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
@@ -99,6 +100,7 @@ func checkColumn(t, c string) error {
 			marketflowpermission.Table: marketflowpermission.ValidColumn,
 			marketflowrole.Table:       marketflowrole.ValidColumn,
 			marketflowuser.Table:       marketflowuser.ValidColumn,
+			nurtureenrollment.Table:    nurtureenrollment.ValidColumn,
 			nurturesequence.Table:      nurturesequence.ValidColumn,
 			outboxevent.Table:          outboxevent.ValidColumn,
 			providersetting.Table:      providersetting.ValidColumn,

@@ -25,6 +25,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
+	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/outboxevent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
@@ -59,6 +60,8 @@ type Client struct {
 	MarketflowRole *MarketflowRoleClient
 	// MarketflowUser is the client for interacting with the MarketflowUser builders.
 	MarketflowUser *MarketflowUserClient
+	// NurtureEnrollment is the client for interacting with the NurtureEnrollment builders.
+	NurtureEnrollment *NurtureEnrollmentClient
 	// NurtureSequence is the client for interacting with the NurtureSequence builders.
 	NurtureSequence *NurtureSequenceClient
 	// OutboxEvent is the client for interacting with the OutboxEvent builders.
@@ -97,6 +100,7 @@ func (c *Client) init() {
 	c.MarketflowPermission = NewMarketflowPermissionClient(c.config)
 	c.MarketflowRole = NewMarketflowRoleClient(c.config)
 	c.MarketflowUser = NewMarketflowUserClient(c.config)
+	c.NurtureEnrollment = NewNurtureEnrollmentClient(c.config)
 	c.NurtureSequence = NewNurtureSequenceClient(c.config)
 	c.OutboxEvent = NewOutboxEventClient(c.config)
 	c.ProviderSetting = NewProviderSettingClient(c.config)
@@ -207,6 +211,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		MarketflowPermission: NewMarketflowPermissionClient(cfg),
 		MarketflowRole:       NewMarketflowRoleClient(cfg),
 		MarketflowUser:       NewMarketflowUserClient(cfg),
+		NurtureEnrollment:    NewNurtureEnrollmentClient(cfg),
 		NurtureSequence:      NewNurtureSequenceClient(cfg),
 		OutboxEvent:          NewOutboxEventClient(cfg),
 		ProviderSetting:      NewProviderSettingClient(cfg),
@@ -244,6 +249,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		MarketflowPermission: NewMarketflowPermissionClient(cfg),
 		MarketflowRole:       NewMarketflowRoleClient(cfg),
 		MarketflowUser:       NewMarketflowUserClient(cfg),
+		NurtureEnrollment:    NewNurtureEnrollmentClient(cfg),
 		NurtureSequence:      NewNurtureSequenceClient(cfg),
 		OutboxEvent:          NewOutboxEventClient(cfg),
 		ProviderSetting:      NewProviderSettingClient(cfg),
@@ -283,9 +289,10 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Campaign, c.ChatSession, c.Contact, c.Funnel, c.KnowledgeBaseEntry, c.Lead,
-		c.MarketflowPermission, c.MarketflowRole, c.MarketflowUser, c.NurtureSequence,
-		c.OutboxEvent, c.ProviderSetting, c.RolePermission, c.ScheduledMeeting,
-		c.ServiceConfig, c.ShortLink, c.Tenant, c.UserRoleAssignment,
+		c.MarketflowPermission, c.MarketflowRole, c.MarketflowUser,
+		c.NurtureEnrollment, c.NurtureSequence, c.OutboxEvent, c.ProviderSetting,
+		c.RolePermission, c.ScheduledMeeting, c.ServiceConfig, c.ShortLink, c.Tenant,
+		c.UserRoleAssignment,
 	} {
 		n.Use(hooks...)
 	}
@@ -296,9 +303,10 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Campaign, c.ChatSession, c.Contact, c.Funnel, c.KnowledgeBaseEntry, c.Lead,
-		c.MarketflowPermission, c.MarketflowRole, c.MarketflowUser, c.NurtureSequence,
-		c.OutboxEvent, c.ProviderSetting, c.RolePermission, c.ScheduledMeeting,
-		c.ServiceConfig, c.ShortLink, c.Tenant, c.UserRoleAssignment,
+		c.MarketflowPermission, c.MarketflowRole, c.MarketflowUser,
+		c.NurtureEnrollment, c.NurtureSequence, c.OutboxEvent, c.ProviderSetting,
+		c.RolePermission, c.ScheduledMeeting, c.ServiceConfig, c.ShortLink, c.Tenant,
+		c.UserRoleAssignment,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -325,6 +333,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.MarketflowRole.mutate(ctx, m)
 	case *MarketflowUserMutation:
 		return c.MarketflowUser.mutate(ctx, m)
+	case *NurtureEnrollmentMutation:
+		return c.NurtureEnrollment.mutate(ctx, m)
 	case *NurtureSequenceMutation:
 		return c.NurtureSequence.mutate(ctx, m)
 	case *OutboxEventMutation:
@@ -1881,6 +1891,155 @@ func (c *MarketflowUserClient) mutate(ctx context.Context, m *MarketflowUserMuta
 	}
 }
 
+// NurtureEnrollmentClient is a client for the NurtureEnrollment schema.
+type NurtureEnrollmentClient struct {
+	config
+}
+
+// NewNurtureEnrollmentClient returns a client for the NurtureEnrollment from the given config.
+func NewNurtureEnrollmentClient(c config) *NurtureEnrollmentClient {
+	return &NurtureEnrollmentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `nurtureenrollment.Hooks(f(g(h())))`.
+func (c *NurtureEnrollmentClient) Use(hooks ...Hook) {
+	c.hooks.NurtureEnrollment = append(c.hooks.NurtureEnrollment, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `nurtureenrollment.Intercept(f(g(h())))`.
+func (c *NurtureEnrollmentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NurtureEnrollment = append(c.inters.NurtureEnrollment, interceptors...)
+}
+
+// Create returns a builder for creating a NurtureEnrollment entity.
+func (c *NurtureEnrollmentClient) Create() *NurtureEnrollmentCreate {
+	mutation := newNurtureEnrollmentMutation(c.config, OpCreate)
+	return &NurtureEnrollmentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NurtureEnrollment entities.
+func (c *NurtureEnrollmentClient) CreateBulk(builders ...*NurtureEnrollmentCreate) *NurtureEnrollmentCreateBulk {
+	return &NurtureEnrollmentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NurtureEnrollmentClient) MapCreateBulk(slice any, setFunc func(*NurtureEnrollmentCreate, int)) *NurtureEnrollmentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NurtureEnrollmentCreateBulk{err: fmt.Errorf("calling to NurtureEnrollmentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NurtureEnrollmentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NurtureEnrollmentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NurtureEnrollment.
+func (c *NurtureEnrollmentClient) Update() *NurtureEnrollmentUpdate {
+	mutation := newNurtureEnrollmentMutation(c.config, OpUpdate)
+	return &NurtureEnrollmentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NurtureEnrollmentClient) UpdateOne(_m *NurtureEnrollment) *NurtureEnrollmentUpdateOne {
+	mutation := newNurtureEnrollmentMutation(c.config, OpUpdateOne, withNurtureEnrollment(_m))
+	return &NurtureEnrollmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NurtureEnrollmentClient) UpdateOneID(id uuid.UUID) *NurtureEnrollmentUpdateOne {
+	mutation := newNurtureEnrollmentMutation(c.config, OpUpdateOne, withNurtureEnrollmentID(id))
+	return &NurtureEnrollmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NurtureEnrollment.
+func (c *NurtureEnrollmentClient) Delete() *NurtureEnrollmentDelete {
+	mutation := newNurtureEnrollmentMutation(c.config, OpDelete)
+	return &NurtureEnrollmentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NurtureEnrollmentClient) DeleteOne(_m *NurtureEnrollment) *NurtureEnrollmentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NurtureEnrollmentClient) DeleteOneID(id uuid.UUID) *NurtureEnrollmentDeleteOne {
+	builder := c.Delete().Where(nurtureenrollment.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NurtureEnrollmentDeleteOne{builder}
+}
+
+// Query returns a query builder for NurtureEnrollment.
+func (c *NurtureEnrollmentClient) Query() *NurtureEnrollmentQuery {
+	return &NurtureEnrollmentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNurtureEnrollment},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NurtureEnrollment entity by its id.
+func (c *NurtureEnrollmentClient) Get(ctx context.Context, id uuid.UUID) (*NurtureEnrollment, error) {
+	return c.Query().Where(nurtureenrollment.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NurtureEnrollmentClient) GetX(ctx context.Context, id uuid.UUID) *NurtureEnrollment {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a NurtureEnrollment.
+func (c *NurtureEnrollmentClient) QueryTenant(_m *NurtureEnrollment) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nurtureenrollment.Table, nurtureenrollment.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nurtureenrollment.TenantTable, nurtureenrollment.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *NurtureEnrollmentClient) Hooks() []Hook {
+	return c.hooks.NurtureEnrollment
+}
+
+// Interceptors returns the client interceptors.
+func (c *NurtureEnrollmentClient) Interceptors() []Interceptor {
+	return c.inters.NurtureEnrollment
+}
+
+func (c *NurtureEnrollmentClient) mutate(ctx context.Context, m *NurtureEnrollmentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NurtureEnrollmentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NurtureEnrollmentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NurtureEnrollmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NurtureEnrollmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NurtureEnrollment mutation op: %q", m.Op())
+	}
+}
+
 // NurtureSequenceClient is a client for the NurtureSequence schema.
 type NurtureSequenceClient struct {
 	config
@@ -3112,6 +3271,22 @@ func (c *TenantClient) QueryNurtureSequences(_m *Tenant) *NurtureSequenceQuery {
 	return query
 }
 
+// QueryNurtureEnrollments queries the nurture_enrollments edge of a Tenant.
+func (c *TenantClient) QueryNurtureEnrollments(_m *Tenant) *NurtureEnrollmentQuery {
+	query := (&NurtureEnrollmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(nurtureenrollment.Table, nurtureenrollment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NurtureEnrollmentsTable, tenant.NurtureEnrollmentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *TenantClient) Hooks() []Hook {
 	return c.hooks.Tenant
@@ -3306,14 +3481,16 @@ func (c *UserRoleAssignmentClient) mutate(ctx context.Context, m *UserRoleAssign
 type (
 	hooks struct {
 		Campaign, ChatSession, Contact, Funnel, KnowledgeBaseEntry, Lead,
-		MarketflowPermission, MarketflowRole, MarketflowUser, NurtureSequence,
-		OutboxEvent, ProviderSetting, RolePermission, ScheduledMeeting, ServiceConfig,
-		ShortLink, Tenant, UserRoleAssignment []ent.Hook
+		MarketflowPermission, MarketflowRole, MarketflowUser, NurtureEnrollment,
+		NurtureSequence, OutboxEvent, ProviderSetting, RolePermission,
+		ScheduledMeeting, ServiceConfig, ShortLink, Tenant,
+		UserRoleAssignment []ent.Hook
 	}
 	inters struct {
 		Campaign, ChatSession, Contact, Funnel, KnowledgeBaseEntry, Lead,
-		MarketflowPermission, MarketflowRole, MarketflowUser, NurtureSequence,
-		OutboxEvent, ProviderSetting, RolePermission, ScheduledMeeting, ServiceConfig,
-		ShortLink, Tenant, UserRoleAssignment []ent.Interceptor
+		MarketflowPermission, MarketflowRole, MarketflowUser, NurtureEnrollment,
+		NurtureSequence, OutboxEvent, ProviderSetting, RolePermission,
+		ScheduledMeeting, ServiceConfig, ShortLink, Tenant,
+		UserRoleAssignment []ent.Interceptor
 	}
 )

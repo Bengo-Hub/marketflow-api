@@ -131,14 +131,16 @@ type MeetingHandlers struct {
 
 // WebhookHandlers groups webhook HTTP handlers (public, no auth).
 type WebhookHandlers struct {
-	MetaLeadgen  http.HandlerFunc
+	MetaVerify    http.HandlerFunc
+	MetaLeadgen   http.HandlerFunc
 	CalcomBooking http.HandlerFunc
 }
 
 // PublicHandlers groups public HTTP handlers (no auth).
 type PublicHandlers struct {
-	GetProfile    http.HandlerFunc
-	GetFunnel     http.HandlerFunc
+	GetProfile http.HandlerFunc
+	GetFunnel  http.HandlerFunc
+	CreateLead http.HandlerFunc
 }
 
 // ShortLinkHandlers groups short link HTTP handlers.
@@ -302,16 +304,19 @@ func NewRouter(deps RouterDeps) http.Handler {
 			})
 		})
 
-		// Webhook routes (public, no auth)
+		// Webhook routes (public, no auth — signature-verified by each handler)
 		r.Route("/webhooks", func(r chi.Router) {
+			r.Get("/meta/leadgen", deps.WebhookHandlers.MetaVerify)
 			r.Post("/meta/leadgen", deps.WebhookHandlers.MetaLeadgen)
 			r.Post("/calcom/booking", deps.WebhookHandlers.CalcomBooking)
 		})
 
-		// Public API routes (no auth)
+		// Public API routes (no auth). Lead capture is public and rate-limited
+		// at the ingress layer; the handler enforces tenant lookup + basic validation.
 		r.Route("/public", func(r chi.Router) {
 			r.Get("/profile/{slug}", deps.PublicHandlers.GetProfile)
 			r.Get("/funnels/{slug}", deps.PublicHandlers.GetFunnel)
+			r.Post("/leads/{slug}", deps.PublicHandlers.CreateLead)
 		})
 	})
 

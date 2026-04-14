@@ -490,6 +490,55 @@ var (
 			},
 		},
 	}
+	// NurtureEnrollmentsColumns holds the columns for the "nurture_enrollments" table.
+	NurtureEnrollmentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "sequence_id", Type: field.TypeUUID},
+		{Name: "lead_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "contact_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "current_step", Type: field.TypeInt, Default: 0},
+		{Name: "status", Type: field.TypeString, Default: "active"},
+		{Name: "next_step_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_step_at", Type: field.TypeTime, Nullable: true},
+		{Name: "started_at", Type: field.TypeTime},
+		{Name: "completed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "exit_reason", Type: field.TypeString, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// NurtureEnrollmentsTable holds the schema information for the "nurture_enrollments" table.
+	NurtureEnrollmentsTable = &schema.Table{
+		Name:       "nurture_enrollments",
+		Columns:    NurtureEnrollmentsColumns,
+		PrimaryKey: []*schema.Column{NurtureEnrollmentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "nurture_enrollments_tenants_nurture_enrollments",
+				Columns:    []*schema.Column{NurtureEnrollmentsColumns[14]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "nurtureenrollment_status_next_step_at",
+				Unique:  false,
+				Columns: []*schema.Column{NurtureEnrollmentsColumns[5], NurtureEnrollmentsColumns[6]},
+			},
+			{
+				Name:    "nurtureenrollment_tenant_id_lead_id_sequence_id",
+				Unique:  false,
+				Columns: []*schema.Column{NurtureEnrollmentsColumns[14], NurtureEnrollmentsColumns[2], NurtureEnrollmentsColumns[1]},
+			},
+			{
+				Name:    "nurtureenrollment_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{NurtureEnrollmentsColumns[14], NurtureEnrollmentsColumns[5]},
+			},
+		},
+	}
 	// NurtureSequencesColumns holds the columns for the "nurture_sequences" table.
 	NurtureSequencesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -902,6 +951,7 @@ var (
 		MarketflowPermissionsTable,
 		MarketflowRolesTable,
 		MarketflowUsersTable,
+		NurtureEnrollmentsTable,
 		NurtureSequencesTable,
 		OutboxEventsTable,
 		ProviderSettingsTable,
@@ -925,6 +975,7 @@ func init() {
 	LeadsTable.ForeignKeys[0].RefTable = CampaignsTable
 	LeadsTable.ForeignKeys[1].RefTable = FunnelsTable
 	LeadsTable.ForeignKeys[2].RefTable = TenantsTable
+	NurtureEnrollmentsTable.ForeignKeys[0].RefTable = TenantsTable
 	NurtureSequencesTable.ForeignKeys[0].RefTable = TenantsTable
 	RolePermissionsTable.ForeignKeys[0].RefTable = MarketflowRolesTable
 	RolePermissionsTable.ForeignKeys[1].RefTable = MarketflowPermissionsTable

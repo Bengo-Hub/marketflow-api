@@ -18,6 +18,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/predicate"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
@@ -38,6 +39,7 @@ type TenantQuery struct {
 	withKnowledgeBaseEntries *KnowledgeBaseEntryQuery
 	withChatSessions         *ChatSessionQuery
 	withNurtureSequences     *NurtureSequenceQuery
+	withNurtureEnrollments   *NurtureEnrollmentQuery
 	modifiers                []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -222,6 +224,28 @@ func (_q *TenantQuery) QueryNurtureSequences() *NurtureSequenceQuery {
 			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
 			sqlgraph.To(nurturesequence.Table, nurturesequence.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NurtureSequencesTable, tenant.NurtureSequencesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryNurtureEnrollments chains the current query on the "nurture_enrollments" edge.
+func (_q *TenantQuery) QueryNurtureEnrollments() *NurtureEnrollmentQuery {
+	query := (&NurtureEnrollmentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(nurtureenrollment.Table, nurtureenrollment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NurtureEnrollmentsTable, tenant.NurtureEnrollmentsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -428,6 +452,7 @@ func (_q *TenantQuery) Clone() *TenantQuery {
 		withKnowledgeBaseEntries: _q.withKnowledgeBaseEntries.Clone(),
 		withChatSessions:         _q.withChatSessions.Clone(),
 		withNurtureSequences:     _q.withNurtureSequences.Clone(),
+		withNurtureEnrollments:   _q.withNurtureEnrollments.Clone(),
 		// clone intermediate query.
 		sql:       _q.sql.Clone(),
 		path:      _q.path,
@@ -512,6 +537,17 @@ func (_q *TenantQuery) WithNurtureSequences(opts ...func(*NurtureSequenceQuery))
 	return _q
 }
 
+// WithNurtureEnrollments tells the query-builder to eager-load the nodes that are connected to
+// the "nurture_enrollments" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithNurtureEnrollments(opts ...func(*NurtureEnrollmentQuery)) *TenantQuery {
+	query := (&NurtureEnrollmentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withNurtureEnrollments = query
+	return _q
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 //
@@ -590,7 +626,7 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 	var (
 		nodes       = []*Tenant{}
 		_spec       = _q.querySpec()
-		loadedTypes = [7]bool{
+		loadedTypes = [8]bool{
 			_q.withLeads != nil,
 			_q.withContacts != nil,
 			_q.withCampaigns != nil,
@@ -598,6 +634,7 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 			_q.withKnowledgeBaseEntries != nil,
 			_q.withChatSessions != nil,
 			_q.withNurtureSequences != nil,
+			_q.withNurtureEnrollments != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -669,6 +706,15 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 		if err := _q.loadNurtureSequences(ctx, query, nodes,
 			func(n *Tenant) { n.Edges.NurtureSequences = []*NurtureSequence{} },
 			func(n *Tenant, e *NurtureSequence) { n.Edges.NurtureSequences = append(n.Edges.NurtureSequences, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withNurtureEnrollments; query != nil {
+		if err := _q.loadNurtureEnrollments(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.NurtureEnrollments = []*NurtureEnrollment{} },
+			func(n *Tenant, e *NurtureEnrollment) {
+				n.Edges.NurtureEnrollments = append(n.Edges.NurtureEnrollments, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -870,6 +916,36 @@ func (_q *TenantQuery) loadNurtureSequences(ctx context.Context, query *NurtureS
 	}
 	query.Where(predicate.NurtureSequence(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(tenant.NurtureSequencesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadNurtureEnrollments(ctx context.Context, query *NurtureEnrollmentQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *NurtureEnrollment)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(nurtureenrollment.FieldTenantID)
+	}
+	query.Where(predicate.NurtureEnrollment(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.NurtureEnrollmentsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

@@ -79,9 +79,11 @@ type TenantEdges struct {
 	ChatSessions []*ChatSession `json:"chat_sessions,omitempty"`
 	// NurtureSequences holds the value of the nurture_sequences edge.
 	NurtureSequences []*NurtureSequence `json:"nurture_sequences,omitempty"`
+	// NurtureEnrollments holds the value of the nurture_enrollments edge.
+	NurtureEnrollments []*NurtureEnrollment `json:"nurture_enrollments,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [7]bool
+	loadedTypes [8]bool
 }
 
 // LeadsOrErr returns the Leads value or an error if the edge
@@ -145,6 +147,15 @@ func (e TenantEdges) NurtureSequencesOrErr() ([]*NurtureSequence, error) {
 		return e.NurtureSequences, nil
 	}
 	return nil, &NotLoadedError{edge: "nurture_sequences"}
+}
+
+// NurtureEnrollmentsOrErr returns the NurtureEnrollments value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) NurtureEnrollmentsOrErr() ([]*NurtureEnrollment, error) {
+	if e.loadedTypes[7] {
+		return e.NurtureEnrollments, nil
+	}
+	return nil, &NotLoadedError{edge: "nurture_enrollments"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -355,6 +366,11 @@ func (_m *Tenant) QueryChatSessions() *ChatSessionQuery {
 // QueryNurtureSequences queries the "nurture_sequences" edge of the Tenant entity.
 func (_m *Tenant) QueryNurtureSequences() *NurtureSequenceQuery {
 	return NewTenantClient(_m.config).QueryNurtureSequences(_m)
+}
+
+// QueryNurtureEnrollments queries the "nurture_enrollments" edge of the Tenant entity.
+func (_m *Tenant) QueryNurtureEnrollments() *NurtureEnrollmentQuery {
+	return NewTenantClient(_m.config).QueryNurtureEnrollments(_m)
 }
 
 // Update returns a builder for updating this Tenant.

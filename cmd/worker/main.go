@@ -1,0 +1,129 @@
+// Package main is the entrypoint for the marketflow worker binary.
+//
+// Responsibilities:
+//   - Consume NATS JetStream subjects:
+//       nurture.step.due    → dispatch via notifications-api, advance enrollment
+//       embedding.requested → KB embedding pipeline (Ollama)
+//       chat.completed      → audit sink
+//       lead.created        → auto-enrol the lead in the tenant's default nurture sequence
+//   - Run a periodic scheduler that publishes `nurture.step.due` for enrollments
+//     whose next_step_at has elapsed.
+//   - Expose /healthz for k8s liveness probes.
+//
+// Ships in the same Docker image as marketflow-api (cmd/api + cmd/worker split).
+// The container entrypoint starts the worker in the background before exec'ing
+// the API.
+package main
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
+	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/worker"
+	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
+	"go.uber.org/zap"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
+)
+
+func main() {
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+
+	cfg, err := worker.LoadConfig()
+	if err != nil {
+		log.Fatalf("load config: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// ── DB (optional — enables auto-enrol + scheduler) ────────────────────
+	var entClient *ent.Client
+	if cfg.Database.URL != "" {
+		db, err := sql.Open("pgx", cfg.Database.URL)
+		if err != nil {
+			log.Fatalf("open postgres: %v", err)
+		}
+		defer db.Close()
+		if err := db.PingContext(ctx); err != nil {
+			logger.Warn("postgres ping failed — scheduler + auto-enrol disabled", zap.Error(err))
+		} else {
+			drv := entsql.OpenDB(dialect.Postgres, db)
+			entClient = ent.NewClient(ent.Driver(drv))
+			defer entClient.Close()
+			logger.Info("ent client ready")
+		}
+	} else {
+		logger.Warn("POSTGRES_URL unset — scheduler + auto-enrol disabled")
+	}
+
+	// ── NATS ──────────────────────────────────────────────────────────────
+	nc, err := nats.Connect(cfg.NATS.URL, nats.Name("marketflow-worker"))
+	if err != nil {
+		log.Fatalf("nats: %v", err)
+	}
+	defer nc.Drain()
+
+	js, err := jetstream.New(nc)
+	if err != nil {
+		log.Fatalf("jetstream: %v", err)
+	}
+
+	reg := worker.NewRegistry(cfg, entClient, logger)
+	if err := reg.RegisterAll(ctx, js); err != nil {
+		log.Fatalf("register consumers: %v", err)
+	}
+	logger.Info("consumers registered", zap.Int("count", reg.Count()))
+
+	// ── Scheduler ─────────────────────────────────────────────────────────
+	if entClient != nil {
+		sched := worker.NewScheduler(entClient, nc, cfg.Scheduler, logger)
+		go sched.Run(ctx)
+	}
+
+	// ── Health endpoint ───────────────────────────────────────────────────
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status":     "ok",
+			"service":    "marketflow-worker",
+			"consumers":  reg.Count(),
+			"scheduler":  entClient != nil,
+			"started_at": time.Now().UTC(),
+		})
+	})
+	srv := &http.Server{
+		Addr:              fmt.Sprintf(":%d", cfg.HTTP.Port),
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	go func() {
+		logger.Info("worker health server listening", zap.String("addr", srv.Addr))
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Error("health server", zap.Error(err))
+		}
+	}()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	<-sigCh
+	logger.Info("shutdown signal received")
+	cancel()
+	shutCtx, shutCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer shutCancel()
+	_ = srv.Shutdown(shutCtx)
+}

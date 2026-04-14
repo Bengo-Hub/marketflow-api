@@ -1841,6 +1841,60 @@
                 }
             }
         },
+        "/public/leads/{slug}": {
+            "post": {
+                "description": "Unauthenticated lead capture for the tenant identified by URL slug. Used by the embeddable chat widget and public funnels. Publishes `lead.created` to kick off the nurture loop.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public"
+                ],
+                "summary": "Public lead capture",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant URL slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Lead data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_modules_webhooks.publicLeadInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/public/profile/{slug}": {
             "get": {
                 "description": "Returns public tenant profile data without authentication",
@@ -2279,8 +2333,45 @@
             }
         },
         "/webhooks/meta/leadgen": {
+            "get": {
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Webhooks"
+                ],
+                "summary": "Meta webhook subscription verification",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "subscribe",
+                        "name": "hub.mode",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "token",
+                        "name": "hub.verify_token",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "challenge",
+                        "name": "hub.challenge",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "challenge echo",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
             "post": {
-                "description": "Receives lead form submissions from Meta (Facebook/Instagram) ads",
+                "description": "Receives lead form submissions from Meta (Facebook/Instagram) ads with HMAC signature verification.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2290,16 +2381,14 @@
                 "tags": [
                     "Webhooks"
                 ],
-                "summary": "Handle Meta lead generation webhook",
+                "summary": "Meta lead generation webhook",
                 "parameters": [
                     {
-                        "description": "Meta lead form data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_modules_webhooks.metaLeadFormData"
-                        }
+                        "type": "string",
+                        "description": "HMAC-SHA256 signature of request body using platform Meta app secret",
+                        "name": "X-Hub-Signature-256",
+                        "in": "header",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -2312,8 +2401,8 @@
                             }
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
+                    "401": {
+                        "description": "Invalid signature",
                         "schema": {
                             "$ref": "#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse"
                         }
@@ -2994,16 +3083,20 @@
                 }
             }
         },
-        "internal_modules_webhooks.metaLeadFormData": {
+        "internal_modules_webhooks.publicLeadInput": {
             "type": "object",
             "properties": {
-                "campaign_id": {
-                    "type": "string"
+                "answers": {
+                    "type": "object",
+                    "additionalProperties": {}
                 },
                 "email": {
                     "type": "string"
                 },
                 "first_name": {
+                    "type": "string"
+                },
+                "funnel_slug": {
                     "type": "string"
                 },
                 "interest": {
@@ -3012,10 +3105,22 @@
                 "last_name": {
                     "type": "string"
                 },
+                "lead_type": {
+                    "type": "string"
+                },
                 "phone": {
                     "type": "string"
                 },
-                "tenant_id": {
+                "source": {
+                    "type": "string"
+                },
+                "utm_campaign": {
+                    "type": "string"
+                },
+                "utm_medium": {
+                    "type": "string"
+                },
+                "utm_source": {
                     "type": "string"
                 }
             }

@@ -20,6 +20,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
+	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/outboxevent"
 	"github.com/bengobox/marketflow-api/internal/ent/predicate"
@@ -51,6 +52,7 @@ const (
 	TypeMarketflowPermission = "MarketflowPermission"
 	TypeMarketflowRole       = "MarketflowRole"
 	TypeMarketflowUser       = "MarketflowUser"
+	TypeNurtureEnrollment    = "NurtureEnrollment"
 	TypeNurtureSequence      = "NurtureSequence"
 	TypeOutboxEvent          = "OutboxEvent"
 	TypeProviderSetting      = "ProviderSetting"
@@ -12278,6 +12280,1266 @@ func (m *MarketflowUserMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown MarketflowUser edge %s", name)
 }
 
+// NurtureEnrollmentMutation represents an operation that mutates the NurtureEnrollment nodes in the graph.
+type NurtureEnrollmentMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *uuid.UUID
+	sequence_id     *uuid.UUID
+	lead_id         *uuid.UUID
+	contact_id      *uuid.UUID
+	current_step    *int
+	addcurrent_step *int
+	status          *string
+	next_step_at    *time.Time
+	last_step_at    *time.Time
+	started_at      *time.Time
+	completed_at    *time.Time
+	exit_reason     *string
+	metadata        *map[string]interface{}
+	created_at      *time.Time
+	updated_at      *time.Time
+	clearedFields   map[string]struct{}
+	tenant          *uuid.UUID
+	clearedtenant   bool
+	done            bool
+	oldValue        func(context.Context) (*NurtureEnrollment, error)
+	predicates      []predicate.NurtureEnrollment
+}
+
+var _ ent.Mutation = (*NurtureEnrollmentMutation)(nil)
+
+// nurtureenrollmentOption allows management of the mutation configuration using functional options.
+type nurtureenrollmentOption func(*NurtureEnrollmentMutation)
+
+// newNurtureEnrollmentMutation creates new mutation for the NurtureEnrollment entity.
+func newNurtureEnrollmentMutation(c config, op Op, opts ...nurtureenrollmentOption) *NurtureEnrollmentMutation {
+	m := &NurtureEnrollmentMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeNurtureEnrollment,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withNurtureEnrollmentID sets the ID field of the mutation.
+func withNurtureEnrollmentID(id uuid.UUID) nurtureenrollmentOption {
+	return func(m *NurtureEnrollmentMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *NurtureEnrollment
+		)
+		m.oldValue = func(ctx context.Context) (*NurtureEnrollment, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().NurtureEnrollment.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withNurtureEnrollment sets the old NurtureEnrollment of the mutation.
+func withNurtureEnrollment(node *NurtureEnrollment) nurtureenrollmentOption {
+	return func(m *NurtureEnrollmentMutation) {
+		m.oldValue = func(context.Context) (*NurtureEnrollment, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m NurtureEnrollmentMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m NurtureEnrollmentMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of NurtureEnrollment entities.
+func (m *NurtureEnrollmentMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *NurtureEnrollmentMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *NurtureEnrollmentMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().NurtureEnrollment.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *NurtureEnrollmentMutation) SetTenantID(u uuid.UUID) {
+	m.tenant = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *NurtureEnrollmentMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the NurtureEnrollment entity.
+// If the NurtureEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurtureEnrollmentMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *NurtureEnrollmentMutation) ResetTenantID() {
+	m.tenant = nil
+}
+
+// SetSequenceID sets the "sequence_id" field.
+func (m *NurtureEnrollmentMutation) SetSequenceID(u uuid.UUID) {
+	m.sequence_id = &u
+}
+
+// SequenceID returns the value of the "sequence_id" field in the mutation.
+func (m *NurtureEnrollmentMutation) SequenceID() (r uuid.UUID, exists bool) {
+	v := m.sequence_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSequenceID returns the old "sequence_id" field's value of the NurtureEnrollment entity.
+// If the NurtureEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurtureEnrollmentMutation) OldSequenceID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSequenceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSequenceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSequenceID: %w", err)
+	}
+	return oldValue.SequenceID, nil
+}
+
+// ResetSequenceID resets all changes to the "sequence_id" field.
+func (m *NurtureEnrollmentMutation) ResetSequenceID() {
+	m.sequence_id = nil
+}
+
+// SetLeadID sets the "lead_id" field.
+func (m *NurtureEnrollmentMutation) SetLeadID(u uuid.UUID) {
+	m.lead_id = &u
+}
+
+// LeadID returns the value of the "lead_id" field in the mutation.
+func (m *NurtureEnrollmentMutation) LeadID() (r uuid.UUID, exists bool) {
+	v := m.lead_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLeadID returns the old "lead_id" field's value of the NurtureEnrollment entity.
+// If the NurtureEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurtureEnrollmentMutation) OldLeadID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLeadID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLeadID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLeadID: %w", err)
+	}
+	return oldValue.LeadID, nil
+}
+
+// ClearLeadID clears the value of the "lead_id" field.
+func (m *NurtureEnrollmentMutation) ClearLeadID() {
+	m.lead_id = nil
+	m.clearedFields[nurtureenrollment.FieldLeadID] = struct{}{}
+}
+
+// LeadIDCleared returns if the "lead_id" field was cleared in this mutation.
+func (m *NurtureEnrollmentMutation) LeadIDCleared() bool {
+	_, ok := m.clearedFields[nurtureenrollment.FieldLeadID]
+	return ok
+}
+
+// ResetLeadID resets all changes to the "lead_id" field.
+func (m *NurtureEnrollmentMutation) ResetLeadID() {
+	m.lead_id = nil
+	delete(m.clearedFields, nurtureenrollment.FieldLeadID)
+}
+
+// SetContactID sets the "contact_id" field.
+func (m *NurtureEnrollmentMutation) SetContactID(u uuid.UUID) {
+	m.contact_id = &u
+}
+
+// ContactID returns the value of the "contact_id" field in the mutation.
+func (m *NurtureEnrollmentMutation) ContactID() (r uuid.UUID, exists bool) {
+	v := m.contact_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContactID returns the old "contact_id" field's value of the NurtureEnrollment entity.
+// If the NurtureEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurtureEnrollmentMutation) OldContactID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContactID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContactID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContactID: %w", err)
+	}
+	return oldValue.ContactID, nil
+}
+
+// ClearContactID clears the value of the "contact_id" field.
+func (m *NurtureEnrollmentMutation) ClearContactID() {
+	m.contact_id = nil
+	m.clearedFields[nurtureenrollment.FieldContactID] = struct{}{}
+}
+
+// ContactIDCleared returns if the "contact_id" field was cleared in this mutation.
+func (m *NurtureEnrollmentMutation) ContactIDCleared() bool {
+	_, ok := m.clearedFields[nurtureenrollment.FieldContactID]
+	return ok
+}
+
+// ResetContactID resets all changes to the "contact_id" field.
+func (m *NurtureEnrollmentMutation) ResetContactID() {
+	m.contact_id = nil
+	delete(m.clearedFields, nurtureenrollment.FieldContactID)
+}
+
+// SetCurrentStep sets the "current_step" field.
+func (m *NurtureEnrollmentMutation) SetCurrentStep(i int) {
+	m.current_step = &i
+	m.addcurrent_step = nil
+}
+
+// CurrentStep returns the value of the "current_step" field in the mutation.
+func (m *NurtureEnrollmentMutation) CurrentStep() (r int, exists bool) {
+	v := m.current_step
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrentStep returns the old "current_step" field's value of the NurtureEnrollment entity.
+// If the NurtureEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurtureEnrollmentMutation) OldCurrentStep(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrentStep is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrentStep requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrentStep: %w", err)
+	}
+	return oldValue.CurrentStep, nil
+}
+
+// AddCurrentStep adds i to the "current_step" field.
+func (m *NurtureEnrollmentMutation) AddCurrentStep(i int) {
+	if m.addcurrent_step != nil {
+		*m.addcurrent_step += i
+	} else {
+		m.addcurrent_step = &i
+	}
+}
+
+// AddedCurrentStep returns the value that was added to the "current_step" field in this mutation.
+func (m *NurtureEnrollmentMutation) AddedCurrentStep() (r int, exists bool) {
+	v := m.addcurrent_step
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCurrentStep resets all changes to the "current_step" field.
+func (m *NurtureEnrollmentMutation) ResetCurrentStep() {
+	m.current_step = nil
+	m.addcurrent_step = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *NurtureEnrollmentMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *NurtureEnrollmentMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the NurtureEnrollment entity.
+// If the NurtureEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurtureEnrollmentMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *NurtureEnrollmentMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetNextStepAt sets the "next_step_at" field.
+func (m *NurtureEnrollmentMutation) SetNextStepAt(t time.Time) {
+	m.next_step_at = &t
+}
+
+// NextStepAt returns the value of the "next_step_at" field in the mutation.
+func (m *NurtureEnrollmentMutation) NextStepAt() (r time.Time, exists bool) {
+	v := m.next_step_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNextStepAt returns the old "next_step_at" field's value of the NurtureEnrollment entity.
+// If the NurtureEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurtureEnrollmentMutation) OldNextStepAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNextStepAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNextStepAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNextStepAt: %w", err)
+	}
+	return oldValue.NextStepAt, nil
+}
+
+// ClearNextStepAt clears the value of the "next_step_at" field.
+func (m *NurtureEnrollmentMutation) ClearNextStepAt() {
+	m.next_step_at = nil
+	m.clearedFields[nurtureenrollment.FieldNextStepAt] = struct{}{}
+}
+
+// NextStepAtCleared returns if the "next_step_at" field was cleared in this mutation.
+func (m *NurtureEnrollmentMutation) NextStepAtCleared() bool {
+	_, ok := m.clearedFields[nurtureenrollment.FieldNextStepAt]
+	return ok
+}
+
+// ResetNextStepAt resets all changes to the "next_step_at" field.
+func (m *NurtureEnrollmentMutation) ResetNextStepAt() {
+	m.next_step_at = nil
+	delete(m.clearedFields, nurtureenrollment.FieldNextStepAt)
+}
+
+// SetLastStepAt sets the "last_step_at" field.
+func (m *NurtureEnrollmentMutation) SetLastStepAt(t time.Time) {
+	m.last_step_at = &t
+}
+
+// LastStepAt returns the value of the "last_step_at" field in the mutation.
+func (m *NurtureEnrollmentMutation) LastStepAt() (r time.Time, exists bool) {
+	v := m.last_step_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastStepAt returns the old "last_step_at" field's value of the NurtureEnrollment entity.
+// If the NurtureEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurtureEnrollmentMutation) OldLastStepAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastStepAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastStepAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastStepAt: %w", err)
+	}
+	return oldValue.LastStepAt, nil
+}
+
+// ClearLastStepAt clears the value of the "last_step_at" field.
+func (m *NurtureEnrollmentMutation) ClearLastStepAt() {
+	m.last_step_at = nil
+	m.clearedFields[nurtureenrollment.FieldLastStepAt] = struct{}{}
+}
+
+// LastStepAtCleared returns if the "last_step_at" field was cleared in this mutation.
+func (m *NurtureEnrollmentMutation) LastStepAtCleared() bool {
+	_, ok := m.clearedFields[nurtureenrollment.FieldLastStepAt]
+	return ok
+}
+
+// ResetLastStepAt resets all changes to the "last_step_at" field.
+func (m *NurtureEnrollmentMutation) ResetLastStepAt() {
+	m.last_step_at = nil
+	delete(m.clearedFields, nurtureenrollment.FieldLastStepAt)
+}
+
+// SetStartedAt sets the "started_at" field.
+func (m *NurtureEnrollmentMutation) SetStartedAt(t time.Time) {
+	m.started_at = &t
+}
+
+// StartedAt returns the value of the "started_at" field in the mutation.
+func (m *NurtureEnrollmentMutation) StartedAt() (r time.Time, exists bool) {
+	v := m.started_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStartedAt returns the old "started_at" field's value of the NurtureEnrollment entity.
+// If the NurtureEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurtureEnrollmentMutation) OldStartedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStartedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStartedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStartedAt: %w", err)
+	}
+	return oldValue.StartedAt, nil
+}
+
+// ResetStartedAt resets all changes to the "started_at" field.
+func (m *NurtureEnrollmentMutation) ResetStartedAt() {
+	m.started_at = nil
+}
+
+// SetCompletedAt sets the "completed_at" field.
+func (m *NurtureEnrollmentMutation) SetCompletedAt(t time.Time) {
+	m.completed_at = &t
+}
+
+// CompletedAt returns the value of the "completed_at" field in the mutation.
+func (m *NurtureEnrollmentMutation) CompletedAt() (r time.Time, exists bool) {
+	v := m.completed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCompletedAt returns the old "completed_at" field's value of the NurtureEnrollment entity.
+// If the NurtureEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurtureEnrollmentMutation) OldCompletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCompletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCompletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCompletedAt: %w", err)
+	}
+	return oldValue.CompletedAt, nil
+}
+
+// ClearCompletedAt clears the value of the "completed_at" field.
+func (m *NurtureEnrollmentMutation) ClearCompletedAt() {
+	m.completed_at = nil
+	m.clearedFields[nurtureenrollment.FieldCompletedAt] = struct{}{}
+}
+
+// CompletedAtCleared returns if the "completed_at" field was cleared in this mutation.
+func (m *NurtureEnrollmentMutation) CompletedAtCleared() bool {
+	_, ok := m.clearedFields[nurtureenrollment.FieldCompletedAt]
+	return ok
+}
+
+// ResetCompletedAt resets all changes to the "completed_at" field.
+func (m *NurtureEnrollmentMutation) ResetCompletedAt() {
+	m.completed_at = nil
+	delete(m.clearedFields, nurtureenrollment.FieldCompletedAt)
+}
+
+// SetExitReason sets the "exit_reason" field.
+func (m *NurtureEnrollmentMutation) SetExitReason(s string) {
+	m.exit_reason = &s
+}
+
+// ExitReason returns the value of the "exit_reason" field in the mutation.
+func (m *NurtureEnrollmentMutation) ExitReason() (r string, exists bool) {
+	v := m.exit_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExitReason returns the old "exit_reason" field's value of the NurtureEnrollment entity.
+// If the NurtureEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurtureEnrollmentMutation) OldExitReason(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExitReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExitReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExitReason: %w", err)
+	}
+	return oldValue.ExitReason, nil
+}
+
+// ClearExitReason clears the value of the "exit_reason" field.
+func (m *NurtureEnrollmentMutation) ClearExitReason() {
+	m.exit_reason = nil
+	m.clearedFields[nurtureenrollment.FieldExitReason] = struct{}{}
+}
+
+// ExitReasonCleared returns if the "exit_reason" field was cleared in this mutation.
+func (m *NurtureEnrollmentMutation) ExitReasonCleared() bool {
+	_, ok := m.clearedFields[nurtureenrollment.FieldExitReason]
+	return ok
+}
+
+// ResetExitReason resets all changes to the "exit_reason" field.
+func (m *NurtureEnrollmentMutation) ResetExitReason() {
+	m.exit_reason = nil
+	delete(m.clearedFields, nurtureenrollment.FieldExitReason)
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *NurtureEnrollmentMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *NurtureEnrollmentMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the NurtureEnrollment entity.
+// If the NurtureEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurtureEnrollmentMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (m *NurtureEnrollmentMutation) ClearMetadata() {
+	m.metadata = nil
+	m.clearedFields[nurtureenrollment.FieldMetadata] = struct{}{}
+}
+
+// MetadataCleared returns if the "metadata" field was cleared in this mutation.
+func (m *NurtureEnrollmentMutation) MetadataCleared() bool {
+	_, ok := m.clearedFields[nurtureenrollment.FieldMetadata]
+	return ok
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *NurtureEnrollmentMutation) ResetMetadata() {
+	m.metadata = nil
+	delete(m.clearedFields, nurtureenrollment.FieldMetadata)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *NurtureEnrollmentMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *NurtureEnrollmentMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the NurtureEnrollment entity.
+// If the NurtureEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurtureEnrollmentMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *NurtureEnrollmentMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *NurtureEnrollmentMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *NurtureEnrollmentMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the NurtureEnrollment entity.
+// If the NurtureEnrollment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurtureEnrollmentMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *NurtureEnrollmentMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// ClearTenant clears the "tenant" edge to the Tenant entity.
+func (m *NurtureEnrollmentMutation) ClearTenant() {
+	m.clearedtenant = true
+	m.clearedFields[nurtureenrollment.FieldTenantID] = struct{}{}
+}
+
+// TenantCleared reports if the "tenant" edge to the Tenant entity was cleared.
+func (m *NurtureEnrollmentMutation) TenantCleared() bool {
+	return m.clearedtenant
+}
+
+// TenantIDs returns the "tenant" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TenantID instead. It exists only for internal usage by the builders.
+func (m *NurtureEnrollmentMutation) TenantIDs() (ids []uuid.UUID) {
+	if id := m.tenant; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTenant resets all changes to the "tenant" edge.
+func (m *NurtureEnrollmentMutation) ResetTenant() {
+	m.tenant = nil
+	m.clearedtenant = false
+}
+
+// Where appends a list predicates to the NurtureEnrollmentMutation builder.
+func (m *NurtureEnrollmentMutation) Where(ps ...predicate.NurtureEnrollment) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the NurtureEnrollmentMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *NurtureEnrollmentMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.NurtureEnrollment, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *NurtureEnrollmentMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *NurtureEnrollmentMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (NurtureEnrollment).
+func (m *NurtureEnrollmentMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *NurtureEnrollmentMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.tenant != nil {
+		fields = append(fields, nurtureenrollment.FieldTenantID)
+	}
+	if m.sequence_id != nil {
+		fields = append(fields, nurtureenrollment.FieldSequenceID)
+	}
+	if m.lead_id != nil {
+		fields = append(fields, nurtureenrollment.FieldLeadID)
+	}
+	if m.contact_id != nil {
+		fields = append(fields, nurtureenrollment.FieldContactID)
+	}
+	if m.current_step != nil {
+		fields = append(fields, nurtureenrollment.FieldCurrentStep)
+	}
+	if m.status != nil {
+		fields = append(fields, nurtureenrollment.FieldStatus)
+	}
+	if m.next_step_at != nil {
+		fields = append(fields, nurtureenrollment.FieldNextStepAt)
+	}
+	if m.last_step_at != nil {
+		fields = append(fields, nurtureenrollment.FieldLastStepAt)
+	}
+	if m.started_at != nil {
+		fields = append(fields, nurtureenrollment.FieldStartedAt)
+	}
+	if m.completed_at != nil {
+		fields = append(fields, nurtureenrollment.FieldCompletedAt)
+	}
+	if m.exit_reason != nil {
+		fields = append(fields, nurtureenrollment.FieldExitReason)
+	}
+	if m.metadata != nil {
+		fields = append(fields, nurtureenrollment.FieldMetadata)
+	}
+	if m.created_at != nil {
+		fields = append(fields, nurtureenrollment.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, nurtureenrollment.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *NurtureEnrollmentMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case nurtureenrollment.FieldTenantID:
+		return m.TenantID()
+	case nurtureenrollment.FieldSequenceID:
+		return m.SequenceID()
+	case nurtureenrollment.FieldLeadID:
+		return m.LeadID()
+	case nurtureenrollment.FieldContactID:
+		return m.ContactID()
+	case nurtureenrollment.FieldCurrentStep:
+		return m.CurrentStep()
+	case nurtureenrollment.FieldStatus:
+		return m.Status()
+	case nurtureenrollment.FieldNextStepAt:
+		return m.NextStepAt()
+	case nurtureenrollment.FieldLastStepAt:
+		return m.LastStepAt()
+	case nurtureenrollment.FieldStartedAt:
+		return m.StartedAt()
+	case nurtureenrollment.FieldCompletedAt:
+		return m.CompletedAt()
+	case nurtureenrollment.FieldExitReason:
+		return m.ExitReason()
+	case nurtureenrollment.FieldMetadata:
+		return m.Metadata()
+	case nurtureenrollment.FieldCreatedAt:
+		return m.CreatedAt()
+	case nurtureenrollment.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *NurtureEnrollmentMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case nurtureenrollment.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case nurtureenrollment.FieldSequenceID:
+		return m.OldSequenceID(ctx)
+	case nurtureenrollment.FieldLeadID:
+		return m.OldLeadID(ctx)
+	case nurtureenrollment.FieldContactID:
+		return m.OldContactID(ctx)
+	case nurtureenrollment.FieldCurrentStep:
+		return m.OldCurrentStep(ctx)
+	case nurtureenrollment.FieldStatus:
+		return m.OldStatus(ctx)
+	case nurtureenrollment.FieldNextStepAt:
+		return m.OldNextStepAt(ctx)
+	case nurtureenrollment.FieldLastStepAt:
+		return m.OldLastStepAt(ctx)
+	case nurtureenrollment.FieldStartedAt:
+		return m.OldStartedAt(ctx)
+	case nurtureenrollment.FieldCompletedAt:
+		return m.OldCompletedAt(ctx)
+	case nurtureenrollment.FieldExitReason:
+		return m.OldExitReason(ctx)
+	case nurtureenrollment.FieldMetadata:
+		return m.OldMetadata(ctx)
+	case nurtureenrollment.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case nurtureenrollment.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown NurtureEnrollment field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *NurtureEnrollmentMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case nurtureenrollment.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case nurtureenrollment.FieldSequenceID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSequenceID(v)
+		return nil
+	case nurtureenrollment.FieldLeadID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLeadID(v)
+		return nil
+	case nurtureenrollment.FieldContactID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContactID(v)
+		return nil
+	case nurtureenrollment.FieldCurrentStep:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrentStep(v)
+		return nil
+	case nurtureenrollment.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case nurtureenrollment.FieldNextStepAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNextStepAt(v)
+		return nil
+	case nurtureenrollment.FieldLastStepAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastStepAt(v)
+		return nil
+	case nurtureenrollment.FieldStartedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStartedAt(v)
+		return nil
+	case nurtureenrollment.FieldCompletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCompletedAt(v)
+		return nil
+	case nurtureenrollment.FieldExitReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExitReason(v)
+		return nil
+	case nurtureenrollment.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	case nurtureenrollment.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case nurtureenrollment.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown NurtureEnrollment field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *NurtureEnrollmentMutation) AddedFields() []string {
+	var fields []string
+	if m.addcurrent_step != nil {
+		fields = append(fields, nurtureenrollment.FieldCurrentStep)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *NurtureEnrollmentMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case nurtureenrollment.FieldCurrentStep:
+		return m.AddedCurrentStep()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *NurtureEnrollmentMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case nurtureenrollment.FieldCurrentStep:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCurrentStep(v)
+		return nil
+	}
+	return fmt.Errorf("unknown NurtureEnrollment numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *NurtureEnrollmentMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(nurtureenrollment.FieldLeadID) {
+		fields = append(fields, nurtureenrollment.FieldLeadID)
+	}
+	if m.FieldCleared(nurtureenrollment.FieldContactID) {
+		fields = append(fields, nurtureenrollment.FieldContactID)
+	}
+	if m.FieldCleared(nurtureenrollment.FieldNextStepAt) {
+		fields = append(fields, nurtureenrollment.FieldNextStepAt)
+	}
+	if m.FieldCleared(nurtureenrollment.FieldLastStepAt) {
+		fields = append(fields, nurtureenrollment.FieldLastStepAt)
+	}
+	if m.FieldCleared(nurtureenrollment.FieldCompletedAt) {
+		fields = append(fields, nurtureenrollment.FieldCompletedAt)
+	}
+	if m.FieldCleared(nurtureenrollment.FieldExitReason) {
+		fields = append(fields, nurtureenrollment.FieldExitReason)
+	}
+	if m.FieldCleared(nurtureenrollment.FieldMetadata) {
+		fields = append(fields, nurtureenrollment.FieldMetadata)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *NurtureEnrollmentMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *NurtureEnrollmentMutation) ClearField(name string) error {
+	switch name {
+	case nurtureenrollment.FieldLeadID:
+		m.ClearLeadID()
+		return nil
+	case nurtureenrollment.FieldContactID:
+		m.ClearContactID()
+		return nil
+	case nurtureenrollment.FieldNextStepAt:
+		m.ClearNextStepAt()
+		return nil
+	case nurtureenrollment.FieldLastStepAt:
+		m.ClearLastStepAt()
+		return nil
+	case nurtureenrollment.FieldCompletedAt:
+		m.ClearCompletedAt()
+		return nil
+	case nurtureenrollment.FieldExitReason:
+		m.ClearExitReason()
+		return nil
+	case nurtureenrollment.FieldMetadata:
+		m.ClearMetadata()
+		return nil
+	}
+	return fmt.Errorf("unknown NurtureEnrollment nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *NurtureEnrollmentMutation) ResetField(name string) error {
+	switch name {
+	case nurtureenrollment.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case nurtureenrollment.FieldSequenceID:
+		m.ResetSequenceID()
+		return nil
+	case nurtureenrollment.FieldLeadID:
+		m.ResetLeadID()
+		return nil
+	case nurtureenrollment.FieldContactID:
+		m.ResetContactID()
+		return nil
+	case nurtureenrollment.FieldCurrentStep:
+		m.ResetCurrentStep()
+		return nil
+	case nurtureenrollment.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case nurtureenrollment.FieldNextStepAt:
+		m.ResetNextStepAt()
+		return nil
+	case nurtureenrollment.FieldLastStepAt:
+		m.ResetLastStepAt()
+		return nil
+	case nurtureenrollment.FieldStartedAt:
+		m.ResetStartedAt()
+		return nil
+	case nurtureenrollment.FieldCompletedAt:
+		m.ResetCompletedAt()
+		return nil
+	case nurtureenrollment.FieldExitReason:
+		m.ResetExitReason()
+		return nil
+	case nurtureenrollment.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	case nurtureenrollment.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case nurtureenrollment.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown NurtureEnrollment field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *NurtureEnrollmentMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.tenant != nil {
+		edges = append(edges, nurtureenrollment.EdgeTenant)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *NurtureEnrollmentMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case nurtureenrollment.EdgeTenant:
+		if id := m.tenant; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *NurtureEnrollmentMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *NurtureEnrollmentMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *NurtureEnrollmentMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedtenant {
+		edges = append(edges, nurtureenrollment.EdgeTenant)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *NurtureEnrollmentMutation) EdgeCleared(name string) bool {
+	switch name {
+	case nurtureenrollment.EdgeTenant:
+		return m.clearedtenant
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *NurtureEnrollmentMutation) ClearEdge(name string) error {
+	switch name {
+	case nurtureenrollment.EdgeTenant:
+		m.ClearTenant()
+		return nil
+	}
+	return fmt.Errorf("unknown NurtureEnrollment unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *NurtureEnrollmentMutation) ResetEdge(name string) error {
+	switch name {
+	case nurtureenrollment.EdgeTenant:
+		m.ResetTenant()
+		return nil
+	}
+	return fmt.Errorf("unknown NurtureEnrollment edge %s", name)
+}
+
 // NurtureSequenceMutation represents an operation that mutates the NurtureSequence nodes in the graph.
 type NurtureSequenceMutation struct {
 	config
@@ -18925,6 +20187,9 @@ type TenantMutation struct {
 	nurture_sequences             map[uuid.UUID]struct{}
 	removednurture_sequences      map[uuid.UUID]struct{}
 	clearednurture_sequences      bool
+	nurture_enrollments           map[uuid.UUID]struct{}
+	removednurture_enrollments    map[uuid.UUID]struct{}
+	clearednurture_enrollments    bool
 	done                          bool
 	oldValue                      func(context.Context) (*Tenant, error)
 	predicates                    []predicate.Tenant
@@ -20265,6 +21530,60 @@ func (m *TenantMutation) ResetNurtureSequences() {
 	m.removednurture_sequences = nil
 }
 
+// AddNurtureEnrollmentIDs adds the "nurture_enrollments" edge to the NurtureEnrollment entity by ids.
+func (m *TenantMutation) AddNurtureEnrollmentIDs(ids ...uuid.UUID) {
+	if m.nurture_enrollments == nil {
+		m.nurture_enrollments = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.nurture_enrollments[ids[i]] = struct{}{}
+	}
+}
+
+// ClearNurtureEnrollments clears the "nurture_enrollments" edge to the NurtureEnrollment entity.
+func (m *TenantMutation) ClearNurtureEnrollments() {
+	m.clearednurture_enrollments = true
+}
+
+// NurtureEnrollmentsCleared reports if the "nurture_enrollments" edge to the NurtureEnrollment entity was cleared.
+func (m *TenantMutation) NurtureEnrollmentsCleared() bool {
+	return m.clearednurture_enrollments
+}
+
+// RemoveNurtureEnrollmentIDs removes the "nurture_enrollments" edge to the NurtureEnrollment entity by IDs.
+func (m *TenantMutation) RemoveNurtureEnrollmentIDs(ids ...uuid.UUID) {
+	if m.removednurture_enrollments == nil {
+		m.removednurture_enrollments = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.nurture_enrollments, ids[i])
+		m.removednurture_enrollments[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedNurtureEnrollments returns the removed IDs of the "nurture_enrollments" edge to the NurtureEnrollment entity.
+func (m *TenantMutation) RemovedNurtureEnrollmentsIDs() (ids []uuid.UUID) {
+	for id := range m.removednurture_enrollments {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// NurtureEnrollmentsIDs returns the "nurture_enrollments" edge IDs in the mutation.
+func (m *TenantMutation) NurtureEnrollmentsIDs() (ids []uuid.UUID) {
+	for id := range m.nurture_enrollments {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetNurtureEnrollments resets all changes to the "nurture_enrollments" edge.
+func (m *TenantMutation) ResetNurtureEnrollments() {
+	m.nurture_enrollments = nil
+	m.clearednurture_enrollments = false
+	m.removednurture_enrollments = nil
+}
+
 // Where appends a list predicates to the TenantMutation builder.
 func (m *TenantMutation) Where(ps ...predicate.Tenant) {
 	m.predicates = append(m.predicates, ps...)
@@ -20785,7 +22104,7 @@ func (m *TenantMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TenantMutation) AddedEdges() []string {
-	edges := make([]string, 0, 7)
+	edges := make([]string, 0, 8)
 	if m.leads != nil {
 		edges = append(edges, tenant.EdgeLeads)
 	}
@@ -20806,6 +22125,9 @@ func (m *TenantMutation) AddedEdges() []string {
 	}
 	if m.nurture_sequences != nil {
 		edges = append(edges, tenant.EdgeNurtureSequences)
+	}
+	if m.nurture_enrollments != nil {
+		edges = append(edges, tenant.EdgeNurtureEnrollments)
 	}
 	return edges
 }
@@ -20856,13 +22178,19 @@ func (m *TenantMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeNurtureEnrollments:
+		ids := make([]ent.Value, 0, len(m.nurture_enrollments))
+		for id := range m.nurture_enrollments {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TenantMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 7)
+	edges := make([]string, 0, 8)
 	if m.removedleads != nil {
 		edges = append(edges, tenant.EdgeLeads)
 	}
@@ -20883,6 +22211,9 @@ func (m *TenantMutation) RemovedEdges() []string {
 	}
 	if m.removednurture_sequences != nil {
 		edges = append(edges, tenant.EdgeNurtureSequences)
+	}
+	if m.removednurture_enrollments != nil {
+		edges = append(edges, tenant.EdgeNurtureEnrollments)
 	}
 	return edges
 }
@@ -20933,13 +22264,19 @@ func (m *TenantMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeNurtureEnrollments:
+		ids := make([]ent.Value, 0, len(m.removednurture_enrollments))
+		for id := range m.removednurture_enrollments {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TenantMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 7)
+	edges := make([]string, 0, 8)
 	if m.clearedleads {
 		edges = append(edges, tenant.EdgeLeads)
 	}
@@ -20960,6 +22297,9 @@ func (m *TenantMutation) ClearedEdges() []string {
 	}
 	if m.clearednurture_sequences {
 		edges = append(edges, tenant.EdgeNurtureSequences)
+	}
+	if m.clearednurture_enrollments {
+		edges = append(edges, tenant.EdgeNurtureEnrollments)
 	}
 	return edges
 }
@@ -20982,6 +22322,8 @@ func (m *TenantMutation) EdgeCleared(name string) bool {
 		return m.clearedchat_sessions
 	case tenant.EdgeNurtureSequences:
 		return m.clearednurture_sequences
+	case tenant.EdgeNurtureEnrollments:
+		return m.clearednurture_enrollments
 	}
 	return false
 }
@@ -21018,6 +22360,9 @@ func (m *TenantMutation) ResetEdge(name string) error {
 		return nil
 	case tenant.EdgeNurtureSequences:
 		m.ResetNurtureSequences()
+		return nil
+	case tenant.EdgeNurtureEnrollments:
+		m.ResetNurtureEnrollments()
 		return nil
 	}
 	return fmt.Errorf("unknown Tenant edge %s", name)

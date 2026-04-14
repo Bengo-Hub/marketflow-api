@@ -1557,6 +1557,29 @@ func HasNurtureSequencesWith(preds ...predicate.NurtureSequence) predicate.Tenan
 	})
 }
 
+// HasNurtureEnrollments applies the HasEdge predicate on the "nurture_enrollments" edge.
+func HasNurtureEnrollments() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, NurtureEnrollmentsTable, NurtureEnrollmentsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasNurtureEnrollmentsWith applies the HasEdge predicate on the "nurture_enrollments" edge with a given conditions (other predicates).
+func HasNurtureEnrollmentsWith(preds ...predicate.NurtureEnrollment) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newNurtureEnrollmentsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Tenant) predicate.Tenant {
 	return predicate.Tenant(sql.AndPredicates(predicates...))

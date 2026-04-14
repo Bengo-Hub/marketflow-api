@@ -117,6 +117,18 @@ func (f MarketflowUserFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MarketflowUserMutation", m)
 }
 
+// The NurtureEnrollmentFunc type is an adapter to allow the use of ordinary
+// function as NurtureEnrollment mutator.
+type NurtureEnrollmentFunc func(context.Context, *ent.NurtureEnrollmentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NurtureEnrollmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NurtureEnrollmentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NurtureEnrollmentMutation", m)
+}
+
 // The NurtureSequenceFunc type is an adapter to allow the use of ordinary
 // function as NurtureSequence mutator.
 type NurtureSequenceFunc func(context.Context, *ent.NurtureSequenceMutation) (ent.Value, error)

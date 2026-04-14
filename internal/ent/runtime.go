@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
+	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/outboxevent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
@@ -326,6 +327,34 @@ func init() {
 	marketflowuserDescID := marketflowuserFields[0].Descriptor()
 	// marketflowuser.DefaultID holds the default value on creation for the id field.
 	marketflowuser.DefaultID = marketflowuserDescID.Default.(func() uuid.UUID)
+	nurtureenrollmentFields := schema.NurtureEnrollment{}.Fields()
+	_ = nurtureenrollmentFields
+	// nurtureenrollmentDescCurrentStep is the schema descriptor for current_step field.
+	nurtureenrollmentDescCurrentStep := nurtureenrollmentFields[5].Descriptor()
+	// nurtureenrollment.DefaultCurrentStep holds the default value on creation for the current_step field.
+	nurtureenrollment.DefaultCurrentStep = nurtureenrollmentDescCurrentStep.Default.(int)
+	// nurtureenrollmentDescStatus is the schema descriptor for status field.
+	nurtureenrollmentDescStatus := nurtureenrollmentFields[6].Descriptor()
+	// nurtureenrollment.DefaultStatus holds the default value on creation for the status field.
+	nurtureenrollment.DefaultStatus = nurtureenrollmentDescStatus.Default.(string)
+	// nurtureenrollmentDescStartedAt is the schema descriptor for started_at field.
+	nurtureenrollmentDescStartedAt := nurtureenrollmentFields[9].Descriptor()
+	// nurtureenrollment.DefaultStartedAt holds the default value on creation for the started_at field.
+	nurtureenrollment.DefaultStartedAt = nurtureenrollmentDescStartedAt.Default.(func() time.Time)
+	// nurtureenrollmentDescCreatedAt is the schema descriptor for created_at field.
+	nurtureenrollmentDescCreatedAt := nurtureenrollmentFields[13].Descriptor()
+	// nurtureenrollment.DefaultCreatedAt holds the default value on creation for the created_at field.
+	nurtureenrollment.DefaultCreatedAt = nurtureenrollmentDescCreatedAt.Default.(func() time.Time)
+	// nurtureenrollmentDescUpdatedAt is the schema descriptor for updated_at field.
+	nurtureenrollmentDescUpdatedAt := nurtureenrollmentFields[14].Descriptor()
+	// nurtureenrollment.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	nurtureenrollment.DefaultUpdatedAt = nurtureenrollmentDescUpdatedAt.Default.(func() time.Time)
+	// nurtureenrollment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	nurtureenrollment.UpdateDefaultUpdatedAt = nurtureenrollmentDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// nurtureenrollmentDescID is the schema descriptor for id field.
+	nurtureenrollmentDescID := nurtureenrollmentFields[0].Descriptor()
+	// nurtureenrollment.DefaultID holds the default value on creation for the id field.
+	nurtureenrollment.DefaultID = nurtureenrollmentDescID.Default.(func() uuid.UUID)
 	nurturesequenceFields := schema.NurtureSequence{}.Fields()
 	_ = nurturesequenceFields
 	// nurturesequenceDescName is the schema descriptor for name field.

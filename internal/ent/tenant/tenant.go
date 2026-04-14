@@ -67,6 +67,8 @@ const (
 	EdgeChatSessions = "chat_sessions"
 	// EdgeNurtureSequences holds the string denoting the nurture_sequences edge name in mutations.
 	EdgeNurtureSequences = "nurture_sequences"
+	// EdgeNurtureEnrollments holds the string denoting the nurture_enrollments edge name in mutations.
+	EdgeNurtureEnrollments = "nurture_enrollments"
 	// Table holds the table name of the tenant in the database.
 	Table = "tenants"
 	// LeadsTable is the table that holds the leads relation/edge.
@@ -118,6 +120,13 @@ const (
 	NurtureSequencesInverseTable = "nurture_sequences"
 	// NurtureSequencesColumn is the table column denoting the nurture_sequences relation/edge.
 	NurtureSequencesColumn = "tenant_id"
+	// NurtureEnrollmentsTable is the table that holds the nurture_enrollments relation/edge.
+	NurtureEnrollmentsTable = "nurture_enrollments"
+	// NurtureEnrollmentsInverseTable is the table name for the NurtureEnrollment entity.
+	// It exists in this package in order to avoid circular dependency with the "nurtureenrollment" package.
+	NurtureEnrollmentsInverseTable = "nurture_enrollments"
+	// NurtureEnrollmentsColumn is the table column denoting the nurture_enrollments relation/edge.
+	NurtureEnrollmentsColumn = "tenant_id"
 )
 
 // Columns holds all SQL columns for tenant fields.
@@ -376,6 +385,20 @@ func ByNurtureSequences(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption 
 		sqlgraph.OrderByNeighborTerms(s, newNurtureSequencesStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByNurtureEnrollmentsCount orders the results by nurture_enrollments count.
+func ByNurtureEnrollmentsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newNurtureEnrollmentsStep(), opts...)
+	}
+}
+
+// ByNurtureEnrollments orders the results by nurture_enrollments terms.
+func ByNurtureEnrollments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newNurtureEnrollmentsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newLeadsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -423,5 +446,12 @@ func newNurtureSequencesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(NurtureSequencesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, NurtureSequencesTable, NurtureSequencesColumn),
+	)
+}
+func newNurtureEnrollmentsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(NurtureEnrollmentsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, NurtureEnrollmentsTable, NurtureEnrollmentsColumn),
 	)
 }

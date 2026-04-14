@@ -30,6 +30,8 @@ type Tx struct {
 	MarketflowRole *MarketflowRoleClient
 	// MarketflowUser is the client for interacting with the MarketflowUser builders.
 	MarketflowUser *MarketflowUserClient
+	// NurtureEnrollment is the client for interacting with the NurtureEnrollment builders.
+	NurtureEnrollment *NurtureEnrollmentClient
 	// NurtureSequence is the client for interacting with the NurtureSequence builders.
 	NurtureSequence *NurtureSequenceClient
 	// OutboxEvent is the client for interacting with the OutboxEvent builders.
@@ -188,6 +190,7 @@ func (tx *Tx) init() {
 	tx.MarketflowPermission = NewMarketflowPermissionClient(tx.config)
 	tx.MarketflowRole = NewMarketflowRoleClient(tx.config)
 	tx.MarketflowUser = NewMarketflowUserClient(tx.config)
+	tx.NurtureEnrollment = NewNurtureEnrollmentClient(tx.config)
 	tx.NurtureSequence = NewNurtureSequenceClient(tx.config)
 	tx.OutboxEvent = NewOutboxEventClient(tx.config)
 	tx.ProviderSetting = NewProviderSettingClient(tx.config)

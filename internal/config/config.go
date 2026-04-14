@@ -69,9 +69,12 @@ type EventsConfig struct {
 }
 
 // MetaConfig holds Facebook/Instagram Marketing API settings.
+// Platform-level credentials shared across tenants; per-tenant link is
+// Tenant.meta_page_id only.
 type MetaConfig struct {
-	AppID     string `env:"APP_ID"`
-	AppSecret string `env:"APP_SECRET"`
+	AppID       string `env:"APP_ID"`
+	AppSecret   string `env:"APP_SECRET"`
+	VerifyToken string `env:"VERIFY_TOKEN"` // GET subscription verification
 	// GraphAPIVersion is the version of the Graph API to use.
 	GraphAPIVersion string `env:"GRAPH_API_VERSION" envDefault:"v21.0"`
 }

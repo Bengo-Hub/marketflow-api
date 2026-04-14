@@ -18,6 +18,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/google/uuid"
@@ -392,6 +393,21 @@ func (_c *TenantCreate) AddNurtureSequences(v ...*NurtureSequence) *TenantCreate
 	return _c.AddNurtureSequenceIDs(ids...)
 }
 
+// AddNurtureEnrollmentIDs adds the "nurture_enrollments" edge to the NurtureEnrollment entity by IDs.
+func (_c *TenantCreate) AddNurtureEnrollmentIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddNurtureEnrollmentIDs(ids...)
+	return _c
+}
+
+// AddNurtureEnrollments adds the "nurture_enrollments" edges to the NurtureEnrollment entity.
+func (_c *TenantCreate) AddNurtureEnrollments(v ...*NurtureEnrollment) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddNurtureEnrollmentIDs(ids...)
+}
+
 // Mutation returns the TenantMutation object of the builder.
 func (_c *TenantCreate) Mutation() *TenantMutation {
 	return _c.mutation
@@ -712,6 +728,22 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(nurturesequence.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.NurtureEnrollmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NurtureEnrollmentsTable,
+			Columns: []string{tenant.NurtureEnrollmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurtureenrollment.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

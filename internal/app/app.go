@@ -159,12 +159,17 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	meetingService := meetings.NewService(entClient, logger)
 	meetingHandler := meetings.NewHandler(meetingService, logger)
 
-	// Webhook handlers
-	metaWebhookHandler := webhooks.NewMetaHandler(leadService, logger)
+	// Webhook handlers — Meta app credentials are platform-level (MF_META_*),
+	// shared across all tenants; per-tenant link is Tenant.meta_page_id.
+	metaWebhookHandler := webhooks.NewMetaHandler(leadService, webhooks.MetaConfig{
+		DB:          sqlDB,
+		AppSecret:   cfg.Meta.AppSecret,
+		VerifyToken: cfg.Meta.VerifyToken,
+	}, logger)
 	calcomWebhookHandler := webhooks.NewCalcomHandler(meetingService, leadService, logger)
 
 	// Public handlers
-	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, logger)
+	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, leadService, logger)
 
 	// ── Router ────────────────────────────────────────────────────────────
 	var requireAuth func(http.Handler) http.Handler
@@ -227,12 +232,14 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Update: meetingHandler.Update,
 		},
 		WebhookHandlers: httpapi.WebhookHandlers{
+			MetaVerify:    metaWebhookHandler.Verify,
 			MetaLeadgen:   metaWebhookHandler.HandleLeadgen,
 			CalcomBooking: calcomWebhookHandler.HandleBooking,
 		},
 		PublicHandlers: httpapi.PublicHandlers{
 			GetProfile: publicHandler.GetProfile,
 			GetFunnel:  publicHandler.GetFunnel,
+			CreateLead: publicHandler.PublicCreateLead,
 		},
 		ShortLinkHandlers: httpapi.ShortLinkHandlers{
 			Create:   shortLinkHandler.Create,

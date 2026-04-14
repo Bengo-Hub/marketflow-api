@@ -33,6 +33,9 @@ type MarketflowRole func(*sql.Selector)
 // MarketflowUser is the predicate function for marketflowuser builders.
 type MarketflowUser func(*sql.Selector)
 
+// NurtureEnrollment is the predicate function for nurtureenrollment builders.
+type NurtureEnrollment func(*sql.Selector)
+
 // NurtureSequence is the predicate function for nurturesequence builders.
 type NurtureSequence func(*sql.Selector)
 
