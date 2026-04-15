@@ -96,6 +96,60 @@
                 }
             }
         },
+        "/admin/providers/resolve": {
+            "get": {
+                "security": [
+                    {
+                        "apiKey": []
+                    }
+                ],
+                "description": "Returns decrypted secret values. Requires platform X-API-Key; platform_owner JWT also accepted. Not for UI display.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin - Providers"
+                ],
+                "summary": "Resolve platform provider settings (decrypted, service-only)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Provider type (ai_llm, ai_search, meta_ads, google_calendar, etc.)",
+                        "name": "type",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Provider name (groq, tavily, meta, oauth, ...)",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Environment (default: production)",
+                        "name": "env",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID for tenant-scoped lookup; omit for platform lookup",
+                        "name": "tenant_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/admin/providers/settings": {
             "get": {
                 "security": [
@@ -168,6 +222,41 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Counts + week-over-week deltas for leads, contacts, chat sessions, campaigns, meetings, active nurture enrollments.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Tenant dashboard aggregates",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -766,6 +855,34 @@
                 }
             }
         },
+        "/f/{slug}": {
+            "get": {
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Public"
+                ],
+                "summary": "Render public funnel as HTML",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Funnel slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "rendered HTML",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/funnels": {
             "get": {
                 "security": [
@@ -1070,6 +1187,211 @@
                         "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/integrations": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "List tenant integrations",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/integrations/google/authorize": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Start Google Calendar OAuth for a tenant",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/integrations/google/callback": {
+            "get": {
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Google Calendar OAuth callback",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization code",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Signed state",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/integrations/meta/authorize": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Start Meta OAuth for a tenant",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/integrations/meta/callback": {
+            "get": {
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Meta OAuth callback",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization code",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Signed state",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/integrations/{provider}": {
+            "delete": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Disconnect a tenant integration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Provider type (google_calendar | meta_ads)",
+                        "name": "provider",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -1807,14 +2129,13 @@
         },
         "/public/funnels/{slug}": {
             "get": {
-                "description": "Returns published funnel data without authentication",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Public"
                 ],
-                "summary": "Get published funnel by slug (public)",
+                "summary": "Get published funnel by slug (JSON)",
                 "parameters": [
                     {
                         "type": "string",

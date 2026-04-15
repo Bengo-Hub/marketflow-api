@@ -48,6 +48,12 @@ type RouterDeps struct {
 	// Admin provider handlers (platform owner only)
 	AdminProviderHandlers AdminProviderHandlers
 
+	// Analytics handlers (tenant dashboard aggregates)
+	AnalyticsHandlers AnalyticsHandlers
+
+	// Integration handlers (OAuth authorize + callback for Google / Meta)
+	IntegrationsHandlers IntegrationsHandlers
+
 	// Auth middleware
 	RequireAuthHandler      func(http.Handler) http.Handler
 	RequirePlatformOwner    func(http.Handler) http.Handler
@@ -61,6 +67,7 @@ type AdminProviderHandlers struct {
 	Configure   http.HandlerFunc
 	List        http.HandlerFunc
 	GetSettings http.HandlerFunc
+	Resolve     http.HandlerFunc
 	Deactivate  http.HandlerFunc
 }
 
@@ -129,6 +136,22 @@ type MeetingHandlers struct {
 	Update http.HandlerFunc
 }
 
+// AnalyticsHandlers groups dashboard/aggregate HTTP handlers.
+type AnalyticsHandlers struct {
+	Dashboard http.HandlerFunc
+}
+
+// IntegrationsHandlers groups OAuth authorize + callback endpoints
+// (Google Calendar, Meta) and any related per-tenant integration management.
+type IntegrationsHandlers struct {
+	GoogleAuthorize http.HandlerFunc
+	GoogleCallback  http.HandlerFunc
+	MetaAuthorize   http.HandlerFunc
+	MetaCallback    http.HandlerFunc
+	ListTenant      http.HandlerFunc
+	DisconnectTenant http.HandlerFunc
+}
+
 // WebhookHandlers groups webhook HTTP handlers (public, no auth).
 type WebhookHandlers struct {
 	MetaVerify    http.HandlerFunc
@@ -138,9 +161,10 @@ type WebhookHandlers struct {
 
 // PublicHandlers groups public HTTP handlers (no auth).
 type PublicHandlers struct {
-	GetProfile http.HandlerFunc
-	GetFunnel  http.HandlerFunc
-	CreateLead http.HandlerFunc
+	GetProfile   http.HandlerFunc
+	GetFunnel    http.HandlerFunc
+	RenderFunnel http.HandlerFunc
+	CreateLead   http.HandlerFunc
 }
 
 // ShortLinkHandlers groups short link HTTP handlers.
@@ -282,6 +306,22 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Put("/{id}", deps.MeetingHandlers.Update)
 			})
 
+			// Dashboard aggregates for the tenant dashboard UI.
+			r.Route("/analytics", func(r chi.Router) {
+				r.Get("/dashboard", deps.AnalyticsHandlers.Dashboard)
+			})
+
+			// Per-tenant integration OAuth flows. authorize returns the
+			// provider auth URL; callback is hit by the provider.
+			r.Route("/integrations", func(r chi.Router) {
+				r.Get("/google/authorize", deps.IntegrationsHandlers.GoogleAuthorize)
+				r.Get("/google/callback", deps.IntegrationsHandlers.GoogleCallback)
+				r.Get("/meta/authorize", deps.IntegrationsHandlers.MetaAuthorize)
+				r.Get("/meta/callback", deps.IntegrationsHandlers.MetaCallback)
+				r.Get("/", deps.IntegrationsHandlers.ListTenant)
+				r.Delete("/{provider}", deps.IntegrationsHandlers.DisconnectTenant)
+			})
+
 			// Short link management (authenticated)
 			r.Route("/short-links", func(r chi.Router) {
 				r.Post("/", deps.ShortLinkHandlers.Create)
@@ -299,6 +339,11 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Post("/configure", deps.AdminProviderHandlers.Configure)
 					r.Get("/", deps.AdminProviderHandlers.List)
 					r.Get("/settings", deps.AdminProviderHandlers.GetSettings)
+					// /resolve is the internal service-to-service read path;
+					// returns DECRYPTED values so marketflow-ai + worker can
+					// bootstrap their clients. Gated by platform-owner/JWT or
+					// X-API-Key (same middleware).
+					r.Get("/resolve", deps.AdminProviderHandlers.Resolve)
 					r.Delete("/{id}", deps.AdminProviderHandlers.Deactivate)
 				})
 			})
@@ -324,8 +369,8 @@ func NewRouter(deps RouterDeps) http.Handler {
 	// GET /s/{code} → 302 redirect to target URL
 	r.Get("/s/{code}", deps.ShortLinkHandlers.Redirect)
 
-	// Public funnel hosting (no auth required)
-	r.Get("/f/{slug}", deps.PublicHandlers.GetFunnel)
+	// Public funnel hosting — server-rendered HTML landing page (no auth).
+	r.Get("/f/{slug}", deps.PublicHandlers.RenderFunnel)
 
 	// Public FBO profile page (no auth required)
 	r.Get("/p/{slug}", deps.PublicHandlers.GetProfile)

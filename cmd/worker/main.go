@@ -103,6 +103,12 @@ func main() {
 	if entClient != nil {
 		sched := worker.NewScheduler(entClient, nc, cfg.Scheduler, logger)
 		go sched.Run(ctx)
+		reeng := worker.NewReEngagement(entClient,
+			time.Duration(cfg.Scheduler.ReengagementIntervalHours)*time.Hour,
+			time.Duration(cfg.Scheduler.ReengagementDormantDays)*24*time.Hour,
+			logger,
+		)
+		go reeng.Run(ctx)
 	}
 
 	// ── Health endpoint ───────────────────────────────────────────────────

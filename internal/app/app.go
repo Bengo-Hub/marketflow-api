@@ -16,12 +16,14 @@ import (
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/httpapi/handlers"
 	"github.com/bengobox/marketflow-api/internal/modules/admin"
+	"github.com/bengobox/marketflow-api/internal/modules/analytics"
 	"github.com/bengobox/marketflow-api/internal/modules/campaigns"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
 	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
 	"github.com/bengobox/marketflow-api/internal/integrations/gcal"
+	"github.com/bengobox/marketflow-api/internal/modules/integrations"
 	"github.com/bengobox/marketflow-api/internal/modules/meetings"
 	"github.com/bengobox/marketflow-api/internal/modules/outbox"
 	"github.com/bengobox/marketflow-api/internal/modules/rbac"
@@ -164,6 +166,12 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	meetingService := meetings.NewService(entClient, gcal.NewSyncer(entClient, logger), logger)
 	meetingHandler := meetings.NewHandler(meetingService, logger)
 
+	analyticsHandler := analytics.NewHandler(entClient, logger)
+
+	// Integrations OAuth flow handler. Uses the encryption key as the HMAC
+	// key for signing `state`; no separate secret needed.
+	integrationsHandler := integrations.NewHandler(entClient, encKey, logger)
+
 	// Webhook handlers — Meta app credentials are platform-level (MF_META_*),
 	// shared across all tenants; per-tenant link is Tenant.meta_page_id.
 	metaWebhookHandler := webhooks.NewMetaHandler(leadService, webhooks.MetaConfig{
@@ -242,19 +250,32 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			CalcomBooking: calcomWebhookHandler.HandleBooking,
 		},
 		PublicHandlers: httpapi.PublicHandlers{
-			GetProfile: publicHandler.GetProfile,
-			GetFunnel:  publicHandler.GetFunnel,
-			CreateLead: publicHandler.PublicCreateLead,
+			GetProfile:   publicHandler.GetProfile,
+			GetFunnel:    publicHandler.GetFunnel,
+			RenderFunnel: publicHandler.RenderFunnel,
+			CreateLead:   publicHandler.PublicCreateLead,
 		},
 		ShortLinkHandlers: httpapi.ShortLinkHandlers{
 			Create:   shortLinkHandler.Create,
 			List:     shortLinkHandler.List,
 			Redirect: shortLinkHandler.Redirect,
 		},
+		AnalyticsHandlers: httpapi.AnalyticsHandlers{
+			Dashboard: analyticsHandler.Dashboard,
+		},
+		IntegrationsHandlers: httpapi.IntegrationsHandlers{
+			GoogleAuthorize:  integrationsHandler.GoogleAuthorize,
+			GoogleCallback:   integrationsHandler.GoogleCallback,
+			MetaAuthorize:    integrationsHandler.MetaAuthorize,
+			MetaCallback:     integrationsHandler.MetaCallback,
+			ListTenant:       integrationsHandler.ListTenant,
+			DisconnectTenant: integrationsHandler.DisconnectTenant,
+		},
 		AdminProviderHandlers: httpapi.AdminProviderHandlers{
 			Configure:   platformProviderHandler.ConfigureProvider,
 			List:        platformProviderHandler.ListProviders,
 			GetSettings: platformProviderHandler.GetProviderSettings,
+			Resolve:     platformProviderHandler.ResolveProvider,
 			Deactivate:  platformProviderHandler.DeactivateProvider,
 		},
 		RequireAuthHandler: requireAuth,

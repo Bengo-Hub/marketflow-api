@@ -28,6 +28,9 @@ type DatabaseConfig struct {
 type SchedulerConfig struct {
 	IntervalSeconds int `env:"INTERVAL_SECONDS" envDefault:"60"`
 	BatchSize       int `env:"BATCH_SIZE" envDefault:"50"`
+	// Re-engagement cron
+	ReengagementIntervalHours int `env:"REENGAGEMENT_INTERVAL_HOURS" envDefault:"24"`
+	ReengagementDormantDays   int `env:"REENGAGEMENT_DORMANT_DAYS" envDefault:"60"`
 }
 
 type NATSConfig struct {

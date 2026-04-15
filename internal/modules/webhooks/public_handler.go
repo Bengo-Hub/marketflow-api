@@ -1,7 +1,9 @@
 package webhooks
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
@@ -81,9 +83,9 @@ func (h *PublicHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	httpapi.JSON(w, http.StatusOK, profile)
 }
 
-// GetFunnel handles GET /api/v1/public/funnels/{slug}
-// @Summary Get published funnel by slug (public)
-// @Description Returns published funnel data without authentication
+// GetFunnel handles GET /api/v1/public/funnels/{slug} — JSON payload for
+// programmatic consumers (e.g. funnel builder preview).
+// @Summary Get published funnel by slug (JSON)
 // @Tags Public
 // @Produce json
 // @Param slug path string true "Funnel URL slug"
@@ -96,14 +98,153 @@ func (h *PublicHandler) GetFunnel(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_slug", "slug is required", nil)
 		return
 	}
-
 	result, err := h.funnelService.GetBySlug(r.Context(), slug)
 	if err != nil {
 		httpapi.Error(w, http.StatusNotFound, "not_found", "funnel not found", nil)
 		return
 	}
-
 	httpapi.JSON(w, http.StatusOK, result)
+}
+
+// RenderFunnel handles GET /f/{slug} — server-rendered HTML landing page.
+//
+// Renders `landing_page_html` if present; otherwise falls back to a built-in
+// template that shows the funnel's steps + a form POSTing to
+// /api/v1/public/leads/{tenant_slug}. Includes the embeddable chat widget.
+// @Summary Render public funnel as HTML
+// @Tags Public
+// @Produce html
+// @Param slug path string true "Funnel slug"
+// @Success 200 {string} string "rendered HTML"
+// @Router /f/{slug} [get]
+func (h *PublicHandler) RenderFunnel(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	if slug == "" {
+		http.Error(w, "slug required", http.StatusBadRequest)
+		return
+	}
+	f, err := h.funnelService.GetBySlug(r.Context(), slug)
+	if err != nil {
+		http.Error(w, "funnel not found", http.StatusNotFound)
+		return
+	}
+	// Resolve the tenant slug for the lead POST target (widget-compatible).
+	t, err := h.entClient.Tenant.Get(r.Context(), f.TenantID)
+	if err != nil {
+		http.Error(w, "tenant missing", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=60")
+	// If the tenant supplied custom HTML via the builder, serve that. We still
+	// inject the lead-capture JS + widget script at the end.
+	if f.LandingPageHTML != "" {
+		_, _ = w.Write([]byte(f.LandingPageHTML))
+		_, _ = w.Write([]byte(funnelTail(t.Slug)))
+		return
+	}
+	// Fallback: default template rendered from the structured fields.
+	_, _ = w.Write([]byte(renderDefaultFunnel(f, t.Slug)))
+}
+
+func renderDefaultFunnel(f *ent.Funnel, tenantSlug string) string {
+	brand := "#16a34a"
+	if c, ok := f.Metadata["brand_color"].(string); ok && c != "" {
+		brand = c
+	}
+	title := f.Name
+	subtitle := "Tell us a bit about yourself and we'll reach out within 24 hours."
+	if s, ok := f.Metadata["subtitle"].(string); ok && s != "" {
+		subtitle = s
+	}
+	return fmt.Sprintf(`<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>%s</title>
+<meta property="og:title" content="%s" />
+<meta property="og:description" content="%s" />
+<style>
+  :root { --brand: %s; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, sans-serif; background: #f9fafb; color: #111827; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 48px 20px; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  p.sub { color: #6b7280; margin: 0 0 24px; }
+  form { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+  label { display: block; font-size: 13px; color: #374151; margin-top: 12px; }
+  input, textarea { width: 100%%; margin-top: 4px; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
+  button { margin-top: 18px; width: 100%%; padding: 12px 16px; background: var(--brand); color: #fff; border: 0; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .done { text-align: center; padding: 40px 20px; color: #065f46; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>%s</h1>
+    <p class="sub">%s</p>
+    <form id="mf-funnel" method="POST">
+      <label>Name <input name="first_name" required autocomplete="given-name" /></label>
+      <label>Email <input name="email" type="email" required autocomplete="email" /></label>
+      <label>WhatsApp number <input name="phone" type="tel" autocomplete="tel" /></label>
+      <label>What interests you? <textarea name="interest" rows="3" placeholder="Tell us what you're looking for..."></textarea></label>
+      <button type="submit">Get started</button>
+    </form>
+    <div class="done" id="mf-done" style="display:none">
+      Thanks — we'll be in touch shortly. Keep this tab open to chat with our AI assistant ↓
+    </div>
+  </div>
+<script>
+(function(){
+  var tenantSlug = %q;
+  var funnelSlug = %q;
+  var form = document.getElementById('mf-funnel');
+  var done = document.getElementById('mf-done');
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var fd = new FormData(form);
+    var body = {
+      first_name: fd.get('first_name'),
+      email: fd.get('email'),
+      phone: fd.get('phone'),
+      interest: fd.get('interest'),
+      source: 'funnel',
+      funnel_slug: funnelSlug,
+      utm_source: new URLSearchParams(location.search).get('utm_source') || '',
+      utm_medium: new URLSearchParams(location.search).get('utm_medium') || '',
+      utm_campaign: new URLSearchParams(location.search).get('utm_campaign') || ''
+    };
+    fetch('/api/v1/public/leads/' + encodeURIComponent(tenantSlug), {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    }).then(function(r){ return r.ok; }).then(function(ok){
+      if (ok) { form.style.display='none'; done.style.display='block'; }
+    });
+  });
+})();
+</script>%s
+</body>
+</html>`,
+		htmlEscape(title), htmlEscape(title), htmlEscape(subtitle), brand,
+		htmlEscape(title), htmlEscape(subtitle),
+		tenantSlug, f.Slug, funnelTail(tenantSlug))
+}
+
+func funnelTail(tenantSlug string) string {
+	return fmt.Sprintf(`
+<script async src="/widget/chat.js" data-tenant=%q data-api-url=""></script>`, tenantSlug)
+}
+
+func htmlEscape(s string) string {
+	r := strings.NewReplacer(
+		"&", "&amp;",
+		"<", "&lt;",
+		">", "&gt;",
+		`"`, "&quot;",
+		"'", "&#39;",
+	)
+	return r.Replace(s)
 }
 
 type publicLeadInput struct {

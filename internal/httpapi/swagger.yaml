@@ -568,6 +568,43 @@ paths:
       summary: Configure a platform provider
       tags:
       - Admin - Providers
+  /admin/providers/resolve:
+    get:
+      description: Returns decrypted secret values. Requires platform X-API-Key; platform_owner
+        JWT also accepted. Not for UI display.
+      parameters:
+      - description: Provider type (ai_llm, ai_search, meta_ads, google_calendar,
+          etc.)
+        in: query
+        name: type
+        required: true
+        type: string
+      - description: Provider name (groq, tavily, meta, oauth, ...)
+        in: query
+        name: name
+        required: true
+        type: string
+      - description: 'Environment (default: production)'
+        in: query
+        name: env
+        type: string
+      - description: Tenant UUID for tenant-scoped lookup; omit for platform lookup
+        in: query
+        name: tenant_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - apiKey: []
+      summary: Resolve platform provider settings (decrypted, service-only)
+      tags:
+      - Admin - Providers
   /admin/providers/settings:
     get:
       parameters:
@@ -594,6 +631,29 @@ paths:
       summary: Get platform provider settings
       tags:
       - Admin - Providers
+  /analytics/dashboard:
+    get:
+      description: Counts + week-over-week deltas for leads, contacts, chat sessions,
+        campaigns, meetings, active nurture enrollments.
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Tenant dashboard aggregates
+      tags:
+      - Analytics
   /campaigns:
     get:
       description: Returns paginated campaigns with optional filters
@@ -975,6 +1035,24 @@ paths:
       summary: Update a contact
       tags:
       - Contacts
+  /f/{slug}:
+    get:
+      parameters:
+      - description: Funnel slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: rendered HTML
+          schema:
+            type: string
+      summary: Render public funnel as HTML
+      tags:
+      - Public
   /funnels:
     get:
       description: Returns paginated funnels with optional filters
@@ -1175,6 +1253,136 @@ paths:
       summary: Publish a funnel
       tags:
       - Funnels
+  /integrations:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List tenant integrations
+      tags:
+      - Integrations
+  /integrations/{provider}:
+    delete:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Provider type (google_calendar | meta_ads)
+        in: path
+        name: provider
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Disconnect a tenant integration
+      tags:
+      - Integrations
+  /integrations/google/authorize:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Start Google Calendar OAuth for a tenant
+      tags:
+      - Integrations
+  /integrations/google/callback:
+    get:
+      parameters:
+      - description: Authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: Signed state
+        in: query
+        name: state
+        required: true
+        type: string
+      produces:
+      - text/html
+      responses: {}
+      summary: Google Calendar OAuth callback
+      tags:
+      - Integrations
+  /integrations/meta/authorize:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Start Meta OAuth for a tenant
+      tags:
+      - Integrations
+  /integrations/meta/callback:
+    get:
+      parameters:
+      - description: Authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: Signed state
+        in: query
+        name: state
+        required: true
+        type: string
+      produces:
+      - text/html
+      responses: {}
+      summary: Meta OAuth callback
+      tags:
+      - Integrations
   /knowledge/entries:
     get:
       parameters:
@@ -1651,7 +1859,6 @@ paths:
       - Meetings
   /public/funnels/{slug}:
     get:
-      description: Returns published funnel data without authentication
       parameters:
       - description: Funnel URL slug
         in: path
@@ -1670,7 +1877,7 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
-      summary: Get published funnel by slug (public)
+      summary: Get published funnel by slug (JSON)
       tags:
       - Public
   /public/leads/{slug}:

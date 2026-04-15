@@ -239,6 +239,79 @@ func (h *PlatformProviderHandler) GetProviderSettings(w http.ResponseWriter, r *
 	httpapi.JSON(w, http.StatusOK, map[string]any{"data": result})
 }
 
+// ResolveProvider returns **decrypted** provider settings for internal
+// service-to-service consumers (marketflow-ai, marketflow-worker, etc.).
+//
+// Unlike GetProviderSettings, secrets are NOT masked — callers are expected
+// to authenticate with the platform X-API-Key and use the returned values
+// to bootstrap their AI/integration clients.
+//
+// @Summary Resolve platform provider settings (decrypted, service-only)
+// @Description Returns decrypted secret values. Requires platform X-API-Key; platform_owner JWT also accepted. Not for UI display.
+// @Tags Admin - Providers
+// @Produce json
+// @Param type query string true "Provider type (ai_llm, ai_search, meta_ads, google_calendar, etc.)"
+// @Param name query string true "Provider name (groq, tavily, meta, oauth, ...)"
+// @Param env query string false "Environment (default: production)"
+// @Param tenant_id query string false "Tenant UUID for tenant-scoped lookup; omit for platform lookup"
+// @Success 200 {object} map[string]interface{}
+// @Security apiKey
+// @Router /admin/providers/resolve [get]
+func (h *PlatformProviderHandler) ResolveProvider(w http.ResponseWriter, r *http.Request) {
+	providerType := r.URL.Query().Get("type")
+	providerName := r.URL.Query().Get("name")
+	env := r.URL.Query().Get("env")
+	tenantID := r.URL.Query().Get("tenant_id")
+	if providerType == "" || providerName == "" {
+		httpapi.Error(w, http.StatusBadRequest, "missing_params", "type and name query params required", nil)
+		return
+	}
+	if env == "" {
+		env = "production"
+	}
+	scope := platformTenantID
+	if tenantID != "" {
+		scope = tenantID
+	}
+
+	rows, err := h.client.ProviderSetting.Query().
+		Where(
+			providersetting.TenantIDEQ(scope),
+			providersetting.ProviderTypeEQ(providerType),
+			providersetting.ProviderNameEQ(providerName),
+			providersetting.EnvironmentEQ(env),
+			providersetting.IsActiveEQ(true),
+			providersetting.KeyNEQ("_config"),
+			providersetting.KeyNEQ("_preferred"),
+		).
+		All(r.Context())
+	if err != nil {
+		httpapi.Error(w, http.StatusInternalServerError, "query_failed", "failed to query settings", nil)
+		return
+	}
+
+	out := make(map[string]string, len(rows))
+	for _, s := range rows {
+		value := s.Value
+		if s.IsEncrypted && len(h.encryptionKey) > 0 {
+			if dec, err := encryption.Decrypt(value, h.encryptionKey); err == nil {
+				value = dec
+			} else {
+				h.logger.Warn("decrypt failed",
+					zap.String("key", s.Key), zap.Error(err))
+			}
+		}
+		out[s.Key] = value
+	}
+	httpapi.JSON(w, http.StatusOK, map[string]any{
+		"tenant_id":     scope,
+		"provider_type": providerType,
+		"provider_name": providerName,
+		"environment":   env,
+		"settings":      out,
+	})
+}
+
 // DeactivateProvider deactivates a platform provider.
 // @Summary Deactivate a provider
 // @Tags Admin - Providers
