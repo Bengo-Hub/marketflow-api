@@ -51,7 +51,7 @@ type APIConfig struct {
 // NotificationsConfig carries the platform notifications-api coordinates.
 // Service-to-service auth uses X-API-Key (platform API key).
 type NotificationsConfig struct {
-	URL    string `env:"URL" envDefault:"http://notifications-api.default.svc.cluster.local:4000"`
+	URL    string `env:"URL" envDefault:"http://notifications-api.notifications.svc.cluster.local:4000"`
 	APIKey string `env:"API_KEY"`
 	Token  string `env:"TOKEN"` // optional Bearer fallback
 }
