@@ -81,6 +81,36 @@ func MeetingURL(v string) predicate.ScheduledMeeting {
 	return predicate.ScheduledMeeting(sql.FieldEQ(FieldMeetingURL, v))
 }
 
+// GoogleEventID applies equality check predicate on the "google_event_id" field. It's identical to GoogleEventIDEQ.
+func GoogleEventID(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEQ(FieldGoogleEventID, v))
+}
+
+// GoogleCalendarID applies equality check predicate on the "google_calendar_id" field. It's identical to GoogleCalendarIDEQ.
+func GoogleCalendarID(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEQ(FieldGoogleCalendarID, v))
+}
+
+// GoogleEventLink applies equality check predicate on the "google_event_link" field. It's identical to GoogleEventLinkEQ.
+func GoogleEventLink(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEQ(FieldGoogleEventLink, v))
+}
+
+// AttendeeEmail applies equality check predicate on the "attendee_email" field. It's identical to AttendeeEmailEQ.
+func AttendeeEmail(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEQ(FieldAttendeeEmail, v))
+}
+
+// AttendeeName applies equality check predicate on the "attendee_name" field. It's identical to AttendeeNameEQ.
+func AttendeeName(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEQ(FieldAttendeeName, v))
+}
+
+// OrganizerEmail applies equality check predicate on the "organizer_email" field. It's identical to OrganizerEmailEQ.
+func OrganizerEmail(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEQ(FieldOrganizerEmail, v))
+}
+
 // ScheduledAt applies equality check predicate on the "scheduled_at" field. It's identical to ScheduledAtEQ.
 func ScheduledAt(v time.Time) predicate.ScheduledMeeting {
 	return predicate.ScheduledMeeting(sql.FieldEQ(FieldScheduledAt, v))
@@ -364,6 +394,456 @@ func MeetingURLEqualFold(v string) predicate.ScheduledMeeting {
 // MeetingURLContainsFold applies the ContainsFold predicate on the "meeting_url" field.
 func MeetingURLContainsFold(v string) predicate.ScheduledMeeting {
 	return predicate.ScheduledMeeting(sql.FieldContainsFold(FieldMeetingURL, v))
+}
+
+// GoogleEventIDEQ applies the EQ predicate on the "google_event_id" field.
+func GoogleEventIDEQ(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEQ(FieldGoogleEventID, v))
+}
+
+// GoogleEventIDNEQ applies the NEQ predicate on the "google_event_id" field.
+func GoogleEventIDNEQ(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNEQ(FieldGoogleEventID, v))
+}
+
+// GoogleEventIDIn applies the In predicate on the "google_event_id" field.
+func GoogleEventIDIn(vs ...string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldIn(FieldGoogleEventID, vs...))
+}
+
+// GoogleEventIDNotIn applies the NotIn predicate on the "google_event_id" field.
+func GoogleEventIDNotIn(vs ...string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNotIn(FieldGoogleEventID, vs...))
+}
+
+// GoogleEventIDGT applies the GT predicate on the "google_event_id" field.
+func GoogleEventIDGT(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldGT(FieldGoogleEventID, v))
+}
+
+// GoogleEventIDGTE applies the GTE predicate on the "google_event_id" field.
+func GoogleEventIDGTE(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldGTE(FieldGoogleEventID, v))
+}
+
+// GoogleEventIDLT applies the LT predicate on the "google_event_id" field.
+func GoogleEventIDLT(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldLT(FieldGoogleEventID, v))
+}
+
+// GoogleEventIDLTE applies the LTE predicate on the "google_event_id" field.
+func GoogleEventIDLTE(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldLTE(FieldGoogleEventID, v))
+}
+
+// GoogleEventIDContains applies the Contains predicate on the "google_event_id" field.
+func GoogleEventIDContains(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldContains(FieldGoogleEventID, v))
+}
+
+// GoogleEventIDHasPrefix applies the HasPrefix predicate on the "google_event_id" field.
+func GoogleEventIDHasPrefix(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldHasPrefix(FieldGoogleEventID, v))
+}
+
+// GoogleEventIDHasSuffix applies the HasSuffix predicate on the "google_event_id" field.
+func GoogleEventIDHasSuffix(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldHasSuffix(FieldGoogleEventID, v))
+}
+
+// GoogleEventIDIsNil applies the IsNil predicate on the "google_event_id" field.
+func GoogleEventIDIsNil() predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldIsNull(FieldGoogleEventID))
+}
+
+// GoogleEventIDNotNil applies the NotNil predicate on the "google_event_id" field.
+func GoogleEventIDNotNil() predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNotNull(FieldGoogleEventID))
+}
+
+// GoogleEventIDEqualFold applies the EqualFold predicate on the "google_event_id" field.
+func GoogleEventIDEqualFold(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEqualFold(FieldGoogleEventID, v))
+}
+
+// GoogleEventIDContainsFold applies the ContainsFold predicate on the "google_event_id" field.
+func GoogleEventIDContainsFold(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldContainsFold(FieldGoogleEventID, v))
+}
+
+// GoogleCalendarIDEQ applies the EQ predicate on the "google_calendar_id" field.
+func GoogleCalendarIDEQ(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEQ(FieldGoogleCalendarID, v))
+}
+
+// GoogleCalendarIDNEQ applies the NEQ predicate on the "google_calendar_id" field.
+func GoogleCalendarIDNEQ(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNEQ(FieldGoogleCalendarID, v))
+}
+
+// GoogleCalendarIDIn applies the In predicate on the "google_calendar_id" field.
+func GoogleCalendarIDIn(vs ...string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldIn(FieldGoogleCalendarID, vs...))
+}
+
+// GoogleCalendarIDNotIn applies the NotIn predicate on the "google_calendar_id" field.
+func GoogleCalendarIDNotIn(vs ...string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNotIn(FieldGoogleCalendarID, vs...))
+}
+
+// GoogleCalendarIDGT applies the GT predicate on the "google_calendar_id" field.
+func GoogleCalendarIDGT(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldGT(FieldGoogleCalendarID, v))
+}
+
+// GoogleCalendarIDGTE applies the GTE predicate on the "google_calendar_id" field.
+func GoogleCalendarIDGTE(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldGTE(FieldGoogleCalendarID, v))
+}
+
+// GoogleCalendarIDLT applies the LT predicate on the "google_calendar_id" field.
+func GoogleCalendarIDLT(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldLT(FieldGoogleCalendarID, v))
+}
+
+// GoogleCalendarIDLTE applies the LTE predicate on the "google_calendar_id" field.
+func GoogleCalendarIDLTE(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldLTE(FieldGoogleCalendarID, v))
+}
+
+// GoogleCalendarIDContains applies the Contains predicate on the "google_calendar_id" field.
+func GoogleCalendarIDContains(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldContains(FieldGoogleCalendarID, v))
+}
+
+// GoogleCalendarIDHasPrefix applies the HasPrefix predicate on the "google_calendar_id" field.
+func GoogleCalendarIDHasPrefix(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldHasPrefix(FieldGoogleCalendarID, v))
+}
+
+// GoogleCalendarIDHasSuffix applies the HasSuffix predicate on the "google_calendar_id" field.
+func GoogleCalendarIDHasSuffix(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldHasSuffix(FieldGoogleCalendarID, v))
+}
+
+// GoogleCalendarIDIsNil applies the IsNil predicate on the "google_calendar_id" field.
+func GoogleCalendarIDIsNil() predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldIsNull(FieldGoogleCalendarID))
+}
+
+// GoogleCalendarIDNotNil applies the NotNil predicate on the "google_calendar_id" field.
+func GoogleCalendarIDNotNil() predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNotNull(FieldGoogleCalendarID))
+}
+
+// GoogleCalendarIDEqualFold applies the EqualFold predicate on the "google_calendar_id" field.
+func GoogleCalendarIDEqualFold(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEqualFold(FieldGoogleCalendarID, v))
+}
+
+// GoogleCalendarIDContainsFold applies the ContainsFold predicate on the "google_calendar_id" field.
+func GoogleCalendarIDContainsFold(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldContainsFold(FieldGoogleCalendarID, v))
+}
+
+// GoogleEventLinkEQ applies the EQ predicate on the "google_event_link" field.
+func GoogleEventLinkEQ(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEQ(FieldGoogleEventLink, v))
+}
+
+// GoogleEventLinkNEQ applies the NEQ predicate on the "google_event_link" field.
+func GoogleEventLinkNEQ(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNEQ(FieldGoogleEventLink, v))
+}
+
+// GoogleEventLinkIn applies the In predicate on the "google_event_link" field.
+func GoogleEventLinkIn(vs ...string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldIn(FieldGoogleEventLink, vs...))
+}
+
+// GoogleEventLinkNotIn applies the NotIn predicate on the "google_event_link" field.
+func GoogleEventLinkNotIn(vs ...string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNotIn(FieldGoogleEventLink, vs...))
+}
+
+// GoogleEventLinkGT applies the GT predicate on the "google_event_link" field.
+func GoogleEventLinkGT(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldGT(FieldGoogleEventLink, v))
+}
+
+// GoogleEventLinkGTE applies the GTE predicate on the "google_event_link" field.
+func GoogleEventLinkGTE(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldGTE(FieldGoogleEventLink, v))
+}
+
+// GoogleEventLinkLT applies the LT predicate on the "google_event_link" field.
+func GoogleEventLinkLT(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldLT(FieldGoogleEventLink, v))
+}
+
+// GoogleEventLinkLTE applies the LTE predicate on the "google_event_link" field.
+func GoogleEventLinkLTE(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldLTE(FieldGoogleEventLink, v))
+}
+
+// GoogleEventLinkContains applies the Contains predicate on the "google_event_link" field.
+func GoogleEventLinkContains(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldContains(FieldGoogleEventLink, v))
+}
+
+// GoogleEventLinkHasPrefix applies the HasPrefix predicate on the "google_event_link" field.
+func GoogleEventLinkHasPrefix(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldHasPrefix(FieldGoogleEventLink, v))
+}
+
+// GoogleEventLinkHasSuffix applies the HasSuffix predicate on the "google_event_link" field.
+func GoogleEventLinkHasSuffix(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldHasSuffix(FieldGoogleEventLink, v))
+}
+
+// GoogleEventLinkIsNil applies the IsNil predicate on the "google_event_link" field.
+func GoogleEventLinkIsNil() predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldIsNull(FieldGoogleEventLink))
+}
+
+// GoogleEventLinkNotNil applies the NotNil predicate on the "google_event_link" field.
+func GoogleEventLinkNotNil() predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNotNull(FieldGoogleEventLink))
+}
+
+// GoogleEventLinkEqualFold applies the EqualFold predicate on the "google_event_link" field.
+func GoogleEventLinkEqualFold(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEqualFold(FieldGoogleEventLink, v))
+}
+
+// GoogleEventLinkContainsFold applies the ContainsFold predicate on the "google_event_link" field.
+func GoogleEventLinkContainsFold(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldContainsFold(FieldGoogleEventLink, v))
+}
+
+// AttendeeEmailEQ applies the EQ predicate on the "attendee_email" field.
+func AttendeeEmailEQ(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEQ(FieldAttendeeEmail, v))
+}
+
+// AttendeeEmailNEQ applies the NEQ predicate on the "attendee_email" field.
+func AttendeeEmailNEQ(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNEQ(FieldAttendeeEmail, v))
+}
+
+// AttendeeEmailIn applies the In predicate on the "attendee_email" field.
+func AttendeeEmailIn(vs ...string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldIn(FieldAttendeeEmail, vs...))
+}
+
+// AttendeeEmailNotIn applies the NotIn predicate on the "attendee_email" field.
+func AttendeeEmailNotIn(vs ...string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNotIn(FieldAttendeeEmail, vs...))
+}
+
+// AttendeeEmailGT applies the GT predicate on the "attendee_email" field.
+func AttendeeEmailGT(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldGT(FieldAttendeeEmail, v))
+}
+
+// AttendeeEmailGTE applies the GTE predicate on the "attendee_email" field.
+func AttendeeEmailGTE(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldGTE(FieldAttendeeEmail, v))
+}
+
+// AttendeeEmailLT applies the LT predicate on the "attendee_email" field.
+func AttendeeEmailLT(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldLT(FieldAttendeeEmail, v))
+}
+
+// AttendeeEmailLTE applies the LTE predicate on the "attendee_email" field.
+func AttendeeEmailLTE(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldLTE(FieldAttendeeEmail, v))
+}
+
+// AttendeeEmailContains applies the Contains predicate on the "attendee_email" field.
+func AttendeeEmailContains(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldContains(FieldAttendeeEmail, v))
+}
+
+// AttendeeEmailHasPrefix applies the HasPrefix predicate on the "attendee_email" field.
+func AttendeeEmailHasPrefix(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldHasPrefix(FieldAttendeeEmail, v))
+}
+
+// AttendeeEmailHasSuffix applies the HasSuffix predicate on the "attendee_email" field.
+func AttendeeEmailHasSuffix(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldHasSuffix(FieldAttendeeEmail, v))
+}
+
+// AttendeeEmailIsNil applies the IsNil predicate on the "attendee_email" field.
+func AttendeeEmailIsNil() predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldIsNull(FieldAttendeeEmail))
+}
+
+// AttendeeEmailNotNil applies the NotNil predicate on the "attendee_email" field.
+func AttendeeEmailNotNil() predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNotNull(FieldAttendeeEmail))
+}
+
+// AttendeeEmailEqualFold applies the EqualFold predicate on the "attendee_email" field.
+func AttendeeEmailEqualFold(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEqualFold(FieldAttendeeEmail, v))
+}
+
+// AttendeeEmailContainsFold applies the ContainsFold predicate on the "attendee_email" field.
+func AttendeeEmailContainsFold(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldContainsFold(FieldAttendeeEmail, v))
+}
+
+// AttendeeNameEQ applies the EQ predicate on the "attendee_name" field.
+func AttendeeNameEQ(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEQ(FieldAttendeeName, v))
+}
+
+// AttendeeNameNEQ applies the NEQ predicate on the "attendee_name" field.
+func AttendeeNameNEQ(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNEQ(FieldAttendeeName, v))
+}
+
+// AttendeeNameIn applies the In predicate on the "attendee_name" field.
+func AttendeeNameIn(vs ...string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldIn(FieldAttendeeName, vs...))
+}
+
+// AttendeeNameNotIn applies the NotIn predicate on the "attendee_name" field.
+func AttendeeNameNotIn(vs ...string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNotIn(FieldAttendeeName, vs...))
+}
+
+// AttendeeNameGT applies the GT predicate on the "attendee_name" field.
+func AttendeeNameGT(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldGT(FieldAttendeeName, v))
+}
+
+// AttendeeNameGTE applies the GTE predicate on the "attendee_name" field.
+func AttendeeNameGTE(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldGTE(FieldAttendeeName, v))
+}
+
+// AttendeeNameLT applies the LT predicate on the "attendee_name" field.
+func AttendeeNameLT(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldLT(FieldAttendeeName, v))
+}
+
+// AttendeeNameLTE applies the LTE predicate on the "attendee_name" field.
+func AttendeeNameLTE(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldLTE(FieldAttendeeName, v))
+}
+
+// AttendeeNameContains applies the Contains predicate on the "attendee_name" field.
+func AttendeeNameContains(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldContains(FieldAttendeeName, v))
+}
+
+// AttendeeNameHasPrefix applies the HasPrefix predicate on the "attendee_name" field.
+func AttendeeNameHasPrefix(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldHasPrefix(FieldAttendeeName, v))
+}
+
+// AttendeeNameHasSuffix applies the HasSuffix predicate on the "attendee_name" field.
+func AttendeeNameHasSuffix(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldHasSuffix(FieldAttendeeName, v))
+}
+
+// AttendeeNameIsNil applies the IsNil predicate on the "attendee_name" field.
+func AttendeeNameIsNil() predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldIsNull(FieldAttendeeName))
+}
+
+// AttendeeNameNotNil applies the NotNil predicate on the "attendee_name" field.
+func AttendeeNameNotNil() predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNotNull(FieldAttendeeName))
+}
+
+// AttendeeNameEqualFold applies the EqualFold predicate on the "attendee_name" field.
+func AttendeeNameEqualFold(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEqualFold(FieldAttendeeName, v))
+}
+
+// AttendeeNameContainsFold applies the ContainsFold predicate on the "attendee_name" field.
+func AttendeeNameContainsFold(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldContainsFold(FieldAttendeeName, v))
+}
+
+// OrganizerEmailEQ applies the EQ predicate on the "organizer_email" field.
+func OrganizerEmailEQ(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEQ(FieldOrganizerEmail, v))
+}
+
+// OrganizerEmailNEQ applies the NEQ predicate on the "organizer_email" field.
+func OrganizerEmailNEQ(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNEQ(FieldOrganizerEmail, v))
+}
+
+// OrganizerEmailIn applies the In predicate on the "organizer_email" field.
+func OrganizerEmailIn(vs ...string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldIn(FieldOrganizerEmail, vs...))
+}
+
+// OrganizerEmailNotIn applies the NotIn predicate on the "organizer_email" field.
+func OrganizerEmailNotIn(vs ...string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNotIn(FieldOrganizerEmail, vs...))
+}
+
+// OrganizerEmailGT applies the GT predicate on the "organizer_email" field.
+func OrganizerEmailGT(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldGT(FieldOrganizerEmail, v))
+}
+
+// OrganizerEmailGTE applies the GTE predicate on the "organizer_email" field.
+func OrganizerEmailGTE(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldGTE(FieldOrganizerEmail, v))
+}
+
+// OrganizerEmailLT applies the LT predicate on the "organizer_email" field.
+func OrganizerEmailLT(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldLT(FieldOrganizerEmail, v))
+}
+
+// OrganizerEmailLTE applies the LTE predicate on the "organizer_email" field.
+func OrganizerEmailLTE(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldLTE(FieldOrganizerEmail, v))
+}
+
+// OrganizerEmailContains applies the Contains predicate on the "organizer_email" field.
+func OrganizerEmailContains(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldContains(FieldOrganizerEmail, v))
+}
+
+// OrganizerEmailHasPrefix applies the HasPrefix predicate on the "organizer_email" field.
+func OrganizerEmailHasPrefix(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldHasPrefix(FieldOrganizerEmail, v))
+}
+
+// OrganizerEmailHasSuffix applies the HasSuffix predicate on the "organizer_email" field.
+func OrganizerEmailHasSuffix(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldHasSuffix(FieldOrganizerEmail, v))
+}
+
+// OrganizerEmailIsNil applies the IsNil predicate on the "organizer_email" field.
+func OrganizerEmailIsNil() predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldIsNull(FieldOrganizerEmail))
+}
+
+// OrganizerEmailNotNil applies the NotNil predicate on the "organizer_email" field.
+func OrganizerEmailNotNil() predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNotNull(FieldOrganizerEmail))
+}
+
+// OrganizerEmailEqualFold applies the EqualFold predicate on the "organizer_email" field.
+func OrganizerEmailEqualFold(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEqualFold(FieldOrganizerEmail, v))
+}
+
+// OrganizerEmailContainsFold applies the ContainsFold predicate on the "organizer_email" field.
+func OrganizerEmailContainsFold(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldContainsFold(FieldOrganizerEmail, v))
 }
 
 // ScheduledAtEQ applies the EQ predicate on the "scheduled_at" field.

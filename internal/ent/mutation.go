@@ -17178,6 +17178,12 @@ type ScheduledMeetingMutation struct {
 	tenant_id           *uuid.UUID
 	cal_booking_id      *string
 	meeting_url         *string
+	google_event_id     *string
+	google_calendar_id  *string
+	google_event_link   *string
+	attendee_email      *string
+	attendee_name       *string
+	organizer_email     *string
 	scheduled_at        *time.Time
 	duration_minutes    *int
 	addduration_minutes *int
@@ -17531,6 +17537,300 @@ func (m *ScheduledMeetingMutation) MeetingURLCleared() bool {
 func (m *ScheduledMeetingMutation) ResetMeetingURL() {
 	m.meeting_url = nil
 	delete(m.clearedFields, scheduledmeeting.FieldMeetingURL)
+}
+
+// SetGoogleEventID sets the "google_event_id" field.
+func (m *ScheduledMeetingMutation) SetGoogleEventID(s string) {
+	m.google_event_id = &s
+}
+
+// GoogleEventID returns the value of the "google_event_id" field in the mutation.
+func (m *ScheduledMeetingMutation) GoogleEventID() (r string, exists bool) {
+	v := m.google_event_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGoogleEventID returns the old "google_event_id" field's value of the ScheduledMeeting entity.
+// If the ScheduledMeeting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ScheduledMeetingMutation) OldGoogleEventID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGoogleEventID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGoogleEventID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGoogleEventID: %w", err)
+	}
+	return oldValue.GoogleEventID, nil
+}
+
+// ClearGoogleEventID clears the value of the "google_event_id" field.
+func (m *ScheduledMeetingMutation) ClearGoogleEventID() {
+	m.google_event_id = nil
+	m.clearedFields[scheduledmeeting.FieldGoogleEventID] = struct{}{}
+}
+
+// GoogleEventIDCleared returns if the "google_event_id" field was cleared in this mutation.
+func (m *ScheduledMeetingMutation) GoogleEventIDCleared() bool {
+	_, ok := m.clearedFields[scheduledmeeting.FieldGoogleEventID]
+	return ok
+}
+
+// ResetGoogleEventID resets all changes to the "google_event_id" field.
+func (m *ScheduledMeetingMutation) ResetGoogleEventID() {
+	m.google_event_id = nil
+	delete(m.clearedFields, scheduledmeeting.FieldGoogleEventID)
+}
+
+// SetGoogleCalendarID sets the "google_calendar_id" field.
+func (m *ScheduledMeetingMutation) SetGoogleCalendarID(s string) {
+	m.google_calendar_id = &s
+}
+
+// GoogleCalendarID returns the value of the "google_calendar_id" field in the mutation.
+func (m *ScheduledMeetingMutation) GoogleCalendarID() (r string, exists bool) {
+	v := m.google_calendar_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGoogleCalendarID returns the old "google_calendar_id" field's value of the ScheduledMeeting entity.
+// If the ScheduledMeeting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ScheduledMeetingMutation) OldGoogleCalendarID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGoogleCalendarID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGoogleCalendarID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGoogleCalendarID: %w", err)
+	}
+	return oldValue.GoogleCalendarID, nil
+}
+
+// ClearGoogleCalendarID clears the value of the "google_calendar_id" field.
+func (m *ScheduledMeetingMutation) ClearGoogleCalendarID() {
+	m.google_calendar_id = nil
+	m.clearedFields[scheduledmeeting.FieldGoogleCalendarID] = struct{}{}
+}
+
+// GoogleCalendarIDCleared returns if the "google_calendar_id" field was cleared in this mutation.
+func (m *ScheduledMeetingMutation) GoogleCalendarIDCleared() bool {
+	_, ok := m.clearedFields[scheduledmeeting.FieldGoogleCalendarID]
+	return ok
+}
+
+// ResetGoogleCalendarID resets all changes to the "google_calendar_id" field.
+func (m *ScheduledMeetingMutation) ResetGoogleCalendarID() {
+	m.google_calendar_id = nil
+	delete(m.clearedFields, scheduledmeeting.FieldGoogleCalendarID)
+}
+
+// SetGoogleEventLink sets the "google_event_link" field.
+func (m *ScheduledMeetingMutation) SetGoogleEventLink(s string) {
+	m.google_event_link = &s
+}
+
+// GoogleEventLink returns the value of the "google_event_link" field in the mutation.
+func (m *ScheduledMeetingMutation) GoogleEventLink() (r string, exists bool) {
+	v := m.google_event_link
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGoogleEventLink returns the old "google_event_link" field's value of the ScheduledMeeting entity.
+// If the ScheduledMeeting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ScheduledMeetingMutation) OldGoogleEventLink(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGoogleEventLink is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGoogleEventLink requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGoogleEventLink: %w", err)
+	}
+	return oldValue.GoogleEventLink, nil
+}
+
+// ClearGoogleEventLink clears the value of the "google_event_link" field.
+func (m *ScheduledMeetingMutation) ClearGoogleEventLink() {
+	m.google_event_link = nil
+	m.clearedFields[scheduledmeeting.FieldGoogleEventLink] = struct{}{}
+}
+
+// GoogleEventLinkCleared returns if the "google_event_link" field was cleared in this mutation.
+func (m *ScheduledMeetingMutation) GoogleEventLinkCleared() bool {
+	_, ok := m.clearedFields[scheduledmeeting.FieldGoogleEventLink]
+	return ok
+}
+
+// ResetGoogleEventLink resets all changes to the "google_event_link" field.
+func (m *ScheduledMeetingMutation) ResetGoogleEventLink() {
+	m.google_event_link = nil
+	delete(m.clearedFields, scheduledmeeting.FieldGoogleEventLink)
+}
+
+// SetAttendeeEmail sets the "attendee_email" field.
+func (m *ScheduledMeetingMutation) SetAttendeeEmail(s string) {
+	m.attendee_email = &s
+}
+
+// AttendeeEmail returns the value of the "attendee_email" field in the mutation.
+func (m *ScheduledMeetingMutation) AttendeeEmail() (r string, exists bool) {
+	v := m.attendee_email
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAttendeeEmail returns the old "attendee_email" field's value of the ScheduledMeeting entity.
+// If the ScheduledMeeting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ScheduledMeetingMutation) OldAttendeeEmail(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAttendeeEmail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAttendeeEmail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAttendeeEmail: %w", err)
+	}
+	return oldValue.AttendeeEmail, nil
+}
+
+// ClearAttendeeEmail clears the value of the "attendee_email" field.
+func (m *ScheduledMeetingMutation) ClearAttendeeEmail() {
+	m.attendee_email = nil
+	m.clearedFields[scheduledmeeting.FieldAttendeeEmail] = struct{}{}
+}
+
+// AttendeeEmailCleared returns if the "attendee_email" field was cleared in this mutation.
+func (m *ScheduledMeetingMutation) AttendeeEmailCleared() bool {
+	_, ok := m.clearedFields[scheduledmeeting.FieldAttendeeEmail]
+	return ok
+}
+
+// ResetAttendeeEmail resets all changes to the "attendee_email" field.
+func (m *ScheduledMeetingMutation) ResetAttendeeEmail() {
+	m.attendee_email = nil
+	delete(m.clearedFields, scheduledmeeting.FieldAttendeeEmail)
+}
+
+// SetAttendeeName sets the "attendee_name" field.
+func (m *ScheduledMeetingMutation) SetAttendeeName(s string) {
+	m.attendee_name = &s
+}
+
+// AttendeeName returns the value of the "attendee_name" field in the mutation.
+func (m *ScheduledMeetingMutation) AttendeeName() (r string, exists bool) {
+	v := m.attendee_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAttendeeName returns the old "attendee_name" field's value of the ScheduledMeeting entity.
+// If the ScheduledMeeting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ScheduledMeetingMutation) OldAttendeeName(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAttendeeName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAttendeeName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAttendeeName: %w", err)
+	}
+	return oldValue.AttendeeName, nil
+}
+
+// ClearAttendeeName clears the value of the "attendee_name" field.
+func (m *ScheduledMeetingMutation) ClearAttendeeName() {
+	m.attendee_name = nil
+	m.clearedFields[scheduledmeeting.FieldAttendeeName] = struct{}{}
+}
+
+// AttendeeNameCleared returns if the "attendee_name" field was cleared in this mutation.
+func (m *ScheduledMeetingMutation) AttendeeNameCleared() bool {
+	_, ok := m.clearedFields[scheduledmeeting.FieldAttendeeName]
+	return ok
+}
+
+// ResetAttendeeName resets all changes to the "attendee_name" field.
+func (m *ScheduledMeetingMutation) ResetAttendeeName() {
+	m.attendee_name = nil
+	delete(m.clearedFields, scheduledmeeting.FieldAttendeeName)
+}
+
+// SetOrganizerEmail sets the "organizer_email" field.
+func (m *ScheduledMeetingMutation) SetOrganizerEmail(s string) {
+	m.organizer_email = &s
+}
+
+// OrganizerEmail returns the value of the "organizer_email" field in the mutation.
+func (m *ScheduledMeetingMutation) OrganizerEmail() (r string, exists bool) {
+	v := m.organizer_email
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrganizerEmail returns the old "organizer_email" field's value of the ScheduledMeeting entity.
+// If the ScheduledMeeting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ScheduledMeetingMutation) OldOrganizerEmail(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrganizerEmail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrganizerEmail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrganizerEmail: %w", err)
+	}
+	return oldValue.OrganizerEmail, nil
+}
+
+// ClearOrganizerEmail clears the value of the "organizer_email" field.
+func (m *ScheduledMeetingMutation) ClearOrganizerEmail() {
+	m.organizer_email = nil
+	m.clearedFields[scheduledmeeting.FieldOrganizerEmail] = struct{}{}
+}
+
+// OrganizerEmailCleared returns if the "organizer_email" field was cleared in this mutation.
+func (m *ScheduledMeetingMutation) OrganizerEmailCleared() bool {
+	_, ok := m.clearedFields[scheduledmeeting.FieldOrganizerEmail]
+	return ok
+}
+
+// ResetOrganizerEmail resets all changes to the "organizer_email" field.
+func (m *ScheduledMeetingMutation) ResetOrganizerEmail() {
+	m.organizer_email = nil
+	delete(m.clearedFields, scheduledmeeting.FieldOrganizerEmail)
 }
 
 // SetScheduledAt sets the "scheduled_at" field.
@@ -17955,7 +18255,7 @@ func (m *ScheduledMeetingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ScheduledMeetingMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 19)
 	if m.tenant_id != nil {
 		fields = append(fields, scheduledmeeting.FieldTenantID)
 	}
@@ -17970,6 +18270,24 @@ func (m *ScheduledMeetingMutation) Fields() []string {
 	}
 	if m.meeting_url != nil {
 		fields = append(fields, scheduledmeeting.FieldMeetingURL)
+	}
+	if m.google_event_id != nil {
+		fields = append(fields, scheduledmeeting.FieldGoogleEventID)
+	}
+	if m.google_calendar_id != nil {
+		fields = append(fields, scheduledmeeting.FieldGoogleCalendarID)
+	}
+	if m.google_event_link != nil {
+		fields = append(fields, scheduledmeeting.FieldGoogleEventLink)
+	}
+	if m.attendee_email != nil {
+		fields = append(fields, scheduledmeeting.FieldAttendeeEmail)
+	}
+	if m.attendee_name != nil {
+		fields = append(fields, scheduledmeeting.FieldAttendeeName)
+	}
+	if m.organizer_email != nil {
+		fields = append(fields, scheduledmeeting.FieldOrganizerEmail)
 	}
 	if m.scheduled_at != nil {
 		fields = append(fields, scheduledmeeting.FieldScheduledAt)
@@ -18013,6 +18331,18 @@ func (m *ScheduledMeetingMutation) Field(name string) (ent.Value, bool) {
 		return m.CalBookingID()
 	case scheduledmeeting.FieldMeetingURL:
 		return m.MeetingURL()
+	case scheduledmeeting.FieldGoogleEventID:
+		return m.GoogleEventID()
+	case scheduledmeeting.FieldGoogleCalendarID:
+		return m.GoogleCalendarID()
+	case scheduledmeeting.FieldGoogleEventLink:
+		return m.GoogleEventLink()
+	case scheduledmeeting.FieldAttendeeEmail:
+		return m.AttendeeEmail()
+	case scheduledmeeting.FieldAttendeeName:
+		return m.AttendeeName()
+	case scheduledmeeting.FieldOrganizerEmail:
+		return m.OrganizerEmail()
 	case scheduledmeeting.FieldScheduledAt:
 		return m.ScheduledAt()
 	case scheduledmeeting.FieldDurationMinutes:
@@ -18048,6 +18378,18 @@ func (m *ScheduledMeetingMutation) OldField(ctx context.Context, name string) (e
 		return m.OldCalBookingID(ctx)
 	case scheduledmeeting.FieldMeetingURL:
 		return m.OldMeetingURL(ctx)
+	case scheduledmeeting.FieldGoogleEventID:
+		return m.OldGoogleEventID(ctx)
+	case scheduledmeeting.FieldGoogleCalendarID:
+		return m.OldGoogleCalendarID(ctx)
+	case scheduledmeeting.FieldGoogleEventLink:
+		return m.OldGoogleEventLink(ctx)
+	case scheduledmeeting.FieldAttendeeEmail:
+		return m.OldAttendeeEmail(ctx)
+	case scheduledmeeting.FieldAttendeeName:
+		return m.OldAttendeeName(ctx)
+	case scheduledmeeting.FieldOrganizerEmail:
+		return m.OldOrganizerEmail(ctx)
 	case scheduledmeeting.FieldScheduledAt:
 		return m.OldScheduledAt(ctx)
 	case scheduledmeeting.FieldDurationMinutes:
@@ -18107,6 +18449,48 @@ func (m *ScheduledMeetingMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetMeetingURL(v)
+		return nil
+	case scheduledmeeting.FieldGoogleEventID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGoogleEventID(v)
+		return nil
+	case scheduledmeeting.FieldGoogleCalendarID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGoogleCalendarID(v)
+		return nil
+	case scheduledmeeting.FieldGoogleEventLink:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGoogleEventLink(v)
+		return nil
+	case scheduledmeeting.FieldAttendeeEmail:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAttendeeEmail(v)
+		return nil
+	case scheduledmeeting.FieldAttendeeName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAttendeeName(v)
+		return nil
+	case scheduledmeeting.FieldOrganizerEmail:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrganizerEmail(v)
 		return nil
 	case scheduledmeeting.FieldScheduledAt:
 		v, ok := value.(time.Time)
@@ -18221,6 +18605,24 @@ func (m *ScheduledMeetingMutation) ClearedFields() []string {
 	if m.FieldCleared(scheduledmeeting.FieldMeetingURL) {
 		fields = append(fields, scheduledmeeting.FieldMeetingURL)
 	}
+	if m.FieldCleared(scheduledmeeting.FieldGoogleEventID) {
+		fields = append(fields, scheduledmeeting.FieldGoogleEventID)
+	}
+	if m.FieldCleared(scheduledmeeting.FieldGoogleCalendarID) {
+		fields = append(fields, scheduledmeeting.FieldGoogleCalendarID)
+	}
+	if m.FieldCleared(scheduledmeeting.FieldGoogleEventLink) {
+		fields = append(fields, scheduledmeeting.FieldGoogleEventLink)
+	}
+	if m.FieldCleared(scheduledmeeting.FieldAttendeeEmail) {
+		fields = append(fields, scheduledmeeting.FieldAttendeeEmail)
+	}
+	if m.FieldCleared(scheduledmeeting.FieldAttendeeName) {
+		fields = append(fields, scheduledmeeting.FieldAttendeeName)
+	}
+	if m.FieldCleared(scheduledmeeting.FieldOrganizerEmail) {
+		fields = append(fields, scheduledmeeting.FieldOrganizerEmail)
+	}
 	if m.FieldCleared(scheduledmeeting.FieldNotes) {
 		fields = append(fields, scheduledmeeting.FieldNotes)
 	}
@@ -18253,6 +18655,24 @@ func (m *ScheduledMeetingMutation) ClearField(name string) error {
 	case scheduledmeeting.FieldMeetingURL:
 		m.ClearMeetingURL()
 		return nil
+	case scheduledmeeting.FieldGoogleEventID:
+		m.ClearGoogleEventID()
+		return nil
+	case scheduledmeeting.FieldGoogleCalendarID:
+		m.ClearGoogleCalendarID()
+		return nil
+	case scheduledmeeting.FieldGoogleEventLink:
+		m.ClearGoogleEventLink()
+		return nil
+	case scheduledmeeting.FieldAttendeeEmail:
+		m.ClearAttendeeEmail()
+		return nil
+	case scheduledmeeting.FieldAttendeeName:
+		m.ClearAttendeeName()
+		return nil
+	case scheduledmeeting.FieldOrganizerEmail:
+		m.ClearOrganizerEmail()
+		return nil
 	case scheduledmeeting.FieldNotes:
 		m.ClearNotes()
 		return nil
@@ -18281,6 +18701,24 @@ func (m *ScheduledMeetingMutation) ResetField(name string) error {
 		return nil
 	case scheduledmeeting.FieldMeetingURL:
 		m.ResetMeetingURL()
+		return nil
+	case scheduledmeeting.FieldGoogleEventID:
+		m.ResetGoogleEventID()
+		return nil
+	case scheduledmeeting.FieldGoogleCalendarID:
+		m.ResetGoogleCalendarID()
+		return nil
+	case scheduledmeeting.FieldGoogleEventLink:
+		m.ResetGoogleEventLink()
+		return nil
+	case scheduledmeeting.FieldAttendeeEmail:
+		m.ResetAttendeeEmail()
+		return nil
+	case scheduledmeeting.FieldAttendeeName:
+		m.ResetAttendeeName()
+		return nil
+	case scheduledmeeting.FieldOrganizerEmail:
+		m.ResetOrganizerEmail()
 		return nil
 	case scheduledmeeting.FieldScheduledAt:
 		m.ResetScheduledAt()

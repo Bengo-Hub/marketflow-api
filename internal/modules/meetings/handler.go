@@ -35,6 +35,9 @@ type createMeetingRequest struct {
 	MeetingType     *string        `json:"meeting_type"`
 	Notes           *string        `json:"notes"`
 	Metadata        map[string]any `json:"metadata"`
+	AttendeeEmail   *string        `json:"attendee_email"`
+	AttendeeName    *string        `json:"attendee_name"`
+	OrganizerEmail  *string        `json:"organizer_email"`
 }
 
 type updateMeetingRequest struct {
@@ -92,6 +95,9 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		MeetingType:     req.MeetingType,
 		Notes:           req.Notes,
 		Metadata:        req.Metadata,
+		AttendeeEmail:   req.AttendeeEmail,
+		AttendeeName:    req.AttendeeName,
+		OrganizerEmail:  req.OrganizerEmail,
 	})
 	if err != nil {
 		h.logger.Error("failed to create meeting", zap.Error(err))

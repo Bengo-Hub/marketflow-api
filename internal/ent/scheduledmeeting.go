@@ -31,6 +31,18 @@ type ScheduledMeeting struct {
 	CalBookingID *string `json:"cal_booking_id,omitempty"`
 	// Google Meet / Zoom URL
 	MeetingURL *string `json:"meeting_url,omitempty"`
+	// Google Calendar event ID for upsert/delete
+	GoogleEventID *string `json:"google_event_id,omitempty"`
+	// Calendar into which the event was created (default: 'primary')
+	GoogleCalendarID *string `json:"google_calendar_id,omitempty"`
+	// htmlLink returned by Google Calendar (shareable)
+	GoogleEventLink *string `json:"google_event_link,omitempty"`
+	// Primary attendee email (lead) — invited via calendar
+	AttendeeEmail *string `json:"attendee_email,omitempty"`
+	// AttendeeName holds the value of the "attendee_name" field.
+	AttendeeName *string `json:"attendee_name,omitempty"`
+	// FBO/tenant organizer email
+	OrganizerEmail *string `json:"organizer_email,omitempty"`
 	// ScheduledAt holds the value of the "scheduled_at" field.
 	ScheduledAt time.Time `json:"scheduled_at,omitempty"`
 	// DurationMinutes holds the value of the "duration_minutes" field.
@@ -97,7 +109,7 @@ func (*ScheduledMeeting) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case scheduledmeeting.FieldDurationMinutes:
 			values[i] = new(sql.NullInt64)
-		case scheduledmeeting.FieldCalBookingID, scheduledmeeting.FieldMeetingURL, scheduledmeeting.FieldMeetingType, scheduledmeeting.FieldStatus, scheduledmeeting.FieldNotes:
+		case scheduledmeeting.FieldCalBookingID, scheduledmeeting.FieldMeetingURL, scheduledmeeting.FieldGoogleEventID, scheduledmeeting.FieldGoogleCalendarID, scheduledmeeting.FieldGoogleEventLink, scheduledmeeting.FieldAttendeeEmail, scheduledmeeting.FieldAttendeeName, scheduledmeeting.FieldOrganizerEmail, scheduledmeeting.FieldMeetingType, scheduledmeeting.FieldStatus, scheduledmeeting.FieldNotes:
 			values[i] = new(sql.NullString)
 		case scheduledmeeting.FieldScheduledAt, scheduledmeeting.FieldCreatedAt, scheduledmeeting.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -157,6 +169,48 @@ func (_m *ScheduledMeeting) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.MeetingURL = new(string)
 				*_m.MeetingURL = value.String
+			}
+		case scheduledmeeting.FieldGoogleEventID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field google_event_id", values[i])
+			} else if value.Valid {
+				_m.GoogleEventID = new(string)
+				*_m.GoogleEventID = value.String
+			}
+		case scheduledmeeting.FieldGoogleCalendarID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field google_calendar_id", values[i])
+			} else if value.Valid {
+				_m.GoogleCalendarID = new(string)
+				*_m.GoogleCalendarID = value.String
+			}
+		case scheduledmeeting.FieldGoogleEventLink:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field google_event_link", values[i])
+			} else if value.Valid {
+				_m.GoogleEventLink = new(string)
+				*_m.GoogleEventLink = value.String
+			}
+		case scheduledmeeting.FieldAttendeeEmail:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field attendee_email", values[i])
+			} else if value.Valid {
+				_m.AttendeeEmail = new(string)
+				*_m.AttendeeEmail = value.String
+			}
+		case scheduledmeeting.FieldAttendeeName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field attendee_name", values[i])
+			} else if value.Valid {
+				_m.AttendeeName = new(string)
+				*_m.AttendeeName = value.String
+			}
+		case scheduledmeeting.FieldOrganizerEmail:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field organizer_email", values[i])
+			} else if value.Valid {
+				_m.OrganizerEmail = new(string)
+				*_m.OrganizerEmail = value.String
 			}
 		case scheduledmeeting.FieldScheduledAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -275,6 +329,36 @@ func (_m *ScheduledMeeting) String() string {
 	builder.WriteString(", ")
 	if v := _m.MeetingURL; v != nil {
 		builder.WriteString("meeting_url=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.GoogleEventID; v != nil {
+		builder.WriteString("google_event_id=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.GoogleCalendarID; v != nil {
+		builder.WriteString("google_calendar_id=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.GoogleEventLink; v != nil {
+		builder.WriteString("google_event_link=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.AttendeeEmail; v != nil {
+		builder.WriteString("attendee_email=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.AttendeeName; v != nil {
+		builder.WriteString("attendee_name=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.OrganizerEmail; v != nil {
+		builder.WriteString("organizer_email=")
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")

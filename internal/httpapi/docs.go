@@ -2876,6 +2876,12 @@ const docTemplate = `{
         "internal_modules_meetings.createMeetingRequest": {
             "type": "object",
             "properties": {
+                "attendee_email": {
+                    "type": "string"
+                },
+                "attendee_name": {
+                    "type": "string"
+                },
                 "cal_booking_id": {
                     "type": "string"
                 },
@@ -2899,6 +2905,9 @@ const docTemplate = `{
                     "additionalProperties": {}
                 },
                 "notes": {
+                    "type": "string"
+                },
+                "organizer_email": {
                     "type": "string"
                 },
                 "scheduled_at": {

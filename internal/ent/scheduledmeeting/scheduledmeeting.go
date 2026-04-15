@@ -25,6 +25,18 @@ const (
 	FieldCalBookingID = "cal_booking_id"
 	// FieldMeetingURL holds the string denoting the meeting_url field in the database.
 	FieldMeetingURL = "meeting_url"
+	// FieldGoogleEventID holds the string denoting the google_event_id field in the database.
+	FieldGoogleEventID = "google_event_id"
+	// FieldGoogleCalendarID holds the string denoting the google_calendar_id field in the database.
+	FieldGoogleCalendarID = "google_calendar_id"
+	// FieldGoogleEventLink holds the string denoting the google_event_link field in the database.
+	FieldGoogleEventLink = "google_event_link"
+	// FieldAttendeeEmail holds the string denoting the attendee_email field in the database.
+	FieldAttendeeEmail = "attendee_email"
+	// FieldAttendeeName holds the string denoting the attendee_name field in the database.
+	FieldAttendeeName = "attendee_name"
+	// FieldOrganizerEmail holds the string denoting the organizer_email field in the database.
+	FieldOrganizerEmail = "organizer_email"
 	// FieldScheduledAt holds the string denoting the scheduled_at field in the database.
 	FieldScheduledAt = "scheduled_at"
 	// FieldDurationMinutes holds the string denoting the duration_minutes field in the database.
@@ -71,6 +83,12 @@ var Columns = []string{
 	FieldContactID,
 	FieldCalBookingID,
 	FieldMeetingURL,
+	FieldGoogleEventID,
+	FieldGoogleCalendarID,
+	FieldGoogleEventLink,
+	FieldAttendeeEmail,
+	FieldAttendeeName,
+	FieldOrganizerEmail,
 	FieldScheduledAt,
 	FieldDurationMinutes,
 	FieldMeetingType,
@@ -139,6 +157,36 @@ func ByCalBookingID(opts ...sql.OrderTermOption) OrderOption {
 // ByMeetingURL orders the results by the meeting_url field.
 func ByMeetingURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMeetingURL, opts...).ToFunc()
+}
+
+// ByGoogleEventID orders the results by the google_event_id field.
+func ByGoogleEventID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGoogleEventID, opts...).ToFunc()
+}
+
+// ByGoogleCalendarID orders the results by the google_calendar_id field.
+func ByGoogleCalendarID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGoogleCalendarID, opts...).ToFunc()
+}
+
+// ByGoogleEventLink orders the results by the google_event_link field.
+func ByGoogleEventLink(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGoogleEventLink, opts...).ToFunc()
+}
+
+// ByAttendeeEmail orders the results by the attendee_email field.
+func ByAttendeeEmail(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAttendeeEmail, opts...).ToFunc()
+}
+
+// ByAttendeeName orders the results by the attendee_name field.
+func ByAttendeeName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAttendeeName, opts...).ToFunc()
+}
+
+// ByOrganizerEmail orders the results by the organizer_email field.
+func ByOrganizerEmail(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOrganizerEmail, opts...).ToFunc()
 }
 
 // ByScheduledAt orders the results by the scheduled_at field.

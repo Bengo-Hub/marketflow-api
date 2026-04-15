@@ -41,6 +41,33 @@ func (ScheduledMeeting) Fields() []ent.Field {
 			Nillable().
 			Comment("Google Meet / Zoom URL"),
 
+		// Google Calendar sync fields — populated when we push the booking to
+		// the tenant's Google Calendar via the gcal integration.
+		field.String("google_event_id").
+			Optional().
+			Nillable().
+			Comment("Google Calendar event ID for upsert/delete"),
+		field.String("google_calendar_id").
+			Optional().
+			Nillable().
+			Comment("Calendar into which the event was created (default: 'primary')"),
+		field.String("google_event_link").
+			Optional().
+			Nillable().
+			Comment("htmlLink returned by Google Calendar (shareable)"),
+
+		field.String("attendee_email").
+			Optional().
+			Nillable().
+			Comment("Primary attendee email (lead) — invited via calendar"),
+		field.String("attendee_name").
+			Optional().
+			Nillable(),
+		field.String("organizer_email").
+			Optional().
+			Nillable().
+			Comment("FBO/tenant organizer email"),
+
 		field.Time("scheduled_at"),
 		field.Int("duration_minutes").
 			Default(30),
@@ -90,5 +117,6 @@ func (ScheduledMeeting) Indexes() []ent.Index {
 		index.Fields("tenant_id", "scheduled_at"),
 		index.Fields("tenant_id", "meeting_type"),
 		index.Fields("cal_booking_id"),
+		index.Fields("google_event_id"),
 	}
 }

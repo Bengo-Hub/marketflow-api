@@ -21,6 +21,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
 	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
+	"github.com/bengobox/marketflow-api/internal/integrations/gcal"
 	"github.com/bengobox/marketflow-api/internal/modules/meetings"
 	"github.com/bengobox/marketflow-api/internal/modules/outbox"
 	"github.com/bengobox/marketflow-api/internal/modules/rbac"
@@ -125,8 +126,12 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		if err != nil {
 			return nil, fmt.Errorf("create JWT validator: %w", err)
 		}
-		authMiddleware = authclient.NewAuthMiddleware(validator)
-		logger.Info("JWT auth middleware initialized",
+		// Accept platform X-API-Key in addition to JWT so service-to-service
+		// callers (marketflow-ai agent tools, notifications-api, marketflow-worker)
+		// can reach tenant-scoped endpoints without a user token.
+		apiKeyValidator := authclient.NewAPIKeyValidator(cfg.Security.AuthServiceURL, nil)
+		authMiddleware = authclient.NewAuthMiddlewareWithAPIKey(validator, apiKeyValidator)
+		logger.Info("auth middleware initialized (JWT + platform X-API-Key)",
 			zap.String("jwks_url", cfg.Security.JWKSUrl),
 			zap.String("issuer", cfg.Security.JWTIssuer),
 		)
@@ -156,7 +161,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	sequenceService := sequences.NewService(entClient, logger)
 	sequenceHandler := sequences.NewHandler(sequenceService, logger)
 
-	meetingService := meetings.NewService(entClient, logger)
+	meetingService := meetings.NewService(entClient, gcal.NewSyncer(entClient, logger), logger)
 	meetingHandler := meetings.NewHandler(meetingService, logger)
 
 	// Webhook handlers — Meta app credentials are platform-level (MF_META_*),

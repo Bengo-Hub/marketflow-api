@@ -59,6 +59,7 @@ type SecurityConfig struct {
 	RequireJWT     bool   `env:"REQUIRE_JWT" envDefault:"true"`
 	EncryptionKey  string `env:"ENCRYPTION_KEY" comment:"32-byte base64-encoded key for AES-256-GCM encryption of provider secrets"`
 	PlatformTenant string `env:"PLATFORM_TENANT" envDefault:"codevertex" comment:"Platform owner tenant slug for provider config hierarchy"`
+	AuthServiceURL string `env:"AUTH_SERVICE_URL" envDefault:"https://sso.codevertexitsolutions.com" comment:"Used by shared-auth-client APIKeyValidator"`
 }
 
 type EventsConfig struct {

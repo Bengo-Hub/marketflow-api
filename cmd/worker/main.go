@@ -82,7 +82,18 @@ func main() {
 		log.Fatalf("jetstream: %v", err)
 	}
 
-	reg := worker.NewRegistry(cfg, entClient, logger)
+	var rawDB *sql.DB
+	if entClient != nil {
+		// Re-open a raw *sql.DB for the pgvector upsert path. Uses the same
+		// POSTGRES_URL; connection pool is independent of Ent's.
+		if raw, err := sql.Open("pgx", cfg.Database.URL); err == nil {
+			if err := raw.PingContext(ctx); err == nil {
+				rawDB = raw
+				defer raw.Close()
+			}
+		}
+	}
+	reg := worker.NewRegistry(cfg, entClient, rawDB, logger)
 	if err := reg.RegisterAll(ctx, js); err != nil {
 		log.Fatalf("register consumers: %v", err)
 	}

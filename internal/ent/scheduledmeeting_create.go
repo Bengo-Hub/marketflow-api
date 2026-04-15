@@ -88,6 +88,90 @@ func (_c *ScheduledMeetingCreate) SetNillableMeetingURL(v *string) *ScheduledMee
 	return _c
 }
 
+// SetGoogleEventID sets the "google_event_id" field.
+func (_c *ScheduledMeetingCreate) SetGoogleEventID(v string) *ScheduledMeetingCreate {
+	_c.mutation.SetGoogleEventID(v)
+	return _c
+}
+
+// SetNillableGoogleEventID sets the "google_event_id" field if the given value is not nil.
+func (_c *ScheduledMeetingCreate) SetNillableGoogleEventID(v *string) *ScheduledMeetingCreate {
+	if v != nil {
+		_c.SetGoogleEventID(*v)
+	}
+	return _c
+}
+
+// SetGoogleCalendarID sets the "google_calendar_id" field.
+func (_c *ScheduledMeetingCreate) SetGoogleCalendarID(v string) *ScheduledMeetingCreate {
+	_c.mutation.SetGoogleCalendarID(v)
+	return _c
+}
+
+// SetNillableGoogleCalendarID sets the "google_calendar_id" field if the given value is not nil.
+func (_c *ScheduledMeetingCreate) SetNillableGoogleCalendarID(v *string) *ScheduledMeetingCreate {
+	if v != nil {
+		_c.SetGoogleCalendarID(*v)
+	}
+	return _c
+}
+
+// SetGoogleEventLink sets the "google_event_link" field.
+func (_c *ScheduledMeetingCreate) SetGoogleEventLink(v string) *ScheduledMeetingCreate {
+	_c.mutation.SetGoogleEventLink(v)
+	return _c
+}
+
+// SetNillableGoogleEventLink sets the "google_event_link" field if the given value is not nil.
+func (_c *ScheduledMeetingCreate) SetNillableGoogleEventLink(v *string) *ScheduledMeetingCreate {
+	if v != nil {
+		_c.SetGoogleEventLink(*v)
+	}
+	return _c
+}
+
+// SetAttendeeEmail sets the "attendee_email" field.
+func (_c *ScheduledMeetingCreate) SetAttendeeEmail(v string) *ScheduledMeetingCreate {
+	_c.mutation.SetAttendeeEmail(v)
+	return _c
+}
+
+// SetNillableAttendeeEmail sets the "attendee_email" field if the given value is not nil.
+func (_c *ScheduledMeetingCreate) SetNillableAttendeeEmail(v *string) *ScheduledMeetingCreate {
+	if v != nil {
+		_c.SetAttendeeEmail(*v)
+	}
+	return _c
+}
+
+// SetAttendeeName sets the "attendee_name" field.
+func (_c *ScheduledMeetingCreate) SetAttendeeName(v string) *ScheduledMeetingCreate {
+	_c.mutation.SetAttendeeName(v)
+	return _c
+}
+
+// SetNillableAttendeeName sets the "attendee_name" field if the given value is not nil.
+func (_c *ScheduledMeetingCreate) SetNillableAttendeeName(v *string) *ScheduledMeetingCreate {
+	if v != nil {
+		_c.SetAttendeeName(*v)
+	}
+	return _c
+}
+
+// SetOrganizerEmail sets the "organizer_email" field.
+func (_c *ScheduledMeetingCreate) SetOrganizerEmail(v string) *ScheduledMeetingCreate {
+	_c.mutation.SetOrganizerEmail(v)
+	return _c
+}
+
+// SetNillableOrganizerEmail sets the "organizer_email" field if the given value is not nil.
+func (_c *ScheduledMeetingCreate) SetNillableOrganizerEmail(v *string) *ScheduledMeetingCreate {
+	if v != nil {
+		_c.SetOrganizerEmail(*v)
+	}
+	return _c
+}
+
 // SetScheduledAt sets the "scheduled_at" field.
 func (_c *ScheduledMeetingCreate) SetScheduledAt(v time.Time) *ScheduledMeetingCreate {
 	_c.mutation.SetScheduledAt(v)
@@ -340,6 +424,30 @@ func (_c *ScheduledMeetingCreate) createSpec() (*ScheduledMeeting, *sqlgraph.Cre
 		_spec.SetField(scheduledmeeting.FieldMeetingURL, field.TypeString, value)
 		_node.MeetingURL = &value
 	}
+	if value, ok := _c.mutation.GoogleEventID(); ok {
+		_spec.SetField(scheduledmeeting.FieldGoogleEventID, field.TypeString, value)
+		_node.GoogleEventID = &value
+	}
+	if value, ok := _c.mutation.GoogleCalendarID(); ok {
+		_spec.SetField(scheduledmeeting.FieldGoogleCalendarID, field.TypeString, value)
+		_node.GoogleCalendarID = &value
+	}
+	if value, ok := _c.mutation.GoogleEventLink(); ok {
+		_spec.SetField(scheduledmeeting.FieldGoogleEventLink, field.TypeString, value)
+		_node.GoogleEventLink = &value
+	}
+	if value, ok := _c.mutation.AttendeeEmail(); ok {
+		_spec.SetField(scheduledmeeting.FieldAttendeeEmail, field.TypeString, value)
+		_node.AttendeeEmail = &value
+	}
+	if value, ok := _c.mutation.AttendeeName(); ok {
+		_spec.SetField(scheduledmeeting.FieldAttendeeName, field.TypeString, value)
+		_node.AttendeeName = &value
+	}
+	if value, ok := _c.mutation.OrganizerEmail(); ok {
+		_spec.SetField(scheduledmeeting.FieldOrganizerEmail, field.TypeString, value)
+		_node.OrganizerEmail = &value
+	}
 	if value, ok := _c.mutation.ScheduledAt(); ok {
 		_spec.SetField(scheduledmeeting.FieldScheduledAt, field.TypeTime, value)
 		_node.ScheduledAt = value
@@ -539,6 +647,114 @@ func (u *ScheduledMeetingUpsert) UpdateMeetingURL() *ScheduledMeetingUpsert {
 // ClearMeetingURL clears the value of the "meeting_url" field.
 func (u *ScheduledMeetingUpsert) ClearMeetingURL() *ScheduledMeetingUpsert {
 	u.SetNull(scheduledmeeting.FieldMeetingURL)
+	return u
+}
+
+// SetGoogleEventID sets the "google_event_id" field.
+func (u *ScheduledMeetingUpsert) SetGoogleEventID(v string) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldGoogleEventID, v)
+	return u
+}
+
+// UpdateGoogleEventID sets the "google_event_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateGoogleEventID() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldGoogleEventID)
+	return u
+}
+
+// ClearGoogleEventID clears the value of the "google_event_id" field.
+func (u *ScheduledMeetingUpsert) ClearGoogleEventID() *ScheduledMeetingUpsert {
+	u.SetNull(scheduledmeeting.FieldGoogleEventID)
+	return u
+}
+
+// SetGoogleCalendarID sets the "google_calendar_id" field.
+func (u *ScheduledMeetingUpsert) SetGoogleCalendarID(v string) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldGoogleCalendarID, v)
+	return u
+}
+
+// UpdateGoogleCalendarID sets the "google_calendar_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateGoogleCalendarID() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldGoogleCalendarID)
+	return u
+}
+
+// ClearGoogleCalendarID clears the value of the "google_calendar_id" field.
+func (u *ScheduledMeetingUpsert) ClearGoogleCalendarID() *ScheduledMeetingUpsert {
+	u.SetNull(scheduledmeeting.FieldGoogleCalendarID)
+	return u
+}
+
+// SetGoogleEventLink sets the "google_event_link" field.
+func (u *ScheduledMeetingUpsert) SetGoogleEventLink(v string) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldGoogleEventLink, v)
+	return u
+}
+
+// UpdateGoogleEventLink sets the "google_event_link" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateGoogleEventLink() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldGoogleEventLink)
+	return u
+}
+
+// ClearGoogleEventLink clears the value of the "google_event_link" field.
+func (u *ScheduledMeetingUpsert) ClearGoogleEventLink() *ScheduledMeetingUpsert {
+	u.SetNull(scheduledmeeting.FieldGoogleEventLink)
+	return u
+}
+
+// SetAttendeeEmail sets the "attendee_email" field.
+func (u *ScheduledMeetingUpsert) SetAttendeeEmail(v string) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldAttendeeEmail, v)
+	return u
+}
+
+// UpdateAttendeeEmail sets the "attendee_email" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateAttendeeEmail() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldAttendeeEmail)
+	return u
+}
+
+// ClearAttendeeEmail clears the value of the "attendee_email" field.
+func (u *ScheduledMeetingUpsert) ClearAttendeeEmail() *ScheduledMeetingUpsert {
+	u.SetNull(scheduledmeeting.FieldAttendeeEmail)
+	return u
+}
+
+// SetAttendeeName sets the "attendee_name" field.
+func (u *ScheduledMeetingUpsert) SetAttendeeName(v string) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldAttendeeName, v)
+	return u
+}
+
+// UpdateAttendeeName sets the "attendee_name" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateAttendeeName() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldAttendeeName)
+	return u
+}
+
+// ClearAttendeeName clears the value of the "attendee_name" field.
+func (u *ScheduledMeetingUpsert) ClearAttendeeName() *ScheduledMeetingUpsert {
+	u.SetNull(scheduledmeeting.FieldAttendeeName)
+	return u
+}
+
+// SetOrganizerEmail sets the "organizer_email" field.
+func (u *ScheduledMeetingUpsert) SetOrganizerEmail(v string) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldOrganizerEmail, v)
+	return u
+}
+
+// UpdateOrganizerEmail sets the "organizer_email" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateOrganizerEmail() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldOrganizerEmail)
+	return u
+}
+
+// ClearOrganizerEmail clears the value of the "organizer_email" field.
+func (u *ScheduledMeetingUpsert) ClearOrganizerEmail() *ScheduledMeetingUpsert {
+	u.SetNull(scheduledmeeting.FieldOrganizerEmail)
 	return u
 }
 
@@ -790,6 +1006,132 @@ func (u *ScheduledMeetingUpsertOne) UpdateMeetingURL() *ScheduledMeetingUpsertOn
 func (u *ScheduledMeetingUpsertOne) ClearMeetingURL() *ScheduledMeetingUpsertOne {
 	return u.Update(func(s *ScheduledMeetingUpsert) {
 		s.ClearMeetingURL()
+	})
+}
+
+// SetGoogleEventID sets the "google_event_id" field.
+func (u *ScheduledMeetingUpsertOne) SetGoogleEventID(v string) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetGoogleEventID(v)
+	})
+}
+
+// UpdateGoogleEventID sets the "google_event_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateGoogleEventID() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateGoogleEventID()
+	})
+}
+
+// ClearGoogleEventID clears the value of the "google_event_id" field.
+func (u *ScheduledMeetingUpsertOne) ClearGoogleEventID() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearGoogleEventID()
+	})
+}
+
+// SetGoogleCalendarID sets the "google_calendar_id" field.
+func (u *ScheduledMeetingUpsertOne) SetGoogleCalendarID(v string) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetGoogleCalendarID(v)
+	})
+}
+
+// UpdateGoogleCalendarID sets the "google_calendar_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateGoogleCalendarID() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateGoogleCalendarID()
+	})
+}
+
+// ClearGoogleCalendarID clears the value of the "google_calendar_id" field.
+func (u *ScheduledMeetingUpsertOne) ClearGoogleCalendarID() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearGoogleCalendarID()
+	})
+}
+
+// SetGoogleEventLink sets the "google_event_link" field.
+func (u *ScheduledMeetingUpsertOne) SetGoogleEventLink(v string) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetGoogleEventLink(v)
+	})
+}
+
+// UpdateGoogleEventLink sets the "google_event_link" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateGoogleEventLink() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateGoogleEventLink()
+	})
+}
+
+// ClearGoogleEventLink clears the value of the "google_event_link" field.
+func (u *ScheduledMeetingUpsertOne) ClearGoogleEventLink() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearGoogleEventLink()
+	})
+}
+
+// SetAttendeeEmail sets the "attendee_email" field.
+func (u *ScheduledMeetingUpsertOne) SetAttendeeEmail(v string) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetAttendeeEmail(v)
+	})
+}
+
+// UpdateAttendeeEmail sets the "attendee_email" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateAttendeeEmail() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateAttendeeEmail()
+	})
+}
+
+// ClearAttendeeEmail clears the value of the "attendee_email" field.
+func (u *ScheduledMeetingUpsertOne) ClearAttendeeEmail() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearAttendeeEmail()
+	})
+}
+
+// SetAttendeeName sets the "attendee_name" field.
+func (u *ScheduledMeetingUpsertOne) SetAttendeeName(v string) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetAttendeeName(v)
+	})
+}
+
+// UpdateAttendeeName sets the "attendee_name" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateAttendeeName() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateAttendeeName()
+	})
+}
+
+// ClearAttendeeName clears the value of the "attendee_name" field.
+func (u *ScheduledMeetingUpsertOne) ClearAttendeeName() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearAttendeeName()
+	})
+}
+
+// SetOrganizerEmail sets the "organizer_email" field.
+func (u *ScheduledMeetingUpsertOne) SetOrganizerEmail(v string) *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetOrganizerEmail(v)
+	})
+}
+
+// UpdateOrganizerEmail sets the "organizer_email" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateOrganizerEmail() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateOrganizerEmail()
+	})
+}
+
+// ClearOrganizerEmail clears the value of the "organizer_email" field.
+func (u *ScheduledMeetingUpsertOne) ClearOrganizerEmail() *ScheduledMeetingUpsertOne {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearOrganizerEmail()
 	})
 }
 
@@ -1225,6 +1567,132 @@ func (u *ScheduledMeetingUpsertBulk) UpdateMeetingURL() *ScheduledMeetingUpsertB
 func (u *ScheduledMeetingUpsertBulk) ClearMeetingURL() *ScheduledMeetingUpsertBulk {
 	return u.Update(func(s *ScheduledMeetingUpsert) {
 		s.ClearMeetingURL()
+	})
+}
+
+// SetGoogleEventID sets the "google_event_id" field.
+func (u *ScheduledMeetingUpsertBulk) SetGoogleEventID(v string) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetGoogleEventID(v)
+	})
+}
+
+// UpdateGoogleEventID sets the "google_event_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateGoogleEventID() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateGoogleEventID()
+	})
+}
+
+// ClearGoogleEventID clears the value of the "google_event_id" field.
+func (u *ScheduledMeetingUpsertBulk) ClearGoogleEventID() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearGoogleEventID()
+	})
+}
+
+// SetGoogleCalendarID sets the "google_calendar_id" field.
+func (u *ScheduledMeetingUpsertBulk) SetGoogleCalendarID(v string) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetGoogleCalendarID(v)
+	})
+}
+
+// UpdateGoogleCalendarID sets the "google_calendar_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateGoogleCalendarID() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateGoogleCalendarID()
+	})
+}
+
+// ClearGoogleCalendarID clears the value of the "google_calendar_id" field.
+func (u *ScheduledMeetingUpsertBulk) ClearGoogleCalendarID() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearGoogleCalendarID()
+	})
+}
+
+// SetGoogleEventLink sets the "google_event_link" field.
+func (u *ScheduledMeetingUpsertBulk) SetGoogleEventLink(v string) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetGoogleEventLink(v)
+	})
+}
+
+// UpdateGoogleEventLink sets the "google_event_link" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateGoogleEventLink() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateGoogleEventLink()
+	})
+}
+
+// ClearGoogleEventLink clears the value of the "google_event_link" field.
+func (u *ScheduledMeetingUpsertBulk) ClearGoogleEventLink() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearGoogleEventLink()
+	})
+}
+
+// SetAttendeeEmail sets the "attendee_email" field.
+func (u *ScheduledMeetingUpsertBulk) SetAttendeeEmail(v string) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetAttendeeEmail(v)
+	})
+}
+
+// UpdateAttendeeEmail sets the "attendee_email" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateAttendeeEmail() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateAttendeeEmail()
+	})
+}
+
+// ClearAttendeeEmail clears the value of the "attendee_email" field.
+func (u *ScheduledMeetingUpsertBulk) ClearAttendeeEmail() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearAttendeeEmail()
+	})
+}
+
+// SetAttendeeName sets the "attendee_name" field.
+func (u *ScheduledMeetingUpsertBulk) SetAttendeeName(v string) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetAttendeeName(v)
+	})
+}
+
+// UpdateAttendeeName sets the "attendee_name" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateAttendeeName() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateAttendeeName()
+	})
+}
+
+// ClearAttendeeName clears the value of the "attendee_name" field.
+func (u *ScheduledMeetingUpsertBulk) ClearAttendeeName() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearAttendeeName()
+	})
+}
+
+// SetOrganizerEmail sets the "organizer_email" field.
+func (u *ScheduledMeetingUpsertBulk) SetOrganizerEmail(v string) *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.SetOrganizerEmail(v)
+	})
+}
+
+// UpdateOrganizerEmail sets the "organizer_email" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateOrganizerEmail() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.UpdateOrganizerEmail()
+	})
+}
+
+// ClearOrganizerEmail clears the value of the "organizer_email" field.
+func (u *ScheduledMeetingUpsertBulk) ClearOrganizerEmail() *ScheduledMeetingUpsertBulk {
+	return u.Update(func(s *ScheduledMeetingUpsert) {
+		s.ClearOrganizerEmail()
 	})
 }
 

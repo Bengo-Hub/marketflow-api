@@ -480,23 +480,23 @@ func init() {
 	scheduledmeetingFields := schema.ScheduledMeeting{}.Fields()
 	_ = scheduledmeetingFields
 	// scheduledmeetingDescDurationMinutes is the schema descriptor for duration_minutes field.
-	scheduledmeetingDescDurationMinutes := scheduledmeetingFields[7].Descriptor()
+	scheduledmeetingDescDurationMinutes := scheduledmeetingFields[13].Descriptor()
 	// scheduledmeeting.DefaultDurationMinutes holds the default value on creation for the duration_minutes field.
 	scheduledmeeting.DefaultDurationMinutes = scheduledmeetingDescDurationMinutes.Default.(int)
 	// scheduledmeetingDescMeetingType is the schema descriptor for meeting_type field.
-	scheduledmeetingDescMeetingType := scheduledmeetingFields[8].Descriptor()
+	scheduledmeetingDescMeetingType := scheduledmeetingFields[14].Descriptor()
 	// scheduledmeeting.DefaultMeetingType holds the default value on creation for the meeting_type field.
 	scheduledmeeting.DefaultMeetingType = scheduledmeetingDescMeetingType.Default.(string)
 	// scheduledmeetingDescStatus is the schema descriptor for status field.
-	scheduledmeetingDescStatus := scheduledmeetingFields[9].Descriptor()
+	scheduledmeetingDescStatus := scheduledmeetingFields[15].Descriptor()
 	// scheduledmeeting.DefaultStatus holds the default value on creation for the status field.
 	scheduledmeeting.DefaultStatus = scheduledmeetingDescStatus.Default.(string)
 	// scheduledmeetingDescCreatedAt is the schema descriptor for created_at field.
-	scheduledmeetingDescCreatedAt := scheduledmeetingFields[12].Descriptor()
+	scheduledmeetingDescCreatedAt := scheduledmeetingFields[18].Descriptor()
 	// scheduledmeeting.DefaultCreatedAt holds the default value on creation for the created_at field.
 	scheduledmeeting.DefaultCreatedAt = scheduledmeetingDescCreatedAt.Default.(func() time.Time)
 	// scheduledmeetingDescUpdatedAt is the schema descriptor for updated_at field.
-	scheduledmeetingDescUpdatedAt := scheduledmeetingFields[13].Descriptor()
+	scheduledmeetingDescUpdatedAt := scheduledmeetingFields[19].Descriptor()
 	// scheduledmeeting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	scheduledmeeting.DefaultUpdatedAt = scheduledmeetingDescUpdatedAt.Default.(func() time.Time)
 	// scheduledmeeting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

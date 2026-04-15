@@ -704,6 +704,12 @@ var (
 		{Name: "tenant_id", Type: field.TypeUUID},
 		{Name: "cal_booking_id", Type: field.TypeString, Nullable: true},
 		{Name: "meeting_url", Type: field.TypeString, Nullable: true},
+		{Name: "google_event_id", Type: field.TypeString, Nullable: true},
+		{Name: "google_calendar_id", Type: field.TypeString, Nullable: true},
+		{Name: "google_event_link", Type: field.TypeString, Nullable: true},
+		{Name: "attendee_email", Type: field.TypeString, Nullable: true},
+		{Name: "attendee_name", Type: field.TypeString, Nullable: true},
+		{Name: "organizer_email", Type: field.TypeString, Nullable: true},
 		{Name: "scheduled_at", Type: field.TypeTime},
 		{Name: "duration_minutes", Type: field.TypeInt, Default: 30},
 		{Name: "meeting_type", Type: field.TypeString, Default: "product_demo"},
@@ -723,13 +729,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "scheduled_meetings_contacts_scheduled_meetings",
-				Columns:    []*schema.Column{ScheduledMeetingsColumns[12]},
+				Columns:    []*schema.Column{ScheduledMeetingsColumns[18]},
 				RefColumns: []*schema.Column{ContactsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "scheduled_meetings_leads_scheduled_meetings",
-				Columns:    []*schema.Column{ScheduledMeetingsColumns[13]},
+				Columns:    []*schema.Column{ScheduledMeetingsColumns[19]},
 				RefColumns: []*schema.Column{LeadsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -738,22 +744,27 @@ var (
 			{
 				Name:    "scheduledmeeting_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{ScheduledMeetingsColumns[1], ScheduledMeetingsColumns[7]},
+				Columns: []*schema.Column{ScheduledMeetingsColumns[1], ScheduledMeetingsColumns[13]},
 			},
 			{
 				Name:    "scheduledmeeting_tenant_id_scheduled_at",
 				Unique:  false,
-				Columns: []*schema.Column{ScheduledMeetingsColumns[1], ScheduledMeetingsColumns[4]},
+				Columns: []*schema.Column{ScheduledMeetingsColumns[1], ScheduledMeetingsColumns[10]},
 			},
 			{
 				Name:    "scheduledmeeting_tenant_id_meeting_type",
 				Unique:  false,
-				Columns: []*schema.Column{ScheduledMeetingsColumns[1], ScheduledMeetingsColumns[6]},
+				Columns: []*schema.Column{ScheduledMeetingsColumns[1], ScheduledMeetingsColumns[12]},
 			},
 			{
 				Name:    "scheduledmeeting_cal_booking_id",
 				Unique:  false,
 				Columns: []*schema.Column{ScheduledMeetingsColumns[2]},
+			},
+			{
+				Name:    "scheduledmeeting_google_event_id",
+				Unique:  false,
+				Columns: []*schema.Column{ScheduledMeetingsColumns[4]},
 			},
 		},
 	}

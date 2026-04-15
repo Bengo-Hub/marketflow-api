@@ -126,6 +126,126 @@ func (_u *ScheduledMeetingUpdate) ClearMeetingURL() *ScheduledMeetingUpdate {
 	return _u
 }
 
+// SetGoogleEventID sets the "google_event_id" field.
+func (_u *ScheduledMeetingUpdate) SetGoogleEventID(v string) *ScheduledMeetingUpdate {
+	_u.mutation.SetGoogleEventID(v)
+	return _u
+}
+
+// SetNillableGoogleEventID sets the "google_event_id" field if the given value is not nil.
+func (_u *ScheduledMeetingUpdate) SetNillableGoogleEventID(v *string) *ScheduledMeetingUpdate {
+	if v != nil {
+		_u.SetGoogleEventID(*v)
+	}
+	return _u
+}
+
+// ClearGoogleEventID clears the value of the "google_event_id" field.
+func (_u *ScheduledMeetingUpdate) ClearGoogleEventID() *ScheduledMeetingUpdate {
+	_u.mutation.ClearGoogleEventID()
+	return _u
+}
+
+// SetGoogleCalendarID sets the "google_calendar_id" field.
+func (_u *ScheduledMeetingUpdate) SetGoogleCalendarID(v string) *ScheduledMeetingUpdate {
+	_u.mutation.SetGoogleCalendarID(v)
+	return _u
+}
+
+// SetNillableGoogleCalendarID sets the "google_calendar_id" field if the given value is not nil.
+func (_u *ScheduledMeetingUpdate) SetNillableGoogleCalendarID(v *string) *ScheduledMeetingUpdate {
+	if v != nil {
+		_u.SetGoogleCalendarID(*v)
+	}
+	return _u
+}
+
+// ClearGoogleCalendarID clears the value of the "google_calendar_id" field.
+func (_u *ScheduledMeetingUpdate) ClearGoogleCalendarID() *ScheduledMeetingUpdate {
+	_u.mutation.ClearGoogleCalendarID()
+	return _u
+}
+
+// SetGoogleEventLink sets the "google_event_link" field.
+func (_u *ScheduledMeetingUpdate) SetGoogleEventLink(v string) *ScheduledMeetingUpdate {
+	_u.mutation.SetGoogleEventLink(v)
+	return _u
+}
+
+// SetNillableGoogleEventLink sets the "google_event_link" field if the given value is not nil.
+func (_u *ScheduledMeetingUpdate) SetNillableGoogleEventLink(v *string) *ScheduledMeetingUpdate {
+	if v != nil {
+		_u.SetGoogleEventLink(*v)
+	}
+	return _u
+}
+
+// ClearGoogleEventLink clears the value of the "google_event_link" field.
+func (_u *ScheduledMeetingUpdate) ClearGoogleEventLink() *ScheduledMeetingUpdate {
+	_u.mutation.ClearGoogleEventLink()
+	return _u
+}
+
+// SetAttendeeEmail sets the "attendee_email" field.
+func (_u *ScheduledMeetingUpdate) SetAttendeeEmail(v string) *ScheduledMeetingUpdate {
+	_u.mutation.SetAttendeeEmail(v)
+	return _u
+}
+
+// SetNillableAttendeeEmail sets the "attendee_email" field if the given value is not nil.
+func (_u *ScheduledMeetingUpdate) SetNillableAttendeeEmail(v *string) *ScheduledMeetingUpdate {
+	if v != nil {
+		_u.SetAttendeeEmail(*v)
+	}
+	return _u
+}
+
+// ClearAttendeeEmail clears the value of the "attendee_email" field.
+func (_u *ScheduledMeetingUpdate) ClearAttendeeEmail() *ScheduledMeetingUpdate {
+	_u.mutation.ClearAttendeeEmail()
+	return _u
+}
+
+// SetAttendeeName sets the "attendee_name" field.
+func (_u *ScheduledMeetingUpdate) SetAttendeeName(v string) *ScheduledMeetingUpdate {
+	_u.mutation.SetAttendeeName(v)
+	return _u
+}
+
+// SetNillableAttendeeName sets the "attendee_name" field if the given value is not nil.
+func (_u *ScheduledMeetingUpdate) SetNillableAttendeeName(v *string) *ScheduledMeetingUpdate {
+	if v != nil {
+		_u.SetAttendeeName(*v)
+	}
+	return _u
+}
+
+// ClearAttendeeName clears the value of the "attendee_name" field.
+func (_u *ScheduledMeetingUpdate) ClearAttendeeName() *ScheduledMeetingUpdate {
+	_u.mutation.ClearAttendeeName()
+	return _u
+}
+
+// SetOrganizerEmail sets the "organizer_email" field.
+func (_u *ScheduledMeetingUpdate) SetOrganizerEmail(v string) *ScheduledMeetingUpdate {
+	_u.mutation.SetOrganizerEmail(v)
+	return _u
+}
+
+// SetNillableOrganizerEmail sets the "organizer_email" field if the given value is not nil.
+func (_u *ScheduledMeetingUpdate) SetNillableOrganizerEmail(v *string) *ScheduledMeetingUpdate {
+	if v != nil {
+		_u.SetOrganizerEmail(*v)
+	}
+	return _u
+}
+
+// ClearOrganizerEmail clears the value of the "organizer_email" field.
+func (_u *ScheduledMeetingUpdate) ClearOrganizerEmail() *ScheduledMeetingUpdate {
+	_u.mutation.ClearOrganizerEmail()
+	return _u
+}
+
 // SetScheduledAt sets the "scheduled_at" field.
 func (_u *ScheduledMeetingUpdate) SetScheduledAt(v time.Time) *ScheduledMeetingUpdate {
 	_u.mutation.SetScheduledAt(v)
@@ -319,6 +439,42 @@ func (_u *ScheduledMeetingUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if _u.mutation.MeetingURLCleared() {
 		_spec.ClearField(scheduledmeeting.FieldMeetingURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.GoogleEventID(); ok {
+		_spec.SetField(scheduledmeeting.FieldGoogleEventID, field.TypeString, value)
+	}
+	if _u.mutation.GoogleEventIDCleared() {
+		_spec.ClearField(scheduledmeeting.FieldGoogleEventID, field.TypeString)
+	}
+	if value, ok := _u.mutation.GoogleCalendarID(); ok {
+		_spec.SetField(scheduledmeeting.FieldGoogleCalendarID, field.TypeString, value)
+	}
+	if _u.mutation.GoogleCalendarIDCleared() {
+		_spec.ClearField(scheduledmeeting.FieldGoogleCalendarID, field.TypeString)
+	}
+	if value, ok := _u.mutation.GoogleEventLink(); ok {
+		_spec.SetField(scheduledmeeting.FieldGoogleEventLink, field.TypeString, value)
+	}
+	if _u.mutation.GoogleEventLinkCleared() {
+		_spec.ClearField(scheduledmeeting.FieldGoogleEventLink, field.TypeString)
+	}
+	if value, ok := _u.mutation.AttendeeEmail(); ok {
+		_spec.SetField(scheduledmeeting.FieldAttendeeEmail, field.TypeString, value)
+	}
+	if _u.mutation.AttendeeEmailCleared() {
+		_spec.ClearField(scheduledmeeting.FieldAttendeeEmail, field.TypeString)
+	}
+	if value, ok := _u.mutation.AttendeeName(); ok {
+		_spec.SetField(scheduledmeeting.FieldAttendeeName, field.TypeString, value)
+	}
+	if _u.mutation.AttendeeNameCleared() {
+		_spec.ClearField(scheduledmeeting.FieldAttendeeName, field.TypeString)
+	}
+	if value, ok := _u.mutation.OrganizerEmail(); ok {
+		_spec.SetField(scheduledmeeting.FieldOrganizerEmail, field.TypeString, value)
+	}
+	if _u.mutation.OrganizerEmailCleared() {
+		_spec.ClearField(scheduledmeeting.FieldOrganizerEmail, field.TypeString)
 	}
 	if value, ok := _u.mutation.ScheduledAt(); ok {
 		_spec.SetField(scheduledmeeting.FieldScheduledAt, field.TypeTime, value)
@@ -521,6 +677,126 @@ func (_u *ScheduledMeetingUpdateOne) SetNillableMeetingURL(v *string) *Scheduled
 // ClearMeetingURL clears the value of the "meeting_url" field.
 func (_u *ScheduledMeetingUpdateOne) ClearMeetingURL() *ScheduledMeetingUpdateOne {
 	_u.mutation.ClearMeetingURL()
+	return _u
+}
+
+// SetGoogleEventID sets the "google_event_id" field.
+func (_u *ScheduledMeetingUpdateOne) SetGoogleEventID(v string) *ScheduledMeetingUpdateOne {
+	_u.mutation.SetGoogleEventID(v)
+	return _u
+}
+
+// SetNillableGoogleEventID sets the "google_event_id" field if the given value is not nil.
+func (_u *ScheduledMeetingUpdateOne) SetNillableGoogleEventID(v *string) *ScheduledMeetingUpdateOne {
+	if v != nil {
+		_u.SetGoogleEventID(*v)
+	}
+	return _u
+}
+
+// ClearGoogleEventID clears the value of the "google_event_id" field.
+func (_u *ScheduledMeetingUpdateOne) ClearGoogleEventID() *ScheduledMeetingUpdateOne {
+	_u.mutation.ClearGoogleEventID()
+	return _u
+}
+
+// SetGoogleCalendarID sets the "google_calendar_id" field.
+func (_u *ScheduledMeetingUpdateOne) SetGoogleCalendarID(v string) *ScheduledMeetingUpdateOne {
+	_u.mutation.SetGoogleCalendarID(v)
+	return _u
+}
+
+// SetNillableGoogleCalendarID sets the "google_calendar_id" field if the given value is not nil.
+func (_u *ScheduledMeetingUpdateOne) SetNillableGoogleCalendarID(v *string) *ScheduledMeetingUpdateOne {
+	if v != nil {
+		_u.SetGoogleCalendarID(*v)
+	}
+	return _u
+}
+
+// ClearGoogleCalendarID clears the value of the "google_calendar_id" field.
+func (_u *ScheduledMeetingUpdateOne) ClearGoogleCalendarID() *ScheduledMeetingUpdateOne {
+	_u.mutation.ClearGoogleCalendarID()
+	return _u
+}
+
+// SetGoogleEventLink sets the "google_event_link" field.
+func (_u *ScheduledMeetingUpdateOne) SetGoogleEventLink(v string) *ScheduledMeetingUpdateOne {
+	_u.mutation.SetGoogleEventLink(v)
+	return _u
+}
+
+// SetNillableGoogleEventLink sets the "google_event_link" field if the given value is not nil.
+func (_u *ScheduledMeetingUpdateOne) SetNillableGoogleEventLink(v *string) *ScheduledMeetingUpdateOne {
+	if v != nil {
+		_u.SetGoogleEventLink(*v)
+	}
+	return _u
+}
+
+// ClearGoogleEventLink clears the value of the "google_event_link" field.
+func (_u *ScheduledMeetingUpdateOne) ClearGoogleEventLink() *ScheduledMeetingUpdateOne {
+	_u.mutation.ClearGoogleEventLink()
+	return _u
+}
+
+// SetAttendeeEmail sets the "attendee_email" field.
+func (_u *ScheduledMeetingUpdateOne) SetAttendeeEmail(v string) *ScheduledMeetingUpdateOne {
+	_u.mutation.SetAttendeeEmail(v)
+	return _u
+}
+
+// SetNillableAttendeeEmail sets the "attendee_email" field if the given value is not nil.
+func (_u *ScheduledMeetingUpdateOne) SetNillableAttendeeEmail(v *string) *ScheduledMeetingUpdateOne {
+	if v != nil {
+		_u.SetAttendeeEmail(*v)
+	}
+	return _u
+}
+
+// ClearAttendeeEmail clears the value of the "attendee_email" field.
+func (_u *ScheduledMeetingUpdateOne) ClearAttendeeEmail() *ScheduledMeetingUpdateOne {
+	_u.mutation.ClearAttendeeEmail()
+	return _u
+}
+
+// SetAttendeeName sets the "attendee_name" field.
+func (_u *ScheduledMeetingUpdateOne) SetAttendeeName(v string) *ScheduledMeetingUpdateOne {
+	_u.mutation.SetAttendeeName(v)
+	return _u
+}
+
+// SetNillableAttendeeName sets the "attendee_name" field if the given value is not nil.
+func (_u *ScheduledMeetingUpdateOne) SetNillableAttendeeName(v *string) *ScheduledMeetingUpdateOne {
+	if v != nil {
+		_u.SetAttendeeName(*v)
+	}
+	return _u
+}
+
+// ClearAttendeeName clears the value of the "attendee_name" field.
+func (_u *ScheduledMeetingUpdateOne) ClearAttendeeName() *ScheduledMeetingUpdateOne {
+	_u.mutation.ClearAttendeeName()
+	return _u
+}
+
+// SetOrganizerEmail sets the "organizer_email" field.
+func (_u *ScheduledMeetingUpdateOne) SetOrganizerEmail(v string) *ScheduledMeetingUpdateOne {
+	_u.mutation.SetOrganizerEmail(v)
+	return _u
+}
+
+// SetNillableOrganizerEmail sets the "organizer_email" field if the given value is not nil.
+func (_u *ScheduledMeetingUpdateOne) SetNillableOrganizerEmail(v *string) *ScheduledMeetingUpdateOne {
+	if v != nil {
+		_u.SetOrganizerEmail(*v)
+	}
+	return _u
+}
+
+// ClearOrganizerEmail clears the value of the "organizer_email" field.
+func (_u *ScheduledMeetingUpdateOne) ClearOrganizerEmail() *ScheduledMeetingUpdateOne {
+	_u.mutation.ClearOrganizerEmail()
 	return _u
 }
 
@@ -747,6 +1023,42 @@ func (_u *ScheduledMeetingUpdateOne) sqlSave(ctx context.Context) (_node *Schedu
 	}
 	if _u.mutation.MeetingURLCleared() {
 		_spec.ClearField(scheduledmeeting.FieldMeetingURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.GoogleEventID(); ok {
+		_spec.SetField(scheduledmeeting.FieldGoogleEventID, field.TypeString, value)
+	}
+	if _u.mutation.GoogleEventIDCleared() {
+		_spec.ClearField(scheduledmeeting.FieldGoogleEventID, field.TypeString)
+	}
+	if value, ok := _u.mutation.GoogleCalendarID(); ok {
+		_spec.SetField(scheduledmeeting.FieldGoogleCalendarID, field.TypeString, value)
+	}
+	if _u.mutation.GoogleCalendarIDCleared() {
+		_spec.ClearField(scheduledmeeting.FieldGoogleCalendarID, field.TypeString)
+	}
+	if value, ok := _u.mutation.GoogleEventLink(); ok {
+		_spec.SetField(scheduledmeeting.FieldGoogleEventLink, field.TypeString, value)
+	}
+	if _u.mutation.GoogleEventLinkCleared() {
+		_spec.ClearField(scheduledmeeting.FieldGoogleEventLink, field.TypeString)
+	}
+	if value, ok := _u.mutation.AttendeeEmail(); ok {
+		_spec.SetField(scheduledmeeting.FieldAttendeeEmail, field.TypeString, value)
+	}
+	if _u.mutation.AttendeeEmailCleared() {
+		_spec.ClearField(scheduledmeeting.FieldAttendeeEmail, field.TypeString)
+	}
+	if value, ok := _u.mutation.AttendeeName(); ok {
+		_spec.SetField(scheduledmeeting.FieldAttendeeName, field.TypeString, value)
+	}
+	if _u.mutation.AttendeeNameCleared() {
+		_spec.ClearField(scheduledmeeting.FieldAttendeeName, field.TypeString)
+	}
+	if value, ok := _u.mutation.OrganizerEmail(); ok {
+		_spec.SetField(scheduledmeeting.FieldOrganizerEmail, field.TypeString, value)
+	}
+	if _u.mutation.OrganizerEmailCleared() {
+		_spec.ClearField(scheduledmeeting.FieldOrganizerEmail, field.TypeString)
 	}
 	if value, ok := _u.mutation.ScheduledAt(); ok {
 		_spec.SetField(scheduledmeeting.FieldScheduledAt, field.TypeTime, value)

@@ -2,11 +2,13 @@ package worker
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/google/uuid"
@@ -30,9 +32,9 @@ type Registry struct {
 }
 
 // NewRegistry constructs a Registry with the four core handlers.
-// db may be nil — handlers that require DB access (lead auto-enrol) degrade
-// to a no-op and log a warning.
-func NewRegistry(cfg *Config, db *ent.Client, logger *zap.Logger) *Registry {
+// db/rawDB may be nil — handlers that require DB access (lead auto-enrol,
+// embedding upsert) degrade to a no-op and log a warning.
+func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, logger *zap.Logger) *Registry {
 	notif := notifications.New(notifications.Config{
 		BaseURL:   cfg.Notifications.URL,
 		APIKey:    cfg.Notifications.APIKey,
@@ -44,7 +46,7 @@ func NewRegistry(cfg *Config, db *ent.Client, logger *zap.Logger) *Registry {
 		logger: logger,
 		handlers: []Handler{
 			&NurtureStepHandler{cfg: cfg, db: db, notif: notif, logger: logger.Named("nurture")},
-			&EmbeddingHandler{cfg: cfg, logger: logger.Named("embedding")},
+			&EmbeddingHandler{cfg: cfg, db: db, rawDB: rawDB, logger: logger.Named("embedding")},
 			&ChatCompletedHandler{logger: logger.Named("audit")},
 			&LeadCreatedHandler{cfg: cfg, db: db, logger: logger.Named("lead")},
 		},
@@ -98,61 +100,170 @@ func (h *NurtureStepHandler) Subject() string { return "nurture.step.due" }
 func (h *NurtureStepHandler) Durable() string { return "marketflow-worker-nurture" }
 
 func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) error {
-	var step struct {
-		TenantID     string         `json:"tenant_id"`
-		SequenceID   string         `json:"sequence_id"`
-		LeadID       string         `json:"lead_id"`
-		EnrollmentID string         `json:"enrollment_id"`
-		StepIndex    int            `json:"step_index"`
-		Channel      string         `json:"channel"`
-		Template     string         `json:"template"`
-		Recipient    string         `json:"recipient"`
-		Subject      string         `json:"subject,omitempty"`
-		Body         string         `json:"body,omitempty"`
-		Variables    map[string]any `json:"variables,omitempty"`
+	var envelope struct {
+		TenantID     string `json:"tenant_id"`
+		SequenceID   string `json:"sequence_id"`
+		LeadID       string `json:"lead_id"`
+		EnrollmentID string `json:"enrollment_id"`
+		StepIndex    int    `json:"step_index"`
 	}
-	if err := json.Unmarshal(msg.Data(), &step); err != nil {
-		return err
+	if err := json.Unmarshal(msg.Data(), &envelope); err != nil {
+		return fmt.Errorf("decode envelope: %w", err)
 	}
-	if step.TenantID == "" || step.Channel == "" || step.Recipient == "" {
-		return fmt.Errorf("invalid step: tenant=%q channel=%q recipient=%q",
-			step.TenantID, step.Channel, step.Recipient)
+	if h.db == nil {
+		return fmt.Errorf("nurture dispatch requires DB — POSTGRES_URL not configured")
+	}
+	enrollmentID, err := uuid.Parse(envelope.EnrollmentID)
+	if err != nil {
+		return fmt.Errorf("bad enrollment_id: %w", err)
 	}
 
-	idemKey := fmt.Sprintf("nurture-%s-%d", step.EnrollmentID, step.StepIndex)
+	enrollment, err := h.db.NurtureEnrollment.Get(ctx, enrollmentID)
+	if err != nil {
+		return fmt.Errorf("load enrollment: %w", err)
+	}
+	if enrollment.Status != "active" {
+		h.logger.Debug("skipping non-active enrollment",
+			zap.String("enrollment", enrollmentID.String()),
+			zap.String("status", enrollment.Status))
+		return nil
+	}
+
+	seq, err := h.db.NurtureSequence.Get(ctx, enrollment.SequenceID)
+	if err != nil {
+		return fmt.Errorf("load sequence: %w", err)
+	}
+	if enrollment.CurrentStep >= len(seq.Steps) {
+		return h.completeEnrollment(ctx, enrollment, "completed")
+	}
+	stepDef := seq.Steps[enrollment.CurrentStep]
+
+	// Resolve recipient from the lead row. Channel selection is a step property;
+	// email/phone come from the lead. Fall back to the sequence default.
+	var recipient string
+	if enrollment.LeadID != nil {
+		ld, err := h.db.Lead.Query().Where(lead.IDEQ(*enrollment.LeadID)).Only(ctx)
+		if err == nil {
+			switch asString(stepDef, "channel") {
+			case "whatsapp", "sms":
+				if ld.Phone != nil {
+					recipient = *ld.Phone
+				}
+			default: // email
+				if ld.Email != nil {
+					recipient = *ld.Email
+				}
+			}
+		}
+	}
+	channel := asString(stepDef, "channel")
+	if channel == "" {
+		channel = "email"
+	}
+	if recipient == "" {
+		h.logger.Warn("no recipient on lead; marking enrollment errored",
+			zap.String("enrollment", enrollmentID.String()), zap.String("channel", channel))
+		return h.completeEnrollment(ctx, enrollment, "errored")
+	}
+
+	idemKey := fmt.Sprintf("nurture-%s-%d", enrollmentID, enrollment.CurrentStep)
 	payload := notifications.Message{
-		Channel:    step.Channel,
-		TemplateID: step.Template,
-		Recipient:  step.Recipient,
-		Subject:    step.Subject,
-		Body:       step.Body,
-		Data:       step.Variables,
+		Channel:    channel,
+		TemplateID: asString(stepDef, "template"),
+		Recipient:  recipient,
+		Subject:    asString(stepDef, "subject"),
+		Body:       asString(stepDef, "body"),
+		Data:       asMap(stepDef, "variables"),
 		Metadata: map[string]string{
 			"source":        "marketflow-worker",
-			"sequence_id":   step.SequenceID,
-			"enrollment_id": step.EnrollmentID,
-			"lead_id":       step.LeadID,
-			"step_index":    fmt.Sprintf("%d", step.StepIndex),
+			"sequence_id":   enrollment.SequenceID.String(),
+			"enrollment_id": enrollmentID.String(),
+			"step_index":    fmt.Sprintf("%d", enrollment.CurrentStep),
 		},
 		IdempotencyKey: idemKey,
 	}
 
 	h.logger.Info("dispatching nurture step",
-		zap.String("tenant", step.TenantID),
-		zap.String("channel", step.Channel),
-		zap.Int("step", step.StepIndex),
+		zap.String("tenant", enrollment.TenantID.String()),
+		zap.String("channel", channel),
+		zap.Int("step", enrollment.CurrentStep),
 		zap.String("idem", idemKey),
 	)
-	if err := h.notif.Send(ctx, step.TenantID, payload); err != nil {
+	if err := h.notif.Send(ctx, enrollment.TenantID.String(), payload); err != nil {
 		return fmt.Errorf("notifications send: %w", err)
 	}
-	// TODO: call marketflow-api to advance enrollment.current_step + set next_step_at.
+
+	// Advance: move to next step, compute its next_step_at from delay_hours,
+	// or mark completed when no steps remain.
+	nextIdx := enrollment.CurrentStep + 1
+	update := h.db.NurtureEnrollment.UpdateOneID(enrollmentID).
+		SetCurrentStep(nextIdx).
+		SetLastStepAt(time.Now().UTC())
+	if nextIdx >= len(seq.Steps) {
+		update.SetStatus("completed").
+			SetCompletedAt(time.Now().UTC()).
+			SetExitReason("completed").
+			ClearNextStepAt()
+		if _, err := update.Save(ctx); err != nil {
+			return fmt.Errorf("finalise enrollment: %w", err)
+		}
+		// Best-effort counter bump.
+		_, _ = h.db.NurtureSequence.UpdateOneID(seq.ID).AddTotalCompleted(1).Save(ctx)
+		return nil
+	}
+	nextStep := seq.Steps[nextIdx]
+	delayHours := asInt(nextStep, "delay_hours")
+	if delayHours < 0 {
+		delayHours = 0
+	}
+	update.SetNextStepAt(time.Now().UTC().Add(time.Duration(delayHours) * time.Hour))
+	if _, err := update.Save(ctx); err != nil {
+		return fmt.Errorf("advance enrollment: %w", err)
+	}
+	return nil
+}
+
+// completeEnrollment marks an enrollment terminal with the given reason.
+func (h *NurtureStepHandler) completeEnrollment(ctx context.Context, e *ent.NurtureEnrollment, reason string) error {
+	_, err := h.db.NurtureEnrollment.UpdateOneID(e.ID).
+		SetStatus(reason).
+		SetCompletedAt(time.Now().UTC()).
+		SetExitReason(reason).
+		ClearNextStepAt().
+		Save(ctx)
+	return err
+}
+
+// asString / asInt / asMap are tolerant readers for the sequence.steps[] JSON.
+func asString(m map[string]any, k string) string {
+	if v, ok := m[k].(string); ok {
+		return v
+	}
+	return ""
+}
+func asInt(m map[string]any, k string) int {
+	switch v := m[k].(type) {
+	case float64:
+		return int(v)
+	case int:
+		return v
+	case int64:
+		return int(v)
+	}
+	return 0
+}
+func asMap(m map[string]any, k string) map[string]any {
+	if v, ok := m[k].(map[string]any); ok {
+		return v
+	}
 	return nil
 }
 
 // EmbeddingHandler runs the KB embedding pipeline: fetch entry → embed via Ollama → upsert.
 type EmbeddingHandler struct {
 	cfg    *Config
+	db     *ent.Client
+	rawDB  *sql.DB // needed for pgvector upsert (Ent doesn't model the vector column)
 	logger *zap.Logger
 }
 
@@ -167,8 +278,47 @@ func (h *EmbeddingHandler) Handle(ctx context.Context, msg jetstream.Msg) error 
 	if err := json.Unmarshal(msg.Data(), &req); err != nil {
 		return err
 	}
-	h.logger.Info("embedding requested", zap.String("entry", req.EntryID))
-	// TODO: pull entry → Ollama /api/embeddings → UPSERT knowledge_base_embeddings.
+	if h.db == nil {
+		h.logger.Warn("embedding.requested but no DB — skipping", zap.String("entry", req.EntryID))
+		return nil
+	}
+	entryID, err := uuid.Parse(req.EntryID)
+	if err != nil {
+		return fmt.Errorf("bad entry_id: %w", err)
+	}
+	entry, err := h.db.KnowledgeBaseEntry.Get(ctx, entryID)
+	if err != nil {
+		return fmt.Errorf("load entry: %w", err)
+	}
+
+	// Chunk long content on paragraph boundaries; keep under ~1k chars per chunk
+	// so nomic-embed-text gets clean embeddings.
+	chunks := chunkText(entry.Content, 900)
+
+	// Embed via Ollama and upsert each chunk.
+	upserted := 0
+	for i, chunk := range chunks {
+		vec, err := ollamaEmbed(ctx, h.cfg.API.OllamaURL, h.cfg.API.EmbeddingModel, chunk)
+		if err != nil {
+			h.logger.Error("ollama embed failed",
+				zap.String("entry", entryID.String()), zap.Int("chunk", i), zap.Error(err))
+			return err
+		}
+		if err := upsertEmbedding(ctx, h.rawDB, entry.TenantID, entryID, i, chunk, entry.Category, entry.Title, vec); err != nil {
+			h.logger.Error("upsert embedding failed",
+				zap.String("entry", entryID.String()), zap.Int("chunk", i), zap.Error(err))
+			return err
+		}
+		upserted++
+	}
+
+	if _, err := h.db.KnowledgeBaseEntry.UpdateOneID(entryID).
+		SetEmbedded(true).
+		SetChunkCount(upserted).
+		Save(ctx); err != nil {
+		h.logger.Warn("update entry embedded flag", zap.Error(err))
+	}
+	h.logger.Info("embedding done", zap.String("entry", entryID.String()), zap.Int("chunks", upserted))
 	return nil
 }
 

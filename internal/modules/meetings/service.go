@@ -11,17 +11,35 @@ import (
 	"go.uber.org/zap"
 )
 
-// Service handles scheduled meeting business logic.
-type Service struct {
-	client *ent.Client
-	logger *zap.Logger
+// CalendarSyncer pushes a meeting to an external calendar (Google Calendar).
+// Implementation lives in internal/integrations/gcal; kept as an interface here
+// so the meetings package doesn't import Google SDKs directly.
+type CalendarSyncer interface {
+	Sync(ctx context.Context, m *ent.ScheduledMeeting) (*SyncResult, error)
 }
 
-// NewService creates a new scheduled meeting service.
-func NewService(client *ent.Client, logger *zap.Logger) *Service {
+// SyncResult describes the external event created by the syncer.
+type SyncResult struct {
+	EventID    string
+	CalendarID string
+	HTMLLink   string
+	MeetURL    string
+}
+
+// Service handles scheduled meeting business logic.
+type Service struct {
+	client   *ent.Client
+	calSync  CalendarSyncer
+	logger   *zap.Logger
+}
+
+// NewService creates a new scheduled meeting service. calSync may be nil; when
+// set, every successful Create is mirrored to the external calendar.
+func NewService(client *ent.Client, calSync CalendarSyncer, logger *zap.Logger) *Service {
 	return &Service{
-		client: client,
-		logger: logger.Named("meetings"),
+		client:  client,
+		calSync: calSync,
+		logger:  logger.Named("meetings"),
 	}
 }
 
@@ -37,6 +55,15 @@ type CreateInput struct {
 	MeetingType     *string
 	Notes           *string
 	Metadata        map[string]any
+	// Attendee + organiser for calendar sync. When AttendeeEmail is set and
+	// the tenant has a linked Google Calendar, the meeting is pushed to gcal
+	// and the returned event details are persisted on the row.
+	AttendeeEmail  *string
+	AttendeeName   *string
+	OrganizerEmail *string
+	// SkipCalendarSync forces a local-only record (used by Cal.com webhook
+	// which has its own provider already).
+	SkipCalendarSync bool
 }
 
 // UpdateInput contains the data to update a scheduled meeting.
@@ -91,6 +118,15 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.ScheduledMee
 	if in.Notes != nil {
 		builder.SetNillableNotes(in.Notes)
 	}
+	if in.AttendeeEmail != nil {
+		builder.SetNillableAttendeeEmail(in.AttendeeEmail)
+	}
+	if in.AttendeeName != nil {
+		builder.SetNillableAttendeeName(in.AttendeeName)
+	}
+	if in.OrganizerEmail != nil {
+		builder.SetNillableOrganizerEmail(in.OrganizerEmail)
+	}
 	if in.Metadata != nil {
 		builder.SetMetadata(in.Metadata)
 	}
@@ -104,6 +140,33 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.ScheduledMee
 		zap.String("id", result.ID.String()),
 		zap.String("tenant_id", in.TenantID.String()),
 	)
+
+	// Mirror to Google Calendar when a syncer is configured and the caller
+	// hasn't opted out. Failures are logged but non-fatal: the local record
+	// remains authoritative.
+	if !in.SkipCalendarSync && s.calSync != nil {
+		if sync, err := s.calSync.Sync(ctx, result); err != nil {
+			s.logger.Warn("gcal sync failed",
+				zap.String("meeting", result.ID.String()), zap.Error(err))
+		} else if sync != nil && sync.EventID != "" {
+			upd := s.client.ScheduledMeeting.UpdateOneID(result.ID).
+				SetGoogleEventID(sync.EventID).
+				SetGoogleCalendarID(sync.CalendarID).
+				SetGoogleEventLink(sync.HTMLLink)
+			if sync.MeetURL != "" && (result.MeetingURL == nil || *result.MeetingURL == "") {
+				upd.SetMeetingURL(sync.MeetURL)
+			}
+			if saved, err := upd.Save(ctx); err == nil {
+				result = saved
+			} else {
+				s.logger.Warn("persist gcal fields", zap.Error(err))
+			}
+			s.logger.Info("meeting synced to gcal",
+				zap.String("meeting", result.ID.String()),
+				zap.String("event_id", sync.EventID),
+			)
+		}
+	}
 
 	return result, nil
 }

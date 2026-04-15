@@ -311,6 +311,10 @@ definitions:
     type: object
   internal_modules_meetings.createMeetingRequest:
     properties:
+      attendee_email:
+        type: string
+      attendee_name:
+        type: string
       cal_booking_id:
         type: string
       contact_id:
@@ -327,6 +331,8 @@ definitions:
         additionalProperties: {}
         type: object
       notes:
+        type: string
+      organizer_email:
         type: string
       scheduled_at:
         type: string
