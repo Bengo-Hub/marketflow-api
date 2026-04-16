@@ -20,8 +20,10 @@ type KnowledgeBaseEntry struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID uuid.UUID `json:"id,omitempty"`
-	// Owning tenant
+	// Owning tenant (platform-owner tenant for scope='platform' rows)
 	TenantID uuid.UUID `json:"tenant_id,omitempty"`
+	// tenant = private to tenant_id | platform = shared across every tenant (RAG base knowledge)
+	Scope string `json:"scope,omitempty"`
 	// product | faq | compliance | business_opportunity | custom
 	Category string `json:"category,omitempty"`
 	// Title holds the value of the "title" field.
@@ -87,7 +89,7 @@ func (*KnowledgeBaseEntry) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case knowledgebaseentry.FieldChunkCount:
 			values[i] = new(sql.NullInt64)
-		case knowledgebaseentry.FieldCategory, knowledgebaseentry.FieldTitle, knowledgebaseentry.FieldContent, knowledgebaseentry.FieldProductCode, knowledgebaseentry.FieldProductImageURL:
+		case knowledgebaseentry.FieldScope, knowledgebaseentry.FieldCategory, knowledgebaseentry.FieldTitle, knowledgebaseentry.FieldContent, knowledgebaseentry.FieldProductCode, knowledgebaseentry.FieldProductImageURL:
 			values[i] = new(sql.NullString)
 		case knowledgebaseentry.FieldCreatedAt, knowledgebaseentry.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -119,6 +121,12 @@ func (_m *KnowledgeBaseEntry) assignValues(columns []string, values []any) error
 				return fmt.Errorf("unexpected type %T for field tenant_id", values[i])
 			} else if value != nil {
 				_m.TenantID = *value
+			}
+		case knowledgebaseentry.FieldScope:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field scope", values[i])
+			} else if value.Valid {
+				_m.Scope = value.String
 			}
 		case knowledgebaseentry.FieldCategory:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -249,6 +257,9 @@ func (_m *KnowledgeBaseEntry) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))
+	builder.WriteString(", ")
+	builder.WriteString("scope=")
+	builder.WriteString(_m.Scope)
 	builder.WriteString(", ")
 	builder.WriteString("category=")
 	builder.WriteString(_m.Category)

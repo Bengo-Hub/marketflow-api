@@ -20,8 +20,10 @@ type NurtureSequence struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID uuid.UUID `json:"id,omitempty"`
-	// Owning tenant
+	// Owning tenant (platform-owner tenant for scope='platform' templates)
 	TenantID uuid.UUID `json:"tenant_id,omitempty"`
+	// tenant = tenant-created sequence | platform = shared template (Welcome, C9, Reorder, Recruitment, Re-engagement). Platform templates are read-only and offered to every tenant.
+	Scope string `json:"scope,omitempty"`
 	// Sequence display name
 	Name string `json:"name,omitempty"`
 	// Event that starts this sequence: lead.created | lead.qualified | contact.dormant
@@ -79,7 +81,7 @@ func (*NurtureSequence) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case nurturesequence.FieldTotalEnrolled, nurturesequence.FieldTotalCompleted:
 			values[i] = new(sql.NullInt64)
-		case nurturesequence.FieldName, nurturesequence.FieldTriggerEvent, nurturesequence.FieldLeadTypeFilter:
+		case nurturesequence.FieldScope, nurturesequence.FieldName, nurturesequence.FieldTriggerEvent, nurturesequence.FieldLeadTypeFilter:
 			values[i] = new(sql.NullString)
 		case nurturesequence.FieldCreatedAt, nurturesequence.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -111,6 +113,12 @@ func (_m *NurtureSequence) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field tenant_id", values[i])
 			} else if value != nil {
 				_m.TenantID = *value
+			}
+		case nurturesequence.FieldScope:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field scope", values[i])
+			} else if value.Valid {
+				_m.Scope = value.String
 			}
 		case nurturesequence.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -220,6 +228,9 @@ func (_m *NurtureSequence) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))
+	builder.WriteString(", ")
+	builder.WriteString("scope=")
+	builder.WriteString(_m.Scope)
 	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)

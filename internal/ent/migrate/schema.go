@@ -47,6 +47,7 @@ var (
 	// CampaignsColumns holds the columns for the "campaigns" table.
 	CampaignsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
+		{Name: "scope", Type: field.TypeString, Default: "tenant"},
 		{Name: "name", Type: field.TypeString},
 		{Name: "campaign_type", Type: field.TypeString, Default: "lead_gen"},
 		{Name: "platform", Type: field.TypeString, Default: "meta"},
@@ -75,7 +76,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "campaigns_tenants_campaigns",
-				Columns:    []*schema.Column{CampaignsColumns[19]},
+				Columns:    []*schema.Column{CampaignsColumns[20]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -84,22 +85,22 @@ var (
 			{
 				Name:    "campaign_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{CampaignsColumns[19], CampaignsColumns[4]},
+				Columns: []*schema.Column{CampaignsColumns[20], CampaignsColumns[5]},
 			},
 			{
 				Name:    "campaign_tenant_id_campaign_type",
 				Unique:  false,
-				Columns: []*schema.Column{CampaignsColumns[19], CampaignsColumns[2]},
+				Columns: []*schema.Column{CampaignsColumns[20], CampaignsColumns[3]},
 			},
 			{
 				Name:    "campaign_tenant_id_platform",
 				Unique:  false,
-				Columns: []*schema.Column{CampaignsColumns[19], CampaignsColumns[3]},
+				Columns: []*schema.Column{CampaignsColumns[20], CampaignsColumns[4]},
 			},
 			{
 				Name:    "campaign_meta_campaign_id",
 				Unique:  false,
-				Columns: []*schema.Column{CampaignsColumns[5]},
+				Columns: []*schema.Column{CampaignsColumns[6]},
 			},
 		},
 	}
@@ -278,6 +279,7 @@ var (
 	// KnowledgeBaseEntriesColumns holds the columns for the "knowledge_base_entries" table.
 	KnowledgeBaseEntriesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
+		{Name: "scope", Type: field.TypeString, Default: "tenant"},
 		{Name: "category", Type: field.TypeString, Default: "product"},
 		{Name: "title", Type: field.TypeString},
 		{Name: "content", Type: field.TypeString, Size: 2147483647},
@@ -301,7 +303,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "knowledge_base_entries_tenants_knowledge_base_entries",
-				Columns:    []*schema.Column{KnowledgeBaseEntriesColumns[14]},
+				Columns:    []*schema.Column{KnowledgeBaseEntriesColumns[15]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -310,17 +312,22 @@ var (
 			{
 				Name:    "knowledgebaseentry_tenant_id_category",
 				Unique:  false,
-				Columns: []*schema.Column{KnowledgeBaseEntriesColumns[14], KnowledgeBaseEntriesColumns[1]},
+				Columns: []*schema.Column{KnowledgeBaseEntriesColumns[15], KnowledgeBaseEntriesColumns[2]},
 			},
 			{
 				Name:    "knowledgebaseentry_tenant_id_product_code",
 				Unique:  false,
-				Columns: []*schema.Column{KnowledgeBaseEntriesColumns[14], KnowledgeBaseEntriesColumns[4]},
+				Columns: []*schema.Column{KnowledgeBaseEntriesColumns[15], KnowledgeBaseEntriesColumns[5]},
 			},
 			{
 				Name:    "knowledgebaseentry_tenant_id_embedded",
 				Unique:  false,
-				Columns: []*schema.Column{KnowledgeBaseEntriesColumns[14], KnowledgeBaseEntriesColumns[8]},
+				Columns: []*schema.Column{KnowledgeBaseEntriesColumns[15], KnowledgeBaseEntriesColumns[9]},
+			},
+			{
+				Name:    "knowledgebaseentry_scope_category",
+				Unique:  false,
+				Columns: []*schema.Column{KnowledgeBaseEntriesColumns[1], KnowledgeBaseEntriesColumns[2]},
 			},
 		},
 	}
@@ -451,6 +458,7 @@ var (
 	MarketflowRolesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "scope", Type: field.TypeString, Default: "tenant"},
 		{Name: "role_code", Type: field.TypeString},
 		{Name: "name", Type: field.TypeString},
 		{Name: "description", Type: field.TypeString, Nullable: true, Size: 2147483647},
@@ -472,12 +480,12 @@ var (
 			{
 				Name:    "marketflowrole_tenant_id_role_code",
 				Unique:  true,
-				Columns: []*schema.Column{MarketflowRolesColumns[1], MarketflowRolesColumns[2]},
+				Columns: []*schema.Column{MarketflowRolesColumns[1], MarketflowRolesColumns[3]},
 			},
 			{
 				Name:    "marketflowrole_is_system_role",
 				Unique:  false,
-				Columns: []*schema.Column{MarketflowRolesColumns[5]},
+				Columns: []*schema.Column{MarketflowRolesColumns[6]},
 			},
 		},
 	}
@@ -578,6 +586,7 @@ var (
 	// NurtureSequencesColumns holds the columns for the "nurture_sequences" table.
 	NurtureSequencesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
+		{Name: "scope", Type: field.TypeString, Default: "tenant"},
 		{Name: "name", Type: field.TypeString},
 		{Name: "trigger_event", Type: field.TypeString},
 		{Name: "lead_type_filter", Type: field.TypeString, Nullable: true},
@@ -598,7 +607,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "nurture_sequences_tenants_nurture_sequences",
-				Columns:    []*schema.Column{NurtureSequencesColumns[11]},
+				Columns:    []*schema.Column{NurtureSequencesColumns[12]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -607,12 +616,12 @@ var (
 			{
 				Name:    "nurturesequence_tenant_id_trigger_event",
 				Unique:  false,
-				Columns: []*schema.Column{NurtureSequencesColumns[11], NurtureSequencesColumns[2]},
+				Columns: []*schema.Column{NurtureSequencesColumns[12], NurtureSequencesColumns[3]},
 			},
 			{
 				Name:    "nurturesequence_tenant_id_active",
 				Unique:  false,
-				Columns: []*schema.Column{NurtureSequencesColumns[11], NurtureSequencesColumns[4]},
+				Columns: []*schema.Column{NurtureSequencesColumns[12], NurtureSequencesColumns[5]},
 			},
 		},
 	}

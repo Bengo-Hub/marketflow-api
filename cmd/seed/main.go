@@ -32,13 +32,32 @@ func main() {
 		log.Fatal("POSTGRES_URL is required")
 	}
 
-	tenantID := os.Getenv("TENANT_ID")
-	if tenantID == "" {
-		log.Fatal("TENANT_ID is required (UUID of the target tenant)")
+	// SEED_SCOPE controls KB visibility:
+	//   "platform" (default) — shared across every tenant, consumed by the RAG
+	//                          as the base knowledge corpus
+	//   "tenant"             — tenant-private overrides / customisations
+	scope := os.Getenv("SEED_SCOPE")
+	if scope == "" {
+		scope = "platform"
 	}
-	tid, err := uuid.Parse(tenantID)
-	if err != nil {
-		log.Fatalf("invalid TENANT_ID: %v", err)
+	if scope != "platform" && scope != "tenant" {
+		log.Fatalf("invalid SEED_SCOPE %q (use 'platform' or 'tenant')", scope)
+	}
+
+	// TENANT_ID: for platform scope we still need a real tenant row (FK
+	// constraint) but it's purely a storage home — the platform-owner
+	// tenant. For tenant scope the user must supply the target tenant UUID.
+	tenantID := os.Getenv("TENANT_ID")
+	if tenantID == "" && scope == "tenant" {
+		log.Fatal("TENANT_ID is required when SEED_SCOPE=tenant")
+	}
+	var tid uuid.UUID
+	if tenantID != "" {
+		var err error
+		tid, err = uuid.Parse(tenantID)
+		if err != nil {
+			log.Fatalf("invalid TENANT_ID: %v", err)
+		}
 	}
 
 	db, err := sql.Open("pgx", dbURL)
@@ -57,7 +76,26 @@ func main() {
 	client := ent.NewClient(ent.Driver(drv))
 	defer client.Close()
 
-	log.Printf("Seeding for tenant %s...", tenantID)
+	// Resolve the platform-owner tenant UUID for platform-scope rows (FK).
+	if scope == "platform" && tid == uuid.Nil {
+		ownerSlug := os.Getenv("PLATFORM_TENANT_SLUG")
+		if ownerSlug == "" {
+			ownerSlug = "codevertex"
+		}
+		var ownerID string
+		if err := db.QueryRowContext(ctx,
+			`SELECT id FROM tenants WHERE slug = $1 LIMIT 1`, ownerSlug,
+		).Scan(&ownerID); err != nil {
+			log.Fatalf("resolve platform tenant %q: %v (ensure auth-api seed has run and the tenant exists)", ownerSlug, err)
+		}
+		tid, err = uuid.Parse(ownerID)
+		if err != nil {
+			log.Fatalf("parse platform tenant id: %v", err)
+		}
+		log.Printf("Platform scope: anchoring rows to %s tenant (%s)", ownerSlug, tid)
+	}
+
+	log.Printf("Seeding scope=%s tenant=%s...", scope, tid)
 
 	// Phase 1: RBAC — permissions, roles, role-permission mappings (Django-style)
 	permsSeeded := seedPermissions(ctx, client)
@@ -66,16 +104,16 @@ func main() {
 	log.Printf("RBAC: %d permissions, %d roles, %d mappings seeded", permsSeeded, rolesSeeded, mappingsSeeded)
 
 	// Phase 2: Knowledge base seed data
-	productsSeeded := seedProducts(ctx, client, tid)
-	faqSeeded := seedFAQ(ctx, client, tid)
-	bizSeeded := seedBusinessOpportunity(ctx, client, tid)
-	complianceSeeded := seedCompliance(ctx, client, tid)
+	productsSeeded := seedProducts(ctx, client, tid, scope)
+	faqSeeded := seedFAQ(ctx, client, tid, scope)
+	bizSeeded := seedBusinessOpportunity(ctx, client, tid, scope)
+	complianceSeeded := seedCompliance(ctx, client, tid, scope)
 
 	log.Printf("KB: %d products, %d FAQ, %d business, %d compliance entries",
 		productsSeeded, faqSeeded, bizSeeded, complianceSeeded)
 }
 
-func seedProducts(ctx context.Context, client *ent.Client, tenantID uuid.UUID) int {
+func seedProducts(ctx context.Context, client *ent.Client, tenantID uuid.UUID, scope string) int {
 	data, err := seed.SeedFS.ReadFile("products.json")
 	if err != nil {
 		log.Printf("Warning: failed to read products.json: %v", err)
@@ -132,6 +170,7 @@ func seedProducts(ctx context.Context, client *ent.Client, tenantID uuid.UUID) i
 
 		builder := client.KnowledgeBaseEntry.Create().
 			SetTenantID(tenantID).
+			SetScope(scope).
 			SetCategory("product").
 			SetTitle(p.Name).
 			SetContent(content).
@@ -151,7 +190,7 @@ func seedProducts(ctx context.Context, client *ent.Client, tenantID uuid.UUID) i
 	return count
 }
 
-func seedFAQ(ctx context.Context, client *ent.Client, tenantID uuid.UUID) int {
+func seedFAQ(ctx context.Context, client *ent.Client, tenantID uuid.UUID, scope string) int {
 	data, err := seed.SeedFS.ReadFile("faq.json")
 	if err != nil {
 		log.Printf("Warning: failed to read faq.json: %v", err)
@@ -185,6 +224,7 @@ func seedFAQ(ctx context.Context, client *ent.Client, tenantID uuid.UUID) int {
 
 		builder := client.KnowledgeBaseEntry.Create().
 			SetTenantID(tenantID).
+			SetScope(scope).
 			SetCategory("faq").
 			SetTitle(f.Question).
 			SetContent(f.Answer)
@@ -202,7 +242,7 @@ func seedFAQ(ctx context.Context, client *ent.Client, tenantID uuid.UUID) int {
 	return count
 }
 
-func seedBusinessOpportunity(ctx context.Context, client *ent.Client, tenantID uuid.UUID) int {
+func seedBusinessOpportunity(ctx context.Context, client *ent.Client, tenantID uuid.UUID, scope string) int {
 	data, err := seed.SeedFS.ReadFile("business_opportunity.json")
 	if err != nil {
 		log.Printf("Warning: failed to read business_opportunity.json: %v", err)
@@ -245,7 +285,7 @@ func seedBusinessOpportunity(ctx context.Context, client *ent.Client, tenantID u
 	companyContent := fmt.Sprintf("%s was founded in %d and operates in %d+ countries with %d+ years of uninterrupted growth. %s\n\nCertifications: %v",
 		biz.Company.Name, biz.Company.Founded, biz.Company.Countries, biz.Company.YearsInBusiness,
 		biz.Company.KeyDifferentiator, biz.Company.Certifications)
-	if created := createIfNotExists(ctx, client, tenantID, "business_opportunity", "Company Overview", companyContent, []string{"company", "overview"}); created {
+	if created := createIfNotExists(ctx, client, tenantID, scope, "business_opportunity", "Company Overview", companyContent, []string{"company", "overview"}); created {
 		count++
 	}
 
@@ -255,7 +295,7 @@ func seedBusinessOpportunity(ctx context.Context, client *ent.Client, tenantID u
 		if is.Example != "" {
 			content += "\n\nExample: " + is.Example
 		}
-		if created := createIfNotExists(ctx, client, tenantID, "business_opportunity", "Income Stream: "+is.Name, content, []string{"income", "business"}); created {
+		if created := createIfNotExists(ctx, client, tenantID, scope, "business_opportunity", "Income Stream: "+is.Name, content, []string{"income", "business"}); created {
 			count++
 		}
 	}
@@ -273,7 +313,7 @@ func seedBusinessOpportunity(ctx context.Context, client *ent.Client, tenantID u
 		}
 		rankContent += fmt.Sprintf("- %s: %s (illustration: %s)\n", r.Rank, req, income)
 	}
-	if created := createIfNotExists(ctx, client, tenantID, "business_opportunity", "FBO Rank Ladder", rankContent, []string{"ranks", "compensation"}); created {
+	if created := createIfNotExists(ctx, client, tenantID, scope, "business_opportunity", "FBO Rank Ladder", rankContent, []string{"ranks", "compensation"}); created {
 		count++
 	}
 
@@ -282,14 +322,14 @@ func seedBusinessOpportunity(ctx context.Context, client *ent.Client, tenantID u
 	for _, s := range biz.HowToGetStarted {
 		startContent += fmt.Sprintf("Step %d: %s\n", s.Step, s.Action)
 	}
-	if created := createIfNotExists(ctx, client, tenantID, "business_opportunity", "How to Get Started", startContent, []string{"getting-started", "join"}); created {
+	if created := createIfNotExists(ctx, client, tenantID, scope, "business_opportunity", "How to Get Started", startContent, []string{"getting-started", "join"}); created {
 		count++
 	}
 
 	return count
 }
 
-func seedCompliance(ctx context.Context, client *ent.Client, tenantID uuid.UUID) int {
+func seedCompliance(ctx context.Context, client *ent.Client, tenantID uuid.UUID, scope string) int {
 	data, err := seed.SeedFS.ReadFile("compliance.json")
 	if err != nil {
 		log.Printf("Warning: failed to read compliance.json: %v", err)
@@ -312,7 +352,7 @@ func seedCompliance(ctx context.Context, client *ent.Client, tenantID uuid.UUID)
 	for key, val := range comp.Disclaimers {
 		disclaimerContent += fmt.Sprintf("[%s]: %s\n\n", key, val)
 	}
-	if created := createIfNotExists(ctx, client, tenantID, "compliance", "Required Disclaimers", disclaimerContent, []string{"disclaimers", "compliance"}); created {
+	if created := createIfNotExists(ctx, client, tenantID, scope, "compliance", "Required Disclaimers", disclaimerContent, []string{"disclaimers", "compliance"}); created {
 		count++
 	}
 
@@ -321,16 +361,19 @@ func seedCompliance(ctx context.Context, client *ent.Client, tenantID uuid.UUID)
 	for _, f := range comp.FactualClaimsAllowed {
 		factsContent += "- " + f + "\n"
 	}
-	if created := createIfNotExists(ctx, client, tenantID, "compliance", "Approved Factual Claims", factsContent, []string{"facts", "approved-claims"}); created {
+	if created := createIfNotExists(ctx, client, tenantID, scope, "compliance", "Approved Factual Claims", factsContent, []string{"facts", "approved-claims"}); created {
 		count++
 	}
 
 	return count
 }
 
-func createIfNotExists(ctx context.Context, client *ent.Client, tenantID uuid.UUID, category, title, content string, tags []string) bool {
+func createIfNotExists(ctx context.Context, client *ent.Client, tenantID uuid.UUID, scope, category, title, content string, tags []string) bool {
+	// Dedup by title+category at the scope level so re-running the seed is safe
+	// and platform rows aren't duplicated per tenant.
 	exists, _ := client.KnowledgeBaseEntry.Query().
 		Where(
+			knowledgebaseentry.ScopeEQ(scope),
 			knowledgebaseentry.TenantID(tenantID),
 			knowledgebaseentry.TitleEQ(title),
 			knowledgebaseentry.CategoryEQ(category),
@@ -341,6 +384,7 @@ func createIfNotExists(ctx context.Context, client *ent.Client, tenantID uuid.UU
 
 	builder := client.KnowledgeBaseEntry.Create().
 		SetTenantID(tenantID).
+		SetScope(scope).
 		SetCategory(category).
 		SetTitle(title).
 		SetContent(content).

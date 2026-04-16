@@ -17,6 +17,8 @@ const (
 	FieldID = "id"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
+	// FieldScope holds the string denoting the scope field in the database.
+	FieldScope = "scope"
 	// FieldRoleCode holds the string denoting the role_code field in the database.
 	FieldRoleCode = "role_code"
 	// FieldName holds the string denoting the name field in the database.
@@ -62,6 +64,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldTenantID,
+	FieldScope,
 	FieldRoleCode,
 	FieldName,
 	FieldDescription,
@@ -87,6 +90,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultScope holds the default value on creation for the "scope" field.
+	DefaultScope string
 	// RoleCodeValidator is a validator for the "role_code" field. It is called by the builders before save.
 	RoleCodeValidator func(string) error
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
@@ -114,6 +119,11 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByTenantID orders the results by the tenant_id field.
 func ByTenantID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTenantID, opts...).ToFunc()
+}
+
+// ByScope orders the results by the scope field.
+func ByScope(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldScope, opts...).ToFunc()
 }
 
 // ByRoleCode orders the results by the role_code field.

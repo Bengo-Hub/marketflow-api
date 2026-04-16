@@ -46,6 +46,20 @@ func (_u *CampaignUpdate) SetNillableTenantID(v *uuid.UUID) *CampaignUpdate {
 	return _u
 }
 
+// SetScope sets the "scope" field.
+func (_u *CampaignUpdate) SetScope(v string) *CampaignUpdate {
+	_u.mutation.SetScope(v)
+	return _u
+}
+
+// SetNillableScope sets the "scope" field if the given value is not nil.
+func (_u *CampaignUpdate) SetNillableScope(v *string) *CampaignUpdate {
+	if v != nil {
+		_u.SetScope(*v)
+	}
+	return _u
+}
+
 // SetName sets the "name" field.
 func (_u *CampaignUpdate) SetName(v string) *CampaignUpdate {
 	_u.mutation.SetName(v)
@@ -451,6 +465,9 @@ func (_u *CampaignUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
+	if value, ok := _u.mutation.Scope(); ok {
+		_spec.SetField(campaign.FieldScope, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(campaign.FieldName, field.TypeString, value)
 	}
@@ -647,6 +664,20 @@ func (_u *CampaignUpdateOne) SetTenantID(v uuid.UUID) *CampaignUpdateOne {
 func (_u *CampaignUpdateOne) SetNillableTenantID(v *uuid.UUID) *CampaignUpdateOne {
 	if v != nil {
 		_u.SetTenantID(*v)
+	}
+	return _u
+}
+
+// SetScope sets the "scope" field.
+func (_u *CampaignUpdateOne) SetScope(v string) *CampaignUpdateOne {
+	_u.mutation.SetScope(v)
+	return _u
+}
+
+// SetNillableScope sets the "scope" field if the given value is not nil.
+func (_u *CampaignUpdateOne) SetNillableScope(v *string) *CampaignUpdateOne {
+	if v != nil {
+		_u.SetScope(*v)
 	}
 	return _u
 }
@@ -1085,6 +1116,9 @@ func (_u *CampaignUpdateOne) sqlSave(ctx context.Context) (_node *Campaign, err 
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.Scope(); ok {
+		_spec.SetField(campaign.FieldScope, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(campaign.FieldName, field.TypeString, value)

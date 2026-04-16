@@ -18,8 +18,10 @@ type MarketflowRole struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID uuid.UUID `json:"id,omitempty"`
-	// Tenant identifier
+	// Tenant anchor (platform-owner tenant for scope='platform' system roles)
 	TenantID uuid.UUID `json:"tenant_id,omitempty"`
+	// tenant = per-tenant role | platform = shared system default role (marketflow_admin, fbo_owner, viewer)
+	Scope string `json:"scope,omitempty"`
 	// Role code: marketflow_admin, fbo_owner, viewer
 	RoleCode string `json:"role_code,omitempty"`
 	// Display name
@@ -85,7 +87,7 @@ func (*MarketflowRole) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case marketflowrole.FieldIsSystemRole:
 			values[i] = new(sql.NullBool)
-		case marketflowrole.FieldRoleCode, marketflowrole.FieldName, marketflowrole.FieldDescription:
+		case marketflowrole.FieldScope, marketflowrole.FieldRoleCode, marketflowrole.FieldName, marketflowrole.FieldDescription:
 			values[i] = new(sql.NullString)
 		case marketflowrole.FieldCreatedAt, marketflowrole.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -117,6 +119,12 @@ func (_m *MarketflowRole) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field tenant_id", values[i])
 			} else if value != nil {
 				_m.TenantID = *value
+			}
+		case marketflowrole.FieldScope:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field scope", values[i])
+			} else if value.Valid {
+				_m.Scope = value.String
 			}
 		case marketflowrole.FieldRoleCode:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -207,6 +215,9 @@ func (_m *MarketflowRole) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))
+	builder.WriteString(", ")
+	builder.WriteString("scope=")
+	builder.WriteString(_m.Scope)
 	builder.WriteString(", ")
 	builder.WriteString("role_code=")
 	builder.WriteString(_m.RoleCode)

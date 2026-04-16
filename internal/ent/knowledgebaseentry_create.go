@@ -31,6 +31,20 @@ func (_c *KnowledgeBaseEntryCreate) SetTenantID(v uuid.UUID) *KnowledgeBaseEntry
 	return _c
 }
 
+// SetScope sets the "scope" field.
+func (_c *KnowledgeBaseEntryCreate) SetScope(v string) *KnowledgeBaseEntryCreate {
+	_c.mutation.SetScope(v)
+	return _c
+}
+
+// SetNillableScope sets the "scope" field if the given value is not nil.
+func (_c *KnowledgeBaseEntryCreate) SetNillableScope(v *string) *KnowledgeBaseEntryCreate {
+	if v != nil {
+		_c.SetScope(*v)
+	}
+	return _c
+}
+
 // SetCategory sets the "category" field.
 func (_c *KnowledgeBaseEntryCreate) SetCategory(v string) *KnowledgeBaseEntryCreate {
 	_c.mutation.SetCategory(v)
@@ -235,6 +249,10 @@ func (_c *KnowledgeBaseEntryCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *KnowledgeBaseEntryCreate) defaults() {
+	if _, ok := _c.mutation.Scope(); !ok {
+		v := knowledgebaseentry.DefaultScope
+		_c.mutation.SetScope(v)
+	}
 	if _, ok := _c.mutation.Category(); !ok {
 		v := knowledgebaseentry.DefaultCategory
 		_c.mutation.SetCategory(v)
@@ -265,6 +283,9 @@ func (_c *KnowledgeBaseEntryCreate) defaults() {
 func (_c *KnowledgeBaseEntryCreate) check() error {
 	if _, ok := _c.mutation.TenantID(); !ok {
 		return &ValidationError{Name: "tenant_id", err: errors.New(`ent: missing required field "KnowledgeBaseEntry.tenant_id"`)}
+	}
+	if _, ok := _c.mutation.Scope(); !ok {
+		return &ValidationError{Name: "scope", err: errors.New(`ent: missing required field "KnowledgeBaseEntry.scope"`)}
 	}
 	if _, ok := _c.mutation.Category(); !ok {
 		return &ValidationError{Name: "category", err: errors.New(`ent: missing required field "KnowledgeBaseEntry.category"`)}
@@ -335,6 +356,10 @@ func (_c *KnowledgeBaseEntryCreate) createSpec() (*KnowledgeBaseEntry, *sqlgraph
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
+	}
+	if value, ok := _c.mutation.Scope(); ok {
+		_spec.SetField(knowledgebaseentry.FieldScope, field.TypeString, value)
+		_node.Scope = value
 	}
 	if value, ok := _c.mutation.Category(); ok {
 		_spec.SetField(knowledgebaseentry.FieldCategory, field.TypeString, value)
@@ -466,6 +491,18 @@ func (u *KnowledgeBaseEntryUpsert) SetTenantID(v uuid.UUID) *KnowledgeBaseEntryU
 // UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
 func (u *KnowledgeBaseEntryUpsert) UpdateTenantID() *KnowledgeBaseEntryUpsert {
 	u.SetExcluded(knowledgebaseentry.FieldTenantID)
+	return u
+}
+
+// SetScope sets the "scope" field.
+func (u *KnowledgeBaseEntryUpsert) SetScope(v string) *KnowledgeBaseEntryUpsert {
+	u.Set(knowledgebaseentry.FieldScope, v)
+	return u
+}
+
+// UpdateScope sets the "scope" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsert) UpdateScope() *KnowledgeBaseEntryUpsert {
+	u.SetExcluded(knowledgebaseentry.FieldScope)
 	return u
 }
 
@@ -729,6 +766,20 @@ func (u *KnowledgeBaseEntryUpsertOne) SetTenantID(v uuid.UUID) *KnowledgeBaseEnt
 func (u *KnowledgeBaseEntryUpsertOne) UpdateTenantID() *KnowledgeBaseEntryUpsertOne {
 	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
 		s.UpdateTenantID()
+	})
+}
+
+// SetScope sets the "scope" field.
+func (u *KnowledgeBaseEntryUpsertOne) SetScope(v string) *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetScope(v)
+	})
+}
+
+// UpdateScope sets the "scope" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertOne) UpdateScope() *KnowledgeBaseEntryUpsertOne {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateScope()
 	})
 }
 
@@ -1192,6 +1243,20 @@ func (u *KnowledgeBaseEntryUpsertBulk) SetTenantID(v uuid.UUID) *KnowledgeBaseEn
 func (u *KnowledgeBaseEntryUpsertBulk) UpdateTenantID() *KnowledgeBaseEntryUpsertBulk {
 	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
 		s.UpdateTenantID()
+	})
+}
+
+// SetScope sets the "scope" field.
+func (u *KnowledgeBaseEntryUpsertBulk) SetScope(v string) *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.SetScope(v)
+	})
+}
+
+// UpdateScope sets the "scope" field to the value that was provided on create.
+func (u *KnowledgeBaseEntryUpsertBulk) UpdateScope() *KnowledgeBaseEntryUpsertBulk {
+	return u.Update(func(s *KnowledgeBaseEntryUpsert) {
+		s.UpdateScope()
 	})
 }
 

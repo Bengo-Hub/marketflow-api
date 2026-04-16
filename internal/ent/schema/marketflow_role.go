@@ -22,7 +22,10 @@ func (MarketflowRole) Fields() []ent.Field {
 			Default(uuid.New).
 			Immutable(),
 		field.UUID("tenant_id", uuid.UUID{}).
-			Comment("Tenant identifier"),
+			Comment("Tenant anchor (platform-owner tenant for scope='platform' system roles)"),
+		field.String("scope").
+			Default("tenant").
+			Comment("tenant = per-tenant role | platform = shared system default role (marketflow_admin, fbo_owner, viewer)"),
 		field.String("role_code").
 			NotEmpty().
 			Comment("Role code: marketflow_admin, fbo_owner, viewer"),

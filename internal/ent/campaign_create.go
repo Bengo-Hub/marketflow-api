@@ -32,6 +32,20 @@ func (_c *CampaignCreate) SetTenantID(v uuid.UUID) *CampaignCreate {
 	return _c
 }
 
+// SetScope sets the "scope" field.
+func (_c *CampaignCreate) SetScope(v string) *CampaignCreate {
+	_c.mutation.SetScope(v)
+	return _c
+}
+
+// SetNillableScope sets the "scope" field if the given value is not nil.
+func (_c *CampaignCreate) SetNillableScope(v *string) *CampaignCreate {
+	if v != nil {
+		_c.SetScope(*v)
+	}
+	return _c
+}
+
 // SetName sets the "name" field.
 func (_c *CampaignCreate) SetName(v string) *CampaignCreate {
 	_c.mutation.SetName(v)
@@ -321,6 +335,10 @@ func (_c *CampaignCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *CampaignCreate) defaults() {
+	if _, ok := _c.mutation.Scope(); !ok {
+		v := campaign.DefaultScope
+		_c.mutation.SetScope(v)
+	}
 	if _, ok := _c.mutation.CampaignType(); !ok {
 		v := campaign.DefaultCampaignType
 		_c.mutation.SetCampaignType(v)
@@ -355,6 +373,9 @@ func (_c *CampaignCreate) defaults() {
 func (_c *CampaignCreate) check() error {
 	if _, ok := _c.mutation.TenantID(); !ok {
 		return &ValidationError{Name: "tenant_id", err: errors.New(`ent: missing required field "Campaign.tenant_id"`)}
+	}
+	if _, ok := _c.mutation.Scope(); !ok {
+		return &ValidationError{Name: "scope", err: errors.New(`ent: missing required field "Campaign.scope"`)}
 	}
 	if _, ok := _c.mutation.Name(); !ok {
 		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "Campaign.name"`)}
@@ -420,6 +441,10 @@ func (_c *CampaignCreate) createSpec() (*Campaign, *sqlgraph.CreateSpec) {
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
+	}
+	if value, ok := _c.mutation.Scope(); ok {
+		_spec.SetField(campaign.FieldScope, field.TypeString, value)
+		_node.Scope = value
 	}
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(campaign.FieldName, field.TypeString, value)
@@ -587,6 +612,18 @@ func (u *CampaignUpsert) SetTenantID(v uuid.UUID) *CampaignUpsert {
 // UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
 func (u *CampaignUpsert) UpdateTenantID() *CampaignUpsert {
 	u.SetExcluded(campaign.FieldTenantID)
+	return u
+}
+
+// SetScope sets the "scope" field.
+func (u *CampaignUpsert) SetScope(v string) *CampaignUpsert {
+	u.Set(campaign.FieldScope, v)
+	return u
+}
+
+// UpdateScope sets the "scope" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateScope() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldScope)
 	return u
 }
 
@@ -934,6 +971,20 @@ func (u *CampaignUpsertOne) SetTenantID(v uuid.UUID) *CampaignUpsertOne {
 func (u *CampaignUpsertOne) UpdateTenantID() *CampaignUpsertOne {
 	return u.Update(func(s *CampaignUpsert) {
 		s.UpdateTenantID()
+	})
+}
+
+// SetScope sets the "scope" field.
+func (u *CampaignUpsertOne) SetScope(v string) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetScope(v)
+	})
+}
+
+// UpdateScope sets the "scope" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateScope() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateScope()
 	})
 }
 
@@ -1495,6 +1546,20 @@ func (u *CampaignUpsertBulk) SetTenantID(v uuid.UUID) *CampaignUpsertBulk {
 func (u *CampaignUpsertBulk) UpdateTenantID() *CampaignUpsertBulk {
 	return u.Update(func(s *CampaignUpsert) {
 		s.UpdateTenantID()
+	})
+}
+
+// SetScope sets the "scope" field.
+func (u *CampaignUpsertBulk) SetScope(v string) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetScope(v)
+	})
+}
+
+// UpdateScope sets the "scope" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateScope() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateScope()
 	})
 }
 

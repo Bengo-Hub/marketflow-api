@@ -23,7 +23,10 @@ func (Campaign) Fields() []ent.Field {
 			Default(uuid.New).
 			Immutable(),
 		field.UUID("tenant_id", uuid.UUID{}).
-			Comment("Owning tenant"),
+			Comment("Owning tenant (platform-owner tenant for scope='platform' templates)"),
+		field.String("scope").
+			Default("tenant").
+			Comment("tenant = tenant-owned campaign | platform = shared template every tenant can clone (lead-gen, retargeting, recruitment starter templates)"),
 
 		field.String("name").
 			NotEmpty().

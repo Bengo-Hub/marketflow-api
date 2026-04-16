@@ -61,6 +61,11 @@ func TenantID(v uuid.UUID) predicate.KnowledgeBaseEntry {
 	return predicate.KnowledgeBaseEntry(sql.FieldEQ(FieldTenantID, v))
 }
 
+// Scope applies equality check predicate on the "scope" field. It's identical to ScopeEQ.
+func Scope(v string) predicate.KnowledgeBaseEntry {
+	return predicate.KnowledgeBaseEntry(sql.FieldEQ(FieldScope, v))
+}
+
 // Category applies equality check predicate on the "category" field. It's identical to CategoryEQ.
 func Category(v string) predicate.KnowledgeBaseEntry {
 	return predicate.KnowledgeBaseEntry(sql.FieldEQ(FieldCategory, v))
@@ -134,6 +139,71 @@ func TenantIDIn(vs ...uuid.UUID) predicate.KnowledgeBaseEntry {
 // TenantIDNotIn applies the NotIn predicate on the "tenant_id" field.
 func TenantIDNotIn(vs ...uuid.UUID) predicate.KnowledgeBaseEntry {
 	return predicate.KnowledgeBaseEntry(sql.FieldNotIn(FieldTenantID, vs...))
+}
+
+// ScopeEQ applies the EQ predicate on the "scope" field.
+func ScopeEQ(v string) predicate.KnowledgeBaseEntry {
+	return predicate.KnowledgeBaseEntry(sql.FieldEQ(FieldScope, v))
+}
+
+// ScopeNEQ applies the NEQ predicate on the "scope" field.
+func ScopeNEQ(v string) predicate.KnowledgeBaseEntry {
+	return predicate.KnowledgeBaseEntry(sql.FieldNEQ(FieldScope, v))
+}
+
+// ScopeIn applies the In predicate on the "scope" field.
+func ScopeIn(vs ...string) predicate.KnowledgeBaseEntry {
+	return predicate.KnowledgeBaseEntry(sql.FieldIn(FieldScope, vs...))
+}
+
+// ScopeNotIn applies the NotIn predicate on the "scope" field.
+func ScopeNotIn(vs ...string) predicate.KnowledgeBaseEntry {
+	return predicate.KnowledgeBaseEntry(sql.FieldNotIn(FieldScope, vs...))
+}
+
+// ScopeGT applies the GT predicate on the "scope" field.
+func ScopeGT(v string) predicate.KnowledgeBaseEntry {
+	return predicate.KnowledgeBaseEntry(sql.FieldGT(FieldScope, v))
+}
+
+// ScopeGTE applies the GTE predicate on the "scope" field.
+func ScopeGTE(v string) predicate.KnowledgeBaseEntry {
+	return predicate.KnowledgeBaseEntry(sql.FieldGTE(FieldScope, v))
+}
+
+// ScopeLT applies the LT predicate on the "scope" field.
+func ScopeLT(v string) predicate.KnowledgeBaseEntry {
+	return predicate.KnowledgeBaseEntry(sql.FieldLT(FieldScope, v))
+}
+
+// ScopeLTE applies the LTE predicate on the "scope" field.
+func ScopeLTE(v string) predicate.KnowledgeBaseEntry {
+	return predicate.KnowledgeBaseEntry(sql.FieldLTE(FieldScope, v))
+}
+
+// ScopeContains applies the Contains predicate on the "scope" field.
+func ScopeContains(v string) predicate.KnowledgeBaseEntry {
+	return predicate.KnowledgeBaseEntry(sql.FieldContains(FieldScope, v))
+}
+
+// ScopeHasPrefix applies the HasPrefix predicate on the "scope" field.
+func ScopeHasPrefix(v string) predicate.KnowledgeBaseEntry {
+	return predicate.KnowledgeBaseEntry(sql.FieldHasPrefix(FieldScope, v))
+}
+
+// ScopeHasSuffix applies the HasSuffix predicate on the "scope" field.
+func ScopeHasSuffix(v string) predicate.KnowledgeBaseEntry {
+	return predicate.KnowledgeBaseEntry(sql.FieldHasSuffix(FieldScope, v))
+}
+
+// ScopeEqualFold applies the EqualFold predicate on the "scope" field.
+func ScopeEqualFold(v string) predicate.KnowledgeBaseEntry {
+	return predicate.KnowledgeBaseEntry(sql.FieldEqualFold(FieldScope, v))
+}
+
+// ScopeContainsFold applies the ContainsFold predicate on the "scope" field.
+func ScopeContainsFold(v string) predicate.KnowledgeBaseEntry {
+	return predicate.KnowledgeBaseEntry(sql.FieldContainsFold(FieldScope, v))
 }
 
 // CategoryEQ applies the EQ predicate on the "category" field.

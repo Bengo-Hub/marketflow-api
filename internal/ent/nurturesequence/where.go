@@ -61,6 +61,11 @@ func TenantID(v uuid.UUID) predicate.NurtureSequence {
 	return predicate.NurtureSequence(sql.FieldEQ(FieldTenantID, v))
 }
 
+// Scope applies equality check predicate on the "scope" field. It's identical to ScopeEQ.
+func Scope(v string) predicate.NurtureSequence {
+	return predicate.NurtureSequence(sql.FieldEQ(FieldScope, v))
+}
+
 // Name applies equality check predicate on the "name" field. It's identical to NameEQ.
 func Name(v string) predicate.NurtureSequence {
 	return predicate.NurtureSequence(sql.FieldEQ(FieldName, v))
@@ -119,6 +124,71 @@ func TenantIDIn(vs ...uuid.UUID) predicate.NurtureSequence {
 // TenantIDNotIn applies the NotIn predicate on the "tenant_id" field.
 func TenantIDNotIn(vs ...uuid.UUID) predicate.NurtureSequence {
 	return predicate.NurtureSequence(sql.FieldNotIn(FieldTenantID, vs...))
+}
+
+// ScopeEQ applies the EQ predicate on the "scope" field.
+func ScopeEQ(v string) predicate.NurtureSequence {
+	return predicate.NurtureSequence(sql.FieldEQ(FieldScope, v))
+}
+
+// ScopeNEQ applies the NEQ predicate on the "scope" field.
+func ScopeNEQ(v string) predicate.NurtureSequence {
+	return predicate.NurtureSequence(sql.FieldNEQ(FieldScope, v))
+}
+
+// ScopeIn applies the In predicate on the "scope" field.
+func ScopeIn(vs ...string) predicate.NurtureSequence {
+	return predicate.NurtureSequence(sql.FieldIn(FieldScope, vs...))
+}
+
+// ScopeNotIn applies the NotIn predicate on the "scope" field.
+func ScopeNotIn(vs ...string) predicate.NurtureSequence {
+	return predicate.NurtureSequence(sql.FieldNotIn(FieldScope, vs...))
+}
+
+// ScopeGT applies the GT predicate on the "scope" field.
+func ScopeGT(v string) predicate.NurtureSequence {
+	return predicate.NurtureSequence(sql.FieldGT(FieldScope, v))
+}
+
+// ScopeGTE applies the GTE predicate on the "scope" field.
+func ScopeGTE(v string) predicate.NurtureSequence {
+	return predicate.NurtureSequence(sql.FieldGTE(FieldScope, v))
+}
+
+// ScopeLT applies the LT predicate on the "scope" field.
+func ScopeLT(v string) predicate.NurtureSequence {
+	return predicate.NurtureSequence(sql.FieldLT(FieldScope, v))
+}
+
+// ScopeLTE applies the LTE predicate on the "scope" field.
+func ScopeLTE(v string) predicate.NurtureSequence {
+	return predicate.NurtureSequence(sql.FieldLTE(FieldScope, v))
+}
+
+// ScopeContains applies the Contains predicate on the "scope" field.
+func ScopeContains(v string) predicate.NurtureSequence {
+	return predicate.NurtureSequence(sql.FieldContains(FieldScope, v))
+}
+
+// ScopeHasPrefix applies the HasPrefix predicate on the "scope" field.
+func ScopeHasPrefix(v string) predicate.NurtureSequence {
+	return predicate.NurtureSequence(sql.FieldHasPrefix(FieldScope, v))
+}
+
+// ScopeHasSuffix applies the HasSuffix predicate on the "scope" field.
+func ScopeHasSuffix(v string) predicate.NurtureSequence {
+	return predicate.NurtureSequence(sql.FieldHasSuffix(FieldScope, v))
+}
+
+// ScopeEqualFold applies the EqualFold predicate on the "scope" field.
+func ScopeEqualFold(v string) predicate.NurtureSequence {
+	return predicate.NurtureSequence(sql.FieldEqualFold(FieldScope, v))
+}
+
+// ScopeContainsFold applies the ContainsFold predicate on the "scope" field.
+func ScopeContainsFold(v string) predicate.NurtureSequence {
+	return predicate.NurtureSequence(sql.FieldContainsFold(FieldScope, v))
 }
 
 // NameEQ applies the EQ predicate on the "name" field.

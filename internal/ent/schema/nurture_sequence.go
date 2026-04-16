@@ -23,7 +23,10 @@ func (NurtureSequence) Fields() []ent.Field {
 			Default(uuid.New).
 			Immutable(),
 		field.UUID("tenant_id", uuid.UUID{}).
-			Comment("Owning tenant"),
+			Comment("Owning tenant (platform-owner tenant for scope='platform' templates)"),
+		field.String("scope").
+			Default("tenant").
+			Comment("tenant = tenant-created sequence | platform = shared template (Welcome, C9, Reorder, Recruitment, Re-engagement). Platform templates are read-only and offered to every tenant."),
 
 		field.String("name").
 			NotEmpty().

@@ -934,6 +934,7 @@ type CampaignMutation struct {
 	op               Op
 	typ              string
 	id               *uuid.UUID
+	scope            *string
 	name             *string
 	campaign_type    *string
 	platform         *string
@@ -1103,6 +1104,42 @@ func (m *CampaignMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err er
 // ResetTenantID resets all changes to the "tenant_id" field.
 func (m *CampaignMutation) ResetTenantID() {
 	m.tenant = nil
+}
+
+// SetScope sets the "scope" field.
+func (m *CampaignMutation) SetScope(s string) {
+	m.scope = &s
+}
+
+// Scope returns the value of the "scope" field in the mutation.
+func (m *CampaignMutation) Scope() (r string, exists bool) {
+	v := m.scope
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScope returns the old "scope" field's value of the Campaign entity.
+// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CampaignMutation) OldScope(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScope is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScope requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScope: %w", err)
+	}
+	return oldValue.Scope, nil
+}
+
+// ResetScope resets all changes to the "scope" field.
+func (m *CampaignMutation) ResetScope() {
+	m.scope = nil
 }
 
 // SetName sets the "name" field.
@@ -2053,9 +2090,12 @@ func (m *CampaignMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CampaignMutation) Fields() []string {
-	fields := make([]string, 0, 19)
+	fields := make([]string, 0, 20)
 	if m.tenant != nil {
 		fields = append(fields, campaign.FieldTenantID)
+	}
+	if m.scope != nil {
+		fields = append(fields, campaign.FieldScope)
 	}
 	if m.name != nil {
 		fields = append(fields, campaign.FieldName)
@@ -2121,6 +2161,8 @@ func (m *CampaignMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case campaign.FieldTenantID:
 		return m.TenantID()
+	case campaign.FieldScope:
+		return m.Scope()
 	case campaign.FieldName:
 		return m.Name()
 	case campaign.FieldCampaignType:
@@ -2168,6 +2210,8 @@ func (m *CampaignMutation) OldField(ctx context.Context, name string) (ent.Value
 	switch name {
 	case campaign.FieldTenantID:
 		return m.OldTenantID(ctx)
+	case campaign.FieldScope:
+		return m.OldScope(ctx)
 	case campaign.FieldName:
 		return m.OldName(ctx)
 	case campaign.FieldCampaignType:
@@ -2219,6 +2263,13 @@ func (m *CampaignMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTenantID(v)
+		return nil
+	case campaign.FieldScope:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScope(v)
 		return nil
 	case campaign.FieldName:
 		v, ok := value.(string)
@@ -2493,6 +2544,9 @@ func (m *CampaignMutation) ResetField(name string) error {
 	switch name {
 	case campaign.FieldTenantID:
 		m.ResetTenantID()
+		return nil
+	case campaign.FieldScope:
+		m.ResetScope()
 		return nil
 	case campaign.FieldName:
 		m.ResetName()
@@ -7178,6 +7232,7 @@ type KnowledgeBaseEntryMutation struct {
 	op                Op
 	typ               string
 	id                *uuid.UUID
+	scope             *string
 	category          *string
 	title             *string
 	content           *string
@@ -7341,6 +7396,42 @@ func (m *KnowledgeBaseEntryMutation) OldTenantID(ctx context.Context) (v uuid.UU
 // ResetTenantID resets all changes to the "tenant_id" field.
 func (m *KnowledgeBaseEntryMutation) ResetTenantID() {
 	m.tenant = nil
+}
+
+// SetScope sets the "scope" field.
+func (m *KnowledgeBaseEntryMutation) SetScope(s string) {
+	m.scope = &s
+}
+
+// Scope returns the value of the "scope" field in the mutation.
+func (m *KnowledgeBaseEntryMutation) Scope() (r string, exists bool) {
+	v := m.scope
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScope returns the old "scope" field's value of the KnowledgeBaseEntry entity.
+// If the KnowledgeBaseEntry object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KnowledgeBaseEntryMutation) OldScope(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScope is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScope requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScope: %w", err)
+	}
+	return oldValue.Scope, nil
+}
+
+// ResetScope resets all changes to the "scope" field.
+func (m *KnowledgeBaseEntryMutation) ResetScope() {
+	m.scope = nil
 }
 
 // SetCategory sets the "category" field.
@@ -8028,9 +8119,12 @@ func (m *KnowledgeBaseEntryMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KnowledgeBaseEntryMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 15)
 	if m.tenant != nil {
 		fields = append(fields, knowledgebaseentry.FieldTenantID)
+	}
+	if m.scope != nil {
+		fields = append(fields, knowledgebaseentry.FieldScope)
 	}
 	if m.category != nil {
 		fields = append(fields, knowledgebaseentry.FieldCategory)
@@ -8081,6 +8175,8 @@ func (m *KnowledgeBaseEntryMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case knowledgebaseentry.FieldTenantID:
 		return m.TenantID()
+	case knowledgebaseentry.FieldScope:
+		return m.Scope()
 	case knowledgebaseentry.FieldCategory:
 		return m.Category()
 	case knowledgebaseentry.FieldTitle:
@@ -8118,6 +8214,8 @@ func (m *KnowledgeBaseEntryMutation) OldField(ctx context.Context, name string) 
 	switch name {
 	case knowledgebaseentry.FieldTenantID:
 		return m.OldTenantID(ctx)
+	case knowledgebaseentry.FieldScope:
+		return m.OldScope(ctx)
 	case knowledgebaseentry.FieldCategory:
 		return m.OldCategory(ctx)
 	case knowledgebaseentry.FieldTitle:
@@ -8159,6 +8257,13 @@ func (m *KnowledgeBaseEntryMutation) SetField(name string, value ent.Value) erro
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTenantID(v)
+		return nil
+	case knowledgebaseentry.FieldScope:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScope(v)
 		return nil
 	case knowledgebaseentry.FieldCategory:
 		v, ok := value.(string)
@@ -8380,6 +8485,9 @@ func (m *KnowledgeBaseEntryMutation) ResetField(name string) error {
 	switch name {
 	case knowledgebaseentry.FieldTenantID:
 		m.ResetTenantID()
+		return nil
+	case knowledgebaseentry.FieldScope:
+		m.ResetScope()
 		return nil
 	case knowledgebaseentry.FieldCategory:
 		m.ResetCategory()
@@ -11482,6 +11590,7 @@ type MarketflowRoleMutation struct {
 	typ                     string
 	id                      *uuid.UUID
 	tenant_id               *uuid.UUID
+	scope                   *string
 	role_code               *string
 	name                    *string
 	description             *string
@@ -11641,6 +11750,42 @@ func (m *MarketflowRoleMutation) OldTenantID(ctx context.Context) (v uuid.UUID, 
 // ResetTenantID resets all changes to the "tenant_id" field.
 func (m *MarketflowRoleMutation) ResetTenantID() {
 	m.tenant_id = nil
+}
+
+// SetScope sets the "scope" field.
+func (m *MarketflowRoleMutation) SetScope(s string) {
+	m.scope = &s
+}
+
+// Scope returns the value of the "scope" field in the mutation.
+func (m *MarketflowRoleMutation) Scope() (r string, exists bool) {
+	v := m.scope
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScope returns the old "scope" field's value of the MarketflowRole entity.
+// If the MarketflowRole object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MarketflowRoleMutation) OldScope(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScope is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScope requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScope: %w", err)
+	}
+	return oldValue.Scope, nil
+}
+
+// ResetScope resets all changes to the "scope" field.
+func (m *MarketflowRoleMutation) ResetScope() {
+	m.scope = nil
 }
 
 // SetRoleCode sets the "role_code" field.
@@ -12068,9 +12213,12 @@ func (m *MarketflowRoleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MarketflowRoleMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 8)
 	if m.tenant_id != nil {
 		fields = append(fields, marketflowrole.FieldTenantID)
+	}
+	if m.scope != nil {
+		fields = append(fields, marketflowrole.FieldScope)
 	}
 	if m.role_code != nil {
 		fields = append(fields, marketflowrole.FieldRoleCode)
@@ -12100,6 +12248,8 @@ func (m *MarketflowRoleMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case marketflowrole.FieldTenantID:
 		return m.TenantID()
+	case marketflowrole.FieldScope:
+		return m.Scope()
 	case marketflowrole.FieldRoleCode:
 		return m.RoleCode()
 	case marketflowrole.FieldName:
@@ -12123,6 +12273,8 @@ func (m *MarketflowRoleMutation) OldField(ctx context.Context, name string) (ent
 	switch name {
 	case marketflowrole.FieldTenantID:
 		return m.OldTenantID(ctx)
+	case marketflowrole.FieldScope:
+		return m.OldScope(ctx)
 	case marketflowrole.FieldRoleCode:
 		return m.OldRoleCode(ctx)
 	case marketflowrole.FieldName:
@@ -12150,6 +12302,13 @@ func (m *MarketflowRoleMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTenantID(v)
+		return nil
+	case marketflowrole.FieldScope:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScope(v)
 		return nil
 	case marketflowrole.FieldRoleCode:
 		v, ok := value.(string)
@@ -12253,6 +12412,9 @@ func (m *MarketflowRoleMutation) ResetField(name string) error {
 	switch name {
 	case marketflowrole.FieldTenantID:
 		m.ResetTenantID()
+		return nil
+	case marketflowrole.FieldScope:
+		m.ResetScope()
 		return nil
 	case marketflowrole.FieldRoleCode:
 		m.ResetRoleCode()
@@ -14410,6 +14572,7 @@ type NurtureSequenceMutation struct {
 	op                 Op
 	typ                string
 	id                 *uuid.UUID
+	scope              *string
 	name               *string
 	trigger_event      *string
 	lead_type_filter   *string
@@ -14569,6 +14732,42 @@ func (m *NurtureSequenceMutation) OldTenantID(ctx context.Context) (v uuid.UUID,
 // ResetTenantID resets all changes to the "tenant_id" field.
 func (m *NurtureSequenceMutation) ResetTenantID() {
 	m.tenant = nil
+}
+
+// SetScope sets the "scope" field.
+func (m *NurtureSequenceMutation) SetScope(s string) {
+	m.scope = &s
+}
+
+// Scope returns the value of the "scope" field in the mutation.
+func (m *NurtureSequenceMutation) Scope() (r string, exists bool) {
+	v := m.scope
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScope returns the old "scope" field's value of the NurtureSequence entity.
+// If the NurtureSequence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *NurtureSequenceMutation) OldScope(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScope is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScope requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScope: %w", err)
+	}
+	return oldValue.Scope, nil
+}
+
+// ResetScope resets all changes to the "scope" field.
+func (m *NurtureSequenceMutation) ResetScope() {
+	m.scope = nil
 }
 
 // SetName sets the "name" field.
@@ -15073,9 +15272,12 @@ func (m *NurtureSequenceMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *NurtureSequenceMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 12)
 	if m.tenant != nil {
 		fields = append(fields, nurturesequence.FieldTenantID)
+	}
+	if m.scope != nil {
+		fields = append(fields, nurturesequence.FieldScope)
 	}
 	if m.name != nil {
 		fields = append(fields, nurturesequence.FieldName)
@@ -15117,6 +15319,8 @@ func (m *NurtureSequenceMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case nurturesequence.FieldTenantID:
 		return m.TenantID()
+	case nurturesequence.FieldScope:
+		return m.Scope()
 	case nurturesequence.FieldName:
 		return m.Name()
 	case nurturesequence.FieldTriggerEvent:
@@ -15148,6 +15352,8 @@ func (m *NurtureSequenceMutation) OldField(ctx context.Context, name string) (en
 	switch name {
 	case nurturesequence.FieldTenantID:
 		return m.OldTenantID(ctx)
+	case nurturesequence.FieldScope:
+		return m.OldScope(ctx)
 	case nurturesequence.FieldName:
 		return m.OldName(ctx)
 	case nurturesequence.FieldTriggerEvent:
@@ -15183,6 +15389,13 @@ func (m *NurtureSequenceMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTenantID(v)
+		return nil
+	case nurturesequence.FieldScope:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScope(v)
 		return nil
 	case nurturesequence.FieldName:
 		v, ok := value.(string)
@@ -15347,6 +15560,9 @@ func (m *NurtureSequenceMutation) ResetField(name string) error {
 	switch name {
 	case nurturesequence.FieldTenantID:
 		m.ResetTenantID()
+		return nil
+	case nurturesequence.FieldScope:
+		m.ResetScope()
 		return nil
 	case nurturesequence.FieldName:
 		m.ResetName()

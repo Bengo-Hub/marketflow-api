@@ -31,6 +31,20 @@ func (_c *NurtureSequenceCreate) SetTenantID(v uuid.UUID) *NurtureSequenceCreate
 	return _c
 }
 
+// SetScope sets the "scope" field.
+func (_c *NurtureSequenceCreate) SetScope(v string) *NurtureSequenceCreate {
+	_c.mutation.SetScope(v)
+	return _c
+}
+
+// SetNillableScope sets the "scope" field if the given value is not nil.
+func (_c *NurtureSequenceCreate) SetNillableScope(v *string) *NurtureSequenceCreate {
+	if v != nil {
+		_c.SetScope(*v)
+	}
+	return _c
+}
+
 // SetName sets the "name" field.
 func (_c *NurtureSequenceCreate) SetName(v string) *NurtureSequenceCreate {
 	_c.mutation.SetName(v)
@@ -193,6 +207,10 @@ func (_c *NurtureSequenceCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *NurtureSequenceCreate) defaults() {
+	if _, ok := _c.mutation.Scope(); !ok {
+		v := nurturesequence.DefaultScope
+		_c.mutation.SetScope(v)
+	}
 	if _, ok := _c.mutation.Active(); !ok {
 		v := nurturesequence.DefaultActive
 		_c.mutation.SetActive(v)
@@ -223,6 +241,9 @@ func (_c *NurtureSequenceCreate) defaults() {
 func (_c *NurtureSequenceCreate) check() error {
 	if _, ok := _c.mutation.TenantID(); !ok {
 		return &ValidationError{Name: "tenant_id", err: errors.New(`ent: missing required field "NurtureSequence.tenant_id"`)}
+	}
+	if _, ok := _c.mutation.Scope(); !ok {
+		return &ValidationError{Name: "scope", err: errors.New(`ent: missing required field "NurtureSequence.scope"`)}
 	}
 	if _, ok := _c.mutation.Name(); !ok {
 		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "NurtureSequence.name"`)}
@@ -296,6 +317,10 @@ func (_c *NurtureSequenceCreate) createSpec() (*NurtureSequence, *sqlgraph.Creat
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
+	}
+	if value, ok := _c.mutation.Scope(); ok {
+		_spec.SetField(nurturesequence.FieldScope, field.TypeString, value)
+		_node.Scope = value
 	}
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(nurturesequence.FieldName, field.TypeString, value)
@@ -415,6 +440,18 @@ func (u *NurtureSequenceUpsert) SetTenantID(v uuid.UUID) *NurtureSequenceUpsert 
 // UpdateTenantID sets the "tenant_id" field to the value that was provided on create.
 func (u *NurtureSequenceUpsert) UpdateTenantID() *NurtureSequenceUpsert {
 	u.SetExcluded(nurturesequence.FieldTenantID)
+	return u
+}
+
+// SetScope sets the "scope" field.
+func (u *NurtureSequenceUpsert) SetScope(v string) *NurtureSequenceUpsert {
+	u.Set(nurturesequence.FieldScope, v)
+	return u
+}
+
+// UpdateScope sets the "scope" field to the value that was provided on create.
+func (u *NurtureSequenceUpsert) UpdateScope() *NurtureSequenceUpsert {
+	u.SetExcluded(nurturesequence.FieldScope)
 	return u
 }
 
@@ -612,6 +649,20 @@ func (u *NurtureSequenceUpsertOne) SetTenantID(v uuid.UUID) *NurtureSequenceUpse
 func (u *NurtureSequenceUpsertOne) UpdateTenantID() *NurtureSequenceUpsertOne {
 	return u.Update(func(s *NurtureSequenceUpsert) {
 		s.UpdateTenantID()
+	})
+}
+
+// SetScope sets the "scope" field.
+func (u *NurtureSequenceUpsertOne) SetScope(v string) *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetScope(v)
+	})
+}
+
+// UpdateScope sets the "scope" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertOne) UpdateScope() *NurtureSequenceUpsertOne {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateScope()
 	})
 }
 
@@ -998,6 +1049,20 @@ func (u *NurtureSequenceUpsertBulk) SetTenantID(v uuid.UUID) *NurtureSequenceUps
 func (u *NurtureSequenceUpsertBulk) UpdateTenantID() *NurtureSequenceUpsertBulk {
 	return u.Update(func(s *NurtureSequenceUpsert) {
 		s.UpdateTenantID()
+	})
+}
+
+// SetScope sets the "scope" field.
+func (u *NurtureSequenceUpsertBulk) SetScope(v string) *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.SetScope(v)
+	})
+}
+
+// UpdateScope sets the "scope" field to the value that was provided on create.
+func (u *NurtureSequenceUpsertBulk) UpdateScope() *NurtureSequenceUpsertBulk {
+	return u.Update(func(s *NurtureSequenceUpsert) {
+		s.UpdateScope()
 	})
 }
 

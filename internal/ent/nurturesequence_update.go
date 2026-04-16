@@ -46,6 +46,20 @@ func (_u *NurtureSequenceUpdate) SetNillableTenantID(v *uuid.UUID) *NurtureSeque
 	return _u
 }
 
+// SetScope sets the "scope" field.
+func (_u *NurtureSequenceUpdate) SetScope(v string) *NurtureSequenceUpdate {
+	_u.mutation.SetScope(v)
+	return _u
+}
+
+// SetNillableScope sets the "scope" field if the given value is not nil.
+func (_u *NurtureSequenceUpdate) SetNillableScope(v *string) *NurtureSequenceUpdate {
+	if v != nil {
+		_u.SetScope(*v)
+	}
+	return _u
+}
+
 // SetName sets the "name" field.
 func (_u *NurtureSequenceUpdate) SetName(v string) *NurtureSequenceUpdate {
 	_u.mutation.SetName(v)
@@ -268,6 +282,9 @@ func (_u *NurtureSequenceUpdate) sqlSave(ctx context.Context) (_node int, err er
 			}
 		}
 	}
+	if value, ok := _u.mutation.Scope(); ok {
+		_spec.SetField(nurturesequence.FieldScope, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(nurturesequence.FieldName, field.TypeString, value)
 	}
@@ -373,6 +390,20 @@ func (_u *NurtureSequenceUpdateOne) SetTenantID(v uuid.UUID) *NurtureSequenceUpd
 func (_u *NurtureSequenceUpdateOne) SetNillableTenantID(v *uuid.UUID) *NurtureSequenceUpdateOne {
 	if v != nil {
 		_u.SetTenantID(*v)
+	}
+	return _u
+}
+
+// SetScope sets the "scope" field.
+func (_u *NurtureSequenceUpdateOne) SetScope(v string) *NurtureSequenceUpdateOne {
+	_u.mutation.SetScope(v)
+	return _u
+}
+
+// SetNillableScope sets the "scope" field if the given value is not nil.
+func (_u *NurtureSequenceUpdateOne) SetNillableScope(v *string) *NurtureSequenceUpdateOne {
+	if v != nil {
+		_u.SetScope(*v)
 	}
 	return _u
 }
@@ -628,6 +659,9 @@ func (_u *NurtureSequenceUpdateOne) sqlSave(ctx context.Context) (_node *Nurture
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.Scope(); ok {
+		_spec.SetField(nurturesequence.FieldScope, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(nurturesequence.FieldName, field.TypeString, value)

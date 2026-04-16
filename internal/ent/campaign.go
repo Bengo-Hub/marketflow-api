@@ -20,8 +20,10 @@ type Campaign struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID uuid.UUID `json:"id,omitempty"`
-	// Owning tenant
+	// Owning tenant (platform-owner tenant for scope='platform' templates)
 	TenantID uuid.UUID `json:"tenant_id,omitempty"`
+	// tenant = tenant-owned campaign | platform = shared template every tenant can clone (lead-gen, retargeting, recruitment starter templates)
+	Scope string `json:"scope,omitempty"`
 	// Campaign display name
 	Name string `json:"name,omitempty"`
 	// lead_gen | retargeting | recruitment | re_engagement
@@ -106,7 +108,7 @@ func (*Campaign) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case campaign.FieldBudgetDaily, campaign.FieldBudgetTotal:
 			values[i] = new(sql.NullFloat64)
-		case campaign.FieldName, campaign.FieldCampaignType, campaign.FieldPlatform, campaign.FieldStatus, campaign.FieldMetaCampaignID, campaign.FieldMetaAdsetID, campaign.FieldMetaAdID, campaign.FieldCurrency:
+		case campaign.FieldScope, campaign.FieldName, campaign.FieldCampaignType, campaign.FieldPlatform, campaign.FieldStatus, campaign.FieldMetaCampaignID, campaign.FieldMetaAdsetID, campaign.FieldMetaAdID, campaign.FieldCurrency:
 			values[i] = new(sql.NullString)
 		case campaign.FieldStartDate, campaign.FieldEndDate, campaign.FieldCreatedAt, campaign.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -138,6 +140,12 @@ func (_m *Campaign) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field tenant_id", values[i])
 			} else if value != nil {
 				_m.TenantID = *value
+			}
+		case campaign.FieldScope:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field scope", values[i])
+			} else if value.Valid {
+				_m.Scope = value.String
 			}
 		case campaign.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -309,6 +317,9 @@ func (_m *Campaign) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("tenant_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TenantID))
+	builder.WriteString(", ")
+	builder.WriteString("scope=")
+	builder.WriteString(_m.Scope)
 	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)

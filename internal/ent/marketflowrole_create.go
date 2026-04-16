@@ -33,6 +33,20 @@ func (_c *MarketflowRoleCreate) SetTenantID(v uuid.UUID) *MarketflowRoleCreate {
 	return _c
 }
 
+// SetScope sets the "scope" field.
+func (_c *MarketflowRoleCreate) SetScope(v string) *MarketflowRoleCreate {
+	_c.mutation.SetScope(v)
+	return _c
+}
+
+// SetNillableScope sets the "scope" field if the given value is not nil.
+func (_c *MarketflowRoleCreate) SetNillableScope(v *string) *MarketflowRoleCreate {
+	if v != nil {
+		_c.SetScope(*v)
+	}
+	return _c
+}
+
 // SetRoleCode sets the "role_code" field.
 func (_c *MarketflowRoleCreate) SetRoleCode(v string) *MarketflowRoleCreate {
 	_c.mutation.SetRoleCode(v)
@@ -195,6 +209,10 @@ func (_c *MarketflowRoleCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *MarketflowRoleCreate) defaults() {
+	if _, ok := _c.mutation.Scope(); !ok {
+		v := marketflowrole.DefaultScope
+		_c.mutation.SetScope(v)
+	}
 	if _, ok := _c.mutation.IsSystemRole(); !ok {
 		v := marketflowrole.DefaultIsSystemRole
 		_c.mutation.SetIsSystemRole(v)
@@ -217,6 +235,9 @@ func (_c *MarketflowRoleCreate) defaults() {
 func (_c *MarketflowRoleCreate) check() error {
 	if _, ok := _c.mutation.TenantID(); !ok {
 		return &ValidationError{Name: "tenant_id", err: errors.New(`ent: missing required field "MarketflowRole.tenant_id"`)}
+	}
+	if _, ok := _c.mutation.Scope(); !ok {
+		return &ValidationError{Name: "scope", err: errors.New(`ent: missing required field "MarketflowRole.scope"`)}
 	}
 	if _, ok := _c.mutation.RoleCode(); !ok {
 		return &ValidationError{Name: "role_code", err: errors.New(`ent: missing required field "MarketflowRole.role_code"`)}
@@ -282,6 +303,10 @@ func (_c *MarketflowRoleCreate) createSpec() (*MarketflowRole, *sqlgraph.CreateS
 	if value, ok := _c.mutation.TenantID(); ok {
 		_spec.SetField(marketflowrole.FieldTenantID, field.TypeUUID, value)
 		_node.TenantID = value
+	}
+	if value, ok := _c.mutation.Scope(); ok {
+		_spec.SetField(marketflowrole.FieldScope, field.TypeString, value)
+		_node.Scope = value
 	}
 	if value, ok := _c.mutation.RoleCode(); ok {
 		_spec.SetField(marketflowrole.FieldRoleCode, field.TypeString, value)
@@ -419,6 +444,18 @@ func (u *MarketflowRoleUpsert) UpdateTenantID() *MarketflowRoleUpsert {
 	return u
 }
 
+// SetScope sets the "scope" field.
+func (u *MarketflowRoleUpsert) SetScope(v string) *MarketflowRoleUpsert {
+	u.Set(marketflowrole.FieldScope, v)
+	return u
+}
+
+// UpdateScope sets the "scope" field to the value that was provided on create.
+func (u *MarketflowRoleUpsert) UpdateScope() *MarketflowRoleUpsert {
+	u.SetExcluded(marketflowrole.FieldScope)
+	return u
+}
+
 // SetRoleCode sets the "role_code" field.
 func (u *MarketflowRoleUpsert) SetRoleCode(v string) *MarketflowRoleUpsert {
 	u.Set(marketflowrole.FieldRoleCode, v)
@@ -547,6 +584,20 @@ func (u *MarketflowRoleUpsertOne) SetTenantID(v uuid.UUID) *MarketflowRoleUpsert
 func (u *MarketflowRoleUpsertOne) UpdateTenantID() *MarketflowRoleUpsertOne {
 	return u.Update(func(s *MarketflowRoleUpsert) {
 		s.UpdateTenantID()
+	})
+}
+
+// SetScope sets the "scope" field.
+func (u *MarketflowRoleUpsertOne) SetScope(v string) *MarketflowRoleUpsertOne {
+	return u.Update(func(s *MarketflowRoleUpsert) {
+		s.SetScope(v)
+	})
+}
+
+// UpdateScope sets the "scope" field to the value that was provided on create.
+func (u *MarketflowRoleUpsertOne) UpdateScope() *MarketflowRoleUpsertOne {
+	return u.Update(func(s *MarketflowRoleUpsert) {
+		s.UpdateScope()
 	})
 }
 
@@ -856,6 +907,20 @@ func (u *MarketflowRoleUpsertBulk) SetTenantID(v uuid.UUID) *MarketflowRoleUpser
 func (u *MarketflowRoleUpsertBulk) UpdateTenantID() *MarketflowRoleUpsertBulk {
 	return u.Update(func(s *MarketflowRoleUpsert) {
 		s.UpdateTenantID()
+	})
+}
+
+// SetScope sets the "scope" field.
+func (u *MarketflowRoleUpsertBulk) SetScope(v string) *MarketflowRoleUpsertBulk {
+	return u.Update(func(s *MarketflowRoleUpsert) {
+		s.SetScope(v)
+	})
+}
+
+// UpdateScope sets the "scope" field to the value that was provided on create.
+func (u *MarketflowRoleUpsertBulk) UpdateScope() *MarketflowRoleUpsertBulk {
+	return u.Update(func(s *MarketflowRoleUpsert) {
+		s.UpdateScope()
 	})
 }
 

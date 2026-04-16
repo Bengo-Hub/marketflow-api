@@ -23,7 +23,10 @@ func (KnowledgeBaseEntry) Fields() []ent.Field {
 			Default(uuid.New).
 			Immutable(),
 		field.UUID("tenant_id", uuid.UUID{}).
-			Comment("Owning tenant"),
+			Comment("Owning tenant (platform-owner tenant for scope='platform' rows)"),
+		field.String("scope").
+			Default("tenant").
+			Comment("tenant = private to tenant_id | platform = shared across every tenant (RAG base knowledge)"),
 
 		field.String("category").
 			Default("product").
@@ -91,5 +94,8 @@ func (KnowledgeBaseEntry) Indexes() []ent.Index {
 		index.Fields("tenant_id", "category"),
 		index.Fields("tenant_id", "product_code"),
 		index.Fields("tenant_id", "embedded"),
+		// Platform-scoped rows are loaded into every tenant's RAG query, so
+		// scope+category is a hot index for agent_tool.kb_search.
+		index.Fields("scope", "category"),
 	}
 }

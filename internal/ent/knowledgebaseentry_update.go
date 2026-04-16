@@ -46,6 +46,20 @@ func (_u *KnowledgeBaseEntryUpdate) SetNillableTenantID(v *uuid.UUID) *Knowledge
 	return _u
 }
 
+// SetScope sets the "scope" field.
+func (_u *KnowledgeBaseEntryUpdate) SetScope(v string) *KnowledgeBaseEntryUpdate {
+	_u.mutation.SetScope(v)
+	return _u
+}
+
+// SetNillableScope sets the "scope" field if the given value is not nil.
+func (_u *KnowledgeBaseEntryUpdate) SetNillableScope(v *string) *KnowledgeBaseEntryUpdate {
+	if v != nil {
+		_u.SetScope(*v)
+	}
+	return _u
+}
+
 // SetCategory sets the "category" field.
 func (_u *KnowledgeBaseEntryUpdate) SetCategory(v string) *KnowledgeBaseEntryUpdate {
 	_u.mutation.SetCategory(v)
@@ -341,6 +355,9 @@ func (_u *KnowledgeBaseEntryUpdate) sqlSave(ctx context.Context) (_node int, err
 			}
 		}
 	}
+	if value, ok := _u.mutation.Scope(); ok {
+		_spec.SetField(knowledgebaseentry.FieldScope, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Category(); ok {
 		_spec.SetField(knowledgebaseentry.FieldCategory, field.TypeString, value)
 	}
@@ -470,6 +487,20 @@ func (_u *KnowledgeBaseEntryUpdateOne) SetTenantID(v uuid.UUID) *KnowledgeBaseEn
 func (_u *KnowledgeBaseEntryUpdateOne) SetNillableTenantID(v *uuid.UUID) *KnowledgeBaseEntryUpdateOne {
 	if v != nil {
 		_u.SetTenantID(*v)
+	}
+	return _u
+}
+
+// SetScope sets the "scope" field.
+func (_u *KnowledgeBaseEntryUpdateOne) SetScope(v string) *KnowledgeBaseEntryUpdateOne {
+	_u.mutation.SetScope(v)
+	return _u
+}
+
+// SetNillableScope sets the "scope" field if the given value is not nil.
+func (_u *KnowledgeBaseEntryUpdateOne) SetNillableScope(v *string) *KnowledgeBaseEntryUpdateOne {
+	if v != nil {
+		_u.SetScope(*v)
 	}
 	return _u
 }
@@ -798,6 +829,9 @@ func (_u *KnowledgeBaseEntryUpdateOne) sqlSave(ctx context.Context) (_node *Know
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.Scope(); ok {
+		_spec.SetField(knowledgebaseentry.FieldScope, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Category(); ok {
 		_spec.SetField(knowledgebaseentry.FieldCategory, field.TypeString, value)

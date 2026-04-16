@@ -56,32 +56,36 @@ func init() {
 	auditlog.DefaultID = auditlogDescID.Default.(func() uuid.UUID)
 	campaignFields := schema.Campaign{}.Fields()
 	_ = campaignFields
+	// campaignDescScope is the schema descriptor for scope field.
+	campaignDescScope := campaignFields[2].Descriptor()
+	// campaign.DefaultScope holds the default value on creation for the scope field.
+	campaign.DefaultScope = campaignDescScope.Default.(string)
 	// campaignDescName is the schema descriptor for name field.
-	campaignDescName := campaignFields[2].Descriptor()
+	campaignDescName := campaignFields[3].Descriptor()
 	// campaign.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	campaign.NameValidator = campaignDescName.Validators[0].(func(string) error)
 	// campaignDescCampaignType is the schema descriptor for campaign_type field.
-	campaignDescCampaignType := campaignFields[3].Descriptor()
+	campaignDescCampaignType := campaignFields[4].Descriptor()
 	// campaign.DefaultCampaignType holds the default value on creation for the campaign_type field.
 	campaign.DefaultCampaignType = campaignDescCampaignType.Default.(string)
 	// campaignDescPlatform is the schema descriptor for platform field.
-	campaignDescPlatform := campaignFields[4].Descriptor()
+	campaignDescPlatform := campaignFields[5].Descriptor()
 	// campaign.DefaultPlatform holds the default value on creation for the platform field.
 	campaign.DefaultPlatform = campaignDescPlatform.Default.(string)
 	// campaignDescStatus is the schema descriptor for status field.
-	campaignDescStatus := campaignFields[5].Descriptor()
+	campaignDescStatus := campaignFields[6].Descriptor()
 	// campaign.DefaultStatus holds the default value on creation for the status field.
 	campaign.DefaultStatus = campaignDescStatus.Default.(string)
 	// campaignDescCurrency is the schema descriptor for currency field.
-	campaignDescCurrency := campaignFields[11].Descriptor()
+	campaignDescCurrency := campaignFields[12].Descriptor()
 	// campaign.DefaultCurrency holds the default value on creation for the currency field.
 	campaign.DefaultCurrency = campaignDescCurrency.Default.(string)
 	// campaignDescCreatedAt is the schema descriptor for created_at field.
-	campaignDescCreatedAt := campaignFields[18].Descriptor()
+	campaignDescCreatedAt := campaignFields[19].Descriptor()
 	// campaign.DefaultCreatedAt holds the default value on creation for the created_at field.
 	campaign.DefaultCreatedAt = campaignDescCreatedAt.Default.(func() time.Time)
 	// campaignDescUpdatedAt is the schema descriptor for updated_at field.
-	campaignDescUpdatedAt := campaignFields[19].Descriptor()
+	campaignDescUpdatedAt := campaignFields[20].Descriptor()
 	// campaign.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	campaign.DefaultUpdatedAt = campaignDescUpdatedAt.Default.(func() time.Time)
 	// campaign.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -202,32 +206,36 @@ func init() {
 	funnel.DefaultID = funnelDescID.Default.(func() uuid.UUID)
 	knowledgebaseentryFields := schema.KnowledgeBaseEntry{}.Fields()
 	_ = knowledgebaseentryFields
+	// knowledgebaseentryDescScope is the schema descriptor for scope field.
+	knowledgebaseentryDescScope := knowledgebaseentryFields[2].Descriptor()
+	// knowledgebaseentry.DefaultScope holds the default value on creation for the scope field.
+	knowledgebaseentry.DefaultScope = knowledgebaseentryDescScope.Default.(string)
 	// knowledgebaseentryDescCategory is the schema descriptor for category field.
-	knowledgebaseentryDescCategory := knowledgebaseentryFields[2].Descriptor()
+	knowledgebaseentryDescCategory := knowledgebaseentryFields[3].Descriptor()
 	// knowledgebaseentry.DefaultCategory holds the default value on creation for the category field.
 	knowledgebaseentry.DefaultCategory = knowledgebaseentryDescCategory.Default.(string)
 	// knowledgebaseentryDescTitle is the schema descriptor for title field.
-	knowledgebaseentryDescTitle := knowledgebaseentryFields[3].Descriptor()
+	knowledgebaseentryDescTitle := knowledgebaseentryFields[4].Descriptor()
 	// knowledgebaseentry.TitleValidator is a validator for the "title" field. It is called by the builders before save.
 	knowledgebaseentry.TitleValidator = knowledgebaseentryDescTitle.Validators[0].(func(string) error)
 	// knowledgebaseentryDescContent is the schema descriptor for content field.
-	knowledgebaseentryDescContent := knowledgebaseentryFields[4].Descriptor()
+	knowledgebaseentryDescContent := knowledgebaseentryFields[5].Descriptor()
 	// knowledgebaseentry.ContentValidator is a validator for the "content" field. It is called by the builders before save.
 	knowledgebaseentry.ContentValidator = knowledgebaseentryDescContent.Validators[0].(func(string) error)
 	// knowledgebaseentryDescEmbedded is the schema descriptor for embedded field.
-	knowledgebaseentryDescEmbedded := knowledgebaseentryFields[9].Descriptor()
+	knowledgebaseentryDescEmbedded := knowledgebaseentryFields[10].Descriptor()
 	// knowledgebaseentry.DefaultEmbedded holds the default value on creation for the embedded field.
 	knowledgebaseentry.DefaultEmbedded = knowledgebaseentryDescEmbedded.Default.(bool)
 	// knowledgebaseentryDescChunkCount is the schema descriptor for chunk_count field.
-	knowledgebaseentryDescChunkCount := knowledgebaseentryFields[10].Descriptor()
+	knowledgebaseentryDescChunkCount := knowledgebaseentryFields[11].Descriptor()
 	// knowledgebaseentry.DefaultChunkCount holds the default value on creation for the chunk_count field.
 	knowledgebaseentry.DefaultChunkCount = knowledgebaseentryDescChunkCount.Default.(int)
 	// knowledgebaseentryDescCreatedAt is the schema descriptor for created_at field.
-	knowledgebaseentryDescCreatedAt := knowledgebaseentryFields[13].Descriptor()
+	knowledgebaseentryDescCreatedAt := knowledgebaseentryFields[14].Descriptor()
 	// knowledgebaseentry.DefaultCreatedAt holds the default value on creation for the created_at field.
 	knowledgebaseentry.DefaultCreatedAt = knowledgebaseentryDescCreatedAt.Default.(func() time.Time)
 	// knowledgebaseentryDescUpdatedAt is the schema descriptor for updated_at field.
-	knowledgebaseentryDescUpdatedAt := knowledgebaseentryFields[14].Descriptor()
+	knowledgebaseentryDescUpdatedAt := knowledgebaseentryFields[15].Descriptor()
 	// knowledgebaseentry.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	knowledgebaseentry.DefaultUpdatedAt = knowledgebaseentryDescUpdatedAt.Default.(func() time.Time)
 	// knowledgebaseentry.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -296,24 +304,28 @@ func init() {
 	marketflowpermission.DefaultID = marketflowpermissionDescID.Default.(func() uuid.UUID)
 	marketflowroleFields := schema.MarketflowRole{}.Fields()
 	_ = marketflowroleFields
+	// marketflowroleDescScope is the schema descriptor for scope field.
+	marketflowroleDescScope := marketflowroleFields[2].Descriptor()
+	// marketflowrole.DefaultScope holds the default value on creation for the scope field.
+	marketflowrole.DefaultScope = marketflowroleDescScope.Default.(string)
 	// marketflowroleDescRoleCode is the schema descriptor for role_code field.
-	marketflowroleDescRoleCode := marketflowroleFields[2].Descriptor()
+	marketflowroleDescRoleCode := marketflowroleFields[3].Descriptor()
 	// marketflowrole.RoleCodeValidator is a validator for the "role_code" field. It is called by the builders before save.
 	marketflowrole.RoleCodeValidator = marketflowroleDescRoleCode.Validators[0].(func(string) error)
 	// marketflowroleDescName is the schema descriptor for name field.
-	marketflowroleDescName := marketflowroleFields[3].Descriptor()
+	marketflowroleDescName := marketflowroleFields[4].Descriptor()
 	// marketflowrole.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	marketflowrole.NameValidator = marketflowroleDescName.Validators[0].(func(string) error)
 	// marketflowroleDescIsSystemRole is the schema descriptor for is_system_role field.
-	marketflowroleDescIsSystemRole := marketflowroleFields[5].Descriptor()
+	marketflowroleDescIsSystemRole := marketflowroleFields[6].Descriptor()
 	// marketflowrole.DefaultIsSystemRole holds the default value on creation for the is_system_role field.
 	marketflowrole.DefaultIsSystemRole = marketflowroleDescIsSystemRole.Default.(bool)
 	// marketflowroleDescCreatedAt is the schema descriptor for created_at field.
-	marketflowroleDescCreatedAt := marketflowroleFields[6].Descriptor()
+	marketflowroleDescCreatedAt := marketflowroleFields[7].Descriptor()
 	// marketflowrole.DefaultCreatedAt holds the default value on creation for the created_at field.
 	marketflowrole.DefaultCreatedAt = marketflowroleDescCreatedAt.Default.(func() time.Time)
 	// marketflowroleDescUpdatedAt is the schema descriptor for updated_at field.
-	marketflowroleDescUpdatedAt := marketflowroleFields[7].Descriptor()
+	marketflowroleDescUpdatedAt := marketflowroleFields[8].Descriptor()
 	// marketflowrole.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	marketflowrole.DefaultUpdatedAt = marketflowroleDescUpdatedAt.Default.(func() time.Time)
 	// marketflowrole.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -380,32 +392,36 @@ func init() {
 	nurtureenrollment.DefaultID = nurtureenrollmentDescID.Default.(func() uuid.UUID)
 	nurturesequenceFields := schema.NurtureSequence{}.Fields()
 	_ = nurturesequenceFields
+	// nurturesequenceDescScope is the schema descriptor for scope field.
+	nurturesequenceDescScope := nurturesequenceFields[2].Descriptor()
+	// nurturesequence.DefaultScope holds the default value on creation for the scope field.
+	nurturesequence.DefaultScope = nurturesequenceDescScope.Default.(string)
 	// nurturesequenceDescName is the schema descriptor for name field.
-	nurturesequenceDescName := nurturesequenceFields[2].Descriptor()
+	nurturesequenceDescName := nurturesequenceFields[3].Descriptor()
 	// nurturesequence.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	nurturesequence.NameValidator = nurturesequenceDescName.Validators[0].(func(string) error)
 	// nurturesequenceDescTriggerEvent is the schema descriptor for trigger_event field.
-	nurturesequenceDescTriggerEvent := nurturesequenceFields[3].Descriptor()
+	nurturesequenceDescTriggerEvent := nurturesequenceFields[4].Descriptor()
 	// nurturesequence.TriggerEventValidator is a validator for the "trigger_event" field. It is called by the builders before save.
 	nurturesequence.TriggerEventValidator = nurturesequenceDescTriggerEvent.Validators[0].(func(string) error)
 	// nurturesequenceDescActive is the schema descriptor for active field.
-	nurturesequenceDescActive := nurturesequenceFields[5].Descriptor()
+	nurturesequenceDescActive := nurturesequenceFields[6].Descriptor()
 	// nurturesequence.DefaultActive holds the default value on creation for the active field.
 	nurturesequence.DefaultActive = nurturesequenceDescActive.Default.(bool)
 	// nurturesequenceDescTotalEnrolled is the schema descriptor for total_enrolled field.
-	nurturesequenceDescTotalEnrolled := nurturesequenceFields[7].Descriptor()
+	nurturesequenceDescTotalEnrolled := nurturesequenceFields[8].Descriptor()
 	// nurturesequence.DefaultTotalEnrolled holds the default value on creation for the total_enrolled field.
 	nurturesequence.DefaultTotalEnrolled = nurturesequenceDescTotalEnrolled.Default.(int)
 	// nurturesequenceDescTotalCompleted is the schema descriptor for total_completed field.
-	nurturesequenceDescTotalCompleted := nurturesequenceFields[8].Descriptor()
+	nurturesequenceDescTotalCompleted := nurturesequenceFields[9].Descriptor()
 	// nurturesequence.DefaultTotalCompleted holds the default value on creation for the total_completed field.
 	nurturesequence.DefaultTotalCompleted = nurturesequenceDescTotalCompleted.Default.(int)
 	// nurturesequenceDescCreatedAt is the schema descriptor for created_at field.
-	nurturesequenceDescCreatedAt := nurturesequenceFields[10].Descriptor()
+	nurturesequenceDescCreatedAt := nurturesequenceFields[11].Descriptor()
 	// nurturesequence.DefaultCreatedAt holds the default value on creation for the created_at field.
 	nurturesequence.DefaultCreatedAt = nurturesequenceDescCreatedAt.Default.(func() time.Time)
 	// nurturesequenceDescUpdatedAt is the schema descriptor for updated_at field.
-	nurturesequenceDescUpdatedAt := nurturesequenceFields[11].Descriptor()
+	nurturesequenceDescUpdatedAt := nurturesequenceFields[12].Descriptor()
 	// nurturesequence.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	nurturesequence.DefaultUpdatedAt = nurturesequenceDescUpdatedAt.Default.(func() time.Time)
 	// nurturesequence.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

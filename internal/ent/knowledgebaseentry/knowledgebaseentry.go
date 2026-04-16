@@ -17,6 +17,8 @@ const (
 	FieldID = "id"
 	// FieldTenantID holds the string denoting the tenant_id field in the database.
 	FieldTenantID = "tenant_id"
+	// FieldScope holds the string denoting the scope field in the database.
+	FieldScope = "scope"
 	// FieldCategory holds the string denoting the category field in the database.
 	FieldCategory = "category"
 	// FieldTitle holds the string denoting the title field in the database.
@@ -60,6 +62,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldTenantID,
+	FieldScope,
 	FieldCategory,
 	FieldTitle,
 	FieldContent,
@@ -86,6 +89,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultScope holds the default value on creation for the "scope" field.
+	DefaultScope string
 	// DefaultCategory holds the default value on creation for the "category" field.
 	DefaultCategory string
 	// TitleValidator is a validator for the "title" field. It is called by the builders before save.
@@ -117,6 +122,11 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByTenantID orders the results by the tenant_id field.
 func ByTenantID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTenantID, opts...).ToFunc()
+}
+
+// ByScope orders the results by the scope field.
+func ByScope(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldScope, opts...).ToFunc()
 }
 
 // ByCategory orders the results by the category field.

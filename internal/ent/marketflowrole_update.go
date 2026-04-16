@@ -47,6 +47,20 @@ func (_u *MarketflowRoleUpdate) SetNillableTenantID(v *uuid.UUID) *MarketflowRol
 	return _u
 }
 
+// SetScope sets the "scope" field.
+func (_u *MarketflowRoleUpdate) SetScope(v string) *MarketflowRoleUpdate {
+	_u.mutation.SetScope(v)
+	return _u
+}
+
+// SetNillableScope sets the "scope" field if the given value is not nil.
+func (_u *MarketflowRoleUpdate) SetNillableScope(v *string) *MarketflowRoleUpdate {
+	if v != nil {
+		_u.SetScope(*v)
+	}
+	return _u
+}
+
 // SetRoleCode sets the "role_code" field.
 func (_u *MarketflowRoleUpdate) SetRoleCode(v string) *MarketflowRoleUpdate {
 	_u.mutation.SetRoleCode(v)
@@ -300,6 +314,9 @@ func (_u *MarketflowRoleUpdate) sqlSave(ctx context.Context) (_node int, err err
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(marketflowrole.FieldTenantID, field.TypeUUID, value)
 	}
+	if value, ok := _u.mutation.Scope(); ok {
+		_spec.SetField(marketflowrole.FieldScope, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.RoleCode(); ok {
 		_spec.SetField(marketflowrole.FieldRoleCode, field.TypeString, value)
 	}
@@ -485,6 +502,20 @@ func (_u *MarketflowRoleUpdateOne) SetTenantID(v uuid.UUID) *MarketflowRoleUpdat
 func (_u *MarketflowRoleUpdateOne) SetNillableTenantID(v *uuid.UUID) *MarketflowRoleUpdateOne {
 	if v != nil {
 		_u.SetTenantID(*v)
+	}
+	return _u
+}
+
+// SetScope sets the "scope" field.
+func (_u *MarketflowRoleUpdateOne) SetScope(v string) *MarketflowRoleUpdateOne {
+	_u.mutation.SetScope(v)
+	return _u
+}
+
+// SetNillableScope sets the "scope" field if the given value is not nil.
+func (_u *MarketflowRoleUpdateOne) SetNillableScope(v *string) *MarketflowRoleUpdateOne {
+	if v != nil {
+		_u.SetScope(*v)
 	}
 	return _u
 }
@@ -771,6 +802,9 @@ func (_u *MarketflowRoleUpdateOne) sqlSave(ctx context.Context) (_node *Marketfl
 	}
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(marketflowrole.FieldTenantID, field.TypeUUID, value)
+	}
+	if value, ok := _u.mutation.Scope(); ok {
+		_spec.SetField(marketflowrole.FieldScope, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.RoleCode(); ok {
 		_spec.SetField(marketflowrole.FieldRoleCode, field.TypeString, value)

@@ -61,6 +61,11 @@ func TenantID(v uuid.UUID) predicate.MarketflowRole {
 	return predicate.MarketflowRole(sql.FieldEQ(FieldTenantID, v))
 }
 
+// Scope applies equality check predicate on the "scope" field. It's identical to ScopeEQ.
+func Scope(v string) predicate.MarketflowRole {
+	return predicate.MarketflowRole(sql.FieldEQ(FieldScope, v))
+}
+
 // RoleCode applies equality check predicate on the "role_code" field. It's identical to RoleCodeEQ.
 func RoleCode(v string) predicate.MarketflowRole {
 	return predicate.MarketflowRole(sql.FieldEQ(FieldRoleCode, v))
@@ -129,6 +134,71 @@ func TenantIDLT(v uuid.UUID) predicate.MarketflowRole {
 // TenantIDLTE applies the LTE predicate on the "tenant_id" field.
 func TenantIDLTE(v uuid.UUID) predicate.MarketflowRole {
 	return predicate.MarketflowRole(sql.FieldLTE(FieldTenantID, v))
+}
+
+// ScopeEQ applies the EQ predicate on the "scope" field.
+func ScopeEQ(v string) predicate.MarketflowRole {
+	return predicate.MarketflowRole(sql.FieldEQ(FieldScope, v))
+}
+
+// ScopeNEQ applies the NEQ predicate on the "scope" field.
+func ScopeNEQ(v string) predicate.MarketflowRole {
+	return predicate.MarketflowRole(sql.FieldNEQ(FieldScope, v))
+}
+
+// ScopeIn applies the In predicate on the "scope" field.
+func ScopeIn(vs ...string) predicate.MarketflowRole {
+	return predicate.MarketflowRole(sql.FieldIn(FieldScope, vs...))
+}
+
+// ScopeNotIn applies the NotIn predicate on the "scope" field.
+func ScopeNotIn(vs ...string) predicate.MarketflowRole {
+	return predicate.MarketflowRole(sql.FieldNotIn(FieldScope, vs...))
+}
+
+// ScopeGT applies the GT predicate on the "scope" field.
+func ScopeGT(v string) predicate.MarketflowRole {
+	return predicate.MarketflowRole(sql.FieldGT(FieldScope, v))
+}
+
+// ScopeGTE applies the GTE predicate on the "scope" field.
+func ScopeGTE(v string) predicate.MarketflowRole {
+	return predicate.MarketflowRole(sql.FieldGTE(FieldScope, v))
+}
+
+// ScopeLT applies the LT predicate on the "scope" field.
+func ScopeLT(v string) predicate.MarketflowRole {
+	return predicate.MarketflowRole(sql.FieldLT(FieldScope, v))
+}
+
+// ScopeLTE applies the LTE predicate on the "scope" field.
+func ScopeLTE(v string) predicate.MarketflowRole {
+	return predicate.MarketflowRole(sql.FieldLTE(FieldScope, v))
+}
+
+// ScopeContains applies the Contains predicate on the "scope" field.
+func ScopeContains(v string) predicate.MarketflowRole {
+	return predicate.MarketflowRole(sql.FieldContains(FieldScope, v))
+}
+
+// ScopeHasPrefix applies the HasPrefix predicate on the "scope" field.
+func ScopeHasPrefix(v string) predicate.MarketflowRole {
+	return predicate.MarketflowRole(sql.FieldHasPrefix(FieldScope, v))
+}
+
+// ScopeHasSuffix applies the HasSuffix predicate on the "scope" field.
+func ScopeHasSuffix(v string) predicate.MarketflowRole {
+	return predicate.MarketflowRole(sql.FieldHasSuffix(FieldScope, v))
+}
+
+// ScopeEqualFold applies the EqualFold predicate on the "scope" field.
+func ScopeEqualFold(v string) predicate.MarketflowRole {
+	return predicate.MarketflowRole(sql.FieldEqualFold(FieldScope, v))
+}
+
+// ScopeContainsFold applies the ContainsFold predicate on the "scope" field.
+func ScopeContainsFold(v string) predicate.MarketflowRole {
+	return predicate.MarketflowRole(sql.FieldContainsFold(FieldScope, v))
 }
 
 // RoleCodeEQ applies the EQ predicate on the "role_code" field.
