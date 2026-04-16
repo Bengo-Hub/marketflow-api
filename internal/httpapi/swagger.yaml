@@ -19,6 +19,24 @@ definitions:
       provider_type:
         type: string
     type: object
+  internal_modules_admin.TestProviderRequest:
+    properties:
+      environment:
+        type: string
+      provider_name:
+        type: string
+      provider_type:
+        type: string
+    type: object
+  internal_modules_admin.TestProviderResponse:
+    properties:
+      latency_ms:
+        type: integer
+      message:
+        type: string
+      ok:
+        type: boolean
+    type: object
   internal_modules_admin.configureProviderRequest:
     properties:
       environment:
@@ -701,6 +719,44 @@ paths:
       security:
       - bearerAuth: []
       summary: Sync AI models
+      tags:
+      - Admin - Providers
+  /admin/providers/test:
+    post:
+      consumes:
+      - application/json
+      description: Sends a minimal, provider-specific probe (1-token LLM chat, /me,
+        OAuth refresh, etc) to verify the stored credentials work. Safe to call repeatedly;
+        no state change.
+      parameters:
+      - description: Which provider to test
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_admin.TestProviderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_modules_admin.TestProviderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Test a platform provider
       tags:
       - Admin - Providers
   /admin/tenants:

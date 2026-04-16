@@ -72,6 +72,7 @@ type AdminProviderHandlers struct {
 	GetSettings http.HandlerFunc
 	Resolve     http.HandlerFunc
 	SyncModels  http.HandlerFunc
+	Test        http.HandlerFunc
 	Deactivate  http.HandlerFunc
 }
 
@@ -358,6 +359,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 					// X-API-Key (same middleware).
 					r.Get("/resolve", deps.AdminProviderHandlers.Resolve)
 					r.Post("/sync-models", deps.AdminProviderHandlers.SyncModels)
+					r.Post("/test", deps.AdminProviderHandlers.Test)
 					r.Delete("/{id}", deps.AdminProviderHandlers.Deactivate)
 				})
 

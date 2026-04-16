@@ -128,6 +128,12 @@ func fetchModels(ctx context.Context, providerName, apiKey, baseURL string) ([]M
 		req.Header.Set("x-api-key", apiKey)
 		req.Header.Set("anthropic-version", "2023-06-01")
 		return doAnthropic(client, req)
+	case "ollama":
+		if baseURL == "" {
+			baseURL = "http://ollama.shared-infra.svc.cluster.local:11434"
+		}
+		req, _ := http.NewRequestWithContext(ctx, "GET", baseURL+"/api/tags", nil)
+		return doOllama(client, req)
 	default:
 		return nil, fmt.Errorf("sync-models not supported for provider %q", providerName)
 	}
@@ -150,6 +156,31 @@ func doOpenAICompat(c *http.Client, req *http.Request) ([]ModelEntry, error) {
 		return nil, fmt.Errorf("parse: %w", err)
 	}
 	return parsed.Data, nil
+}
+
+func doOllama(c *http.Client, req *http.Request) ([]ModelEntry, error) {
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("ollama %d: %s", resp.StatusCode, truncate(string(body), 200))
+	}
+	var parsed struct {
+		Models []struct {
+			Name string `json:"name"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return nil, fmt.Errorf("parse: %w", err)
+	}
+	out := make([]ModelEntry, len(parsed.Models))
+	for i, m := range parsed.Models {
+		out[i] = ModelEntry{ID: m.Name, Object: "model", OwnedBy: "ollama"}
+	}
+	return out, nil
 }
 
 func doAnthropic(c *http.Client, req *http.Request) ([]ModelEntry, error) {
