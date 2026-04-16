@@ -15,6 +15,7 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
+	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
 	"github.com/bengobox/marketflow-api/internal/ent/rolepermission"
@@ -111,6 +112,12 @@ func main() {
 
 	log.Printf("KB: %d products, %d FAQ, %d business, %d compliance entries",
 		productsSeeded, faqSeeded, bizSeeded, complianceSeeded)
+
+	// Phase 3: Default nurture sequence templates (platform scope only).
+	// Every tenant auto-enrols leads into these on lead.created; tenants can
+	// clone them into tenant scope later when they want customisation.
+	sequencesSeeded := seedNurtureSequences(ctx, client, tid, scope)
+	log.Printf("Nurture: %d sequence templates seeded", sequencesSeeded)
 }
 
 func seedProducts(ctx context.Context, client *ent.Client, tenantID uuid.UUID, scope string) int {
@@ -615,6 +622,173 @@ func seedRolePermissionMappings(ctx context.Context, client *ent.Client, tenantI
 	}
 	if count > 0 {
 		log.Printf("  seeded %d role-permission mappings", count)
+	}
+	return count
+}
+
+// ── Default nurture sequence templates ───────────────────────────────────
+// Five canonical FBO flows derived from docs/use-cases/fbo-workflows.md.
+// Seeded with scope='platform' so every tenant auto-enrols leads into them
+// via worker.LeadCreatedHandler without any per-tenant configuration.
+// Idempotent — dedupe on (scope='platform', name).
+
+type seqStep struct {
+	DelayHours int    `json:"delay_hours"`
+	Channel    string `json:"channel"` // email | whatsapp | sms
+	Template   string `json:"template,omitempty"`
+	Subject    string `json:"subject,omitempty"`
+	Body       string `json:"body,omitempty"`
+	Branch     string `json:"branch,omitempty"` // optional next-sequence slug
+}
+
+type seqDef struct {
+	Name         string
+	TriggerEvent string
+	LeadTypeFilter string
+	Description  string
+	Steps        []seqStep
+}
+
+func defaultSequences() []seqDef {
+	return []seqDef{
+		{
+			Name:         "Welcome",
+			TriggerEvent: "lead.created",
+			Description:  "Convert new leads into first-order customers within 10 days.",
+			Steps: []seqStep{
+				{DelayHours: 0, Channel: "whatsapp",
+					Body: "Hi {{first_name}}, I'm {{fbo_name}} — thanks for reaching out about Forever products! Happy to answer any questions."},
+				{DelayHours: 24, Channel: "email",
+					Subject: "5 aloe vera tips to get you started",
+					Body:    "Welcome to the Forever family! Here are five starter tips for getting the most out of our aloe range."},
+				{DelayHours: 72, Channel: "email",
+					Subject: "Meet Clean 9 — our 9-day cleanse programme",
+					Body:    "If you'd like to start with a focused wellness reset, C9 is the best-selling intro kit. Want me to send you the details?",
+					Branch:  "C9 Offer"},
+				{DelayHours: 168, Channel: "whatsapp",
+					Body: "Any questions so far, {{first_name}}? I can jump on a 15-min call whenever works for you."},
+			},
+		},
+		{
+			Name:         "C9 Offer",
+			TriggerEvent: "lead.qualified",
+			Description:  "Enrol lead in the 9-day Clean 9 educational drip + final purchase CTA on day 10.",
+			Steps: []seqStep{
+				{DelayHours: 0, Channel: "email",
+					Subject: "What to expect from your 9 days",
+					Body:    "C9 is a 9-day programme combining supplements, aloe gel and a meal plan. Here's your day-by-day schedule."},
+				{DelayHours: 48, Channel: "whatsapp",
+					Body: "Day-2 check-in — how are you feeling? A lot of people notice better energy around day 3."},
+				{DelayHours: 120, Channel: "email",
+					Subject: "Your most common C9 questions answered",
+					Body:    "Hunger, timings, recipes — the FAQ from 20,000+ Forever customers."},
+				{DelayHours: 192, Channel: "whatsapp",
+					Body: "Open spots for the next C9 start date. Want me to reserve yours?"},
+				{DelayHours: 240, Channel: "email",
+					Subject: "Ready to start C9? Here's your link.",
+					Body:    "Tap the button below to purchase with my distributor ID already applied."},
+			},
+		},
+		{
+			Name:         "Reorder",
+			TriggerEvent: "order.placed",
+			LeadTypeFilter: "customer",
+			Description:  "Lift reorder rate from ~18% to 35% by nudging consumables at day 25/28/35.",
+			Steps: []seqStep{
+				{DelayHours: 25 * 24, Channel: "whatsapp",
+					Body: "Hey {{first_name}}, your aloe gel bottle should be running low — want me to drop a reorder link?"},
+				{DelayHours: 28 * 24, Channel: "email",
+					Subject: "Your basket is ready to go",
+					Body:    "We've pre-filled a basket with your last order plus one complementary product. Ready when you are."},
+				{DelayHours: 35 * 24, Channel: "whatsapp",
+					Body: "Final nudge — happy to schedule a 15-min wellness check-in if you'd like."},
+			},
+		},
+		{
+			Name:         "Recruitment",
+			TriggerEvent: "lead.qualified",
+			LeadTypeFilter: "recruit",
+			Description:  "Move curious leads toward an Opportunity Call + FBO signup.",
+			Steps: []seqStep{
+				{DelayHours: 0, Channel: "whatsapp",
+					Body: "Hi {{first_name}} — happy you're curious about the business. Here's a short PDF that covers how it works."},
+				{DelayHours: 24, Channel: "email",
+					Subject: "3 common myths about building an FLP business",
+					Body:    "Plus an income disclaimer and the honest numbers. Results vary — I'll share what I actually see from my team."},
+				{DelayHours: 72, Channel: "whatsapp",
+					Body: "Want to join this week's Opportunity Call? 30 min, zero pressure."},
+				{DelayHours: 168, Channel: "email",
+					Subject: "The rank ladder, explained",
+					Body:    "From Assistant Supervisor to Eagle Manager — the steps and the Forever2Drive incentive. Results vary; no income is guaranteed."},
+				{DelayHours: 336, Channel: "whatsapp",
+					Body: "Soft follow-up — any questions I can answer?"},
+			},
+		},
+		{
+			Name:         "Re-engagement",
+			TriggerEvent: "contact.dormant",
+			Description:  "Reactivate 5-10% of 60-day dormant leads; clean the rest.",
+			Steps: []seqStep{
+				{DelayHours: 0, Channel: "email",
+					Subject: "We miss you",
+					Body:    "Here's what's new at Forever this quarter — products launched since we last spoke."},
+				{DelayHours: 72, Channel: "whatsapp",
+					Body: "Special starter offer — free product with your next purchase."},
+				{DelayHours: 240, Channel: "email",
+					Subject: "Should we keep sending?",
+					Body:    "Update your preferences or unsubscribe in one click. We'll respect whichever you choose."},
+			},
+		},
+	}
+}
+
+func seedNurtureSequences(ctx context.Context, client *ent.Client, tenantID uuid.UUID, scope string) int {
+	// Platform templates only — tenant-scoped sequences should be created
+	// from the /sequences UI, not the seed.
+	if scope != "platform" {
+		return 0
+	}
+	count := 0
+	for _, s := range defaultSequences() {
+		exists, _ := client.NurtureSequence.Query().
+			Where(
+				nurturesequence.ScopeEQ("platform"),
+				nurturesequence.NameEQ(s.Name),
+			).Exist(ctx)
+		if exists {
+			continue
+		}
+		steps := make([]map[string]any, 0, len(s.Steps))
+		for _, st := range s.Steps {
+			steps = append(steps, map[string]any{
+				"delay_hours": st.DelayHours,
+				"channel":     st.Channel,
+				"template":    st.Template,
+				"subject":     st.Subject,
+				"body":        st.Body,
+				"branch":      st.Branch,
+			})
+		}
+		builder := client.NurtureSequence.Create().
+			SetTenantID(tenantID).
+			SetScope("platform").
+			SetName(s.Name).
+			SetTriggerEvent(s.TriggerEvent).
+			SetSteps(steps).
+			SetActive(true).
+			SetMetadata(map[string]any{
+				"description":       s.Description,
+				"platform_template": true,
+			})
+		if s.LeadTypeFilter != "" {
+			builder.SetLeadTypeFilter(s.LeadTypeFilter)
+		}
+		if _, err := builder.Save(ctx); err != nil {
+			log.Printf("  failed to seed sequence %q: %v", s.Name, err)
+			continue
+		}
+		count++
+		log.Printf("  seeded sequence: %s (%d steps)", s.Name, len(s.Steps))
 	}
 	return count
 }
