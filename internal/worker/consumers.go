@@ -47,7 +47,7 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, logger *zap.Logger)
 		handlers: []Handler{
 			&NurtureStepHandler{cfg: cfg, db: db, notif: notif, logger: logger.Named("nurture")},
 			&EmbeddingHandler{cfg: cfg, db: db, rawDB: rawDB, logger: logger.Named("embedding")},
-			&ChatCompletedHandler{logger: logger.Named("audit")},
+			&ChatCompletedHandler{db: db, logger: logger.Named("audit")},
 			&LeadCreatedHandler{cfg: cfg, db: db, logger: logger.Named("lead")},
 		},
 	}
@@ -322,8 +322,11 @@ func (h *EmbeddingHandler) Handle(ctx context.Context, msg jetstream.Msg) error 
 	return nil
 }
 
-// ChatCompletedHandler logs completed chat sessions for audit / usage metrics.
+// ChatCompletedHandler writes an AuditLog row for every completed chat turn so
+// tenants get a compliance trail + platform gets usage visibility. Payload is
+// kept in full for forensics; the UI truncates for display.
 type ChatCompletedHandler struct {
+	db     *ent.Client
 	logger *zap.Logger
 }
 
@@ -331,7 +334,54 @@ func (h *ChatCompletedHandler) Subject() string { return "chat.completed" }
 func (h *ChatCompletedHandler) Durable() string { return "marketflow-worker-audit" }
 
 func (h *ChatCompletedHandler) Handle(ctx context.Context, msg jetstream.Msg) error {
-	h.logger.Info("chat.completed", zap.ByteString("payload", msg.Data()))
+	var ev struct {
+		TenantID   string         `json:"tenant_id"`
+		SessionID  string         `json:"session_id"`
+		LeadID     string         `json:"lead_id,omitempty"`
+		Intent     string         `json:"intent,omitempty"`
+		Model      string         `json:"model,omitempty"`
+		Tokens     int            `json:"tokens,omitempty"`
+		Question   string         `json:"question,omitempty"`
+		ActorEmail string         `json:"actor_email,omitempty"`
+		Raw        map[string]any `json:"raw,omitempty"`
+	}
+	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
+		h.logger.Warn("chat.completed decode", zap.Error(err))
+	}
+	if h.db == nil {
+		// DB optional for local runs; log only.
+		h.logger.Info("chat.completed (no db)", zap.ByteString("payload", msg.Data()))
+		return nil
+	}
+	payload := map[string]any{
+		"session_id": ev.SessionID,
+		"lead_id":    ev.LeadID,
+		"intent":     ev.Intent,
+		"model":      ev.Model,
+		"tokens":     ev.Tokens,
+	}
+	if ev.Question != "" {
+		payload["question_preview"] = ev.Question
+	}
+	if ev.Raw != nil {
+		payload["raw"] = ev.Raw
+	}
+	b := h.db.AuditLog.Create().
+		SetScope("tenant").
+		SetEvent("chat.completed").
+		SetPayload(payload)
+	if tID, err := uuid.Parse(ev.TenantID); err == nil {
+		b.SetTenantID(tID)
+	}
+	if ev.ActorEmail != "" {
+		b.SetActor(ev.ActorEmail)
+	}
+	if sID, err := uuid.Parse(ev.SessionID); err == nil {
+		b.SetSubjectType("chat_session").SetSubjectID(sID)
+	}
+	if _, err := b.Save(ctx); err != nil {
+		return fmt.Errorf("audit insert: %w", err)
+	}
 	return nil
 }
 

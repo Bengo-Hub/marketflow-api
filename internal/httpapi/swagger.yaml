@@ -493,6 +493,30 @@ info:
   title: MarketFlow API
   version: 1.0.0
 paths:
+  /admin/audit:
+    get:
+      parameters:
+      - description: Filter by event name
+        in: query
+        name: event
+        type: string
+      - description: Max rows (default 50)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List platform audit events
+      tags:
+      - Admin - Audit
   /admin/providers:
     get:
       produces:
@@ -631,6 +655,50 @@ paths:
       summary: Get platform provider settings
       tags:
       - Admin - Providers
+  /admin/usage:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Platform-wide usage rollup
+      tags:
+      - Admin - Analytics
+  /analytics/audit:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Filter by event name
+        in: query
+        name: event
+        type: string
+      - description: Max rows (default 50)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List tenant audit events
+      tags:
+      - Analytics - Audit
   /analytics/dashboard:
     get:
       description: Counts + week-over-week deltas for leads, contacts, chat sessions,

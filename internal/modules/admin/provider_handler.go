@@ -3,6 +3,7 @@ package admin
 import (
 	"net/http"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
@@ -144,6 +145,34 @@ func (h *PlatformProviderHandler) ConfigureProvider(w http.ResponseWriter, r *ht
 		}
 		created++
 	}
+
+	// Audit trail — platform-scope, always written, masks secret values by name.
+	auditKeys := make([]string, 0, len(req.Settings))
+	for k := range req.Settings {
+		auditKeys = append(auditKeys, k)
+	}
+	actor := "system"
+	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok && claims != nil {
+		if claims.Email != "" {
+			actor = claims.Email
+		} else if claims.Subject != "" {
+			actor = claims.Subject
+		}
+	}
+	_, _ = h.client.AuditLog.Create().
+		SetScope("platform").
+		SetEvent("admin.provider_updated").
+		SetActor(actor).
+		SetSubjectType("provider_setting").
+		SetPayload(map[string]any{
+			"provider_type": req.ProviderType,
+			"provider_name": req.ProviderName,
+			"environment":   req.Environment,
+			"keys":          auditKeys,
+			"secret_keys":   req.SecretKeys,
+			"settings_count": created,
+		}).
+		Save(r.Context())
 
 	httpapi.JSON(w, http.StatusOK, map[string]any{
 		"status":        "configured",

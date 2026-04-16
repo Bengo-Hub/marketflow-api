@@ -8,6 +8,42 @@ import (
 )
 
 var (
+	// AuditLogsColumns holds the columns for the "audit_logs" table.
+	AuditLogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "scope", Type: field.TypeString, Default: "tenant"},
+		{Name: "event", Type: field.TypeString},
+		{Name: "actor", Type: field.TypeString, Nullable: true},
+		{Name: "subject_type", Type: field.TypeString, Nullable: true},
+		{Name: "subject_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "payload", Type: field.TypeJSON, Nullable: true},
+		{Name: "occurred_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// AuditLogsTable holds the schema information for the "audit_logs" table.
+	AuditLogsTable = &schema.Table{
+		Name:       "audit_logs",
+		Columns:    AuditLogsColumns,
+		PrimaryKey: []*schema.Column{AuditLogsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "auditlog_tenant_id_event",
+				Unique:  false,
+				Columns: []*schema.Column{AuditLogsColumns[1], AuditLogsColumns[3]},
+			},
+			{
+				Name:    "auditlog_scope_event",
+				Unique:  false,
+				Columns: []*schema.Column{AuditLogsColumns[2], AuditLogsColumns[3]},
+			},
+			{
+				Name:    "auditlog_occurred_at",
+				Unique:  false,
+				Columns: []*schema.Column{AuditLogsColumns[8]},
+			},
+		},
+	}
 	// CampaignsColumns holds the columns for the "campaigns" table.
 	CampaignsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -953,6 +989,7 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AuditLogsTable,
 		CampaignsTable,
 		ChatSessionsTable,
 		ContactsTable,

@@ -5,6 +5,7 @@ package ent
 import (
 	"time"
 
+	"github.com/bengobox/marketflow-api/internal/ent/auditlog"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
@@ -31,6 +32,28 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	auditlogFields := schema.AuditLog{}.Fields()
+	_ = auditlogFields
+	// auditlogDescScope is the schema descriptor for scope field.
+	auditlogDescScope := auditlogFields[2].Descriptor()
+	// auditlog.DefaultScope holds the default value on creation for the scope field.
+	auditlog.DefaultScope = auditlogDescScope.Default.(string)
+	// auditlogDescEvent is the schema descriptor for event field.
+	auditlogDescEvent := auditlogFields[3].Descriptor()
+	// auditlog.EventValidator is a validator for the "event" field. It is called by the builders before save.
+	auditlog.EventValidator = auditlogDescEvent.Validators[0].(func(string) error)
+	// auditlogDescOccurredAt is the schema descriptor for occurred_at field.
+	auditlogDescOccurredAt := auditlogFields[8].Descriptor()
+	// auditlog.DefaultOccurredAt holds the default value on creation for the occurred_at field.
+	auditlog.DefaultOccurredAt = auditlogDescOccurredAt.Default.(func() time.Time)
+	// auditlogDescCreatedAt is the schema descriptor for created_at field.
+	auditlogDescCreatedAt := auditlogFields[9].Descriptor()
+	// auditlog.DefaultCreatedAt holds the default value on creation for the created_at field.
+	auditlog.DefaultCreatedAt = auditlogDescCreatedAt.Default.(func() time.Time)
+	// auditlogDescID is the schema descriptor for id field.
+	auditlogDescID := auditlogFields[0].Descriptor()
+	// auditlog.DefaultID holds the default value on creation for the id field.
+	auditlog.DefaultID = auditlogDescID.Default.(func() uuid.UUID)
 	campaignFields := schema.Campaign{}.Fields()
 	_ = campaignFields
 	// campaignDescName is the schema descriptor for name field.

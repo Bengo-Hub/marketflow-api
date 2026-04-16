@@ -17,6 +17,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/httpapi/handlers"
 	"github.com/bengobox/marketflow-api/internal/modules/admin"
 	"github.com/bengobox/marketflow-api/internal/modules/analytics"
+	"github.com/bengobox/marketflow-api/internal/modules/audit"
 	"github.com/bengobox/marketflow-api/internal/modules/campaigns"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
@@ -167,6 +168,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	meetingHandler := meetings.NewHandler(meetingService, logger)
 
 	analyticsHandler := analytics.NewHandler(entClient, logger)
+	auditHandler := audit.NewHandler(entClient, logger)
 
 	// Integrations OAuth flow handler. Uses the encryption key as the HMAC
 	// key for signing `state`; no separate secret needed.
@@ -261,7 +263,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Redirect: shortLinkHandler.Redirect,
 		},
 		AnalyticsHandlers: httpapi.AnalyticsHandlers{
-			Dashboard: analyticsHandler.Dashboard,
+			Dashboard:     analyticsHandler.Dashboard,
+			TenantAudit:   auditHandler.ListTenant,
+			PlatformUsage: analyticsHandler.PlatformUsage,
+			PlatformAudit: auditHandler.ListPlatform,
 		},
 		IntegrationsHandlers: httpapi.IntegrationsHandlers{
 			GoogleAuthorize:  integrationsHandler.GoogleAuthorize,

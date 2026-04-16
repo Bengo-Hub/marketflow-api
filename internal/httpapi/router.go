@@ -138,7 +138,10 @@ type MeetingHandlers struct {
 
 // AnalyticsHandlers groups dashboard/aggregate HTTP handlers.
 type AnalyticsHandlers struct {
-	Dashboard http.HandlerFunc
+	Dashboard      http.HandlerFunc
+	TenantAudit    http.HandlerFunc
+	PlatformUsage  http.HandlerFunc
+	PlatformAudit  http.HandlerFunc
 }
 
 // IntegrationsHandlers groups OAuth authorize + callback endpoints
@@ -309,6 +312,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 			// Dashboard aggregates for the tenant dashboard UI.
 			r.Route("/analytics", func(r chi.Router) {
 				r.Get("/dashboard", deps.AnalyticsHandlers.Dashboard)
+				r.Get("/audit", deps.AnalyticsHandlers.TenantAudit)
 			})
 
 			// Per-tenant integration OAuth flows. authorize returns the
@@ -346,6 +350,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Get("/resolve", deps.AdminProviderHandlers.Resolve)
 					r.Delete("/{id}", deps.AdminProviderHandlers.Deactivate)
 				})
+
+				// Platform usage aggregate + audit trail (platform-owner only).
+				r.Get("/usage", deps.AnalyticsHandlers.PlatformUsage)
+				r.Get("/audit", deps.AnalyticsHandlers.PlatformAudit)
 			})
 		})
 

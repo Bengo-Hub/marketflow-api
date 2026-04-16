@@ -1,7 +1,8 @@
-h1:IOlByAs0xVJvKCAxV8VkKgN5nW9LS0gyt8AFfqA/O3E=
+h1:LF/BgLzV7VqLpMmD9jMbzebp+aAmp03TvuKFz1hdICk=
 20260409124338_initial_schema.sql h1:iNv9wYlWyj89NJ9fwXRtTK7/piL1QJoDgZ8I/Jez73Y=
 20260409172839_add_short_links.sql h1:5iB2/aEIkLcG9hJLXz6Q8LKgSy3XgdFs/FDeSEX9x+4=
 20260409183000_add_kb_embeddings.sql h1:j/jjGpiINXbc0CDLNDsb5R71JnmluZcewD0NdGFEZ5Q=
 20260411052306_add_rbac_tables.sql h1:4KLp2g0nTMt5BZzF9HAG95dgGYoZsf7nEGqFLyFDKTA=
 20260414192847_add_nurture_enrollment.sql h1:p2rq+h1uhjwHg3iYQqf688bRksSyyuIKfOxBgajXTqk=
-20260415063317_add_gcal_fields_to_meetings.sql h1:Fkhpryo19GM6OpfxTachylUA01rYNHXguSwXmIUMM8U=
+20260415063317_add_gcal_fields_to_meetings.sql h1:fN+qErnVF4Cn+SBn6eCJ4jH9ydPRFmbZW/r7FB/sRZY=
+20260416100409_add_audit_log.sql h1:OD64jj0Oy4AsLfkCaS0H/1UsLGALmX0fPUBgj1Hi//o=
