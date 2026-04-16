@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
@@ -118,6 +119,12 @@ func main() {
 	// clone them into tenant scope later when they want customisation.
 	sequencesSeeded := seedNurtureSequences(ctx, client, tid, scope)
 	log.Printf("Nurture: %d sequence templates seeded", sequencesSeeded)
+
+	// Phase 4: Default campaign templates — starter lead-gen / recruitment /
+	// retargeting blueprints tenants can clone and populate with their own
+	// ad-account IDs + creative.
+	campaignsSeeded := seedCampaignTemplates(ctx, client, tid, scope)
+	log.Printf("Campaigns: %d starter templates seeded", campaignsSeeded)
 }
 
 func seedProducts(ctx context.Context, client *ent.Client, tenantID uuid.UUID, scope string) int {
@@ -424,13 +431,22 @@ func roleUUID(tenantID uuid.UUID, roleCode string) uuid.UUID {
 	return uuid.UUID(hash[:16])
 }
 
-// Django-style permission definition: marketflow.{module}.{action}
+// permDef emits canonical permission codes in the `resource:action` format
+// defined in shared-docs/TRINITY-AUTHORIZATION-PATTERN.md and
+// shared-docs/sso-integration-guide.md. Auth-service mints these same codes
+// into the JWT `permissions` claim so every downstream service (marketflow,
+// notifications, treasury, inventory, …) checks the same strings via
+// `authclient.RequirePermission("leads:manage")` etc.
+//
+// Format: `<resource>:<action>` — e.g. `leads:manage`, `campaigns:view_own`.
+// Platform-wide resources live in marketflow's permission table for RBAC
+// role-composition UIs; the canonical codes flow through unchanged.
 type permDef struct {
-	code   string // marketflow.leads.add
+	code   string // leads:manage
 	module string // leads
-	action string // add
-	name   string // Add Leads
-	desc   string // Create new leads
+	action string // manage
+	name   string // Manage Leads
+	desc   string // Full management of leads
 }
 
 // All marketflow modules and actions
@@ -469,7 +485,9 @@ func init() {
 
 	for _, m := range modules {
 		for _, a := range actions {
-			code := "marketflow." + m.name + "." + a.code
+			// Canonical `resource:action` — matches the auth-service JWT
+			// `permissions` claim format (shared-docs/TRINITY-AUTHORIZATION-PATTERN.md).
+			code := m.name + ":" + a.code
 			allPermDefs = append(allPermDefs, permDef{
 				code:   code,
 				module: m.name,
@@ -740,6 +758,153 @@ func defaultSequences() []seqDef {
 			},
 		},
 	}
+}
+
+// ── Default campaign templates ───────────────────────────────────────────
+// Starter campaigns per advertising platform. Scope='platform' means every
+// tenant sees them in /{orgSlug}/campaigns as clonable blueprints. The
+// listing endpoint already merges platform + tenant rows; tenants customise
+// by cloning into scope='tenant'.
+
+type campaignTemplate struct {
+	Name         string
+	Type         string // lead_gen | retargeting | recruitment | re_engagement
+	Platform     string // meta | tiktok | google | linkedin | organic
+	BudgetDaily  float64
+	Currency     string
+	AudienceMeta map[string]any
+	Description  string
+}
+
+func defaultCampaignTemplates() []campaignTemplate {
+	return []campaignTemplate{
+		{
+			Name:        "Meta Lead Ads — Starter",
+			Type:        "lead_gen",
+			Platform:    "meta",
+			BudgetDaily: 10.0,
+			Currency:    "USD",
+			Description: "Facebook + Instagram lead-ads baseline. Clone, link a Page, attach a funnel, and go live.",
+			AudienceMeta: map[string]any{
+				"age_min": 25, "age_max": 55,
+				"interests": []string{"wellness", "aloe vera", "direct sales"},
+				"gender":    "all",
+				"locations": []string{"KE", "UG", "TZ"},
+			},
+		},
+		{
+			Name:        "Meta Retargeting — Website visitors (30d)",
+			Type:        "retargeting",
+			Platform:    "meta",
+			BudgetDaily: 5.0,
+			Currency:    "USD",
+			Description: "Re-engage recent website or funnel visitors with the C9 offer.",
+			AudienceMeta: map[string]any{
+				"custom_audience": "website_visitors_30d",
+				"exclude":         "purchased_last_60d",
+			},
+		},
+		{
+			Name:        "TikTok — Gen-Z wellness awareness",
+			Type:        "lead_gen",
+			Platform:    "tiktok",
+			BudgetDaily: 15.0,
+			Currency:    "USD",
+			Description: "TikTok For Business prospecting — short-form video creative, autofill lead form.",
+			AudienceMeta: map[string]any{
+				"age_min":   18,
+				"age_max":   34,
+				"interests": []string{"fitness", "beauty", "side hustle"},
+			},
+		},
+		{
+			Name:        "Google Ads — Search (brand + category)",
+			Type:        "lead_gen",
+			Platform:    "google",
+			BudgetDaily: 20.0,
+			Currency:    "USD",
+			Description: "Search campaign capturing intent on 'forever living', 'aloe vera gel', 'C9 cleanse'.",
+			AudienceMeta: map[string]any{
+				"keywords":       []string{"forever living kenya", "aloe vera gel", "clean 9 cleanse"},
+				"match_type":     "phrase",
+				"conversion_key": "lead_submit",
+			},
+		},
+		{
+			Name:        "Google Ads — Performance Max (retargeting)",
+			Type:        "retargeting",
+			Platform:    "google",
+			BudgetDaily: 10.0,
+			Currency:    "USD",
+			Description: "PMax with customer-list + website audiences; leverages Google Ads Conversion Upload for closed-loop attribution.",
+			AudienceMeta: map[string]any{
+				"audience_types": []string{"customer_match", "website_visitors"},
+			},
+		},
+		{
+			Name:        "FBO Recruitment — LinkedIn sponsored",
+			Type:        "recruitment",
+			Platform:    "linkedin",
+			BudgetDaily: 15.0,
+			Currency:    "USD",
+			Description: "Target network-marketing-curious professionals — 1:1 Opportunity Call CTA.",
+			AudienceMeta: map[string]any{
+				"job_titles": []string{"Sales Representative", "Entrepreneur", "Wellness Coach"},
+				"seniority":  []string{"entry", "mid"},
+			},
+		},
+		{
+			Name:        "Organic — Re-engagement blast",
+			Type:        "re_engagement",
+			Platform:    "organic",
+			BudgetDaily: 0,
+			Currency:    "USD",
+			Description: "Non-paid baseline: WhatsApp + email re-engagement for dormant leads (pairs with the daily dormancy cron).",
+			AudienceMeta: map[string]any{
+				"segment": "dormant_60d",
+			},
+		},
+	}
+}
+
+func seedCampaignTemplates(ctx context.Context, client *ent.Client, tenantID uuid.UUID, scope string) int {
+	if scope != "platform" {
+		return 0
+	}
+	count := 0
+	for _, t := range defaultCampaignTemplates() {
+		exists, _ := client.Campaign.Query().
+			Where(campaign.ScopeEQ("platform"), campaign.NameEQ(t.Name)).
+			Exist(ctx)
+		if exists {
+			continue
+		}
+		b := client.Campaign.Create().
+			SetTenantID(tenantID).
+			SetScope("platform").
+			SetName(t.Name).
+			SetCampaignType(t.Type).
+			SetPlatform(t.Platform).
+			SetStatus("draft").
+			SetCurrency(t.Currency).
+			SetMetadata(map[string]any{
+				"description":       t.Description,
+				"platform_template": true,
+			})
+		if t.BudgetDaily > 0 {
+			b.SetBudgetDaily(t.BudgetDaily)
+		}
+		if t.AudienceMeta != nil {
+			b.SetTargetAudience(t.AudienceMeta)
+		}
+		if _, err := b.Save(ctx); err != nil {
+			log.Printf("  failed to seed campaign template %q: %v", t.Name, err)
+			continue
+		}
+		count++
+		log.Printf("  seeded campaign template: %s (%s)", t.Name, t.Platform)
+	}
+	return count
 }
 
 func seedNurtureSequences(ctx context.Context, client *ent.Client, tenantID uuid.UUID, scope string) int {

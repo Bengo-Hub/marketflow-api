@@ -49,6 +49,7 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, logger *zap.Logger)
 			&EmbeddingHandler{cfg: cfg, db: db, rawDB: rawDB, logger: logger.Named("embedding")},
 			&ChatCompletedHandler{db: db, logger: logger.Named("audit")},
 			&LeadCreatedHandler{cfg: cfg, db: db, logger: logger.Named("lead")},
+			&ConversionsHandler{cfg: cfg, db: db, logger: logger.Named("conversions")},
 		},
 	}
 }
