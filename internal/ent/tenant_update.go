@@ -11,16 +11,20 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/marketflow-api/internal/ent/admetrics"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/ent/nurturedeliveryevent"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/predicate"
+	"github.com/bengobox/marketflow-api/internal/ent/profileevent"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
+	"github.com/bengobox/marketflow-api/internal/ent/testimonial"
 	"github.com/google/uuid"
 )
 
@@ -472,6 +476,66 @@ func (_u *TenantUpdate) AddNurtureEnrollments(v ...*NurtureEnrollment) *TenantUp
 	return _u.AddNurtureEnrollmentIDs(ids...)
 }
 
+// AddTestimonialIDs adds the "testimonials" edge to the Testimonial entity by IDs.
+func (_u *TenantUpdate) AddTestimonialIDs(ids ...uuid.UUID) *TenantUpdate {
+	_u.mutation.AddTestimonialIDs(ids...)
+	return _u
+}
+
+// AddTestimonials adds the "testimonials" edges to the Testimonial entity.
+func (_u *TenantUpdate) AddTestimonials(v ...*Testimonial) *TenantUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTestimonialIDs(ids...)
+}
+
+// AddProfileEventIDs adds the "profile_events" edge to the ProfileEvent entity by IDs.
+func (_u *TenantUpdate) AddProfileEventIDs(ids ...uuid.UUID) *TenantUpdate {
+	_u.mutation.AddProfileEventIDs(ids...)
+	return _u
+}
+
+// AddProfileEvents adds the "profile_events" edges to the ProfileEvent entity.
+func (_u *TenantUpdate) AddProfileEvents(v ...*ProfileEvent) *TenantUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddProfileEventIDs(ids...)
+}
+
+// AddNurtureDeliveryEventIDs adds the "nurture_delivery_events" edge to the NurtureDeliveryEvent entity by IDs.
+func (_u *TenantUpdate) AddNurtureDeliveryEventIDs(ids ...uuid.UUID) *TenantUpdate {
+	_u.mutation.AddNurtureDeliveryEventIDs(ids...)
+	return _u
+}
+
+// AddNurtureDeliveryEvents adds the "nurture_delivery_events" edges to the NurtureDeliveryEvent entity.
+func (_u *TenantUpdate) AddNurtureDeliveryEvents(v ...*NurtureDeliveryEvent) *TenantUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddNurtureDeliveryEventIDs(ids...)
+}
+
+// AddAdMetricIDs adds the "ad_metrics" edge to the AdMetrics entity by IDs.
+func (_u *TenantUpdate) AddAdMetricIDs(ids ...uuid.UUID) *TenantUpdate {
+	_u.mutation.AddAdMetricIDs(ids...)
+	return _u
+}
+
+// AddAdMetrics adds the "ad_metrics" edges to the AdMetrics entity.
+func (_u *TenantUpdate) AddAdMetrics(v ...*AdMetrics) *TenantUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAdMetricIDs(ids...)
+}
+
 // Mutation returns the TenantMutation object of the builder.
 func (_u *TenantUpdate) Mutation() *TenantMutation {
 	return _u.mutation
@@ -643,6 +707,90 @@ func (_u *TenantUpdate) RemoveNurtureEnrollments(v ...*NurtureEnrollment) *Tenan
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveNurtureEnrollmentIDs(ids...)
+}
+
+// ClearTestimonials clears all "testimonials" edges to the Testimonial entity.
+func (_u *TenantUpdate) ClearTestimonials() *TenantUpdate {
+	_u.mutation.ClearTestimonials()
+	return _u
+}
+
+// RemoveTestimonialIDs removes the "testimonials" edge to Testimonial entities by IDs.
+func (_u *TenantUpdate) RemoveTestimonialIDs(ids ...uuid.UUID) *TenantUpdate {
+	_u.mutation.RemoveTestimonialIDs(ids...)
+	return _u
+}
+
+// RemoveTestimonials removes "testimonials" edges to Testimonial entities.
+func (_u *TenantUpdate) RemoveTestimonials(v ...*Testimonial) *TenantUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTestimonialIDs(ids...)
+}
+
+// ClearProfileEvents clears all "profile_events" edges to the ProfileEvent entity.
+func (_u *TenantUpdate) ClearProfileEvents() *TenantUpdate {
+	_u.mutation.ClearProfileEvents()
+	return _u
+}
+
+// RemoveProfileEventIDs removes the "profile_events" edge to ProfileEvent entities by IDs.
+func (_u *TenantUpdate) RemoveProfileEventIDs(ids ...uuid.UUID) *TenantUpdate {
+	_u.mutation.RemoveProfileEventIDs(ids...)
+	return _u
+}
+
+// RemoveProfileEvents removes "profile_events" edges to ProfileEvent entities.
+func (_u *TenantUpdate) RemoveProfileEvents(v ...*ProfileEvent) *TenantUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveProfileEventIDs(ids...)
+}
+
+// ClearNurtureDeliveryEvents clears all "nurture_delivery_events" edges to the NurtureDeliveryEvent entity.
+func (_u *TenantUpdate) ClearNurtureDeliveryEvents() *TenantUpdate {
+	_u.mutation.ClearNurtureDeliveryEvents()
+	return _u
+}
+
+// RemoveNurtureDeliveryEventIDs removes the "nurture_delivery_events" edge to NurtureDeliveryEvent entities by IDs.
+func (_u *TenantUpdate) RemoveNurtureDeliveryEventIDs(ids ...uuid.UUID) *TenantUpdate {
+	_u.mutation.RemoveNurtureDeliveryEventIDs(ids...)
+	return _u
+}
+
+// RemoveNurtureDeliveryEvents removes "nurture_delivery_events" edges to NurtureDeliveryEvent entities.
+func (_u *TenantUpdate) RemoveNurtureDeliveryEvents(v ...*NurtureDeliveryEvent) *TenantUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveNurtureDeliveryEventIDs(ids...)
+}
+
+// ClearAdMetrics clears all "ad_metrics" edges to the AdMetrics entity.
+func (_u *TenantUpdate) ClearAdMetrics() *TenantUpdate {
+	_u.mutation.ClearAdMetrics()
+	return _u
+}
+
+// RemoveAdMetricIDs removes the "ad_metrics" edge to AdMetrics entities by IDs.
+func (_u *TenantUpdate) RemoveAdMetricIDs(ids ...uuid.UUID) *TenantUpdate {
+	_u.mutation.RemoveAdMetricIDs(ids...)
+	return _u
+}
+
+// RemoveAdMetrics removes "ad_metrics" edges to AdMetrics entities.
+func (_u *TenantUpdate) RemoveAdMetrics(v ...*AdMetrics) *TenantUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAdMetricIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -1167,6 +1315,186 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.TestimonialsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.TestimonialsTable,
+			Columns: []string{tenant.TestimonialsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(testimonial.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTestimonialsIDs(); len(nodes) > 0 && !_u.mutation.TestimonialsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.TestimonialsTable,
+			Columns: []string{tenant.TestimonialsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(testimonial.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TestimonialsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.TestimonialsTable,
+			Columns: []string{tenant.TestimonialsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(testimonial.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ProfileEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProfileEventsTable,
+			Columns: []string{tenant.ProfileEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(profileevent.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedProfileEventsIDs(); len(nodes) > 0 && !_u.mutation.ProfileEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProfileEventsTable,
+			Columns: []string{tenant.ProfileEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(profileevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProfileEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProfileEventsTable,
+			Columns: []string{tenant.ProfileEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(profileevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.NurtureDeliveryEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NurtureDeliveryEventsTable,
+			Columns: []string{tenant.NurtureDeliveryEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurturedeliveryevent.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedNurtureDeliveryEventsIDs(); len(nodes) > 0 && !_u.mutation.NurtureDeliveryEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NurtureDeliveryEventsTable,
+			Columns: []string{tenant.NurtureDeliveryEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurturedeliveryevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.NurtureDeliveryEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NurtureDeliveryEventsTable,
+			Columns: []string{tenant.NurtureDeliveryEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurturedeliveryevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AdMetricsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.AdMetricsTable,
+			Columns: []string{tenant.AdMetricsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(admetrics.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAdMetricsIDs(); len(nodes) > 0 && !_u.mutation.AdMetricsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.AdMetricsTable,
+			Columns: []string{tenant.AdMetricsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(admetrics.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AdMetricsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.AdMetricsTable,
+			Columns: []string{tenant.AdMetricsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(admetrics.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -1623,6 +1951,66 @@ func (_u *TenantUpdateOne) AddNurtureEnrollments(v ...*NurtureEnrollment) *Tenan
 	return _u.AddNurtureEnrollmentIDs(ids...)
 }
 
+// AddTestimonialIDs adds the "testimonials" edge to the Testimonial entity by IDs.
+func (_u *TenantUpdateOne) AddTestimonialIDs(ids ...uuid.UUID) *TenantUpdateOne {
+	_u.mutation.AddTestimonialIDs(ids...)
+	return _u
+}
+
+// AddTestimonials adds the "testimonials" edges to the Testimonial entity.
+func (_u *TenantUpdateOne) AddTestimonials(v ...*Testimonial) *TenantUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTestimonialIDs(ids...)
+}
+
+// AddProfileEventIDs adds the "profile_events" edge to the ProfileEvent entity by IDs.
+func (_u *TenantUpdateOne) AddProfileEventIDs(ids ...uuid.UUID) *TenantUpdateOne {
+	_u.mutation.AddProfileEventIDs(ids...)
+	return _u
+}
+
+// AddProfileEvents adds the "profile_events" edges to the ProfileEvent entity.
+func (_u *TenantUpdateOne) AddProfileEvents(v ...*ProfileEvent) *TenantUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddProfileEventIDs(ids...)
+}
+
+// AddNurtureDeliveryEventIDs adds the "nurture_delivery_events" edge to the NurtureDeliveryEvent entity by IDs.
+func (_u *TenantUpdateOne) AddNurtureDeliveryEventIDs(ids ...uuid.UUID) *TenantUpdateOne {
+	_u.mutation.AddNurtureDeliveryEventIDs(ids...)
+	return _u
+}
+
+// AddNurtureDeliveryEvents adds the "nurture_delivery_events" edges to the NurtureDeliveryEvent entity.
+func (_u *TenantUpdateOne) AddNurtureDeliveryEvents(v ...*NurtureDeliveryEvent) *TenantUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddNurtureDeliveryEventIDs(ids...)
+}
+
+// AddAdMetricIDs adds the "ad_metrics" edge to the AdMetrics entity by IDs.
+func (_u *TenantUpdateOne) AddAdMetricIDs(ids ...uuid.UUID) *TenantUpdateOne {
+	_u.mutation.AddAdMetricIDs(ids...)
+	return _u
+}
+
+// AddAdMetrics adds the "ad_metrics" edges to the AdMetrics entity.
+func (_u *TenantUpdateOne) AddAdMetrics(v ...*AdMetrics) *TenantUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAdMetricIDs(ids...)
+}
+
 // Mutation returns the TenantMutation object of the builder.
 func (_u *TenantUpdateOne) Mutation() *TenantMutation {
 	return _u.mutation
@@ -1794,6 +2182,90 @@ func (_u *TenantUpdateOne) RemoveNurtureEnrollments(v ...*NurtureEnrollment) *Te
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveNurtureEnrollmentIDs(ids...)
+}
+
+// ClearTestimonials clears all "testimonials" edges to the Testimonial entity.
+func (_u *TenantUpdateOne) ClearTestimonials() *TenantUpdateOne {
+	_u.mutation.ClearTestimonials()
+	return _u
+}
+
+// RemoveTestimonialIDs removes the "testimonials" edge to Testimonial entities by IDs.
+func (_u *TenantUpdateOne) RemoveTestimonialIDs(ids ...uuid.UUID) *TenantUpdateOne {
+	_u.mutation.RemoveTestimonialIDs(ids...)
+	return _u
+}
+
+// RemoveTestimonials removes "testimonials" edges to Testimonial entities.
+func (_u *TenantUpdateOne) RemoveTestimonials(v ...*Testimonial) *TenantUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTestimonialIDs(ids...)
+}
+
+// ClearProfileEvents clears all "profile_events" edges to the ProfileEvent entity.
+func (_u *TenantUpdateOne) ClearProfileEvents() *TenantUpdateOne {
+	_u.mutation.ClearProfileEvents()
+	return _u
+}
+
+// RemoveProfileEventIDs removes the "profile_events" edge to ProfileEvent entities by IDs.
+func (_u *TenantUpdateOne) RemoveProfileEventIDs(ids ...uuid.UUID) *TenantUpdateOne {
+	_u.mutation.RemoveProfileEventIDs(ids...)
+	return _u
+}
+
+// RemoveProfileEvents removes "profile_events" edges to ProfileEvent entities.
+func (_u *TenantUpdateOne) RemoveProfileEvents(v ...*ProfileEvent) *TenantUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveProfileEventIDs(ids...)
+}
+
+// ClearNurtureDeliveryEvents clears all "nurture_delivery_events" edges to the NurtureDeliveryEvent entity.
+func (_u *TenantUpdateOne) ClearNurtureDeliveryEvents() *TenantUpdateOne {
+	_u.mutation.ClearNurtureDeliveryEvents()
+	return _u
+}
+
+// RemoveNurtureDeliveryEventIDs removes the "nurture_delivery_events" edge to NurtureDeliveryEvent entities by IDs.
+func (_u *TenantUpdateOne) RemoveNurtureDeliveryEventIDs(ids ...uuid.UUID) *TenantUpdateOne {
+	_u.mutation.RemoveNurtureDeliveryEventIDs(ids...)
+	return _u
+}
+
+// RemoveNurtureDeliveryEvents removes "nurture_delivery_events" edges to NurtureDeliveryEvent entities.
+func (_u *TenantUpdateOne) RemoveNurtureDeliveryEvents(v ...*NurtureDeliveryEvent) *TenantUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveNurtureDeliveryEventIDs(ids...)
+}
+
+// ClearAdMetrics clears all "ad_metrics" edges to the AdMetrics entity.
+func (_u *TenantUpdateOne) ClearAdMetrics() *TenantUpdateOne {
+	_u.mutation.ClearAdMetrics()
+	return _u
+}
+
+// RemoveAdMetricIDs removes the "ad_metrics" edge to AdMetrics entities by IDs.
+func (_u *TenantUpdateOne) RemoveAdMetricIDs(ids ...uuid.UUID) *TenantUpdateOne {
+	_u.mutation.RemoveAdMetricIDs(ids...)
+	return _u
+}
+
+// RemoveAdMetrics removes "ad_metrics" edges to AdMetrics entities.
+func (_u *TenantUpdateOne) RemoveAdMetrics(v ...*AdMetrics) *TenantUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAdMetricIDs(ids...)
 }
 
 // Where appends a list predicates to the TenantUpdate builder.
@@ -2341,6 +2813,186 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(nurtureenrollment.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.TestimonialsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.TestimonialsTable,
+			Columns: []string{tenant.TestimonialsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(testimonial.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTestimonialsIDs(); len(nodes) > 0 && !_u.mutation.TestimonialsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.TestimonialsTable,
+			Columns: []string{tenant.TestimonialsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(testimonial.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TestimonialsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.TestimonialsTable,
+			Columns: []string{tenant.TestimonialsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(testimonial.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ProfileEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProfileEventsTable,
+			Columns: []string{tenant.ProfileEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(profileevent.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedProfileEventsIDs(); len(nodes) > 0 && !_u.mutation.ProfileEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProfileEventsTable,
+			Columns: []string{tenant.ProfileEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(profileevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProfileEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProfileEventsTable,
+			Columns: []string{tenant.ProfileEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(profileevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.NurtureDeliveryEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NurtureDeliveryEventsTable,
+			Columns: []string{tenant.NurtureDeliveryEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurturedeliveryevent.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedNurtureDeliveryEventsIDs(); len(nodes) > 0 && !_u.mutation.NurtureDeliveryEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NurtureDeliveryEventsTable,
+			Columns: []string{tenant.NurtureDeliveryEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurturedeliveryevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.NurtureDeliveryEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NurtureDeliveryEventsTable,
+			Columns: []string{tenant.NurtureDeliveryEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurturedeliveryevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AdMetricsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.AdMetricsTable,
+			Columns: []string{tenant.AdMetricsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(admetrics.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAdMetricsIDs(); len(nodes) > 0 && !_u.mutation.AdMetricsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.AdMetricsTable,
+			Columns: []string{tenant.AdMetricsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(admetrics.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AdMetricsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.AdMetricsTable,
+			Columns: []string{tenant.AdMetricsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(admetrics.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

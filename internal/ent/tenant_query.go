@@ -12,35 +12,43 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/marketflow-api/internal/ent/admetrics"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/ent/nurturedeliveryevent"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/predicate"
+	"github.com/bengobox/marketflow-api/internal/ent/profileevent"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
+	"github.com/bengobox/marketflow-api/internal/ent/testimonial"
 	"github.com/google/uuid"
 )
 
 // TenantQuery is the builder for querying Tenant entities.
 type TenantQuery struct {
 	config
-	ctx                      *QueryContext
-	order                    []tenant.OrderOption
-	inters                   []Interceptor
-	predicates               []predicate.Tenant
-	withLeads                *LeadQuery
-	withContacts             *ContactQuery
-	withCampaigns            *CampaignQuery
-	withFunnels              *FunnelQuery
-	withKnowledgeBaseEntries *KnowledgeBaseEntryQuery
-	withChatSessions         *ChatSessionQuery
-	withNurtureSequences     *NurtureSequenceQuery
-	withNurtureEnrollments   *NurtureEnrollmentQuery
-	modifiers                []func(*sql.Selector)
+	ctx                       *QueryContext
+	order                     []tenant.OrderOption
+	inters                    []Interceptor
+	predicates                []predicate.Tenant
+	withLeads                 *LeadQuery
+	withContacts              *ContactQuery
+	withCampaigns             *CampaignQuery
+	withFunnels               *FunnelQuery
+	withKnowledgeBaseEntries  *KnowledgeBaseEntryQuery
+	withChatSessions          *ChatSessionQuery
+	withNurtureSequences      *NurtureSequenceQuery
+	withNurtureEnrollments    *NurtureEnrollmentQuery
+	withTestimonials          *TestimonialQuery
+	withProfileEvents         *ProfileEventQuery
+	withNurtureDeliveryEvents *NurtureDeliveryEventQuery
+	withAdMetrics             *AdMetricsQuery
+	modifiers                 []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -253,6 +261,94 @@ func (_q *TenantQuery) QueryNurtureEnrollments() *NurtureEnrollmentQuery {
 	return query
 }
 
+// QueryTestimonials chains the current query on the "testimonials" edge.
+func (_q *TenantQuery) QueryTestimonials() *TestimonialQuery {
+	query := (&TestimonialClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(testimonial.Table, testimonial.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.TestimonialsTable, tenant.TestimonialsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryProfileEvents chains the current query on the "profile_events" edge.
+func (_q *TenantQuery) QueryProfileEvents() *ProfileEventQuery {
+	query := (&ProfileEventClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(profileevent.Table, profileevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.ProfileEventsTable, tenant.ProfileEventsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryNurtureDeliveryEvents chains the current query on the "nurture_delivery_events" edge.
+func (_q *TenantQuery) QueryNurtureDeliveryEvents() *NurtureDeliveryEventQuery {
+	query := (&NurtureDeliveryEventClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(nurturedeliveryevent.Table, nurturedeliveryevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NurtureDeliveryEventsTable, tenant.NurtureDeliveryEventsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryAdMetrics chains the current query on the "ad_metrics" edge.
+func (_q *TenantQuery) QueryAdMetrics() *AdMetricsQuery {
+	query := (&AdMetricsClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(admetrics.Table, admetrics.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.AdMetricsTable, tenant.AdMetricsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // First returns the first Tenant entity from the query.
 // Returns a *NotFoundError when no Tenant was found.
 func (_q *TenantQuery) First(ctx context.Context) (*Tenant, error) {
@@ -440,19 +536,23 @@ func (_q *TenantQuery) Clone() *TenantQuery {
 		return nil
 	}
 	return &TenantQuery{
-		config:                   _q.config,
-		ctx:                      _q.ctx.Clone(),
-		order:                    append([]tenant.OrderOption{}, _q.order...),
-		inters:                   append([]Interceptor{}, _q.inters...),
-		predicates:               append([]predicate.Tenant{}, _q.predicates...),
-		withLeads:                _q.withLeads.Clone(),
-		withContacts:             _q.withContacts.Clone(),
-		withCampaigns:            _q.withCampaigns.Clone(),
-		withFunnels:              _q.withFunnels.Clone(),
-		withKnowledgeBaseEntries: _q.withKnowledgeBaseEntries.Clone(),
-		withChatSessions:         _q.withChatSessions.Clone(),
-		withNurtureSequences:     _q.withNurtureSequences.Clone(),
-		withNurtureEnrollments:   _q.withNurtureEnrollments.Clone(),
+		config:                    _q.config,
+		ctx:                       _q.ctx.Clone(),
+		order:                     append([]tenant.OrderOption{}, _q.order...),
+		inters:                    append([]Interceptor{}, _q.inters...),
+		predicates:                append([]predicate.Tenant{}, _q.predicates...),
+		withLeads:                 _q.withLeads.Clone(),
+		withContacts:              _q.withContacts.Clone(),
+		withCampaigns:             _q.withCampaigns.Clone(),
+		withFunnels:               _q.withFunnels.Clone(),
+		withKnowledgeBaseEntries:  _q.withKnowledgeBaseEntries.Clone(),
+		withChatSessions:          _q.withChatSessions.Clone(),
+		withNurtureSequences:      _q.withNurtureSequences.Clone(),
+		withNurtureEnrollments:    _q.withNurtureEnrollments.Clone(),
+		withTestimonials:          _q.withTestimonials.Clone(),
+		withProfileEvents:         _q.withProfileEvents.Clone(),
+		withNurtureDeliveryEvents: _q.withNurtureDeliveryEvents.Clone(),
+		withAdMetrics:             _q.withAdMetrics.Clone(),
 		// clone intermediate query.
 		sql:       _q.sql.Clone(),
 		path:      _q.path,
@@ -548,6 +648,50 @@ func (_q *TenantQuery) WithNurtureEnrollments(opts ...func(*NurtureEnrollmentQue
 	return _q
 }
 
+// WithTestimonials tells the query-builder to eager-load the nodes that are connected to
+// the "testimonials" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithTestimonials(opts ...func(*TestimonialQuery)) *TenantQuery {
+	query := (&TestimonialClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withTestimonials = query
+	return _q
+}
+
+// WithProfileEvents tells the query-builder to eager-load the nodes that are connected to
+// the "profile_events" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithProfileEvents(opts ...func(*ProfileEventQuery)) *TenantQuery {
+	query := (&ProfileEventClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withProfileEvents = query
+	return _q
+}
+
+// WithNurtureDeliveryEvents tells the query-builder to eager-load the nodes that are connected to
+// the "nurture_delivery_events" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithNurtureDeliveryEvents(opts ...func(*NurtureDeliveryEventQuery)) *TenantQuery {
+	query := (&NurtureDeliveryEventClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withNurtureDeliveryEvents = query
+	return _q
+}
+
+// WithAdMetrics tells the query-builder to eager-load the nodes that are connected to
+// the "ad_metrics" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithAdMetrics(opts ...func(*AdMetricsQuery)) *TenantQuery {
+	query := (&AdMetricsClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withAdMetrics = query
+	return _q
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 //
@@ -626,7 +770,7 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 	var (
 		nodes       = []*Tenant{}
 		_spec       = _q.querySpec()
-		loadedTypes = [8]bool{
+		loadedTypes = [12]bool{
 			_q.withLeads != nil,
 			_q.withContacts != nil,
 			_q.withCampaigns != nil,
@@ -635,6 +779,10 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 			_q.withChatSessions != nil,
 			_q.withNurtureSequences != nil,
 			_q.withNurtureEnrollments != nil,
+			_q.withTestimonials != nil,
+			_q.withProfileEvents != nil,
+			_q.withNurtureDeliveryEvents != nil,
+			_q.withAdMetrics != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -715,6 +863,36 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 			func(n *Tenant, e *NurtureEnrollment) {
 				n.Edges.NurtureEnrollments = append(n.Edges.NurtureEnrollments, e)
 			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withTestimonials; query != nil {
+		if err := _q.loadTestimonials(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.Testimonials = []*Testimonial{} },
+			func(n *Tenant, e *Testimonial) { n.Edges.Testimonials = append(n.Edges.Testimonials, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withProfileEvents; query != nil {
+		if err := _q.loadProfileEvents(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.ProfileEvents = []*ProfileEvent{} },
+			func(n *Tenant, e *ProfileEvent) { n.Edges.ProfileEvents = append(n.Edges.ProfileEvents, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withNurtureDeliveryEvents; query != nil {
+		if err := _q.loadNurtureDeliveryEvents(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.NurtureDeliveryEvents = []*NurtureDeliveryEvent{} },
+			func(n *Tenant, e *NurtureDeliveryEvent) {
+				n.Edges.NurtureDeliveryEvents = append(n.Edges.NurtureDeliveryEvents, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withAdMetrics; query != nil {
+		if err := _q.loadAdMetrics(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.AdMetrics = []*AdMetrics{} },
+			func(n *Tenant, e *AdMetrics) { n.Edges.AdMetrics = append(n.Edges.AdMetrics, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -946,6 +1124,126 @@ func (_q *TenantQuery) loadNurtureEnrollments(ctx context.Context, query *Nurtur
 	}
 	query.Where(predicate.NurtureEnrollment(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(tenant.NurtureEnrollmentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadTestimonials(ctx context.Context, query *TestimonialQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *Testimonial)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(testimonial.FieldTenantID)
+	}
+	query.Where(predicate.Testimonial(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.TestimonialsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadProfileEvents(ctx context.Context, query *ProfileEventQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *ProfileEvent)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(profileevent.FieldTenantID)
+	}
+	query.Where(predicate.ProfileEvent(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.ProfileEventsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadNurtureDeliveryEvents(ctx context.Context, query *NurtureDeliveryEventQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *NurtureDeliveryEvent)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(nurturedeliveryevent.FieldTenantID)
+	}
+	query.Where(predicate.NurtureDeliveryEvent(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.NurtureDeliveryEventsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadAdMetrics(ctx context.Context, query *AdMetricsQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *AdMetrics)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(admetrics.FieldTenantID)
+	}
+	query.Where(predicate.AdMetrics(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.AdMetricsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

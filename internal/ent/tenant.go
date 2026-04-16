@@ -81,9 +81,17 @@ type TenantEdges struct {
 	NurtureSequences []*NurtureSequence `json:"nurture_sequences,omitempty"`
 	// NurtureEnrollments holds the value of the nurture_enrollments edge.
 	NurtureEnrollments []*NurtureEnrollment `json:"nurture_enrollments,omitempty"`
+	// Testimonials holds the value of the testimonials edge.
+	Testimonials []*Testimonial `json:"testimonials,omitempty"`
+	// ProfileEvents holds the value of the profile_events edge.
+	ProfileEvents []*ProfileEvent `json:"profile_events,omitempty"`
+	// NurtureDeliveryEvents holds the value of the nurture_delivery_events edge.
+	NurtureDeliveryEvents []*NurtureDeliveryEvent `json:"nurture_delivery_events,omitempty"`
+	// AdMetrics holds the value of the ad_metrics edge.
+	AdMetrics []*AdMetrics `json:"ad_metrics,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [8]bool
+	loadedTypes [12]bool
 }
 
 // LeadsOrErr returns the Leads value or an error if the edge
@@ -156,6 +164,42 @@ func (e TenantEdges) NurtureEnrollmentsOrErr() ([]*NurtureEnrollment, error) {
 		return e.NurtureEnrollments, nil
 	}
 	return nil, &NotLoadedError{edge: "nurture_enrollments"}
+}
+
+// TestimonialsOrErr returns the Testimonials value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) TestimonialsOrErr() ([]*Testimonial, error) {
+	if e.loadedTypes[8] {
+		return e.Testimonials, nil
+	}
+	return nil, &NotLoadedError{edge: "testimonials"}
+}
+
+// ProfileEventsOrErr returns the ProfileEvents value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) ProfileEventsOrErr() ([]*ProfileEvent, error) {
+	if e.loadedTypes[9] {
+		return e.ProfileEvents, nil
+	}
+	return nil, &NotLoadedError{edge: "profile_events"}
+}
+
+// NurtureDeliveryEventsOrErr returns the NurtureDeliveryEvents value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) NurtureDeliveryEventsOrErr() ([]*NurtureDeliveryEvent, error) {
+	if e.loadedTypes[10] {
+		return e.NurtureDeliveryEvents, nil
+	}
+	return nil, &NotLoadedError{edge: "nurture_delivery_events"}
+}
+
+// AdMetricsOrErr returns the AdMetrics value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) AdMetricsOrErr() ([]*AdMetrics, error) {
+	if e.loadedTypes[11] {
+		return e.AdMetrics, nil
+	}
+	return nil, &NotLoadedError{edge: "ad_metrics"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -371,6 +415,26 @@ func (_m *Tenant) QueryNurtureSequences() *NurtureSequenceQuery {
 // QueryNurtureEnrollments queries the "nurture_enrollments" edge of the Tenant entity.
 func (_m *Tenant) QueryNurtureEnrollments() *NurtureEnrollmentQuery {
 	return NewTenantClient(_m.config).QueryNurtureEnrollments(_m)
+}
+
+// QueryTestimonials queries the "testimonials" edge of the Tenant entity.
+func (_m *Tenant) QueryTestimonials() *TestimonialQuery {
+	return NewTenantClient(_m.config).QueryTestimonials(_m)
+}
+
+// QueryProfileEvents queries the "profile_events" edge of the Tenant entity.
+func (_m *Tenant) QueryProfileEvents() *ProfileEventQuery {
+	return NewTenantClient(_m.config).QueryProfileEvents(_m)
+}
+
+// QueryNurtureDeliveryEvents queries the "nurture_delivery_events" edge of the Tenant entity.
+func (_m *Tenant) QueryNurtureDeliveryEvents() *NurtureDeliveryEventQuery {
+	return NewTenantClient(_m.config).QueryNurtureDeliveryEvents(_m)
+}
+
+// QueryAdMetrics queries the "ad_metrics" edge of the Tenant entity.
+func (_m *Tenant) QueryAdMetrics() *AdMetricsQuery {
+	return NewTenantClient(_m.config).QueryAdMetrics(_m)
 }
 
 // Update returns a builder for updating this Tenant.

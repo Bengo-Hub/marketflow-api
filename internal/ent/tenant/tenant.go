@@ -69,6 +69,14 @@ const (
 	EdgeNurtureSequences = "nurture_sequences"
 	// EdgeNurtureEnrollments holds the string denoting the nurture_enrollments edge name in mutations.
 	EdgeNurtureEnrollments = "nurture_enrollments"
+	// EdgeTestimonials holds the string denoting the testimonials edge name in mutations.
+	EdgeTestimonials = "testimonials"
+	// EdgeProfileEvents holds the string denoting the profile_events edge name in mutations.
+	EdgeProfileEvents = "profile_events"
+	// EdgeNurtureDeliveryEvents holds the string denoting the nurture_delivery_events edge name in mutations.
+	EdgeNurtureDeliveryEvents = "nurture_delivery_events"
+	// EdgeAdMetrics holds the string denoting the ad_metrics edge name in mutations.
+	EdgeAdMetrics = "ad_metrics"
 	// Table holds the table name of the tenant in the database.
 	Table = "tenants"
 	// LeadsTable is the table that holds the leads relation/edge.
@@ -127,6 +135,34 @@ const (
 	NurtureEnrollmentsInverseTable = "nurture_enrollments"
 	// NurtureEnrollmentsColumn is the table column denoting the nurture_enrollments relation/edge.
 	NurtureEnrollmentsColumn = "tenant_id"
+	// TestimonialsTable is the table that holds the testimonials relation/edge.
+	TestimonialsTable = "testimonials"
+	// TestimonialsInverseTable is the table name for the Testimonial entity.
+	// It exists in this package in order to avoid circular dependency with the "testimonial" package.
+	TestimonialsInverseTable = "testimonials"
+	// TestimonialsColumn is the table column denoting the testimonials relation/edge.
+	TestimonialsColumn = "tenant_id"
+	// ProfileEventsTable is the table that holds the profile_events relation/edge.
+	ProfileEventsTable = "profile_events"
+	// ProfileEventsInverseTable is the table name for the ProfileEvent entity.
+	// It exists in this package in order to avoid circular dependency with the "profileevent" package.
+	ProfileEventsInverseTable = "profile_events"
+	// ProfileEventsColumn is the table column denoting the profile_events relation/edge.
+	ProfileEventsColumn = "tenant_id"
+	// NurtureDeliveryEventsTable is the table that holds the nurture_delivery_events relation/edge.
+	NurtureDeliveryEventsTable = "nurture_delivery_events"
+	// NurtureDeliveryEventsInverseTable is the table name for the NurtureDeliveryEvent entity.
+	// It exists in this package in order to avoid circular dependency with the "nurturedeliveryevent" package.
+	NurtureDeliveryEventsInverseTable = "nurture_delivery_events"
+	// NurtureDeliveryEventsColumn is the table column denoting the nurture_delivery_events relation/edge.
+	NurtureDeliveryEventsColumn = "tenant_id"
+	// AdMetricsTable is the table that holds the ad_metrics relation/edge.
+	AdMetricsTable = "ad_metrics"
+	// AdMetricsInverseTable is the table name for the AdMetrics entity.
+	// It exists in this package in order to avoid circular dependency with the "admetrics" package.
+	AdMetricsInverseTable = "ad_metrics"
+	// AdMetricsColumn is the table column denoting the ad_metrics relation/edge.
+	AdMetricsColumn = "tenant_id"
 )
 
 // Columns holds all SQL columns for tenant fields.
@@ -399,6 +435,62 @@ func ByNurtureEnrollments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOptio
 		sqlgraph.OrderByNeighborTerms(s, newNurtureEnrollmentsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByTestimonialsCount orders the results by testimonials count.
+func ByTestimonialsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newTestimonialsStep(), opts...)
+	}
+}
+
+// ByTestimonials orders the results by testimonials terms.
+func ByTestimonials(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newTestimonialsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByProfileEventsCount orders the results by profile_events count.
+func ByProfileEventsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newProfileEventsStep(), opts...)
+	}
+}
+
+// ByProfileEvents orders the results by profile_events terms.
+func ByProfileEvents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newProfileEventsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByNurtureDeliveryEventsCount orders the results by nurture_delivery_events count.
+func ByNurtureDeliveryEventsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newNurtureDeliveryEventsStep(), opts...)
+	}
+}
+
+// ByNurtureDeliveryEvents orders the results by nurture_delivery_events terms.
+func ByNurtureDeliveryEvents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newNurtureDeliveryEventsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByAdMetricsCount orders the results by ad_metrics count.
+func ByAdMetricsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newAdMetricsStep(), opts...)
+	}
+}
+
+// ByAdMetrics orders the results by ad_metrics terms.
+func ByAdMetrics(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAdMetricsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newLeadsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -453,5 +545,33 @@ func newNurtureEnrollmentsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(NurtureEnrollmentsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, NurtureEnrollmentsTable, NurtureEnrollmentsColumn),
+	)
+}
+func newTestimonialsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(TestimonialsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, TestimonialsTable, TestimonialsColumn),
+	)
+}
+func newProfileEventsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ProfileEventsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ProfileEventsTable, ProfileEventsColumn),
+	)
+}
+func newNurtureDeliveryEventsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(NurtureDeliveryEventsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, NurtureDeliveryEventsTable, NurtureDeliveryEventsColumn),
+	)
+}
+func newAdMetricsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AdMetricsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, AdMetricsTable, AdMetricsColumn),
 	)
 }

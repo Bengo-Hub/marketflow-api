@@ -109,6 +109,14 @@ func main() {
 			logger,
 		)
 		go reeng.Run(ctx)
+
+		// Ad-insights polling cron (Meta campaigns only today). Resolver
+		// pulls the tenant's Meta page token from ProviderSetting at query
+		// time; falls back to the Tenant.meta_access_token legacy field
+		// when the ProviderSetting row is missing.
+		tokenResolver := worker.NewMetaTokenResolver(entClient, logger)
+		insights := worker.NewAdInsights(entClient, 15*time.Minute, tokenResolver.Resolve, logger)
+		go insights.Run(ctx)
 	}
 
 	// ── Health endpoint ───────────────────────────────────────────────────

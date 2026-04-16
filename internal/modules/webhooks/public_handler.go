@@ -1,8 +1,10 @@
 package webhooks
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,24 +14,33 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
 // PublicHandler handles public endpoints that require no authentication.
 type PublicHandler struct {
-	entClient     *ent.Client
-	funnelService *funnels.Service
-	leadService   *leads.Service
-	logger        *zap.Logger
+	entClient          *ent.Client
+	funnelService      *funnels.Service
+	leadService        *leads.Service
+	testimonialService TestimonialReader
+	logger             *zap.Logger
+}
+
+// TestimonialReader is the minimal surface area PublicHandler needs from the
+// testimonials module (kept as an interface so we avoid an import cycle).
+type TestimonialReader interface {
+	PublicListForTenant(ctx context.Context, tenantID uuid.UUID, limit int) ([]map[string]any, error)
 }
 
 // NewPublicHandler creates a new public handler.
-func NewPublicHandler(entClient *ent.Client, funnelService *funnels.Service, leadService *leads.Service, logger *zap.Logger) *PublicHandler {
+func NewPublicHandler(entClient *ent.Client, funnelService *funnels.Service, leadService *leads.Service, testimonialReader TestimonialReader, logger *zap.Logger) *PublicHandler {
 	return &PublicHandler{
-		entClient:     entClient,
-		funnelService: funnelService,
-		leadService:   leadService,
-		logger:        logger.Named("public"),
+		entClient:          entClient,
+		funnelService:      funnelService,
+		leadService:        leadService,
+		testimonialService: testimonialReader,
+		logger:             logger.Named("public"),
 	}
 }
 
@@ -81,6 +92,44 @@ func (h *PublicHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpapi.JSON(w, http.StatusOK, profile)
+}
+
+// ListTestimonials handles GET /api/v1/public/profile/{slug}/testimonials.
+// Returns up to N published testimonials for an FBO; read by the public
+// /p/{slug} page.
+// @Summary Public testimonials for a tenant slug
+// @Tags Public
+// @Produce json
+// @Param slug path string true "Tenant slug"
+// @Param limit query int false "Max rows (default 10, max 50)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 404 {object} httpapi.ErrorResponse
+// @Router /public/profile/{slug}/testimonials [get]
+func (h *PublicHandler) ListTestimonials(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	if slug == "" {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_slug", "slug is required", nil)
+		return
+	}
+	t, err := h.entClient.Tenant.Query().
+		Where(tenant.SlugEQ(slug), tenant.StatusEQ("active")).
+		Only(r.Context())
+	if err != nil {
+		httpapi.Error(w, http.StatusNotFound, "not_found", "profile not found", nil)
+		return
+	}
+	limit := 10
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 50 {
+			limit = n
+		}
+	}
+	rows, err := h.testimonialService.PublicListForTenant(r.Context(), t.ID, limit)
+	if err != nil {
+		httpapi.Error(w, http.StatusInternalServerError, "query_failed", err.Error(), nil)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, map[string]any{"data": rows})
 }
 
 // GetFunnel handles GET /api/v1/public/funnels/{slug} — JSON payload for

@@ -6,6 +6,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// AdMetrics is the predicate function for admetrics builders.
+type AdMetrics func(*sql.Selector)
+
 // AuditLog is the predicate function for auditlog builders.
 type AuditLog func(*sql.Selector)
 
@@ -36,6 +39,9 @@ type MarketflowRole func(*sql.Selector)
 // MarketflowUser is the predicate function for marketflowuser builders.
 type MarketflowUser func(*sql.Selector)
 
+// NurtureDeliveryEvent is the predicate function for nurturedeliveryevent builders.
+type NurtureDeliveryEvent func(*sql.Selector)
+
 // NurtureEnrollment is the predicate function for nurtureenrollment builders.
 type NurtureEnrollment func(*sql.Selector)
 
@@ -44,6 +50,9 @@ type NurtureSequence func(*sql.Selector)
 
 // OutboxEvent is the predicate function for outboxevent builders.
 type OutboxEvent func(*sql.Selector)
+
+// ProfileEvent is the predicate function for profileevent builders.
+type ProfileEvent func(*sql.Selector)
 
 // ProviderSetting is the predicate function for providersetting builders.
 type ProviderSetting func(*sql.Selector)
@@ -62,6 +71,9 @@ type ShortLink func(*sql.Selector)
 
 // Tenant is the predicate function for tenant builders.
 type Tenant func(*sql.Selector)
+
+// Testimonial is the predicate function for testimonial builders.
+type Testimonial func(*sql.Selector)
 
 // UserRoleAssignment is the predicate function for userroleassignment builders.
 type UserRoleAssignment func(*sql.Selector)

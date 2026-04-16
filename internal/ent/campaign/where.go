@@ -1182,6 +1182,29 @@ func HasLeadsWith(preds ...predicate.Lead) predicate.Campaign {
 	})
 }
 
+// HasAdMetrics applies the HasEdge predicate on the "ad_metrics" edge.
+func HasAdMetrics() predicate.Campaign {
+	return predicate.Campaign(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, AdMetricsTable, AdMetricsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAdMetricsWith applies the HasEdge predicate on the "ad_metrics" edge with a given conditions (other predicates).
+func HasAdMetricsWith(preds ...predicate.AdMetrics) predicate.Campaign {
+	return predicate.Campaign(func(s *sql.Selector) {
+		step := newAdMetricsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Campaign) predicate.Campaign {
 	return predicate.Campaign(sql.AndPredicates(predicates...))

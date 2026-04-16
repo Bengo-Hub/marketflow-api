@@ -1,4 +1,4 @@
-h1:aDuEUlsZp6INjH8eQ5LUoC0+yw4uHYcYuvFkBRbjGRw=
+h1:wZis7lB/YM+DReEoADlhV9b04WE+c3O2Vdk3ozzB0yA=
 20260409124338_initial_schema.sql h1:iNv9wYlWyj89NJ9fwXRtTK7/piL1QJoDgZ8I/Jez73Y=
 20260409172839_add_short_links.sql h1:5iB2/aEIkLcG9hJLXz6Q8LKgSy3XgdFs/FDeSEX9x+4=
 20260409183000_add_kb_embeddings.sql h1:j/jjGpiINXbc0CDLNDsb5R71JnmluZcewD0NdGFEZ5Q=
@@ -6,5 +6,6 @@ h1:aDuEUlsZp6INjH8eQ5LUoC0+yw4uHYcYuvFkBRbjGRw=
 20260414192847_add_nurture_enrollment.sql h1:p2rq+h1uhjwHg3iYQqf688bRksSyyuIKfOxBgajXTqk=
 20260415063317_add_gcal_fields_to_meetings.sql h1:fN+qErnVF4Cn+SBn6eCJ4jH9ydPRFmbZW/r7FB/sRZY=
 20260416100409_add_audit_log.sql h1:7wWWafdDETxMALEs3pT4Mm1lwyKqvNcgy8MbYePwdno=
-20260416112236_add_kb_scope.sql h1:1Ov5+UA2IvNPDbpXk+FEh4iCO4g/GRObiO38y0lqaOE=
-20260416112856_add_scope_shared_data.sql h1:Q4dDlOM6ofvS21RpNtdtZ/zXRr8fKG9ByCd73JNWTPg=
+20260416112236_add_kb_scope.sql h1:aPNTH6KjOl3ZsX/otQMSIYCM5RGwCib/FAAuntW52dQ=
+20260416112856_add_scope_shared_data.sql h1:u+5NOA72Oma2JkXj4MjkBcDfcMCi99H1IHpPpr36r0s=
+20260416210442_add_analytics_testimonials.sql h1:NTqDBUzw/r4TNOdY1kPrahu1Si9t4mZPUJBECQIKG1U=

@@ -12,6 +12,8 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
+	// AdMetrics is the client for interacting with the AdMetrics builders.
+	AdMetrics *AdMetricsClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
 	// Campaign is the client for interacting with the Campaign builders.
@@ -32,12 +34,16 @@ type Tx struct {
 	MarketflowRole *MarketflowRoleClient
 	// MarketflowUser is the client for interacting with the MarketflowUser builders.
 	MarketflowUser *MarketflowUserClient
+	// NurtureDeliveryEvent is the client for interacting with the NurtureDeliveryEvent builders.
+	NurtureDeliveryEvent *NurtureDeliveryEventClient
 	// NurtureEnrollment is the client for interacting with the NurtureEnrollment builders.
 	NurtureEnrollment *NurtureEnrollmentClient
 	// NurtureSequence is the client for interacting with the NurtureSequence builders.
 	NurtureSequence *NurtureSequenceClient
 	// OutboxEvent is the client for interacting with the OutboxEvent builders.
 	OutboxEvent *OutboxEventClient
+	// ProfileEvent is the client for interacting with the ProfileEvent builders.
+	ProfileEvent *ProfileEventClient
 	// ProviderSetting is the client for interacting with the ProviderSetting builders.
 	ProviderSetting *ProviderSettingClient
 	// RolePermission is the client for interacting with the RolePermission builders.
@@ -50,6 +56,8 @@ type Tx struct {
 	ShortLink *ShortLinkClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
+	// Testimonial is the client for interacting with the Testimonial builders.
+	Testimonial *TestimonialClient
 	// UserRoleAssignment is the client for interacting with the UserRoleAssignment builders.
 	UserRoleAssignment *UserRoleAssignmentClient
 
@@ -183,6 +191,7 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
+	tx.AdMetrics = NewAdMetricsClient(tx.config)
 	tx.AuditLog = NewAuditLogClient(tx.config)
 	tx.Campaign = NewCampaignClient(tx.config)
 	tx.ChatSession = NewChatSessionClient(tx.config)
@@ -193,15 +202,18 @@ func (tx *Tx) init() {
 	tx.MarketflowPermission = NewMarketflowPermissionClient(tx.config)
 	tx.MarketflowRole = NewMarketflowRoleClient(tx.config)
 	tx.MarketflowUser = NewMarketflowUserClient(tx.config)
+	tx.NurtureDeliveryEvent = NewNurtureDeliveryEventClient(tx.config)
 	tx.NurtureEnrollment = NewNurtureEnrollmentClient(tx.config)
 	tx.NurtureSequence = NewNurtureSequenceClient(tx.config)
 	tx.OutboxEvent = NewOutboxEventClient(tx.config)
+	tx.ProfileEvent = NewProfileEventClient(tx.config)
 	tx.ProviderSetting = NewProviderSettingClient(tx.config)
 	tx.RolePermission = NewRolePermissionClient(tx.config)
 	tx.ScheduledMeeting = NewScheduledMeetingClient(tx.config)
 	tx.ServiceConfig = NewServiceConfigClient(tx.config)
 	tx.ShortLink = NewShortLinkClient(tx.config)
 	tx.Tenant = NewTenantClient(tx.config)
+	tx.Testimonial = NewTestimonialClient(tx.config)
 	tx.UserRoleAssignment = NewUserRoleAssignmentClient(tx.config)
 }
 
@@ -212,7 +224,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: AuditLog.QueryXXX(), the query will be executed
+// applies a query, for example: AdMetrics.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.

@@ -8,6 +8,63 @@ import (
 )
 
 var (
+	// AdMetricsColumns holds the columns for the "ad_metrics" table.
+	AdMetricsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "platform", Type: field.TypeString, Size: 32},
+		{Name: "external_campaign_id", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "date", Type: field.TypeTime},
+		{Name: "impressions", Type: field.TypeInt64, Default: 0},
+		{Name: "clicks", Type: field.TypeInt64, Default: 0},
+		{Name: "leads", Type: field.TypeInt64, Default: 0},
+		{Name: "conversions", Type: field.TypeInt64, Default: 0},
+		{Name: "spend", Type: field.TypeFloat64, Default: 0},
+		{Name: "ctr", Type: field.TypeFloat64, Default: 0},
+		{Name: "cpl", Type: field.TypeFloat64, Default: 0},
+		{Name: "currency", Type: field.TypeString, Size: 8, Default: "USD"},
+		{Name: "raw", Type: field.TypeJSON, Nullable: true},
+		{Name: "fetched_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "campaign_id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// AdMetricsTable holds the schema information for the "ad_metrics" table.
+	AdMetricsTable = &schema.Table{
+		Name:       "ad_metrics",
+		Columns:    AdMetricsColumns,
+		PrimaryKey: []*schema.Column{AdMetricsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "ad_metrics_campaigns_ad_metrics",
+				Columns:    []*schema.Column{AdMetricsColumns[15]},
+				RefColumns: []*schema.Column{CampaignsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "ad_metrics_tenants_ad_metrics",
+				Columns:    []*schema.Column{AdMetricsColumns[16]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "admetrics_campaign_id_date",
+				Unique:  true,
+				Columns: []*schema.Column{AdMetricsColumns[15], AdMetricsColumns[3]},
+			},
+			{
+				Name:    "admetrics_tenant_id_platform_date",
+				Unique:  false,
+				Columns: []*schema.Column{AdMetricsColumns[16], AdMetricsColumns[1], AdMetricsColumns[3]},
+			},
+			{
+				Name:    "admetrics_tenant_id_date",
+				Unique:  false,
+				Columns: []*schema.Column{AdMetricsColumns[16], AdMetricsColumns[3]},
+			},
+		},
+	}
 	// AuditLogsColumns holds the columns for the "audit_logs" table.
 	AuditLogsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -534,6 +591,56 @@ var (
 			},
 		},
 	}
+	// NurtureDeliveryEventsColumns holds the columns for the "nurture_delivery_events" table.
+	NurtureDeliveryEventsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "step_index", Type: field.TypeInt, Default: 0},
+		{Name: "channel", Type: field.TypeString, Size: 20},
+		{Name: "event_type", Type: field.TypeString, Size: 24},
+		{Name: "provider_message_id", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "link_url", Type: field.TypeString, Nullable: true, Size: 1024},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "enrollment_id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// NurtureDeliveryEventsTable holds the schema information for the "nurture_delivery_events" table.
+	NurtureDeliveryEventsTable = &schema.Table{
+		Name:       "nurture_delivery_events",
+		Columns:    NurtureDeliveryEventsColumns,
+		PrimaryKey: []*schema.Column{NurtureDeliveryEventsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "nurture_delivery_events_nurture_enrollments_delivery_events",
+				Columns:    []*schema.Column{NurtureDeliveryEventsColumns[8]},
+				RefColumns: []*schema.Column{NurtureEnrollmentsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "nurture_delivery_events_tenants_nurture_delivery_events",
+				Columns:    []*schema.Column{NurtureDeliveryEventsColumns[9]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "nurturedeliveryevent_tenant_id_event_type_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{NurtureDeliveryEventsColumns[9], NurtureDeliveryEventsColumns[3], NurtureDeliveryEventsColumns[7]},
+			},
+			{
+				Name:    "nurturedeliveryevent_enrollment_id_step_index",
+				Unique:  false,
+				Columns: []*schema.Column{NurtureDeliveryEventsColumns[8], NurtureDeliveryEventsColumns[1]},
+			},
+			{
+				Name:    "nurturedeliveryevent_provider_message_id",
+				Unique:  false,
+				Columns: []*schema.Column{NurtureDeliveryEventsColumns[4]},
+			},
+		},
+	}
 	// NurtureEnrollmentsColumns holds the columns for the "nurture_enrollments" table.
 	NurtureEnrollmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -655,6 +762,44 @@ var (
 				Name:    "outboxevent_tenant_id_aggregate_type_aggregate_id",
 				Unique:  false,
 				Columns: []*schema.Column{OutboxEventsColumns[1], OutboxEventsColumns[2], OutboxEventsColumns[3]},
+			},
+		},
+	}
+	// ProfileEventsColumns holds the columns for the "profile_events" table.
+	ProfileEventsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "slug", Type: field.TypeString, Size: 255},
+		{Name: "event_type", Type: field.TypeString, Size: 40},
+		{Name: "referrer", Type: field.TypeString, Nullable: true, Size: 1024},
+		{Name: "user_agent", Type: field.TypeString, Nullable: true, Size: 512},
+		{Name: "ip_hash", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// ProfileEventsTable holds the schema information for the "profile_events" table.
+	ProfileEventsTable = &schema.Table{
+		Name:       "profile_events",
+		Columns:    ProfileEventsColumns,
+		PrimaryKey: []*schema.Column{ProfileEventsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "profile_events_tenants_profile_events",
+				Columns:    []*schema.Column{ProfileEventsColumns[8]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "profileevent_tenant_id_event_type_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ProfileEventsColumns[8], ProfileEventsColumns[2], ProfileEventsColumns[7]},
+			},
+			{
+				Name:    "profileevent_slug_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ProfileEventsColumns[1], ProfileEventsColumns[7]},
 			},
 		},
 	}
@@ -932,6 +1077,46 @@ var (
 			},
 		},
 	}
+	// TestimonialsColumns holds the columns for the "testimonials" table.
+	TestimonialsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "author_name", Type: field.TypeString, Size: 120},
+		{Name: "author_role", Type: field.TypeString, Nullable: true, Size: 120},
+		{Name: "body", Type: field.TypeString},
+		{Name: "avatar_url", Type: field.TypeString, Nullable: true, Size: 512},
+		{Name: "rating", Type: field.TypeInt, Default: 5},
+		{Name: "display_order", Type: field.TypeInt, Default: 0},
+		{Name: "is_published", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// TestimonialsTable holds the schema information for the "testimonials" table.
+	TestimonialsTable = &schema.Table{
+		Name:       "testimonials",
+		Columns:    TestimonialsColumns,
+		PrimaryKey: []*schema.Column{TestimonialsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "testimonials_tenants_testimonials",
+				Columns:    []*schema.Column{TestimonialsColumns[10]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "testimonial_tenant_id_is_published_display_order",
+				Unique:  false,
+				Columns: []*schema.Column{TestimonialsColumns[10], TestimonialsColumns[7], TestimonialsColumns[6]},
+			},
+			{
+				Name:    "testimonial_tenant_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{TestimonialsColumns[10], TestimonialsColumns[8]},
+			},
+		},
+	}
 	// UserRoleAssignmentsColumns holds the columns for the "user_role_assignments" table.
 	UserRoleAssignmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -998,6 +1183,7 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AdMetricsTable,
 		AuditLogsTable,
 		CampaignsTable,
 		ChatSessionsTable,
@@ -1008,20 +1194,25 @@ var (
 		MarketflowPermissionsTable,
 		MarketflowRolesTable,
 		MarketflowUsersTable,
+		NurtureDeliveryEventsTable,
 		NurtureEnrollmentsTable,
 		NurtureSequencesTable,
 		OutboxEventsTable,
+		ProfileEventsTable,
 		ProviderSettingsTable,
 		RolePermissionsTable,
 		ScheduledMeetingsTable,
 		ServiceConfigsTable,
 		ShortLinksTable,
 		TenantsTable,
+		TestimonialsTable,
 		UserRoleAssignmentsTable,
 	}
 )
 
 func init() {
+	AdMetricsTable.ForeignKeys[0].RefTable = CampaignsTable
+	AdMetricsTable.ForeignKeys[1].RefTable = TenantsTable
 	CampaignsTable.ForeignKeys[0].RefTable = TenantsTable
 	ChatSessionsTable.ForeignKeys[0].RefTable = ContactsTable
 	ChatSessionsTable.ForeignKeys[1].RefTable = LeadsTable
@@ -1032,12 +1223,16 @@ func init() {
 	LeadsTable.ForeignKeys[0].RefTable = CampaignsTable
 	LeadsTable.ForeignKeys[1].RefTable = FunnelsTable
 	LeadsTable.ForeignKeys[2].RefTable = TenantsTable
+	NurtureDeliveryEventsTable.ForeignKeys[0].RefTable = NurtureEnrollmentsTable
+	NurtureDeliveryEventsTable.ForeignKeys[1].RefTable = TenantsTable
 	NurtureEnrollmentsTable.ForeignKeys[0].RefTable = TenantsTable
 	NurtureSequencesTable.ForeignKeys[0].RefTable = TenantsTable
+	ProfileEventsTable.ForeignKeys[0].RefTable = TenantsTable
 	RolePermissionsTable.ForeignKeys[0].RefTable = MarketflowRolesTable
 	RolePermissionsTable.ForeignKeys[1].RefTable = MarketflowPermissionsTable
 	ScheduledMeetingsTable.ForeignKeys[0].RefTable = ContactsTable
 	ScheduledMeetingsTable.ForeignKeys[1].RefTable = LeadsTable
+	TestimonialsTable.ForeignKeys[0].RefTable = TenantsTable
 	UserRoleAssignmentsTable.ForeignKeys[0].RefTable = MarketflowRolesTable
 	UserRoleAssignmentsTable.ForeignKeys[1].RefTable = MarketflowUsersTable
 	UserRoleAssignmentsTable.ForeignKeys[2].RefTable = MarketflowRolesTable

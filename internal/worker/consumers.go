@@ -142,9 +142,11 @@ func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 	// Resolve recipient from the lead row. Channel selection is a step property;
 	// email/phone come from the lead. Fall back to the sequence default.
 	var recipient string
+	var leadRow *ent.Lead
 	if enrollment.LeadID != nil {
 		ld, err := h.db.Lead.Query().Where(lead.IDEQ(*enrollment.LeadID)).Only(ctx)
 		if err == nil {
+			leadRow = ld
 			switch asString(stepDef, "channel") {
 			case "whatsapp", "sms":
 				if ld.Phone != nil {
@@ -167,14 +169,22 @@ func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 		return h.completeEnrollment(ctx, enrollment, "errored")
 	}
 
+	// Resolve {{first_name}} / {{product_link}} / etc. against the lead +
+	// tenant state BEFORE handing off to notifications-api. notifications-api
+	// may also render templates, but MarketFlow is the source of truth for
+	// lead-specific placeholders so we substitute here.
+	vars := resolveNurtureVariables(ctx, h.db, asMap(stepDef, "variables"), leadRow, enrollment.TenantID)
+	renderedBody := renderTemplate(asString(stepDef, "body"), vars)
+	renderedSubject := renderTemplate(asString(stepDef, "subject"), vars)
+
 	idemKey := fmt.Sprintf("nurture-%s-%d", enrollmentID, enrollment.CurrentStep)
 	payload := notifications.Message{
 		Channel:    channel,
 		TemplateID: asString(stepDef, "template"),
 		Recipient:  recipient,
-		Subject:    asString(stepDef, "subject"),
-		Body:       asString(stepDef, "body"),
-		Data:       asMap(stepDef, "variables"),
+		Subject:    renderedSubject,
+		Body:       renderedBody,
+		Data:       vars,
 		Metadata: map[string]string{
 			"source":        "marketflow-worker",
 			"sequence_id":   enrollment.SequenceID.String(),

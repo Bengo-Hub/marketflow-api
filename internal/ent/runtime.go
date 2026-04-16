@@ -5,6 +5,7 @@ package ent
 import (
 	"time"
 
+	"github.com/bengobox/marketflow-api/internal/ent/admetrics"
 	"github.com/bengobox/marketflow-api/internal/ent/auditlog"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
@@ -15,15 +16,18 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
+	"github.com/bengobox/marketflow-api/internal/ent/nurturedeliveryevent"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/outboxevent"
+	"github.com/bengobox/marketflow-api/internal/ent/profileevent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/schema"
 	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
 	"github.com/bengobox/marketflow-api/internal/ent/shortlink"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
+	"github.com/bengobox/marketflow-api/internal/ent/testimonial"
 	"github.com/bengobox/marketflow-api/internal/ent/userroleassignment"
 	"github.com/google/uuid"
 )
@@ -32,6 +36,62 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	admetricsFields := schema.AdMetrics{}.Fields()
+	_ = admetricsFields
+	// admetricsDescPlatform is the schema descriptor for platform field.
+	admetricsDescPlatform := admetricsFields[3].Descriptor()
+	// admetrics.PlatformValidator is a validator for the "platform" field. It is called by the builders before save.
+	admetrics.PlatformValidator = admetricsDescPlatform.Validators[0].(func(string) error)
+	// admetricsDescExternalCampaignID is the schema descriptor for external_campaign_id field.
+	admetricsDescExternalCampaignID := admetricsFields[4].Descriptor()
+	// admetrics.ExternalCampaignIDValidator is a validator for the "external_campaign_id" field. It is called by the builders before save.
+	admetrics.ExternalCampaignIDValidator = admetricsDescExternalCampaignID.Validators[0].(func(string) error)
+	// admetricsDescImpressions is the schema descriptor for impressions field.
+	admetricsDescImpressions := admetricsFields[6].Descriptor()
+	// admetrics.DefaultImpressions holds the default value on creation for the impressions field.
+	admetrics.DefaultImpressions = admetricsDescImpressions.Default.(int64)
+	// admetricsDescClicks is the schema descriptor for clicks field.
+	admetricsDescClicks := admetricsFields[7].Descriptor()
+	// admetrics.DefaultClicks holds the default value on creation for the clicks field.
+	admetrics.DefaultClicks = admetricsDescClicks.Default.(int64)
+	// admetricsDescLeads is the schema descriptor for leads field.
+	admetricsDescLeads := admetricsFields[8].Descriptor()
+	// admetrics.DefaultLeads holds the default value on creation for the leads field.
+	admetrics.DefaultLeads = admetricsDescLeads.Default.(int64)
+	// admetricsDescConversions is the schema descriptor for conversions field.
+	admetricsDescConversions := admetricsFields[9].Descriptor()
+	// admetrics.DefaultConversions holds the default value on creation for the conversions field.
+	admetrics.DefaultConversions = admetricsDescConversions.Default.(int64)
+	// admetricsDescSpend is the schema descriptor for spend field.
+	admetricsDescSpend := admetricsFields[10].Descriptor()
+	// admetrics.DefaultSpend holds the default value on creation for the spend field.
+	admetrics.DefaultSpend = admetricsDescSpend.Default.(float64)
+	// admetricsDescCtr is the schema descriptor for ctr field.
+	admetricsDescCtr := admetricsFields[11].Descriptor()
+	// admetrics.DefaultCtr holds the default value on creation for the ctr field.
+	admetrics.DefaultCtr = admetricsDescCtr.Default.(float64)
+	// admetricsDescCpl is the schema descriptor for cpl field.
+	admetricsDescCpl := admetricsFields[12].Descriptor()
+	// admetrics.DefaultCpl holds the default value on creation for the cpl field.
+	admetrics.DefaultCpl = admetricsDescCpl.Default.(float64)
+	// admetricsDescCurrency is the schema descriptor for currency field.
+	admetricsDescCurrency := admetricsFields[13].Descriptor()
+	// admetrics.DefaultCurrency holds the default value on creation for the currency field.
+	admetrics.DefaultCurrency = admetricsDescCurrency.Default.(string)
+	// admetrics.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	admetrics.CurrencyValidator = admetricsDescCurrency.Validators[0].(func(string) error)
+	// admetricsDescFetchedAt is the schema descriptor for fetched_at field.
+	admetricsDescFetchedAt := admetricsFields[15].Descriptor()
+	// admetrics.DefaultFetchedAt holds the default value on creation for the fetched_at field.
+	admetrics.DefaultFetchedAt = admetricsDescFetchedAt.Default.(func() time.Time)
+	// admetricsDescCreatedAt is the schema descriptor for created_at field.
+	admetricsDescCreatedAt := admetricsFields[16].Descriptor()
+	// admetrics.DefaultCreatedAt holds the default value on creation for the created_at field.
+	admetrics.DefaultCreatedAt = admetricsDescCreatedAt.Default.(func() time.Time)
+	// admetricsDescID is the schema descriptor for id field.
+	admetricsDescID := admetricsFields[0].Descriptor()
+	// admetrics.DefaultID holds the default value on creation for the id field.
+	admetrics.DefaultID = admetricsDescID.Default.(func() uuid.UUID)
 	auditlogFields := schema.AuditLog{}.Fields()
 	_ = auditlogFields
 	// auditlogDescScope is the schema descriptor for scope field.
@@ -362,6 +422,36 @@ func init() {
 	marketflowuserDescID := marketflowuserFields[0].Descriptor()
 	// marketflowuser.DefaultID holds the default value on creation for the id field.
 	marketflowuser.DefaultID = marketflowuserDescID.Default.(func() uuid.UUID)
+	nurturedeliveryeventFields := schema.NurtureDeliveryEvent{}.Fields()
+	_ = nurturedeliveryeventFields
+	// nurturedeliveryeventDescStepIndex is the schema descriptor for step_index field.
+	nurturedeliveryeventDescStepIndex := nurturedeliveryeventFields[3].Descriptor()
+	// nurturedeliveryevent.DefaultStepIndex holds the default value on creation for the step_index field.
+	nurturedeliveryevent.DefaultStepIndex = nurturedeliveryeventDescStepIndex.Default.(int)
+	// nurturedeliveryeventDescChannel is the schema descriptor for channel field.
+	nurturedeliveryeventDescChannel := nurturedeliveryeventFields[4].Descriptor()
+	// nurturedeliveryevent.ChannelValidator is a validator for the "channel" field. It is called by the builders before save.
+	nurturedeliveryevent.ChannelValidator = nurturedeliveryeventDescChannel.Validators[0].(func(string) error)
+	// nurturedeliveryeventDescEventType is the schema descriptor for event_type field.
+	nurturedeliveryeventDescEventType := nurturedeliveryeventFields[5].Descriptor()
+	// nurturedeliveryevent.EventTypeValidator is a validator for the "event_type" field. It is called by the builders before save.
+	nurturedeliveryevent.EventTypeValidator = nurturedeliveryeventDescEventType.Validators[0].(func(string) error)
+	// nurturedeliveryeventDescProviderMessageID is the schema descriptor for provider_message_id field.
+	nurturedeliveryeventDescProviderMessageID := nurturedeliveryeventFields[6].Descriptor()
+	// nurturedeliveryevent.ProviderMessageIDValidator is a validator for the "provider_message_id" field. It is called by the builders before save.
+	nurturedeliveryevent.ProviderMessageIDValidator = nurturedeliveryeventDescProviderMessageID.Validators[0].(func(string) error)
+	// nurturedeliveryeventDescLinkURL is the schema descriptor for link_url field.
+	nurturedeliveryeventDescLinkURL := nurturedeliveryeventFields[7].Descriptor()
+	// nurturedeliveryevent.LinkURLValidator is a validator for the "link_url" field. It is called by the builders before save.
+	nurturedeliveryevent.LinkURLValidator = nurturedeliveryeventDescLinkURL.Validators[0].(func(string) error)
+	// nurturedeliveryeventDescCreatedAt is the schema descriptor for created_at field.
+	nurturedeliveryeventDescCreatedAt := nurturedeliveryeventFields[9].Descriptor()
+	// nurturedeliveryevent.DefaultCreatedAt holds the default value on creation for the created_at field.
+	nurturedeliveryevent.DefaultCreatedAt = nurturedeliveryeventDescCreatedAt.Default.(func() time.Time)
+	// nurturedeliveryeventDescID is the schema descriptor for id field.
+	nurturedeliveryeventDescID := nurturedeliveryeventFields[0].Descriptor()
+	// nurturedeliveryevent.DefaultID holds the default value on creation for the id field.
+	nurturedeliveryevent.DefaultID = nurturedeliveryeventDescID.Default.(func() uuid.UUID)
 	nurtureenrollmentFields := schema.NurtureEnrollment{}.Fields()
 	_ = nurtureenrollmentFields
 	// nurtureenrollmentDescCurrentStep is the schema descriptor for current_step field.
@@ -456,6 +546,36 @@ func init() {
 	outboxeventDescID := outboxeventFields[0].Descriptor()
 	// outboxevent.DefaultID holds the default value on creation for the id field.
 	outboxevent.DefaultID = outboxeventDescID.Default.(func() uuid.UUID)
+	profileeventFields := schema.ProfileEvent{}.Fields()
+	_ = profileeventFields
+	// profileeventDescSlug is the schema descriptor for slug field.
+	profileeventDescSlug := profileeventFields[2].Descriptor()
+	// profileevent.SlugValidator is a validator for the "slug" field. It is called by the builders before save.
+	profileevent.SlugValidator = profileeventDescSlug.Validators[0].(func(string) error)
+	// profileeventDescEventType is the schema descriptor for event_type field.
+	profileeventDescEventType := profileeventFields[3].Descriptor()
+	// profileevent.EventTypeValidator is a validator for the "event_type" field. It is called by the builders before save.
+	profileevent.EventTypeValidator = profileeventDescEventType.Validators[0].(func(string) error)
+	// profileeventDescReferrer is the schema descriptor for referrer field.
+	profileeventDescReferrer := profileeventFields[4].Descriptor()
+	// profileevent.ReferrerValidator is a validator for the "referrer" field. It is called by the builders before save.
+	profileevent.ReferrerValidator = profileeventDescReferrer.Validators[0].(func(string) error)
+	// profileeventDescUserAgent is the schema descriptor for user_agent field.
+	profileeventDescUserAgent := profileeventFields[5].Descriptor()
+	// profileevent.UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
+	profileevent.UserAgentValidator = profileeventDescUserAgent.Validators[0].(func(string) error)
+	// profileeventDescIPHash is the schema descriptor for ip_hash field.
+	profileeventDescIPHash := profileeventFields[6].Descriptor()
+	// profileevent.IPHashValidator is a validator for the "ip_hash" field. It is called by the builders before save.
+	profileevent.IPHashValidator = profileeventDescIPHash.Validators[0].(func(string) error)
+	// profileeventDescCreatedAt is the schema descriptor for created_at field.
+	profileeventDescCreatedAt := profileeventFields[8].Descriptor()
+	// profileevent.DefaultCreatedAt holds the default value on creation for the created_at field.
+	profileevent.DefaultCreatedAt = profileeventDescCreatedAt.Default.(func() time.Time)
+	// profileeventDescID is the schema descriptor for id field.
+	profileeventDescID := profileeventFields[0].Descriptor()
+	// profileevent.DefaultID holds the default value on creation for the id field.
+	profileevent.DefaultID = profileeventDescID.Default.(func() uuid.UUID)
 	providersettingFields := schema.ProviderSetting{}.Fields()
 	_ = providersettingFields
 	// providersettingDescTenantID is the schema descriptor for tenant_id field.
@@ -654,6 +774,80 @@ func init() {
 	tenantDescID := tenantFields[0].Descriptor()
 	// tenant.DefaultID holds the default value on creation for the id field.
 	tenant.DefaultID = tenantDescID.Default.(func() uuid.UUID)
+	testimonialFields := schema.Testimonial{}.Fields()
+	_ = testimonialFields
+	// testimonialDescAuthorName is the schema descriptor for author_name field.
+	testimonialDescAuthorName := testimonialFields[2].Descriptor()
+	// testimonial.AuthorNameValidator is a validator for the "author_name" field. It is called by the builders before save.
+	testimonial.AuthorNameValidator = func() func(string) error {
+		validators := testimonialDescAuthorName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(author_name string) error {
+			for _, fn := range fns {
+				if err := fn(author_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// testimonialDescAuthorRole is the schema descriptor for author_role field.
+	testimonialDescAuthorRole := testimonialFields[3].Descriptor()
+	// testimonial.AuthorRoleValidator is a validator for the "author_role" field. It is called by the builders before save.
+	testimonial.AuthorRoleValidator = testimonialDescAuthorRole.Validators[0].(func(string) error)
+	// testimonialDescBody is the schema descriptor for body field.
+	testimonialDescBody := testimonialFields[4].Descriptor()
+	// testimonial.BodyValidator is a validator for the "body" field. It is called by the builders before save.
+	testimonial.BodyValidator = testimonialDescBody.Validators[0].(func(string) error)
+	// testimonialDescAvatarURL is the schema descriptor for avatar_url field.
+	testimonialDescAvatarURL := testimonialFields[5].Descriptor()
+	// testimonial.AvatarURLValidator is a validator for the "avatar_url" field. It is called by the builders before save.
+	testimonial.AvatarURLValidator = testimonialDescAvatarURL.Validators[0].(func(string) error)
+	// testimonialDescRating is the schema descriptor for rating field.
+	testimonialDescRating := testimonialFields[6].Descriptor()
+	// testimonial.DefaultRating holds the default value on creation for the rating field.
+	testimonial.DefaultRating = testimonialDescRating.Default.(int)
+	// testimonial.RatingValidator is a validator for the "rating" field. It is called by the builders before save.
+	testimonial.RatingValidator = func() func(int) error {
+		validators := testimonialDescRating.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(rating int) error {
+			for _, fn := range fns {
+				if err := fn(rating); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// testimonialDescDisplayOrder is the schema descriptor for display_order field.
+	testimonialDescDisplayOrder := testimonialFields[7].Descriptor()
+	// testimonial.DefaultDisplayOrder holds the default value on creation for the display_order field.
+	testimonial.DefaultDisplayOrder = testimonialDescDisplayOrder.Default.(int)
+	// testimonialDescIsPublished is the schema descriptor for is_published field.
+	testimonialDescIsPublished := testimonialFields[8].Descriptor()
+	// testimonial.DefaultIsPublished holds the default value on creation for the is_published field.
+	testimonial.DefaultIsPublished = testimonialDescIsPublished.Default.(bool)
+	// testimonialDescCreatedAt is the schema descriptor for created_at field.
+	testimonialDescCreatedAt := testimonialFields[9].Descriptor()
+	// testimonial.DefaultCreatedAt holds the default value on creation for the created_at field.
+	testimonial.DefaultCreatedAt = testimonialDescCreatedAt.Default.(func() time.Time)
+	// testimonialDescUpdatedAt is the schema descriptor for updated_at field.
+	testimonialDescUpdatedAt := testimonialFields[10].Descriptor()
+	// testimonial.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	testimonial.DefaultUpdatedAt = testimonialDescUpdatedAt.Default.(func() time.Time)
+	// testimonial.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	testimonial.UpdateDefaultUpdatedAt = testimonialDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// testimonialDescID is the schema descriptor for id field.
+	testimonialDescID := testimonialFields[0].Descriptor()
+	// testimonial.DefaultID holds the default value on creation for the id field.
+	testimonial.DefaultID = testimonialDescID.Default.(func() uuid.UUID)
 	userroleassignmentFields := schema.UserRoleAssignment{}.Fields()
 	_ = userroleassignmentFields
 	// userroleassignmentDescAssignedAt is the schema descriptor for assigned_at field.

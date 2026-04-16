@@ -128,6 +128,10 @@ func (Tenant) Edges() []ent.Edge {
 		edge.To("chat_sessions", ChatSession.Type),
 		edge.To("nurture_sequences", NurtureSequence.Type),
 		edge.To("nurture_enrollments", NurtureEnrollment.Type),
+		edge.To("testimonials", Testimonial.Type),
+		edge.To("profile_events", ProfileEvent.Type),
+		edge.To("nurture_delivery_events", NurtureDeliveryEvent.Type),
+		edge.To("ad_metrics", AdMetrics.Type),
 	}
 }
 

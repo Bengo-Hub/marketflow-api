@@ -1580,6 +1580,98 @@ func HasNurtureEnrollmentsWith(preds ...predicate.NurtureEnrollment) predicate.T
 	})
 }
 
+// HasTestimonials applies the HasEdge predicate on the "testimonials" edge.
+func HasTestimonials() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, TestimonialsTable, TestimonialsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasTestimonialsWith applies the HasEdge predicate on the "testimonials" edge with a given conditions (other predicates).
+func HasTestimonialsWith(preds ...predicate.Testimonial) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newTestimonialsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasProfileEvents applies the HasEdge predicate on the "profile_events" edge.
+func HasProfileEvents() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ProfileEventsTable, ProfileEventsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasProfileEventsWith applies the HasEdge predicate on the "profile_events" edge with a given conditions (other predicates).
+func HasProfileEventsWith(preds ...predicate.ProfileEvent) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newProfileEventsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasNurtureDeliveryEvents applies the HasEdge predicate on the "nurture_delivery_events" edge.
+func HasNurtureDeliveryEvents() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, NurtureDeliveryEventsTable, NurtureDeliveryEventsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasNurtureDeliveryEventsWith applies the HasEdge predicate on the "nurture_delivery_events" edge with a given conditions (other predicates).
+func HasNurtureDeliveryEventsWith(preds ...predicate.NurtureDeliveryEvent) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newNurtureDeliveryEventsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasAdMetrics applies the HasEdge predicate on the "ad_metrics" edge.
+func HasAdMetrics() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, AdMetricsTable, AdMetricsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAdMetricsWith applies the HasEdge predicate on the "ad_metrics" edge with a given conditions (other predicates).
+func HasAdMetricsWith(preds ...predicate.AdMetrics) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newAdMetricsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Tenant) predicate.Tenant {
 	return predicate.Tenant(sql.AndPredicates(predicates...))

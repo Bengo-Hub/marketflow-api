@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/marketflow-api/internal/ent/admetrics"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/ent/predicate"
@@ -366,6 +367,21 @@ func (_u *CampaignUpdate) AddLeads(v ...*Lead) *CampaignUpdate {
 	return _u.AddLeadIDs(ids...)
 }
 
+// AddAdMetricIDs adds the "ad_metrics" edge to the AdMetrics entity by IDs.
+func (_u *CampaignUpdate) AddAdMetricIDs(ids ...uuid.UUID) *CampaignUpdate {
+	_u.mutation.AddAdMetricIDs(ids...)
+	return _u
+}
+
+// AddAdMetrics adds the "ad_metrics" edges to the AdMetrics entity.
+func (_u *CampaignUpdate) AddAdMetrics(v ...*AdMetrics) *CampaignUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAdMetricIDs(ids...)
+}
+
 // Mutation returns the CampaignMutation object of the builder.
 func (_u *CampaignUpdate) Mutation() *CampaignMutation {
 	return _u.mutation
@@ -396,6 +412,27 @@ func (_u *CampaignUpdate) RemoveLeads(v ...*Lead) *CampaignUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveLeadIDs(ids...)
+}
+
+// ClearAdMetrics clears all "ad_metrics" edges to the AdMetrics entity.
+func (_u *CampaignUpdate) ClearAdMetrics() *CampaignUpdate {
+	_u.mutation.ClearAdMetrics()
+	return _u
+}
+
+// RemoveAdMetricIDs removes the "ad_metrics" edge to AdMetrics entities by IDs.
+func (_u *CampaignUpdate) RemoveAdMetricIDs(ids ...uuid.UUID) *CampaignUpdate {
+	_u.mutation.RemoveAdMetricIDs(ids...)
+	return _u
+}
+
+// RemoveAdMetrics removes "ad_metrics" edges to AdMetrics entities.
+func (_u *CampaignUpdate) RemoveAdMetrics(v ...*AdMetrics) *CampaignUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAdMetricIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -625,6 +662,51 @@ func (_u *CampaignUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(lead.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AdMetricsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   campaign.AdMetricsTable,
+			Columns: []string{campaign.AdMetricsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(admetrics.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAdMetricsIDs(); len(nodes) > 0 && !_u.mutation.AdMetricsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   campaign.AdMetricsTable,
+			Columns: []string{campaign.AdMetricsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(admetrics.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AdMetricsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   campaign.AdMetricsTable,
+			Columns: []string{campaign.AdMetricsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(admetrics.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -988,6 +1070,21 @@ func (_u *CampaignUpdateOne) AddLeads(v ...*Lead) *CampaignUpdateOne {
 	return _u.AddLeadIDs(ids...)
 }
 
+// AddAdMetricIDs adds the "ad_metrics" edge to the AdMetrics entity by IDs.
+func (_u *CampaignUpdateOne) AddAdMetricIDs(ids ...uuid.UUID) *CampaignUpdateOne {
+	_u.mutation.AddAdMetricIDs(ids...)
+	return _u
+}
+
+// AddAdMetrics adds the "ad_metrics" edges to the AdMetrics entity.
+func (_u *CampaignUpdateOne) AddAdMetrics(v ...*AdMetrics) *CampaignUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAdMetricIDs(ids...)
+}
+
 // Mutation returns the CampaignMutation object of the builder.
 func (_u *CampaignUpdateOne) Mutation() *CampaignMutation {
 	return _u.mutation
@@ -1018,6 +1115,27 @@ func (_u *CampaignUpdateOne) RemoveLeads(v ...*Lead) *CampaignUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveLeadIDs(ids...)
+}
+
+// ClearAdMetrics clears all "ad_metrics" edges to the AdMetrics entity.
+func (_u *CampaignUpdateOne) ClearAdMetrics() *CampaignUpdateOne {
+	_u.mutation.ClearAdMetrics()
+	return _u
+}
+
+// RemoveAdMetricIDs removes the "ad_metrics" edge to AdMetrics entities by IDs.
+func (_u *CampaignUpdateOne) RemoveAdMetricIDs(ids ...uuid.UUID) *CampaignUpdateOne {
+	_u.mutation.RemoveAdMetricIDs(ids...)
+	return _u
+}
+
+// RemoveAdMetrics removes "ad_metrics" edges to AdMetrics entities.
+func (_u *CampaignUpdateOne) RemoveAdMetrics(v ...*AdMetrics) *CampaignUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAdMetricIDs(ids...)
 }
 
 // Where appends a list predicates to the CampaignUpdate builder.
@@ -1277,6 +1395,51 @@ func (_u *CampaignUpdateOne) sqlSave(ctx context.Context) (_node *Campaign, err 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(lead.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AdMetricsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   campaign.AdMetricsTable,
+			Columns: []string{campaign.AdMetricsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(admetrics.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAdMetricsIDs(); len(nodes) > 0 && !_u.mutation.AdMetricsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   campaign.AdMetricsTable,
+			Columns: []string{campaign.AdMetricsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(admetrics.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AdMetricsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   campaign.AdMetricsTable,
+			Columns: []string{campaign.AdMetricsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(admetrics.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

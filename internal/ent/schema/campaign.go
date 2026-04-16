@@ -110,6 +110,7 @@ func (Campaign) Edges() []ent.Edge {
 			Required().
 			Unique(),
 		edge.To("leads", Lead.Type),
+		edge.To("ad_metrics", AdMetrics.Type),
 	}
 }
 

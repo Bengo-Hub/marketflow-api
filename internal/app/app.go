@@ -31,6 +31,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/sequences"
 	"github.com/bengobox/marketflow-api/internal/modules/shortlinks"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant"
+	"github.com/bengobox/marketflow-api/internal/modules/testimonials"
 	"github.com/bengobox/marketflow-api/internal/modules/webhooks"
 	platformevents "github.com/bengobox/marketflow-api/internal/platform/events"
 	"github.com/bengobox/marketflow-api/internal/providers"
@@ -184,8 +185,11 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	}, logger)
 	calcomWebhookHandler := webhooks.NewCalcomHandler(meetingService, leadService, logger)
 
+	// Testimonial CRUD + public reader for /p/{slug}
+	testimonialHandler := testimonials.NewHandler(entClient, logger)
+
 	// Public handlers
-	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, leadService, logger)
+	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, leadService, testimonialHandler, logger)
 
 	// ── Router ────────────────────────────────────────────────────────────
 	var requireAuth func(http.Handler) http.Handler
@@ -248,15 +252,24 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Update: meetingHandler.Update,
 		},
 		WebhookHandlers: httpapi.WebhookHandlers{
-			MetaVerify:    metaWebhookHandler.Verify,
-			MetaLeadgen:   metaWebhookHandler.HandleLeadgen,
-			CalcomBooking: calcomWebhookHandler.HandleBooking,
+			MetaVerify:            metaWebhookHandler.Verify,
+			MetaLeadgen:           metaWebhookHandler.HandleLeadgen,
+			CalcomBooking:         calcomWebhookHandler.HandleBooking,
+			NotificationsDelivery: publicHandler.NotificationsDelivery,
 		},
 		PublicHandlers: httpapi.PublicHandlers{
-			GetProfile:   publicHandler.GetProfile,
-			GetFunnel:    publicHandler.GetFunnel,
-			RenderFunnel: publicHandler.RenderFunnel,
-			CreateLead:   publicHandler.PublicCreateLead,
+			GetProfile:         publicHandler.GetProfile,
+			GetFunnel:          publicHandler.GetFunnel,
+			RenderFunnel:       publicHandler.RenderFunnel,
+			CreateLead:         publicHandler.PublicCreateLead,
+			RecordProfileEvent: publicHandler.RecordProfileEvent,
+			ListTestimonials:   publicHandler.ListTestimonials,
+		},
+		TestimonialHandlers: httpapi.TestimonialHandlers{
+			List:   testimonialHandler.List,
+			Create: testimonialHandler.Create,
+			Update: testimonialHandler.Update,
+			Delete: testimonialHandler.Delete,
 		},
 		ShortLinkHandlers: httpapi.ShortLinkHandlers{
 			Create:   shortLinkHandler.Create,
@@ -264,10 +277,13 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Redirect: shortLinkHandler.Redirect,
 		},
 		AnalyticsHandlers: httpapi.AnalyticsHandlers{
-			Dashboard:     analyticsHandler.Dashboard,
-			TenantAudit:   auditHandler.ListTenant,
-			PlatformUsage: analyticsHandler.PlatformUsage,
-			PlatformAudit: auditHandler.ListPlatform,
+			Dashboard:       analyticsHandler.Dashboard,
+			TenantAudit:     auditHandler.ListTenant,
+			PlatformUsage:   analyticsHandler.PlatformUsage,
+			PlatformAudit:   auditHandler.ListPlatform,
+			CampaignMetrics: analyticsHandler.CampaignMetrics,
+			SequenceMetrics: analyticsHandler.SequenceMetrics,
+			ProfileMetrics:  analyticsHandler.ProfileMetrics,
 		},
 		IntegrationsHandlers: httpapi.IntegrationsHandlers{
 			GoogleAuthorize:  integrationsHandler.GoogleAuthorize,

@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/marketflow-api/internal/ent/nurturedeliveryevent"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/google/uuid"
@@ -216,6 +217,21 @@ func (_c *NurtureEnrollmentCreate) SetTenant(v *Tenant) *NurtureEnrollmentCreate
 	return _c.SetTenantID(v.ID)
 }
 
+// AddDeliveryEventIDs adds the "delivery_events" edge to the NurtureDeliveryEvent entity by IDs.
+func (_c *NurtureEnrollmentCreate) AddDeliveryEventIDs(ids ...uuid.UUID) *NurtureEnrollmentCreate {
+	_c.mutation.AddDeliveryEventIDs(ids...)
+	return _c
+}
+
+// AddDeliveryEvents adds the "delivery_events" edges to the NurtureDeliveryEvent entity.
+func (_c *NurtureEnrollmentCreate) AddDeliveryEvents(v ...*NurtureDeliveryEvent) *NurtureEnrollmentCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddDeliveryEventIDs(ids...)
+}
+
 // Mutation returns the NurtureEnrollmentMutation object of the builder.
 func (_c *NurtureEnrollmentCreate) Mutation() *NurtureEnrollmentMutation {
 	return _c.mutation
@@ -406,6 +422,22 @@ func (_c *NurtureEnrollmentCreate) createSpec() (*NurtureEnrollment, *sqlgraph.C
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.TenantID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.DeliveryEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   nurtureenrollment.DeliveryEventsTable,
+			Columns: []string{nurtureenrollment.DeliveryEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurturedeliveryevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

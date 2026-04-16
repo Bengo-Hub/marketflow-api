@@ -9,6 +9,18 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 )
 
+// The AdMetricsFunc type is an adapter to allow the use of ordinary
+// function as AdMetrics mutator.
+type AdMetricsFunc func(context.Context, *ent.AdMetricsMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AdMetricsFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AdMetricsMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AdMetricsMutation", m)
+}
+
 // The AuditLogFunc type is an adapter to allow the use of ordinary
 // function as AuditLog mutator.
 type AuditLogFunc func(context.Context, *ent.AuditLogMutation) (ent.Value, error)
@@ -129,6 +141,18 @@ func (f MarketflowUserFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MarketflowUserMutation", m)
 }
 
+// The NurtureDeliveryEventFunc type is an adapter to allow the use of ordinary
+// function as NurtureDeliveryEvent mutator.
+type NurtureDeliveryEventFunc func(context.Context, *ent.NurtureDeliveryEventMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NurtureDeliveryEventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NurtureDeliveryEventMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NurtureDeliveryEventMutation", m)
+}
+
 // The NurtureEnrollmentFunc type is an adapter to allow the use of ordinary
 // function as NurtureEnrollment mutator.
 type NurtureEnrollmentFunc func(context.Context, *ent.NurtureEnrollmentMutation) (ent.Value, error)
@@ -163,6 +187,18 @@ func (f OutboxEventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OutboxEventMutation", m)
+}
+
+// The ProfileEventFunc type is an adapter to allow the use of ordinary
+// function as ProfileEvent mutator.
+type ProfileEventFunc func(context.Context, *ent.ProfileEventMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProfileEventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProfileEventMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProfileEventMutation", m)
 }
 
 // The ProviderSettingFunc type is an adapter to allow the use of ordinary
@@ -235,6 +271,18 @@ func (f TenantFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TenantMutation", m)
+}
+
+// The TestimonialFunc type is an adapter to allow the use of ordinary
+// function as Testimonial mutator.
+type TestimonialFunc func(context.Context, *ent.TestimonialMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TestimonialFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TestimonialMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TestimonialMutation", m)
 }
 
 // The UserRoleAssignmentFunc type is an adapter to allow the use of ordinary

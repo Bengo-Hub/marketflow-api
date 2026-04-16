@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -11,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/marketflow-api/internal/ent/nurturedeliveryevent"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/predicate"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
@@ -20,12 +22,13 @@ import (
 // NurtureEnrollmentQuery is the builder for querying NurtureEnrollment entities.
 type NurtureEnrollmentQuery struct {
 	config
-	ctx        *QueryContext
-	order      []nurtureenrollment.OrderOption
-	inters     []Interceptor
-	predicates []predicate.NurtureEnrollment
-	withTenant *TenantQuery
-	modifiers  []func(*sql.Selector)
+	ctx                *QueryContext
+	order              []nurtureenrollment.OrderOption
+	inters             []Interceptor
+	predicates         []predicate.NurtureEnrollment
+	withTenant         *TenantQuery
+	withDeliveryEvents *NurtureDeliveryEventQuery
+	modifiers          []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -77,6 +80,28 @@ func (_q *NurtureEnrollmentQuery) QueryTenant() *TenantQuery {
 			sqlgraph.From(nurtureenrollment.Table, nurtureenrollment.FieldID, selector),
 			sqlgraph.To(tenant.Table, tenant.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, nurtureenrollment.TenantTable, nurtureenrollment.TenantColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryDeliveryEvents chains the current query on the "delivery_events" edge.
+func (_q *NurtureEnrollmentQuery) QueryDeliveryEvents() *NurtureDeliveryEventQuery {
+	query := (&NurtureDeliveryEventClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nurtureenrollment.Table, nurtureenrollment.FieldID, selector),
+			sqlgraph.To(nurturedeliveryevent.Table, nurturedeliveryevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, nurtureenrollment.DeliveryEventsTable, nurtureenrollment.DeliveryEventsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -271,12 +296,13 @@ func (_q *NurtureEnrollmentQuery) Clone() *NurtureEnrollmentQuery {
 		return nil
 	}
 	return &NurtureEnrollmentQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]nurtureenrollment.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.NurtureEnrollment{}, _q.predicates...),
-		withTenant: _q.withTenant.Clone(),
+		config:             _q.config,
+		ctx:                _q.ctx.Clone(),
+		order:              append([]nurtureenrollment.OrderOption{}, _q.order...),
+		inters:             append([]Interceptor{}, _q.inters...),
+		predicates:         append([]predicate.NurtureEnrollment{}, _q.predicates...),
+		withTenant:         _q.withTenant.Clone(),
+		withDeliveryEvents: _q.withDeliveryEvents.Clone(),
 		// clone intermediate query.
 		sql:       _q.sql.Clone(),
 		path:      _q.path,
@@ -292,6 +318,17 @@ func (_q *NurtureEnrollmentQuery) WithTenant(opts ...func(*TenantQuery)) *Nurtur
 		opt(query)
 	}
 	_q.withTenant = query
+	return _q
+}
+
+// WithDeliveryEvents tells the query-builder to eager-load the nodes that are connected to
+// the "delivery_events" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *NurtureEnrollmentQuery) WithDeliveryEvents(opts ...func(*NurtureDeliveryEventQuery)) *NurtureEnrollmentQuery {
+	query := (&NurtureDeliveryEventClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withDeliveryEvents = query
 	return _q
 }
 
@@ -373,8 +410,9 @@ func (_q *NurtureEnrollmentQuery) sqlAll(ctx context.Context, hooks ...queryHook
 	var (
 		nodes       = []*NurtureEnrollment{}
 		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
 			_q.withTenant != nil,
+			_q.withDeliveryEvents != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -401,6 +439,15 @@ func (_q *NurtureEnrollmentQuery) sqlAll(ctx context.Context, hooks ...queryHook
 	if query := _q.withTenant; query != nil {
 		if err := _q.loadTenant(ctx, query, nodes, nil,
 			func(n *NurtureEnrollment, e *Tenant) { n.Edges.Tenant = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withDeliveryEvents; query != nil {
+		if err := _q.loadDeliveryEvents(ctx, query, nodes,
+			func(n *NurtureEnrollment) { n.Edges.DeliveryEvents = []*NurtureDeliveryEvent{} },
+			func(n *NurtureEnrollment, e *NurtureDeliveryEvent) {
+				n.Edges.DeliveryEvents = append(n.Edges.DeliveryEvents, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -433,6 +480,36 @@ func (_q *NurtureEnrollmentQuery) loadTenant(ctx context.Context, query *TenantQ
 		for i := range nodes {
 			assign(nodes[i], n)
 		}
+	}
+	return nil
+}
+func (_q *NurtureEnrollmentQuery) loadDeliveryEvents(ctx context.Context, query *NurtureDeliveryEventQuery, nodes []*NurtureEnrollment, init func(*NurtureEnrollment), assign func(*NurtureEnrollment, *NurtureDeliveryEvent)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*NurtureEnrollment)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(nurturedeliveryevent.FieldEnrollmentID)
+	}
+	query.Where(predicate.NurtureDeliveryEvent(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(nurtureenrollment.DeliveryEventsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.EnrollmentID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "enrollment_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
 	}
 	return nil
 }

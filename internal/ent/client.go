@@ -16,6 +16,7 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/bengobox/marketflow-api/internal/ent/admetrics"
 	"github.com/bengobox/marketflow-api/internal/ent/auditlog"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
@@ -26,15 +27,18 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
+	"github.com/bengobox/marketflow-api/internal/ent/nurturedeliveryevent"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/outboxevent"
+	"github.com/bengobox/marketflow-api/internal/ent/profileevent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/bengobox/marketflow-api/internal/ent/rolepermission"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
 	"github.com/bengobox/marketflow-api/internal/ent/shortlink"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
+	"github.com/bengobox/marketflow-api/internal/ent/testimonial"
 	"github.com/bengobox/marketflow-api/internal/ent/userroleassignment"
 )
 
@@ -43,6 +47,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// AdMetrics is the client for interacting with the AdMetrics builders.
+	AdMetrics *AdMetricsClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
 	// Campaign is the client for interacting with the Campaign builders.
@@ -63,12 +69,16 @@ type Client struct {
 	MarketflowRole *MarketflowRoleClient
 	// MarketflowUser is the client for interacting with the MarketflowUser builders.
 	MarketflowUser *MarketflowUserClient
+	// NurtureDeliveryEvent is the client for interacting with the NurtureDeliveryEvent builders.
+	NurtureDeliveryEvent *NurtureDeliveryEventClient
 	// NurtureEnrollment is the client for interacting with the NurtureEnrollment builders.
 	NurtureEnrollment *NurtureEnrollmentClient
 	// NurtureSequence is the client for interacting with the NurtureSequence builders.
 	NurtureSequence *NurtureSequenceClient
 	// OutboxEvent is the client for interacting with the OutboxEvent builders.
 	OutboxEvent *OutboxEventClient
+	// ProfileEvent is the client for interacting with the ProfileEvent builders.
+	ProfileEvent *ProfileEventClient
 	// ProviderSetting is the client for interacting with the ProviderSetting builders.
 	ProviderSetting *ProviderSettingClient
 	// RolePermission is the client for interacting with the RolePermission builders.
@@ -81,6 +91,8 @@ type Client struct {
 	ShortLink *ShortLinkClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
+	// Testimonial is the client for interacting with the Testimonial builders.
+	Testimonial *TestimonialClient
 	// UserRoleAssignment is the client for interacting with the UserRoleAssignment builders.
 	UserRoleAssignment *UserRoleAssignmentClient
 }
@@ -94,6 +106,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.AdMetrics = NewAdMetricsClient(c.config)
 	c.AuditLog = NewAuditLogClient(c.config)
 	c.Campaign = NewCampaignClient(c.config)
 	c.ChatSession = NewChatSessionClient(c.config)
@@ -104,15 +117,18 @@ func (c *Client) init() {
 	c.MarketflowPermission = NewMarketflowPermissionClient(c.config)
 	c.MarketflowRole = NewMarketflowRoleClient(c.config)
 	c.MarketflowUser = NewMarketflowUserClient(c.config)
+	c.NurtureDeliveryEvent = NewNurtureDeliveryEventClient(c.config)
 	c.NurtureEnrollment = NewNurtureEnrollmentClient(c.config)
 	c.NurtureSequence = NewNurtureSequenceClient(c.config)
 	c.OutboxEvent = NewOutboxEventClient(c.config)
+	c.ProfileEvent = NewProfileEventClient(c.config)
 	c.ProviderSetting = NewProviderSettingClient(c.config)
 	c.RolePermission = NewRolePermissionClient(c.config)
 	c.ScheduledMeeting = NewScheduledMeetingClient(c.config)
 	c.ServiceConfig = NewServiceConfigClient(c.config)
 	c.ShortLink = NewShortLinkClient(c.config)
 	c.Tenant = NewTenantClient(c.config)
+	c.Testimonial = NewTestimonialClient(c.config)
 	c.UserRoleAssignment = NewUserRoleAssignmentClient(c.config)
 }
 
@@ -206,6 +222,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	return &Tx{
 		ctx:                  ctx,
 		config:               cfg,
+		AdMetrics:            NewAdMetricsClient(cfg),
 		AuditLog:             NewAuditLogClient(cfg),
 		Campaign:             NewCampaignClient(cfg),
 		ChatSession:          NewChatSessionClient(cfg),
@@ -216,15 +233,18 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		MarketflowPermission: NewMarketflowPermissionClient(cfg),
 		MarketflowRole:       NewMarketflowRoleClient(cfg),
 		MarketflowUser:       NewMarketflowUserClient(cfg),
+		NurtureDeliveryEvent: NewNurtureDeliveryEventClient(cfg),
 		NurtureEnrollment:    NewNurtureEnrollmentClient(cfg),
 		NurtureSequence:      NewNurtureSequenceClient(cfg),
 		OutboxEvent:          NewOutboxEventClient(cfg),
+		ProfileEvent:         NewProfileEventClient(cfg),
 		ProviderSetting:      NewProviderSettingClient(cfg),
 		RolePermission:       NewRolePermissionClient(cfg),
 		ScheduledMeeting:     NewScheduledMeetingClient(cfg),
 		ServiceConfig:        NewServiceConfigClient(cfg),
 		ShortLink:            NewShortLinkClient(cfg),
 		Tenant:               NewTenantClient(cfg),
+		Testimonial:          NewTestimonialClient(cfg),
 		UserRoleAssignment:   NewUserRoleAssignmentClient(cfg),
 	}, nil
 }
@@ -245,6 +265,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	return &Tx{
 		ctx:                  ctx,
 		config:               cfg,
+		AdMetrics:            NewAdMetricsClient(cfg),
 		AuditLog:             NewAuditLogClient(cfg),
 		Campaign:             NewCampaignClient(cfg),
 		ChatSession:          NewChatSessionClient(cfg),
@@ -255,15 +276,18 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		MarketflowPermission: NewMarketflowPermissionClient(cfg),
 		MarketflowRole:       NewMarketflowRoleClient(cfg),
 		MarketflowUser:       NewMarketflowUserClient(cfg),
+		NurtureDeliveryEvent: NewNurtureDeliveryEventClient(cfg),
 		NurtureEnrollment:    NewNurtureEnrollmentClient(cfg),
 		NurtureSequence:      NewNurtureSequenceClient(cfg),
 		OutboxEvent:          NewOutboxEventClient(cfg),
+		ProfileEvent:         NewProfileEventClient(cfg),
 		ProviderSetting:      NewProviderSettingClient(cfg),
 		RolePermission:       NewRolePermissionClient(cfg),
 		ScheduledMeeting:     NewScheduledMeetingClient(cfg),
 		ServiceConfig:        NewServiceConfigClient(cfg),
 		ShortLink:            NewShortLinkClient(cfg),
 		Tenant:               NewTenantClient(cfg),
+		Testimonial:          NewTestimonialClient(cfg),
 		UserRoleAssignment:   NewUserRoleAssignmentClient(cfg),
 	}, nil
 }
@@ -271,7 +295,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		AuditLog.
+//		AdMetrics.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -294,11 +318,12 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.AuditLog, c.Campaign, c.ChatSession, c.Contact, c.Funnel,
+		c.AdMetrics, c.AuditLog, c.Campaign, c.ChatSession, c.Contact, c.Funnel,
 		c.KnowledgeBaseEntry, c.Lead, c.MarketflowPermission, c.MarketflowRole,
-		c.MarketflowUser, c.NurtureEnrollment, c.NurtureSequence, c.OutboxEvent,
-		c.ProviderSetting, c.RolePermission, c.ScheduledMeeting, c.ServiceConfig,
-		c.ShortLink, c.Tenant, c.UserRoleAssignment,
+		c.MarketflowUser, c.NurtureDeliveryEvent, c.NurtureEnrollment,
+		c.NurtureSequence, c.OutboxEvent, c.ProfileEvent, c.ProviderSetting,
+		c.RolePermission, c.ScheduledMeeting, c.ServiceConfig, c.ShortLink, c.Tenant,
+		c.Testimonial, c.UserRoleAssignment,
 	} {
 		n.Use(hooks...)
 	}
@@ -308,11 +333,12 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.AuditLog, c.Campaign, c.ChatSession, c.Contact, c.Funnel,
+		c.AdMetrics, c.AuditLog, c.Campaign, c.ChatSession, c.Contact, c.Funnel,
 		c.KnowledgeBaseEntry, c.Lead, c.MarketflowPermission, c.MarketflowRole,
-		c.MarketflowUser, c.NurtureEnrollment, c.NurtureSequence, c.OutboxEvent,
-		c.ProviderSetting, c.RolePermission, c.ScheduledMeeting, c.ServiceConfig,
-		c.ShortLink, c.Tenant, c.UserRoleAssignment,
+		c.MarketflowUser, c.NurtureDeliveryEvent, c.NurtureEnrollment,
+		c.NurtureSequence, c.OutboxEvent, c.ProfileEvent, c.ProviderSetting,
+		c.RolePermission, c.ScheduledMeeting, c.ServiceConfig, c.ShortLink, c.Tenant,
+		c.Testimonial, c.UserRoleAssignment,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -321,6 +347,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *AdMetricsMutation:
+		return c.AdMetrics.mutate(ctx, m)
 	case *AuditLogMutation:
 		return c.AuditLog.mutate(ctx, m)
 	case *CampaignMutation:
@@ -341,12 +369,16 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.MarketflowRole.mutate(ctx, m)
 	case *MarketflowUserMutation:
 		return c.MarketflowUser.mutate(ctx, m)
+	case *NurtureDeliveryEventMutation:
+		return c.NurtureDeliveryEvent.mutate(ctx, m)
 	case *NurtureEnrollmentMutation:
 		return c.NurtureEnrollment.mutate(ctx, m)
 	case *NurtureSequenceMutation:
 		return c.NurtureSequence.mutate(ctx, m)
 	case *OutboxEventMutation:
 		return c.OutboxEvent.mutate(ctx, m)
+	case *ProfileEventMutation:
+		return c.ProfileEvent.mutate(ctx, m)
 	case *ProviderSettingMutation:
 		return c.ProviderSetting.mutate(ctx, m)
 	case *RolePermissionMutation:
@@ -359,10 +391,177 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ShortLink.mutate(ctx, m)
 	case *TenantMutation:
 		return c.Tenant.mutate(ctx, m)
+	case *TestimonialMutation:
+		return c.Testimonial.mutate(ctx, m)
 	case *UserRoleAssignmentMutation:
 		return c.UserRoleAssignment.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// AdMetricsClient is a client for the AdMetrics schema.
+type AdMetricsClient struct {
+	config
+}
+
+// NewAdMetricsClient returns a client for the AdMetrics from the given config.
+func NewAdMetricsClient(c config) *AdMetricsClient {
+	return &AdMetricsClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `admetrics.Hooks(f(g(h())))`.
+func (c *AdMetricsClient) Use(hooks ...Hook) {
+	c.hooks.AdMetrics = append(c.hooks.AdMetrics, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `admetrics.Intercept(f(g(h())))`.
+func (c *AdMetricsClient) Intercept(interceptors ...Interceptor) {
+	c.inters.AdMetrics = append(c.inters.AdMetrics, interceptors...)
+}
+
+// Create returns a builder for creating a AdMetrics entity.
+func (c *AdMetricsClient) Create() *AdMetricsCreate {
+	mutation := newAdMetricsMutation(c.config, OpCreate)
+	return &AdMetricsCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of AdMetrics entities.
+func (c *AdMetricsClient) CreateBulk(builders ...*AdMetricsCreate) *AdMetricsCreateBulk {
+	return &AdMetricsCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AdMetricsClient) MapCreateBulk(slice any, setFunc func(*AdMetricsCreate, int)) *AdMetricsCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AdMetricsCreateBulk{err: fmt.Errorf("calling to AdMetricsClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AdMetricsCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AdMetricsCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for AdMetrics.
+func (c *AdMetricsClient) Update() *AdMetricsUpdate {
+	mutation := newAdMetricsMutation(c.config, OpUpdate)
+	return &AdMetricsUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AdMetricsClient) UpdateOne(_m *AdMetrics) *AdMetricsUpdateOne {
+	mutation := newAdMetricsMutation(c.config, OpUpdateOne, withAdMetrics(_m))
+	return &AdMetricsUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AdMetricsClient) UpdateOneID(id uuid.UUID) *AdMetricsUpdateOne {
+	mutation := newAdMetricsMutation(c.config, OpUpdateOne, withAdMetricsID(id))
+	return &AdMetricsUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for AdMetrics.
+func (c *AdMetricsClient) Delete() *AdMetricsDelete {
+	mutation := newAdMetricsMutation(c.config, OpDelete)
+	return &AdMetricsDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AdMetricsClient) DeleteOne(_m *AdMetrics) *AdMetricsDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AdMetricsClient) DeleteOneID(id uuid.UUID) *AdMetricsDeleteOne {
+	builder := c.Delete().Where(admetrics.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AdMetricsDeleteOne{builder}
+}
+
+// Query returns a query builder for AdMetrics.
+func (c *AdMetricsClient) Query() *AdMetricsQuery {
+	return &AdMetricsQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAdMetrics},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a AdMetrics entity by its id.
+func (c *AdMetricsClient) Get(ctx context.Context, id uuid.UUID) (*AdMetrics, error) {
+	return c.Query().Where(admetrics.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AdMetricsClient) GetX(ctx context.Context, id uuid.UUID) *AdMetrics {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a AdMetrics.
+func (c *AdMetricsClient) QueryTenant(_m *AdMetrics) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(admetrics.Table, admetrics.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, admetrics.TenantTable, admetrics.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCampaign queries the campaign edge of a AdMetrics.
+func (c *AdMetricsClient) QueryCampaign(_m *AdMetrics) *CampaignQuery {
+	query := (&CampaignClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(admetrics.Table, admetrics.FieldID, id),
+			sqlgraph.To(campaign.Table, campaign.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, admetrics.CampaignTable, admetrics.CampaignColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *AdMetricsClient) Hooks() []Hook {
+	return c.hooks.AdMetrics
+}
+
+// Interceptors returns the client interceptors.
+func (c *AdMetricsClient) Interceptors() []Interceptor {
+	return c.inters.AdMetrics
+}
+
+func (c *AdMetricsClient) mutate(ctx context.Context, m *AdMetricsMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AdMetricsCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AdMetricsUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AdMetricsUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AdMetricsDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown AdMetrics mutation op: %q", m.Op())
 	}
 }
 
@@ -632,6 +831,22 @@ func (c *CampaignClient) QueryLeads(_m *Campaign) *LeadQuery {
 			sqlgraph.From(campaign.Table, campaign.FieldID, id),
 			sqlgraph.To(lead.Table, lead.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, campaign.LeadsTable, campaign.LeadsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAdMetrics queries the ad_metrics edge of a Campaign.
+func (c *CampaignClient) QueryAdMetrics(_m *Campaign) *AdMetricsQuery {
+	query := (&AdMetricsClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(campaign.Table, campaign.FieldID, id),
+			sqlgraph.To(admetrics.Table, admetrics.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, campaign.AdMetricsTable, campaign.AdMetricsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -2032,6 +2247,171 @@ func (c *MarketflowUserClient) mutate(ctx context.Context, m *MarketflowUserMuta
 	}
 }
 
+// NurtureDeliveryEventClient is a client for the NurtureDeliveryEvent schema.
+type NurtureDeliveryEventClient struct {
+	config
+}
+
+// NewNurtureDeliveryEventClient returns a client for the NurtureDeliveryEvent from the given config.
+func NewNurtureDeliveryEventClient(c config) *NurtureDeliveryEventClient {
+	return &NurtureDeliveryEventClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `nurturedeliveryevent.Hooks(f(g(h())))`.
+func (c *NurtureDeliveryEventClient) Use(hooks ...Hook) {
+	c.hooks.NurtureDeliveryEvent = append(c.hooks.NurtureDeliveryEvent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `nurturedeliveryevent.Intercept(f(g(h())))`.
+func (c *NurtureDeliveryEventClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NurtureDeliveryEvent = append(c.inters.NurtureDeliveryEvent, interceptors...)
+}
+
+// Create returns a builder for creating a NurtureDeliveryEvent entity.
+func (c *NurtureDeliveryEventClient) Create() *NurtureDeliveryEventCreate {
+	mutation := newNurtureDeliveryEventMutation(c.config, OpCreate)
+	return &NurtureDeliveryEventCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NurtureDeliveryEvent entities.
+func (c *NurtureDeliveryEventClient) CreateBulk(builders ...*NurtureDeliveryEventCreate) *NurtureDeliveryEventCreateBulk {
+	return &NurtureDeliveryEventCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NurtureDeliveryEventClient) MapCreateBulk(slice any, setFunc func(*NurtureDeliveryEventCreate, int)) *NurtureDeliveryEventCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NurtureDeliveryEventCreateBulk{err: fmt.Errorf("calling to NurtureDeliveryEventClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NurtureDeliveryEventCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NurtureDeliveryEventCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NurtureDeliveryEvent.
+func (c *NurtureDeliveryEventClient) Update() *NurtureDeliveryEventUpdate {
+	mutation := newNurtureDeliveryEventMutation(c.config, OpUpdate)
+	return &NurtureDeliveryEventUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NurtureDeliveryEventClient) UpdateOne(_m *NurtureDeliveryEvent) *NurtureDeliveryEventUpdateOne {
+	mutation := newNurtureDeliveryEventMutation(c.config, OpUpdateOne, withNurtureDeliveryEvent(_m))
+	return &NurtureDeliveryEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NurtureDeliveryEventClient) UpdateOneID(id uuid.UUID) *NurtureDeliveryEventUpdateOne {
+	mutation := newNurtureDeliveryEventMutation(c.config, OpUpdateOne, withNurtureDeliveryEventID(id))
+	return &NurtureDeliveryEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NurtureDeliveryEvent.
+func (c *NurtureDeliveryEventClient) Delete() *NurtureDeliveryEventDelete {
+	mutation := newNurtureDeliveryEventMutation(c.config, OpDelete)
+	return &NurtureDeliveryEventDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NurtureDeliveryEventClient) DeleteOne(_m *NurtureDeliveryEvent) *NurtureDeliveryEventDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NurtureDeliveryEventClient) DeleteOneID(id uuid.UUID) *NurtureDeliveryEventDeleteOne {
+	builder := c.Delete().Where(nurturedeliveryevent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NurtureDeliveryEventDeleteOne{builder}
+}
+
+// Query returns a query builder for NurtureDeliveryEvent.
+func (c *NurtureDeliveryEventClient) Query() *NurtureDeliveryEventQuery {
+	return &NurtureDeliveryEventQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNurtureDeliveryEvent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NurtureDeliveryEvent entity by its id.
+func (c *NurtureDeliveryEventClient) Get(ctx context.Context, id uuid.UUID) (*NurtureDeliveryEvent, error) {
+	return c.Query().Where(nurturedeliveryevent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NurtureDeliveryEventClient) GetX(ctx context.Context, id uuid.UUID) *NurtureDeliveryEvent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a NurtureDeliveryEvent.
+func (c *NurtureDeliveryEventClient) QueryTenant(_m *NurtureDeliveryEvent) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nurturedeliveryevent.Table, nurturedeliveryevent.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nurturedeliveryevent.TenantTable, nurturedeliveryevent.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryEnrollment queries the enrollment edge of a NurtureDeliveryEvent.
+func (c *NurtureDeliveryEventClient) QueryEnrollment(_m *NurtureDeliveryEvent) *NurtureEnrollmentQuery {
+	query := (&NurtureEnrollmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nurturedeliveryevent.Table, nurturedeliveryevent.FieldID, id),
+			sqlgraph.To(nurtureenrollment.Table, nurtureenrollment.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, nurturedeliveryevent.EnrollmentTable, nurturedeliveryevent.EnrollmentColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *NurtureDeliveryEventClient) Hooks() []Hook {
+	return c.hooks.NurtureDeliveryEvent
+}
+
+// Interceptors returns the client interceptors.
+func (c *NurtureDeliveryEventClient) Interceptors() []Interceptor {
+	return c.inters.NurtureDeliveryEvent
+}
+
+func (c *NurtureDeliveryEventClient) mutate(ctx context.Context, m *NurtureDeliveryEventMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NurtureDeliveryEventCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NurtureDeliveryEventUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NurtureDeliveryEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NurtureDeliveryEventDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NurtureDeliveryEvent mutation op: %q", m.Op())
+	}
+}
+
 // NurtureEnrollmentClient is a client for the NurtureEnrollment schema.
 type NurtureEnrollmentClient struct {
 	config
@@ -2149,6 +2529,22 @@ func (c *NurtureEnrollmentClient) QueryTenant(_m *NurtureEnrollment) *TenantQuer
 			sqlgraph.From(nurtureenrollment.Table, nurtureenrollment.FieldID, id),
 			sqlgraph.To(tenant.Table, tenant.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, nurtureenrollment.TenantTable, nurtureenrollment.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryDeliveryEvents queries the delivery_events edge of a NurtureEnrollment.
+func (c *NurtureEnrollmentClient) QueryDeliveryEvents(_m *NurtureEnrollment) *NurtureDeliveryEventQuery {
+	query := (&NurtureDeliveryEventClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(nurtureenrollment.Table, nurtureenrollment.FieldID, id),
+			sqlgraph.To(nurturedeliveryevent.Table, nurturedeliveryevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, nurtureenrollment.DeliveryEventsTable, nurtureenrollment.DeliveryEventsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -2460,6 +2856,155 @@ func (c *OutboxEventClient) mutate(ctx context.Context, m *OutboxEventMutation) 
 		return (&OutboxEventDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown OutboxEvent mutation op: %q", m.Op())
+	}
+}
+
+// ProfileEventClient is a client for the ProfileEvent schema.
+type ProfileEventClient struct {
+	config
+}
+
+// NewProfileEventClient returns a client for the ProfileEvent from the given config.
+func NewProfileEventClient(c config) *ProfileEventClient {
+	return &ProfileEventClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `profileevent.Hooks(f(g(h())))`.
+func (c *ProfileEventClient) Use(hooks ...Hook) {
+	c.hooks.ProfileEvent = append(c.hooks.ProfileEvent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `profileevent.Intercept(f(g(h())))`.
+func (c *ProfileEventClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ProfileEvent = append(c.inters.ProfileEvent, interceptors...)
+}
+
+// Create returns a builder for creating a ProfileEvent entity.
+func (c *ProfileEventClient) Create() *ProfileEventCreate {
+	mutation := newProfileEventMutation(c.config, OpCreate)
+	return &ProfileEventCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ProfileEvent entities.
+func (c *ProfileEventClient) CreateBulk(builders ...*ProfileEventCreate) *ProfileEventCreateBulk {
+	return &ProfileEventCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ProfileEventClient) MapCreateBulk(slice any, setFunc func(*ProfileEventCreate, int)) *ProfileEventCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ProfileEventCreateBulk{err: fmt.Errorf("calling to ProfileEventClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ProfileEventCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ProfileEventCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ProfileEvent.
+func (c *ProfileEventClient) Update() *ProfileEventUpdate {
+	mutation := newProfileEventMutation(c.config, OpUpdate)
+	return &ProfileEventUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ProfileEventClient) UpdateOne(_m *ProfileEvent) *ProfileEventUpdateOne {
+	mutation := newProfileEventMutation(c.config, OpUpdateOne, withProfileEvent(_m))
+	return &ProfileEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ProfileEventClient) UpdateOneID(id uuid.UUID) *ProfileEventUpdateOne {
+	mutation := newProfileEventMutation(c.config, OpUpdateOne, withProfileEventID(id))
+	return &ProfileEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ProfileEvent.
+func (c *ProfileEventClient) Delete() *ProfileEventDelete {
+	mutation := newProfileEventMutation(c.config, OpDelete)
+	return &ProfileEventDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ProfileEventClient) DeleteOne(_m *ProfileEvent) *ProfileEventDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ProfileEventClient) DeleteOneID(id uuid.UUID) *ProfileEventDeleteOne {
+	builder := c.Delete().Where(profileevent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ProfileEventDeleteOne{builder}
+}
+
+// Query returns a query builder for ProfileEvent.
+func (c *ProfileEventClient) Query() *ProfileEventQuery {
+	return &ProfileEventQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeProfileEvent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ProfileEvent entity by its id.
+func (c *ProfileEventClient) Get(ctx context.Context, id uuid.UUID) (*ProfileEvent, error) {
+	return c.Query().Where(profileevent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ProfileEventClient) GetX(ctx context.Context, id uuid.UUID) *ProfileEvent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a ProfileEvent.
+func (c *ProfileEventClient) QueryTenant(_m *ProfileEvent) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(profileevent.Table, profileevent.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, profileevent.TenantTable, profileevent.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ProfileEventClient) Hooks() []Hook {
+	return c.hooks.ProfileEvent
+}
+
+// Interceptors returns the client interceptors.
+func (c *ProfileEventClient) Interceptors() []Interceptor {
+	return c.inters.ProfileEvent
+}
+
+func (c *ProfileEventClient) mutate(ctx context.Context, m *ProfileEventMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ProfileEventCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ProfileEventUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ProfileEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ProfileEventDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ProfileEvent mutation op: %q", m.Op())
 	}
 }
 
@@ -3428,6 +3973,70 @@ func (c *TenantClient) QueryNurtureEnrollments(_m *Tenant) *NurtureEnrollmentQue
 	return query
 }
 
+// QueryTestimonials queries the testimonials edge of a Tenant.
+func (c *TenantClient) QueryTestimonials(_m *Tenant) *TestimonialQuery {
+	query := (&TestimonialClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(testimonial.Table, testimonial.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.TestimonialsTable, tenant.TestimonialsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProfileEvents queries the profile_events edge of a Tenant.
+func (c *TenantClient) QueryProfileEvents(_m *Tenant) *ProfileEventQuery {
+	query := (&ProfileEventClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(profileevent.Table, profileevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.ProfileEventsTable, tenant.ProfileEventsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryNurtureDeliveryEvents queries the nurture_delivery_events edge of a Tenant.
+func (c *TenantClient) QueryNurtureDeliveryEvents(_m *Tenant) *NurtureDeliveryEventQuery {
+	query := (&NurtureDeliveryEventClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(nurturedeliveryevent.Table, nurturedeliveryevent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.NurtureDeliveryEventsTable, tenant.NurtureDeliveryEventsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAdMetrics queries the ad_metrics edge of a Tenant.
+func (c *TenantClient) QueryAdMetrics(_m *Tenant) *AdMetricsQuery {
+	query := (&AdMetricsClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(admetrics.Table, admetrics.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.AdMetricsTable, tenant.AdMetricsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *TenantClient) Hooks() []Hook {
 	return c.hooks.Tenant
@@ -3450,6 +4059,155 @@ func (c *TenantClient) mutate(ctx context.Context, m *TenantMutation) (Value, er
 		return (&TenantDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Tenant mutation op: %q", m.Op())
+	}
+}
+
+// TestimonialClient is a client for the Testimonial schema.
+type TestimonialClient struct {
+	config
+}
+
+// NewTestimonialClient returns a client for the Testimonial from the given config.
+func NewTestimonialClient(c config) *TestimonialClient {
+	return &TestimonialClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `testimonial.Hooks(f(g(h())))`.
+func (c *TestimonialClient) Use(hooks ...Hook) {
+	c.hooks.Testimonial = append(c.hooks.Testimonial, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `testimonial.Intercept(f(g(h())))`.
+func (c *TestimonialClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Testimonial = append(c.inters.Testimonial, interceptors...)
+}
+
+// Create returns a builder for creating a Testimonial entity.
+func (c *TestimonialClient) Create() *TestimonialCreate {
+	mutation := newTestimonialMutation(c.config, OpCreate)
+	return &TestimonialCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Testimonial entities.
+func (c *TestimonialClient) CreateBulk(builders ...*TestimonialCreate) *TestimonialCreateBulk {
+	return &TestimonialCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *TestimonialClient) MapCreateBulk(slice any, setFunc func(*TestimonialCreate, int)) *TestimonialCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &TestimonialCreateBulk{err: fmt.Errorf("calling to TestimonialClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*TestimonialCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &TestimonialCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Testimonial.
+func (c *TestimonialClient) Update() *TestimonialUpdate {
+	mutation := newTestimonialMutation(c.config, OpUpdate)
+	return &TestimonialUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TestimonialClient) UpdateOne(_m *Testimonial) *TestimonialUpdateOne {
+	mutation := newTestimonialMutation(c.config, OpUpdateOne, withTestimonial(_m))
+	return &TestimonialUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TestimonialClient) UpdateOneID(id uuid.UUID) *TestimonialUpdateOne {
+	mutation := newTestimonialMutation(c.config, OpUpdateOne, withTestimonialID(id))
+	return &TestimonialUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Testimonial.
+func (c *TestimonialClient) Delete() *TestimonialDelete {
+	mutation := newTestimonialMutation(c.config, OpDelete)
+	return &TestimonialDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *TestimonialClient) DeleteOne(_m *Testimonial) *TestimonialDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *TestimonialClient) DeleteOneID(id uuid.UUID) *TestimonialDeleteOne {
+	builder := c.Delete().Where(testimonial.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TestimonialDeleteOne{builder}
+}
+
+// Query returns a query builder for Testimonial.
+func (c *TestimonialClient) Query() *TestimonialQuery {
+	return &TestimonialQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeTestimonial},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Testimonial entity by its id.
+func (c *TestimonialClient) Get(ctx context.Context, id uuid.UUID) (*Testimonial, error) {
+	return c.Query().Where(testimonial.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TestimonialClient) GetX(ctx context.Context, id uuid.UUID) *Testimonial {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a Testimonial.
+func (c *TestimonialClient) QueryTenant(_m *Testimonial) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(testimonial.Table, testimonial.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, testimonial.TenantTable, testimonial.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *TestimonialClient) Hooks() []Hook {
+	return c.hooks.Testimonial
+}
+
+// Interceptors returns the client interceptors.
+func (c *TestimonialClient) Interceptors() []Interceptor {
+	return c.inters.Testimonial
+}
+
+func (c *TestimonialClient) mutate(ctx context.Context, m *TestimonialMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&TestimonialCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&TestimonialUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&TestimonialUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&TestimonialDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Testimonial mutation op: %q", m.Op())
 	}
 }
 
@@ -3621,17 +4379,17 @@ func (c *UserRoleAssignmentClient) mutate(ctx context.Context, m *UserRoleAssign
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		AuditLog, Campaign, ChatSession, Contact, Funnel, KnowledgeBaseEntry, Lead,
-		MarketflowPermission, MarketflowRole, MarketflowUser, NurtureEnrollment,
-		NurtureSequence, OutboxEvent, ProviderSetting, RolePermission,
-		ScheduledMeeting, ServiceConfig, ShortLink, Tenant,
-		UserRoleAssignment []ent.Hook
+		AdMetrics, AuditLog, Campaign, ChatSession, Contact, Funnel, KnowledgeBaseEntry,
+		Lead, MarketflowPermission, MarketflowRole, MarketflowUser,
+		NurtureDeliveryEvent, NurtureEnrollment, NurtureSequence, OutboxEvent,
+		ProfileEvent, ProviderSetting, RolePermission, ScheduledMeeting, ServiceConfig,
+		ShortLink, Tenant, Testimonial, UserRoleAssignment []ent.Hook
 	}
 	inters struct {
-		AuditLog, Campaign, ChatSession, Contact, Funnel, KnowledgeBaseEntry, Lead,
-		MarketflowPermission, MarketflowRole, MarketflowUser, NurtureEnrollment,
-		NurtureSequence, OutboxEvent, ProviderSetting, RolePermission,
-		ScheduledMeeting, ServiceConfig, ShortLink, Tenant,
-		UserRoleAssignment []ent.Interceptor
+		AdMetrics, AuditLog, Campaign, ChatSession, Contact, Funnel, KnowledgeBaseEntry,
+		Lead, MarketflowPermission, MarketflowRole, MarketflowUser,
+		NurtureDeliveryEvent, NurtureEnrollment, NurtureSequence, OutboxEvent,
+		ProfileEvent, ProviderSetting, RolePermission, ScheduledMeeting, ServiceConfig,
+		ShortLink, Tenant, Testimonial, UserRoleAssignment []ent.Interceptor
 	}
 )

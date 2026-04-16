@@ -72,9 +72,11 @@ type CampaignEdges struct {
 	Tenant *Tenant `json:"tenant,omitempty"`
 	// Leads holds the value of the leads edge.
 	Leads []*Lead `json:"leads,omitempty"`
+	// AdMetrics holds the value of the ad_metrics edge.
+	AdMetrics []*AdMetrics `json:"ad_metrics,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -95,6 +97,15 @@ func (e CampaignEdges) LeadsOrErr() ([]*Lead, error) {
 		return e.Leads, nil
 	}
 	return nil, &NotLoadedError{edge: "leads"}
+}
+
+// AdMetricsOrErr returns the AdMetrics value or an error if the edge
+// was not loaded in eager-loading.
+func (e CampaignEdges) AdMetricsOrErr() ([]*AdMetrics, error) {
+	if e.loadedTypes[2] {
+		return e.AdMetrics, nil
+	}
+	return nil, &NotLoadedError{edge: "ad_metrics"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -290,6 +301,11 @@ func (_m *Campaign) QueryTenant() *TenantQuery {
 // QueryLeads queries the "leads" edge of the Campaign entity.
 func (_m *Campaign) QueryLeads() *LeadQuery {
 	return NewCampaignClient(_m.config).QueryLeads(_m)
+}
+
+// QueryAdMetrics queries the "ad_metrics" edge of the Campaign entity.
+func (_m *Campaign) QueryAdMetrics() *AdMetricsQuery {
+	return NewCampaignClient(_m.config).QueryAdMetrics(_m)
 }
 
 // Update returns a builder for updating this Campaign.

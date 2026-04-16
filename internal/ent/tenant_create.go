@@ -12,15 +12,19 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/marketflow-api/internal/ent/admetrics"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/ent/nurturedeliveryevent"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
+	"github.com/bengobox/marketflow-api/internal/ent/profileevent"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
+	"github.com/bengobox/marketflow-api/internal/ent/testimonial"
 	"github.com/google/uuid"
 )
 
@@ -408,6 +412,66 @@ func (_c *TenantCreate) AddNurtureEnrollments(v ...*NurtureEnrollment) *TenantCr
 	return _c.AddNurtureEnrollmentIDs(ids...)
 }
 
+// AddTestimonialIDs adds the "testimonials" edge to the Testimonial entity by IDs.
+func (_c *TenantCreate) AddTestimonialIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddTestimonialIDs(ids...)
+	return _c
+}
+
+// AddTestimonials adds the "testimonials" edges to the Testimonial entity.
+func (_c *TenantCreate) AddTestimonials(v ...*Testimonial) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddTestimonialIDs(ids...)
+}
+
+// AddProfileEventIDs adds the "profile_events" edge to the ProfileEvent entity by IDs.
+func (_c *TenantCreate) AddProfileEventIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddProfileEventIDs(ids...)
+	return _c
+}
+
+// AddProfileEvents adds the "profile_events" edges to the ProfileEvent entity.
+func (_c *TenantCreate) AddProfileEvents(v ...*ProfileEvent) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddProfileEventIDs(ids...)
+}
+
+// AddNurtureDeliveryEventIDs adds the "nurture_delivery_events" edge to the NurtureDeliveryEvent entity by IDs.
+func (_c *TenantCreate) AddNurtureDeliveryEventIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddNurtureDeliveryEventIDs(ids...)
+	return _c
+}
+
+// AddNurtureDeliveryEvents adds the "nurture_delivery_events" edges to the NurtureDeliveryEvent entity.
+func (_c *TenantCreate) AddNurtureDeliveryEvents(v ...*NurtureDeliveryEvent) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddNurtureDeliveryEventIDs(ids...)
+}
+
+// AddAdMetricIDs adds the "ad_metrics" edge to the AdMetrics entity by IDs.
+func (_c *TenantCreate) AddAdMetricIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddAdMetricIDs(ids...)
+	return _c
+}
+
+// AddAdMetrics adds the "ad_metrics" edges to the AdMetrics entity.
+func (_c *TenantCreate) AddAdMetrics(v ...*AdMetrics) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddAdMetricIDs(ids...)
+}
+
 // Mutation returns the TenantMutation object of the builder.
 func (_c *TenantCreate) Mutation() *TenantMutation {
 	return _c.mutation
@@ -744,6 +808,70 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(nurtureenrollment.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.TestimonialsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.TestimonialsTable,
+			Columns: []string{tenant.TestimonialsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(testimonial.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ProfileEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ProfileEventsTable,
+			Columns: []string{tenant.ProfileEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(profileevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.NurtureDeliveryEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.NurtureDeliveryEventsTable,
+			Columns: []string{tenant.NurtureDeliveryEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurturedeliveryevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.AdMetricsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.AdMetricsTable,
+			Columns: []string{tenant.AdMetricsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(admetrics.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

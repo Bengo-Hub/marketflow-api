@@ -81,6 +81,7 @@ func (NurtureEnrollment) Edges() []ent.Edge {
 			Field("tenant_id").
 			Required().
 			Unique(),
+		edge.To("delivery_events", NurtureDeliveryEvent.Type),
 	}
 }
 

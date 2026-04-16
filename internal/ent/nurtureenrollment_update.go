@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/marketflow-api/internal/ent/nurturedeliveryevent"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/predicate"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
@@ -237,6 +238,21 @@ func (_u *NurtureEnrollmentUpdate) SetTenant(v *Tenant) *NurtureEnrollmentUpdate
 	return _u.SetTenantID(v.ID)
 }
 
+// AddDeliveryEventIDs adds the "delivery_events" edge to the NurtureDeliveryEvent entity by IDs.
+func (_u *NurtureEnrollmentUpdate) AddDeliveryEventIDs(ids ...uuid.UUID) *NurtureEnrollmentUpdate {
+	_u.mutation.AddDeliveryEventIDs(ids...)
+	return _u
+}
+
+// AddDeliveryEvents adds the "delivery_events" edges to the NurtureDeliveryEvent entity.
+func (_u *NurtureEnrollmentUpdate) AddDeliveryEvents(v ...*NurtureDeliveryEvent) *NurtureEnrollmentUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDeliveryEventIDs(ids...)
+}
+
 // Mutation returns the NurtureEnrollmentMutation object of the builder.
 func (_u *NurtureEnrollmentUpdate) Mutation() *NurtureEnrollmentMutation {
 	return _u.mutation
@@ -246,6 +262,27 @@ func (_u *NurtureEnrollmentUpdate) Mutation() *NurtureEnrollmentMutation {
 func (_u *NurtureEnrollmentUpdate) ClearTenant() *NurtureEnrollmentUpdate {
 	_u.mutation.ClearTenant()
 	return _u
+}
+
+// ClearDeliveryEvents clears all "delivery_events" edges to the NurtureDeliveryEvent entity.
+func (_u *NurtureEnrollmentUpdate) ClearDeliveryEvents() *NurtureEnrollmentUpdate {
+	_u.mutation.ClearDeliveryEvents()
+	return _u
+}
+
+// RemoveDeliveryEventIDs removes the "delivery_events" edge to NurtureDeliveryEvent entities by IDs.
+func (_u *NurtureEnrollmentUpdate) RemoveDeliveryEventIDs(ids ...uuid.UUID) *NurtureEnrollmentUpdate {
+	_u.mutation.RemoveDeliveryEventIDs(ids...)
+	return _u
+}
+
+// RemoveDeliveryEvents removes "delivery_events" edges to NurtureDeliveryEvent entities.
+func (_u *NurtureEnrollmentUpdate) RemoveDeliveryEvents(v ...*NurtureDeliveryEvent) *NurtureEnrollmentUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDeliveryEventIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -389,6 +426,51 @@ func (_u *NurtureEnrollmentUpdate) sqlSave(ctx context.Context) (_node int, err 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(tenant.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DeliveryEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   nurtureenrollment.DeliveryEventsTable,
+			Columns: []string{nurtureenrollment.DeliveryEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurturedeliveryevent.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDeliveryEventsIDs(); len(nodes) > 0 && !_u.mutation.DeliveryEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   nurtureenrollment.DeliveryEventsTable,
+			Columns: []string{nurtureenrollment.DeliveryEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurturedeliveryevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DeliveryEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   nurtureenrollment.DeliveryEventsTable,
+			Columns: []string{nurtureenrollment.DeliveryEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurturedeliveryevent.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -624,6 +706,21 @@ func (_u *NurtureEnrollmentUpdateOne) SetTenant(v *Tenant) *NurtureEnrollmentUpd
 	return _u.SetTenantID(v.ID)
 }
 
+// AddDeliveryEventIDs adds the "delivery_events" edge to the NurtureDeliveryEvent entity by IDs.
+func (_u *NurtureEnrollmentUpdateOne) AddDeliveryEventIDs(ids ...uuid.UUID) *NurtureEnrollmentUpdateOne {
+	_u.mutation.AddDeliveryEventIDs(ids...)
+	return _u
+}
+
+// AddDeliveryEvents adds the "delivery_events" edges to the NurtureDeliveryEvent entity.
+func (_u *NurtureEnrollmentUpdateOne) AddDeliveryEvents(v ...*NurtureDeliveryEvent) *NurtureEnrollmentUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDeliveryEventIDs(ids...)
+}
+
 // Mutation returns the NurtureEnrollmentMutation object of the builder.
 func (_u *NurtureEnrollmentUpdateOne) Mutation() *NurtureEnrollmentMutation {
 	return _u.mutation
@@ -633,6 +730,27 @@ func (_u *NurtureEnrollmentUpdateOne) Mutation() *NurtureEnrollmentMutation {
 func (_u *NurtureEnrollmentUpdateOne) ClearTenant() *NurtureEnrollmentUpdateOne {
 	_u.mutation.ClearTenant()
 	return _u
+}
+
+// ClearDeliveryEvents clears all "delivery_events" edges to the NurtureDeliveryEvent entity.
+func (_u *NurtureEnrollmentUpdateOne) ClearDeliveryEvents() *NurtureEnrollmentUpdateOne {
+	_u.mutation.ClearDeliveryEvents()
+	return _u
+}
+
+// RemoveDeliveryEventIDs removes the "delivery_events" edge to NurtureDeliveryEvent entities by IDs.
+func (_u *NurtureEnrollmentUpdateOne) RemoveDeliveryEventIDs(ids ...uuid.UUID) *NurtureEnrollmentUpdateOne {
+	_u.mutation.RemoveDeliveryEventIDs(ids...)
+	return _u
+}
+
+// RemoveDeliveryEvents removes "delivery_events" edges to NurtureDeliveryEvent entities.
+func (_u *NurtureEnrollmentUpdateOne) RemoveDeliveryEvents(v ...*NurtureDeliveryEvent) *NurtureEnrollmentUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDeliveryEventIDs(ids...)
 }
 
 // Where appends a list predicates to the NurtureEnrollmentUpdate builder.
@@ -806,6 +924,51 @@ func (_u *NurtureEnrollmentUpdateOne) sqlSave(ctx context.Context) (_node *Nurtu
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(tenant.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DeliveryEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   nurtureenrollment.DeliveryEventsTable,
+			Columns: []string{nurtureenrollment.DeliveryEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurturedeliveryevent.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDeliveryEventsIDs(); len(nodes) > 0 && !_u.mutation.DeliveryEventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   nurtureenrollment.DeliveryEventsTable,
+			Columns: []string{nurtureenrollment.DeliveryEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurturedeliveryevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DeliveryEventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   nurtureenrollment.DeliveryEventsTable,
+			Columns: []string{nurtureenrollment.DeliveryEventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(nurturedeliveryevent.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

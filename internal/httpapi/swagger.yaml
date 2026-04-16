@@ -437,6 +437,55 @@ definitions:
       title:
         type: string
     type: object
+  internal_modules_testimonials.upsertRequest:
+    properties:
+      author_name:
+        type: string
+      author_role:
+        type: string
+      avatar_url:
+        type: string
+      body:
+        type: string
+      display_order:
+        type: integer
+      is_published:
+        type: boolean
+      rating:
+        type: integer
+    type: object
+  internal_modules_webhooks.NotificationsDeliveryRequest:
+    properties:
+      channel:
+        type: string
+      enrollment_id:
+        type: string
+      event_type:
+        type: string
+      link_url:
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      provider_message_id:
+        type: string
+      step_index:
+        type: integer
+      tenant_id:
+        type: string
+    type: object
+  internal_modules_webhooks.ProfileEventRequest:
+    properties:
+      event_type:
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      referrer:
+        type: string
+      slug:
+        type: string
+    type: object
   internal_modules_webhooks.calcomAttendee:
     properties:
       email:
@@ -826,6 +875,43 @@ paths:
       summary: List tenant audit events
       tags:
       - Analytics - Audit
+  /analytics/campaigns/{id}:
+    get:
+      description: Daily rollups from `ad_metrics`. Populated by the 15-minute insights
+        worker for Meta campaigns — returns an empty series for manual or newly-connected
+        campaigns.
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Campaign UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Lookback window (1-90, default 30)
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Per-campaign ad metrics time series
+      tags:
+      - Analytics
   /analytics/dashboard:
     get:
       description: Counts + week-over-week deltas for leads, contacts, chat sessions,
@@ -847,6 +933,61 @@ paths:
       security:
       - bearerAuth: []
       summary: Tenant dashboard aggregates
+      tags:
+      - Analytics
+  /analytics/profile:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Lookback window (default 30)
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Public profile visitor analytics
+      tags:
+      - Analytics
+  /analytics/sequences/{id}:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Sequence UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Lookback window (default 30)
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Per-sequence nurture analytics
       tags:
       - Analytics
   /campaigns:
@@ -2113,6 +2254,32 @@ paths:
       summary: Public lead capture
       tags:
       - Public
+  /public/profile-events:
+    post:
+      consumes:
+      - application/json
+      description: Writes a `profile_events` row for dashboard visitor analytics.
+        Unauthenticated; rate-limited upstream. IPs are SHA-256 hashed with a daily
+        salt — no raw IPs or PII stored.
+      parameters:
+      - description: Event payload
+        in: body
+        name: event
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_webhooks.ProfileEventRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+      summary: Record a visitor interaction on /p/{slug}
+      tags:
+      - Public
   /public/profile/{slug}:
     get:
       description: Returns public tenant profile data without authentication
@@ -2135,6 +2302,33 @@ paths:
           schema:
             $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
       summary: Get tenant profile by slug (public)
+      tags:
+      - Public
+  /public/profile/{slug}/testimonials:
+    get:
+      parameters:
+      - description: Tenant slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Max rows (default 10, max 50)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+      summary: Public testimonials for a tenant slug
       tags:
       - Public
   /sequences:
@@ -2370,6 +2564,109 @@ paths:
       summary: Create a short link
       tags:
       - ShortLinks
+  /testimonials:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List tenant testimonials
+      tags:
+      - Testimonials
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Testimonial payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_testimonials.upsertRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Create a testimonial
+      tags:
+      - Testimonials
+  /testimonials/{id}:
+    delete:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Testimonial ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - bearerAuth: []
+      summary: Delete a testimonial
+      tags:
+      - Testimonials
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Testimonial ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Partial update
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_testimonials.upsertRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Update a testimonial
+      tags:
+      - Testimonials
   /webhooks/calcom/booking:
     post:
       consumes:
@@ -2449,6 +2746,29 @@ paths:
           schema:
             $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
       summary: Meta lead generation webhook
+      tags:
+      - Webhooks
+  /webhooks/notifications/delivery:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Delivery event
+        in: body
+        name: event
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_webhooks.NotificationsDeliveryRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+      summary: Receive delivery telemetry from notifications-api
       tags:
       - Webhooks
 schemes:

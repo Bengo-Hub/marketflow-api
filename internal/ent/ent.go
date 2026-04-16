@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/bengobox/marketflow-api/internal/ent/admetrics"
 	"github.com/bengobox/marketflow-api/internal/ent/auditlog"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
@@ -22,15 +23,18 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
+	"github.com/bengobox/marketflow-api/internal/ent/nurturedeliveryevent"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/outboxevent"
+	"github.com/bengobox/marketflow-api/internal/ent/profileevent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/bengobox/marketflow-api/internal/ent/rolepermission"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
 	"github.com/bengobox/marketflow-api/internal/ent/shortlink"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
+	"github.com/bengobox/marketflow-api/internal/ent/testimonial"
 	"github.com/bengobox/marketflow-api/internal/ent/userroleassignment"
 )
 
@@ -92,6 +96,7 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			admetrics.Table:            admetrics.ValidColumn,
 			auditlog.Table:             auditlog.ValidColumn,
 			campaign.Table:             campaign.ValidColumn,
 			chatsession.Table:          chatsession.ValidColumn,
@@ -102,15 +107,18 @@ func checkColumn(t, c string) error {
 			marketflowpermission.Table: marketflowpermission.ValidColumn,
 			marketflowrole.Table:       marketflowrole.ValidColumn,
 			marketflowuser.Table:       marketflowuser.ValidColumn,
+			nurturedeliveryevent.Table: nurturedeliveryevent.ValidColumn,
 			nurtureenrollment.Table:    nurtureenrollment.ValidColumn,
 			nurturesequence.Table:      nurturesequence.ValidColumn,
 			outboxevent.Table:          outboxevent.ValidColumn,
+			profileevent.Table:         profileevent.ValidColumn,
 			providersetting.Table:      providersetting.ValidColumn,
 			rolepermission.Table:       rolepermission.ValidColumn,
 			scheduledmeeting.Table:     scheduledmeeting.ValidColumn,
 			serviceconfig.Table:        serviceconfig.ValidColumn,
 			shortlink.Table:            shortlink.ValidColumn,
 			tenant.Table:               tenant.ValidColumn,
+			testimonial.Table:          testimonial.ValidColumn,
 			userroleassignment.Table:   userroleassignment.ValidColumn,
 		})
 	})

@@ -59,6 +59,8 @@ const (
 	EdgeTenant = "tenant"
 	// EdgeLeads holds the string denoting the leads edge name in mutations.
 	EdgeLeads = "leads"
+	// EdgeAdMetrics holds the string denoting the ad_metrics edge name in mutations.
+	EdgeAdMetrics = "ad_metrics"
 	// Table holds the table name of the campaign in the database.
 	Table = "campaigns"
 	// TenantTable is the table that holds the tenant relation/edge.
@@ -75,6 +77,13 @@ const (
 	LeadsInverseTable = "leads"
 	// LeadsColumn is the table column denoting the leads relation/edge.
 	LeadsColumn = "campaign_id"
+	// AdMetricsTable is the table that holds the ad_metrics relation/edge.
+	AdMetricsTable = "ad_metrics"
+	// AdMetricsInverseTable is the table name for the AdMetrics entity.
+	// It exists in this package in order to avoid circular dependency with the "admetrics" package.
+	AdMetricsInverseTable = "ad_metrics"
+	// AdMetricsColumn is the table column denoting the ad_metrics relation/edge.
+	AdMetricsColumn = "campaign_id"
 )
 
 // Columns holds all SQL columns for campaign fields.
@@ -248,6 +257,20 @@ func ByLeads(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newLeadsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByAdMetricsCount orders the results by ad_metrics count.
+func ByAdMetricsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newAdMetricsStep(), opts...)
+	}
+}
+
+// ByAdMetrics orders the results by ad_metrics terms.
+func ByAdMetrics(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAdMetricsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newTenantStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -260,5 +283,12 @@ func newLeadsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(LeadsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, LeadsTable, LeadsColumn),
+	)
+}
+func newAdMetricsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AdMetricsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, AdMetricsTable, AdMetricsColumn),
 	)
 }

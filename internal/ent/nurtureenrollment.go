@@ -58,9 +58,11 @@ type NurtureEnrollment struct {
 type NurtureEnrollmentEdges struct {
 	// Tenant holds the value of the tenant edge.
 	Tenant *Tenant `json:"tenant,omitempty"`
+	// DeliveryEvents holds the value of the delivery_events edge.
+	DeliveryEvents []*NurtureDeliveryEvent `json:"delivery_events,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -72,6 +74,15 @@ func (e NurtureEnrollmentEdges) TenantOrErr() (*Tenant, error) {
 		return nil, &NotFoundError{label: tenant.Label}
 	}
 	return nil, &NotLoadedError{edge: "tenant"}
+}
+
+// DeliveryEventsOrErr returns the DeliveryEvents value or an error if the edge
+// was not loaded in eager-loading.
+func (e NurtureEnrollmentEdges) DeliveryEventsOrErr() ([]*NurtureDeliveryEvent, error) {
+	if e.loadedTypes[1] {
+		return e.DeliveryEvents, nil
+	}
+	return nil, &NotLoadedError{edge: "delivery_events"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -220,6 +231,11 @@ func (_m *NurtureEnrollment) Value(name string) (ent.Value, error) {
 // QueryTenant queries the "tenant" edge of the NurtureEnrollment entity.
 func (_m *NurtureEnrollment) QueryTenant() *TenantQuery {
 	return NewNurtureEnrollmentClient(_m.config).QueryTenant(_m)
+}
+
+// QueryDeliveryEvents queries the "delivery_events" edge of the NurtureEnrollment entity.
+func (_m *NurtureEnrollment) QueryDeliveryEvents() *NurtureDeliveryEventQuery {
+	return NewNurtureEnrollmentClient(_m.config).QueryDeliveryEvents(_m)
 }
 
 // Update returns a builder for updating this NurtureEnrollment.

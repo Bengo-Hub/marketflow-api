@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/marketflow-api/internal/ent/admetrics"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
@@ -300,6 +301,21 @@ func (_c *CampaignCreate) AddLeads(v ...*Lead) *CampaignCreate {
 	return _c.AddLeadIDs(ids...)
 }
 
+// AddAdMetricIDs adds the "ad_metrics" edge to the AdMetrics entity by IDs.
+func (_c *CampaignCreate) AddAdMetricIDs(ids ...uuid.UUID) *CampaignCreate {
+	_c.mutation.AddAdMetricIDs(ids...)
+	return _c
+}
+
+// AddAdMetrics adds the "ad_metrics" edges to the AdMetrics entity.
+func (_c *CampaignCreate) AddAdMetrics(v ...*AdMetrics) *CampaignCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddAdMetricIDs(ids...)
+}
+
 // Mutation returns the CampaignMutation object of the builder.
 func (_c *CampaignCreate) Mutation() *CampaignMutation {
 	return _c.mutation
@@ -544,6 +560,22 @@ func (_c *CampaignCreate) createSpec() (*Campaign, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(lead.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.AdMetricsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   campaign.AdMetricsTable,
+			Columns: []string{campaign.AdMetricsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(admetrics.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

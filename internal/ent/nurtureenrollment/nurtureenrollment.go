@@ -45,6 +45,8 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// EdgeTenant holds the string denoting the tenant edge name in mutations.
 	EdgeTenant = "tenant"
+	// EdgeDeliveryEvents holds the string denoting the delivery_events edge name in mutations.
+	EdgeDeliveryEvents = "delivery_events"
 	// Table holds the table name of the nurtureenrollment in the database.
 	Table = "nurture_enrollments"
 	// TenantTable is the table that holds the tenant relation/edge.
@@ -54,6 +56,13 @@ const (
 	TenantInverseTable = "tenants"
 	// TenantColumn is the table column denoting the tenant relation/edge.
 	TenantColumn = "tenant_id"
+	// DeliveryEventsTable is the table that holds the delivery_events relation/edge.
+	DeliveryEventsTable = "nurture_delivery_events"
+	// DeliveryEventsInverseTable is the table name for the NurtureDeliveryEvent entity.
+	// It exists in this package in order to avoid circular dependency with the "nurturedeliveryevent" package.
+	DeliveryEventsInverseTable = "nurture_delivery_events"
+	// DeliveryEventsColumn is the table column denoting the delivery_events relation/edge.
+	DeliveryEventsColumn = "enrollment_id"
 )
 
 // Columns holds all SQL columns for nurtureenrollment fields.
@@ -181,10 +190,31 @@ func ByTenantField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newTenantStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByDeliveryEventsCount orders the results by delivery_events count.
+func ByDeliveryEventsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newDeliveryEventsStep(), opts...)
+	}
+}
+
+// ByDeliveryEvents orders the results by delivery_events terms.
+func ByDeliveryEvents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newDeliveryEventsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newTenantStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(TenantInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, TenantTable, TenantColumn),
+	)
+}
+func newDeliveryEventsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(DeliveryEventsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, DeliveryEventsTable, DeliveryEventsColumn),
 	)
 }

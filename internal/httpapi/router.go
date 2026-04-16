@@ -54,6 +54,9 @@ type RouterDeps struct {
 	// Analytics handlers (tenant dashboard aggregates)
 	AnalyticsHandlers AnalyticsHandlers
 
+	// Testimonial handlers (tenant-scoped CRUD for /p/{slug})
+	TestimonialHandlers TestimonialHandlers
+
 	// Integration handlers (OAuth authorize + callback for Google / Meta)
 	IntegrationsHandlers IntegrationsHandlers
 
@@ -148,10 +151,13 @@ type MeetingHandlers struct {
 
 // AnalyticsHandlers groups dashboard/aggregate HTTP handlers.
 type AnalyticsHandlers struct {
-	Dashboard      http.HandlerFunc
-	TenantAudit    http.HandlerFunc
-	PlatformUsage  http.HandlerFunc
-	PlatformAudit  http.HandlerFunc
+	Dashboard        http.HandlerFunc
+	TenantAudit      http.HandlerFunc
+	PlatformUsage    http.HandlerFunc
+	PlatformAudit    http.HandlerFunc
+	CampaignMetrics  http.HandlerFunc
+	SequenceMetrics  http.HandlerFunc
+	ProfileMetrics   http.HandlerFunc
 }
 
 // IntegrationsHandlers groups OAuth authorize + callback endpoints
@@ -167,17 +173,28 @@ type IntegrationsHandlers struct {
 
 // WebhookHandlers groups webhook HTTP handlers (public, no auth).
 type WebhookHandlers struct {
-	MetaVerify    http.HandlerFunc
-	MetaLeadgen   http.HandlerFunc
-	CalcomBooking http.HandlerFunc
+	MetaVerify           http.HandlerFunc
+	MetaLeadgen          http.HandlerFunc
+	CalcomBooking        http.HandlerFunc
+	NotificationsDelivery http.HandlerFunc
 }
 
 // PublicHandlers groups public HTTP handlers (no auth).
 type PublicHandlers struct {
-	GetProfile   http.HandlerFunc
-	GetFunnel    http.HandlerFunc
-	RenderFunnel http.HandlerFunc
-	CreateLead   http.HandlerFunc
+	GetProfile          http.HandlerFunc
+	GetFunnel           http.HandlerFunc
+	RenderFunnel        http.HandlerFunc
+	CreateLead          http.HandlerFunc
+	RecordProfileEvent  http.HandlerFunc
+	ListTestimonials    http.HandlerFunc
+}
+
+// TestimonialHandlers groups authenticated testimonial CRUD endpoints.
+type TestimonialHandlers struct {
+	List   http.HandlerFunc
+	Create http.HandlerFunc
+	Update http.HandlerFunc
+	Delete http.HandlerFunc
 }
 
 // ShortLinkHandlers groups short link HTTP handlers.
@@ -319,10 +336,21 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Put("/{id}", deps.MeetingHandlers.Update)
 			})
 
+			// Testimonial CRUD — rendered on the public /p/{slug} page.
+			r.Route("/testimonials", func(r chi.Router) {
+				r.Get("/", deps.TestimonialHandlers.List)
+				r.Post("/", deps.TestimonialHandlers.Create)
+				r.Patch("/{id}", deps.TestimonialHandlers.Update)
+				r.Delete("/{id}", deps.TestimonialHandlers.Delete)
+			})
+
 			// Dashboard aggregates for the tenant dashboard UI.
 			r.Route("/analytics", func(r chi.Router) {
 				r.Get("/dashboard", deps.AnalyticsHandlers.Dashboard)
 				r.Get("/audit", deps.AnalyticsHandlers.TenantAudit)
+				r.Get("/campaigns/{id}", deps.AnalyticsHandlers.CampaignMetrics)
+				r.Get("/sequences/{id}", deps.AnalyticsHandlers.SequenceMetrics)
+				r.Get("/profile", deps.AnalyticsHandlers.ProfileMetrics)
 			})
 
 			// Per-tenant integration OAuth flows. authorize returns the
@@ -377,14 +405,17 @@ func NewRouter(deps RouterDeps) http.Handler {
 			r.Get("/meta/leadgen", deps.WebhookHandlers.MetaVerify)
 			r.Post("/meta/leadgen", deps.WebhookHandlers.MetaLeadgen)
 			r.Post("/calcom/booking", deps.WebhookHandlers.CalcomBooking)
+			r.Post("/notifications/delivery", deps.WebhookHandlers.NotificationsDelivery)
 		})
 
 		// Public API routes (no auth). Lead capture is public and rate-limited
 		// at the ingress layer; the handler enforces tenant lookup + basic validation.
 		r.Route("/public", func(r chi.Router) {
 			r.Get("/profile/{slug}", deps.PublicHandlers.GetProfile)
+			r.Get("/profile/{slug}/testimonials", deps.PublicHandlers.ListTestimonials)
 			r.Get("/funnels/{slug}", deps.PublicHandlers.GetFunnel)
 			r.Post("/leads/{slug}", deps.PublicHandlers.CreateLead)
+			r.Post("/profile-events", deps.PublicHandlers.RecordProfileEvent)
 		})
 	})
 
