@@ -60,9 +60,17 @@ func (h *PublicHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Two lookup strategies, in order:
+	//   1. Tenant.slug (normal case — vanity URLs like marketflow.../p/my-fbo)
+	//   2. Tenant.fbo_distrib_id (FBO distributor IDs like 254200047984 —
+	//      shared by FLP and printed on business cards, so we support it
+	//      as a shortcut even though it's a number, not a slug).
 	t, err := h.entClient.Tenant.Query().
 		Where(
-			tenant.SlugEQ(slug),
+			tenant.Or(
+				tenant.SlugEQ(slug),
+				tenant.FboDistribIDEQ(slug),
+			),
 			tenant.StatusEQ("active"),
 		).
 		Only(r.Context())

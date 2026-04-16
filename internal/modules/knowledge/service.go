@@ -116,9 +116,14 @@ func (s *Service) GetEntry(ctx context.Context, tenantID, entryID uuid.UUID) (*e
 }
 
 // ListEntries retrieves KB entries with filtering and pagination.
+// Returns both the tenant's private rows AND the platform-shared rows
+// (scope='platform') so a fresh tenant still sees the seeded catalog.
 func (s *Service) ListEntries(ctx context.Context, in ListEntriesInput) ([]*ent.KnowledgeBaseEntry, int, error) {
 	query := s.client.KnowledgeBaseEntry.Query().
-		Where(knowledgebaseentry.TenantID(in.TenantID))
+		Where(knowledgebaseentry.Or(
+			knowledgebaseentry.TenantID(in.TenantID),
+			knowledgebaseentry.ScopeEQ("platform"),
+		))
 
 	if in.Category != nil {
 		query = query.Where(knowledgebaseentry.CategoryEQ(*in.Category))
