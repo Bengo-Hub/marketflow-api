@@ -232,6 +232,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/providers/sync-models": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Calls the provider's /models endpoint with the stored API key and returns the available model IDs so the platform admin can pick one from a dropdown.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin - Providers"
+                ],
+                "summary": "Sync AI models",
+                "parameters": [
+                    {
+                        "description": "Which provider to sync",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_modules_admin.SyncModelsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/admin/providers/{id}": {
             "delete": {
                 "security": [
@@ -2894,6 +2952,20 @@ const docTemplate = `{
                     "additionalProperties": {}
                 },
                 "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_modules_admin.SyncModelsRequest": {
+            "type": "object",
+            "properties": {
+                "environment": {
+                    "type": "string"
+                },
+                "provider_name": {
+                    "type": "string"
+                },
+                "provider_type": {
                     "type": "string"
                 }
             }

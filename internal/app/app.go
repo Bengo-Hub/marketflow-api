@@ -285,6 +285,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			List:        platformProviderHandler.ListProviders,
 			GetSettings: platformProviderHandler.GetProviderSettings,
 			Resolve:     platformProviderHandler.ResolveProvider,
+			SyncModels:  platformProviderHandler.SyncModels,
 			Deactivate:  platformProviderHandler.DeactivateProvider,
 		},
 		RequireAuthHandler: requireAuth,

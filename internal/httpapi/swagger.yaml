@@ -10,6 +10,15 @@ definitions:
       error:
         type: string
     type: object
+  internal_modules_admin.SyncModelsRequest:
+    properties:
+      environment:
+        type: string
+      provider_name:
+        type: string
+      provider_type:
+        type: string
+    type: object
   internal_modules_admin.configureProviderRequest:
     properties:
       environment:
@@ -653,6 +662,45 @@ paths:
       security:
       - bearerAuth: []
       summary: Get platform provider settings
+      tags:
+      - Admin - Providers
+  /admin/providers/sync-models:
+    post:
+      consumes:
+      - application/json
+      description: Calls the provider's /models endpoint with the stored API key and
+        returns the available model IDs so the platform admin can pick one from a
+        dropdown.
+      parameters:
+      - description: Which provider to sync
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_admin.SyncModelsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Sync AI models
       tags:
       - Admin - Providers
   /admin/tenants:

@@ -71,6 +71,7 @@ type AdminProviderHandlers struct {
 	List        http.HandlerFunc
 	GetSettings http.HandlerFunc
 	Resolve     http.HandlerFunc
+	SyncModels  http.HandlerFunc
 	Deactivate  http.HandlerFunc
 }
 
@@ -356,6 +357,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 					// bootstrap their clients. Gated by platform-owner/JWT or
 					// X-API-Key (same middleware).
 					r.Get("/resolve", deps.AdminProviderHandlers.Resolve)
+					r.Post("/sync-models", deps.AdminProviderHandlers.SyncModels)
 					r.Delete("/{id}", deps.AdminProviderHandlers.Deactivate)
 				})
 
