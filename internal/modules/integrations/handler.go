@@ -25,8 +25,10 @@ import (
 	"strings"
 	"time"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
+	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	chirouter "github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
@@ -42,6 +44,34 @@ type Handler struct {
 // NewHandler constructs a Handler.
 func NewHandler(db *ent.Client, stateKey []byte, logger *zap.Logger) *Handler {
 	return &Handler{db: db, stateKey: stateKey, logger: logger.Named("integrations")}
+}
+
+// resolveTenantID picks a tenant context using, in order of priority:
+//  1. X-Tenant-ID header (typical SSO tenant user, explicit)
+//  2. X-Tenant-Slug header → DB lookup (platform owner acting as a tenant
+//     via the /{orgSlug}/... UI routes)
+//  3. JWT claims tenant_id / tenant slug (fallback when headers absent)
+//
+// Returns the UUID as a string + a flag whether the caller was acting as
+// platform owner. Empty string when no tenant could be resolved.
+func (h *Handler) resolveTenantID(r *http.Request) (string, bool) {
+	if v := strings.TrimSpace(r.Header.Get("X-Tenant-ID")); v != "" {
+		return v, false
+	}
+	ctx := r.Context()
+	claims, _ := authclient.ClaimsFromContext(ctx)
+	isPO := claims != nil && (claims.IsPlatformOwner || claims.GetTenantSlug() == "codevertex")
+
+	if slug := strings.TrimSpace(r.Header.Get("X-Tenant-Slug")); slug != "" {
+		if t, err := h.db.Tenant.Query().Where(tenant.SlugEQ(slug)).Only(ctx); err == nil {
+			return t.ID.String(), isPO
+		}
+	}
+	// Last resort: tenant from JWT claims.
+	if claims != nil && claims.TenantID != "" {
+		return claims.TenantID, isPO
+	}
+	return "", isPO
 }
 
 // ── Google Calendar ─────────────────────────────────────────────────────────
@@ -61,9 +91,10 @@ const (
 // @Security bearerAuth
 // @Router /integrations/google/authorize [get]
 func (h *Handler) GoogleAuthorize(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Header.Get("X-Tenant-ID")
+	tenantID, _ := h.resolveTenantID(r)
 	if tenantID == "" {
-		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing X-Tenant-ID", nil)
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant",
+			"no tenant context; pass X-Tenant-ID or X-Tenant-Slug", nil)
 		return
 	}
 	creds, err := h.loadPlatform(r.Context(), "google_calendar", "oauth")
@@ -178,9 +209,10 @@ const (
 // @Security bearerAuth
 // @Router /integrations/meta/authorize [get]
 func (h *Handler) MetaAuthorize(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Header.Get("X-Tenant-ID")
+	tenantID, _ := h.resolveTenantID(r)
 	if tenantID == "" {
-		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing X-Tenant-ID", nil)
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant",
+			"no tenant context; pass X-Tenant-ID or X-Tenant-Slug", nil)
 		return
 	}
 	creds, err := h.loadPlatform(r.Context(), "meta_ads", "oauth")
@@ -321,9 +353,17 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 // @Security bearerAuth
 // @Router /integrations [get]
 func (h *Handler) ListTenant(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Header.Get("X-Tenant-ID")
+	tenantID, isPO := h.resolveTenantID(r)
 	if tenantID == "" {
-		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing X-Tenant-ID", nil)
+		// Platform owners with no tenant context get an empty list rather
+		// than a 400 — lets the UI render the integrations page gracefully
+		// without forcing them to impersonate a tenant.
+		if isPO {
+			httpapi.JSON(w, http.StatusOK, map[string]any{"integrations": []any{}})
+			return
+		}
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant",
+			"no tenant context; pass X-Tenant-ID or X-Tenant-Slug", nil)
 		return
 	}
 	rows, err := h.db.ProviderSetting.Query().
@@ -371,9 +411,10 @@ func (h *Handler) ListTenant(w http.ResponseWriter, r *http.Request) {
 // @Security bearerAuth
 // @Router /integrations/{provider} [delete]
 func (h *Handler) DisconnectTenant(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Header.Get("X-Tenant-ID")
+	tenantID, _ := h.resolveTenantID(r)
 	if tenantID == "" {
-		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing X-Tenant-ID", nil)
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant",
+			"no tenant context; pass X-Tenant-ID or X-Tenant-Slug", nil)
 		return
 	}
 	provider := chirouter.URLParam(r, "provider")
