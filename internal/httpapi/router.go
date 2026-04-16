@@ -48,6 +48,9 @@ type RouterDeps struct {
 	// Admin provider handlers (platform owner only)
 	AdminProviderHandlers AdminProviderHandlers
 
+	// Admin tenants directory (platform owner only)
+	AdminTenantsHandlers AdminTenantsHandlers
+
 	// Analytics handlers (tenant dashboard aggregates)
 	AnalyticsHandlers AnalyticsHandlers
 
@@ -69,6 +72,11 @@ type AdminProviderHandlers struct {
 	GetSettings http.HandlerFunc
 	Resolve     http.HandlerFunc
 	Deactivate  http.HandlerFunc
+}
+
+// AdminTenantsHandlers groups platform tenant-directory HTTP handlers.
+type AdminTenantsHandlers struct {
+	List http.HandlerFunc
 }
 
 // LeadHandlers groups lead management HTTP handlers.
@@ -354,6 +362,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				// Platform usage aggregate + audit trail (platform-owner only).
 				r.Get("/usage", deps.AnalyticsHandlers.PlatformUsage)
 				r.Get("/audit", deps.AnalyticsHandlers.PlatformAudit)
+
+				// Tenant directory (drives /platform/tenants UI + tenant switcher).
+				r.Get("/tenants", deps.AdminTenantsHandlers.List)
 			})
 		})
 

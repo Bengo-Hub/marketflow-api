@@ -655,6 +655,26 @@ paths:
       summary: Get platform provider settings
       tags:
       - Admin - Providers
+  /admin/tenants:
+    get:
+      parameters:
+      - description: Filter by active status
+        in: query
+        name: active
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List tenants (platform)
+      tags:
+      - Admin - Tenants
   /admin/usage:
     get:
       produces:
@@ -673,10 +693,13 @@ paths:
   /analytics/audit:
     get:
       parameters:
-      - description: Tenant UUID
+      - description: Tenant UUID (or use X-Tenant-Slug)
         in: header
         name: X-Tenant-ID
-        required: true
+        type: string
+      - description: Tenant slug (used by platform owners acting as a tenant)
+        in: header
+        name: X-Tenant-Slug
         type: string
       - description: Filter by event name
         in: query

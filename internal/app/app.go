@@ -115,6 +115,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 
 	// ── Platform Provider Admin Handler ────────────────────────────────────
 	platformProviderHandler := admin.NewPlatformProviderHandler(entClient, encKey, logger)
+	adminTenantsHandler := admin.NewTenantsHandler(entClient, logger)
 
 	// ── Auth Middleware (JWT via shared auth-client JWKS) ──────────────────
 	var authMiddleware *authclient.AuthMiddleware
@@ -275,6 +276,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			MetaCallback:     integrationsHandler.MetaCallback,
 			ListTenant:       integrationsHandler.ListTenant,
 			DisconnectTenant: integrationsHandler.DisconnectTenant,
+		},
+		AdminTenantsHandlers: httpapi.AdminTenantsHandlers{
+			List: adminTenantsHandler.List,
 		},
 		AdminProviderHandlers: httpapi.AdminProviderHandlers{
 			Configure:   platformProviderHandler.ConfigureProvider,

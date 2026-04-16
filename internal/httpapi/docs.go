@@ -268,6 +268,39 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/tenants": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin - Tenants"
+                ],
+                "summary": "List tenants (platform)",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "Filter by active status",
+                        "name": "active",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/admin/usage": {
             "get": {
                 "security": [
@@ -310,10 +343,15 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Tenant UUID",
+                        "description": "Tenant UUID (or use X-Tenant-Slug)",
                         "name": "X-Tenant-ID",
-                        "in": "header",
-                        "required": true
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant slug (used by platform owners acting as a tenant)",
+                        "name": "X-Tenant-Slug",
+                        "in": "header"
                     },
                     {
                         "type": "string",
