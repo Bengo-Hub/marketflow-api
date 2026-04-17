@@ -302,6 +302,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			GoogleCallback:        integrationsHandler.GoogleCallback,
 			MetaAuthorize:         integrationsHandler.MetaAuthorize,
 			MetaCallback:          integrationsHandler.MetaCallback,
+			TikTokAuthorize:       integrationsHandler.TikTokAuthorize,
+			TikTokCallback:        integrationsHandler.TikTokCallback,
 			ListTenant:            integrationsHandler.ListTenant,
 			DisconnectTenant:      integrationsHandler.DisconnectTenant,
 		},

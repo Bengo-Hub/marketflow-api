@@ -342,6 +342,106 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, target, http.StatusFound)
 }
 
+// ── TikTok for Business ────────────────────────────────────────────────────
+
+const (
+	tiktokAuthURL  = "https://business-api.tiktok.com/portal/auth"
+	tiktokTokenURL = "https://business-api.tiktok.com/open_api/v1.3/oauth2/access_token/"
+)
+
+// TikTokAuthorize redirects the tenant to TikTok's OAuth consent page.
+// @Summary Start TikTok OAuth flow
+// @Tags Integrations
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Success 200 {object} map[string]string
+// @Router /integrations/tiktok/authorize [get]
+func (h *Handler) TikTokAuthorize(w http.ResponseWriter, r *http.Request) {
+	tenantID, _ := h.resolveTenantID(r)
+	if tenantID == "" {
+		httpapi.Error(w, http.StatusBadRequest, "no_tenant", "missing tenant context", nil)
+		return
+	}
+	creds, err := h.loadPlatform(r.Context(), "tiktok_ads", "oauth")
+	if err != nil {
+		httpapi.Error(w, http.StatusServiceUnavailable, "tiktok_not_configured",
+			"TikTok app credentials not configured. Set them at /platform/providers.", nil)
+		return
+	}
+	state := h.signState(tenantID)
+	authURL := fmt.Sprintf("%s?app_id=%s&redirect_uri=%s&state=%s",
+		tiktokAuthURL,
+		url.QueryEscape(creds["app_id"]),
+		url.QueryEscape(creds["redirect_url"]),
+		url.QueryEscape(state),
+	)
+	httpapi.JSON(w, http.StatusOK, map[string]string{"url": authURL})
+}
+
+// TikTokCallback handles the OAuth callback from TikTok.
+// @Summary TikTok OAuth callback
+// @Tags Integrations
+// @Param auth_code query string true "Authorization code"
+// @Param state query string true "Signed state"
+// @Router /integrations/tiktok/callback [get]
+func (h *Handler) TikTokCallback(w http.ResponseWriter, r *http.Request) {
+	code := r.URL.Query().Get("auth_code")
+	state := r.URL.Query().Get("state")
+	if code == "" || state == "" {
+		httpapi.Error(w, http.StatusBadRequest, "missing_params", "auth_code and state required", nil)
+		return
+	}
+	tenantID, ok := h.verifyState(state)
+	if !ok {
+		httpapi.Error(w, http.StatusUnauthorized, "bad_state", "state signature invalid", nil)
+		return
+	}
+	creds, err := h.loadPlatform(r.Context(), "tiktok_ads", "oauth")
+	if err != nil {
+		httpapi.Error(w, http.StatusServiceUnavailable, "oauth_not_configured", err.Error(), nil)
+		return
+	}
+	// Exchange auth_code for access_token
+	payload, _ := json.Marshal(map[string]string{
+		"app_id":     creds["app_id"],
+		"secret":     creds["app_secret"],
+		"auth_code":  code,
+	})
+	resp, err := http.Post(tiktokTokenURL, "application/json", strings.NewReader(string(payload)))
+	if err != nil {
+		httpapi.Error(w, http.StatusBadGateway, "token_exchange_failed", err.Error(), nil)
+		return
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	var tokResp struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+		Data    struct {
+			AccessToken   string   `json:"access_token"`
+			AdvertiserIDs []string `json:"advertiser_ids"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &tokResp); err != nil || tokResp.Data.AccessToken == "" {
+		httpapi.Error(w, http.StatusBadGateway, "token_exchange_failed",
+			fmt.Sprintf("tiktok: code=%d msg=%s", tokResp.Code, tokResp.Message), nil)
+		return
+	}
+	advertiserID := ""
+	if len(tokResp.Data.AdvertiserIDs) > 0 {
+		advertiserID = tokResp.Data.AdvertiserIDs[0]
+	}
+	if err := h.upsertTenantKV(r.Context(), tenantID, "tiktok_ads", "oauth", map[string]string{
+		"access_token":  tokResp.Data.AccessToken,
+		"advertiser_id": advertiserID,
+	}, []string{"access_token"}); err != nil {
+		httpapi.Error(w, http.StatusInternalServerError, "persist_failed", err.Error(), nil)
+		return
+	}
+	target := fmt.Sprintf("/%s/settings/integrations?tiktok=connected", tenantID)
+	http.Redirect(w, r, target, http.StatusFound)
+}
+
 // ── Tenant integration management ───────────────────────────────────────────
 
 // ListTenant returns a non-sensitive summary of the tenant's linked integrations.

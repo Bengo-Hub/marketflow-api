@@ -179,6 +179,8 @@ type IntegrationsHandlers struct {
 	GoogleCallback        http.HandlerFunc
 	MetaAuthorize         http.HandlerFunc
 	MetaCallback          http.HandlerFunc
+	TikTokAuthorize       http.HandlerFunc
+	TikTokCallback        http.HandlerFunc
 	ListTenant            http.HandlerFunc
 	DisconnectTenant      http.HandlerFunc
 }
@@ -385,6 +387,8 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Get("/google/callback", deps.IntegrationsHandlers.GoogleCallback)
 				r.Get("/meta/authorize", deps.IntegrationsHandlers.MetaAuthorize)
 				r.Get("/meta/callback", deps.IntegrationsHandlers.MetaCallback)
+				r.Get("/tiktok/authorize", deps.IntegrationsHandlers.TikTokAuthorize)
+				r.Get("/tiktok/callback", deps.IntegrationsHandlers.TikTokCallback)
 				r.Get("/", deps.IntegrationsHandlers.ListTenant)
 				r.Delete("/{provider}", deps.IntegrationsHandlers.DisconnectTenant)
 			})
