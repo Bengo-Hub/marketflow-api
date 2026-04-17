@@ -63,6 +63,8 @@ type ListInput struct {
 	Status   *string
 	Source   *string
 	LeadType *string
+	From     *time.Time
+	To       *time.Time
 	Limit    int
 	Offset   int
 }
@@ -153,6 +155,12 @@ func (s *Service) List(ctx context.Context, in ListInput) ([]*ent.Lead, int, err
 	if in.LeadType != nil {
 		query = query.Where(lead.LeadTypeEQ(*in.LeadType))
 	}
+	if in.From != nil {
+		query = query.Where(lead.CreatedAtGTE(*in.From))
+	}
+	if in.To != nil {
+		query = query.Where(lead.CreatedAtLTE(*in.To))
+	}
 
 	total, err := query.Clone().Count(ctx)
 	if err != nil {
@@ -176,6 +184,37 @@ func (s *Service) List(ctx context.Context, in ListInput) ([]*ent.Lead, int, err
 	}
 
 	return results, total, nil
+}
+
+// ListAll retrieves all leads matching the filter (no pagination). Used for CSV export.
+func (s *Service) ListAll(ctx context.Context, in ListInput) ([]*ent.Lead, error) {
+	query := s.client.Lead.Query().
+		Where(lead.TenantID(in.TenantID))
+
+	if in.Status != nil {
+		query = query.Where(lead.StatusEQ(*in.Status))
+	}
+	if in.Source != nil {
+		query = query.Where(lead.SourceEQ(*in.Source))
+	}
+	if in.LeadType != nil {
+		query = query.Where(lead.LeadTypeEQ(*in.LeadType))
+	}
+	if in.From != nil {
+		query = query.Where(lead.CreatedAtGTE(*in.From))
+	}
+	if in.To != nil {
+		query = query.Where(lead.CreatedAtLTE(*in.To))
+	}
+
+	results, err := query.
+		Order(ent.Desc(lead.FieldCreatedAt)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list all leads: %w", err)
+	}
+
+	return results, nil
 }
 
 // Update updates a lead.

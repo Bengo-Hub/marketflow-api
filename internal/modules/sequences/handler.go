@@ -251,6 +251,40 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	httpapi.JSON(w, http.StatusOK, map[string]any{"status": "deleted"})
 }
 
+// Analytics handles GET /api/v1/sequences/{id}/analytics
+// @Summary Sequence enrollment analytics
+// @Description Returns enrollment counts grouped by status and a completion rate for the given sequence
+// @Tags NurtureSequences
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Sequence UUID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} httpapi.ErrorResponse
+// @Failure 404 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /sequences/{id}/analytics [get]
+func (h *Handler) Analytics(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := extractTenantID(r)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing or invalid X-Tenant-ID header", nil)
+		return
+	}
+
+	sequenceID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_id", "invalid sequence ID", nil)
+		return
+	}
+
+	analytics, err := h.service.Analytics(r.Context(), tenantID, sequenceID)
+	if err != nil {
+		httpapi.Error(w, http.StatusNotFound, "not_found", "sequence not found", nil)
+		return
+	}
+
+	httpapi.JSON(w, http.StatusOK, analytics)
+}
+
 // extractTenantID extracts tenant ID from X-Tenant-ID header.
 func extractTenantID(r *http.Request) (uuid.UUID, error) {
 	header := r.Header.Get("X-Tenant-ID")

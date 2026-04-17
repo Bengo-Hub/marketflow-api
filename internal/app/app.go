@@ -164,6 +164,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 
 	funnelService := funnels.NewService(entClient, logger)
 	funnelHandler := funnels.NewHandler(funnelService, logger)
+	funnelAnalyticsHandler := funnels.NewAnalyticsHandler(funnelService, redisClient, entClient, logger)
 
 	sequenceService := sequences.NewService(entClient, logger)
 	sequenceHandler := sequences.NewHandler(sequenceService, logger)
@@ -190,6 +191,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		VerifyToken: cfg.Meta.VerifyToken,
 	}, logger)
 	calcomWebhookHandler := webhooks.NewCalcomHandler(meetingService, leadService, logger)
+	tiktokWebhookHandler := webhooks.NewTikTokHandler(leadService, webhooks.TikTokConfig{
+		DB:           sqlDB,
+		SharedSecret: cfg.TikTok.WebhookSecret,
+	}, logger)
 
 	// Testimonial CRUD + public reader for /p/{slug}
 	testimonialHandler := testimonials.NewHandler(entClient, logger)
@@ -213,6 +218,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Get:    leadHandler.Get,
 			Update: leadHandler.Update,
 			Delete: leadHandler.Delete,
+			Export: leadHandler.Export,
 		},
 		ContactHandlers: httpapi.ContactHandlers{
 			Create: contactHandler.Create,
@@ -238,19 +244,21 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Resume: campaignHandler.Resume,
 		},
 		FunnelHandlers: httpapi.FunnelHandlers{
-			Create:  funnelHandler.Create,
-			List:    funnelHandler.List,
-			Get:     funnelHandler.Get,
-			Update:  funnelHandler.Update,
-			Delete:  funnelHandler.Delete,
-			Publish: funnelHandler.Publish,
+			Create:    funnelHandler.Create,
+			List:      funnelHandler.List,
+			Get:       funnelHandler.Get,
+			Update:    funnelHandler.Update,
+			Delete:    funnelHandler.Delete,
+			Publish:   funnelHandler.Publish,
+			Analytics: funnelAnalyticsHandler.GetAnalytics,
 		},
 		SequenceHandlers: httpapi.SequenceHandlers{
-			Create: sequenceHandler.Create,
-			List:   sequenceHandler.List,
-			Get:    sequenceHandler.Get,
-			Update: sequenceHandler.Update,
-			Delete: sequenceHandler.Delete,
+			Create:    sequenceHandler.Create,
+			List:      sequenceHandler.List,
+			Get:       sequenceHandler.Get,
+			Update:    sequenceHandler.Update,
+			Delete:    sequenceHandler.Delete,
+			Analytics: sequenceHandler.Analytics,
 		},
 		MeetingHandlers: httpapi.MeetingHandlers{
 			Create: meetingHandler.Create,
@@ -263,6 +271,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			MetaLeadgen:           metaWebhookHandler.HandleLeadgen,
 			CalcomBooking:         calcomWebhookHandler.HandleBooking,
 			NotificationsDelivery: publicHandler.NotificationsDelivery,
+			TikTokLeads:          tiktokWebhookHandler.HandleLeads,
 		},
 		PublicHandlers: httpapi.PublicHandlers{
 			GetProfile:         publicHandler.GetProfile,
@@ -271,6 +280,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			CreateLead:         publicHandler.PublicCreateLead,
 			RecordProfileEvent: publicHandler.RecordProfileEvent,
 			ListTestimonials:   publicHandler.ListTestimonials,
+			FunnelStepView:     funnelAnalyticsHandler.RecordStepView,
 		},
 		TenantProfileHandlers: httpapi.TenantProfileHandlers{
 			Get:    tenantProfileHandler.GetProfile,

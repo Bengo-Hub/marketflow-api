@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -172,6 +173,48 @@ func (s *Service) Update(ctx context.Context, tenantID, sequenceID uuid.UUID, in
 	}
 
 	return result, nil
+}
+
+// SequenceAnalytics contains enrollment analytics for a sequence.
+type SequenceAnalytics struct {
+	TotalEnrolled  int     `json:"total_enrolled"`
+	Active         int     `json:"active"`
+	Completed      int     `json:"completed"`
+	Dropped        int     `json:"dropped"`
+	CompletionRate float64 `json:"completion_rate"`
+}
+
+// Analytics returns enrollment analytics for a given sequence.
+func (s *Service) Analytics(ctx context.Context, tenantID, sequenceID uuid.UUID) (*SequenceAnalytics, error) {
+	// Verify the sequence exists and belongs to the tenant.
+	_, err := s.Get(ctx, tenantID, sequenceID)
+	if err != nil {
+		return nil, err
+	}
+
+	baseQuery := s.client.NurtureEnrollment.Query().
+		Where(
+			nurtureenrollment.TenantIDEQ(tenantID),
+			nurtureenrollment.SequenceIDEQ(sequenceID),
+		)
+
+	totalEnrolled, _ := baseQuery.Clone().Count(ctx)
+	active, _ := baseQuery.Clone().Where(nurtureenrollment.StatusEQ("active")).Count(ctx)
+	completed, _ := baseQuery.Clone().Where(nurtureenrollment.StatusEQ("completed")).Count(ctx)
+	dropped, _ := baseQuery.Clone().Where(nurtureenrollment.StatusEQ("dropped")).Count(ctx)
+
+	completionRate := 0.0
+	if totalEnrolled > 0 {
+		completionRate = float64(completed) / float64(totalEnrolled) * 100
+	}
+
+	return &SequenceAnalytics{
+		TotalEnrolled:  totalEnrolled,
+		Active:         active,
+		Completed:      completed,
+		Dropped:        dropped,
+		CompletionRate: completionRate,
+	}, nil
 }
 
 // Delete deletes a nurture sequence by setting active=false.

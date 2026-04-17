@@ -1,8 +1,10 @@
 package leads
 
 import (
+	"encoding/csv"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/go-chi/chi/v5"
@@ -151,6 +153,21 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	if leadType != "" {
 		input.LeadType = &leadType
 	}
+	if fromStr := r.URL.Query().Get("from"); fromStr != "" {
+		if t, err := time.Parse(time.RFC3339, fromStr); err == nil {
+			input.From = &t
+		} else if t, err := time.Parse("2006-01-02", fromStr); err == nil {
+			input.From = &t
+		}
+	}
+	if toStr := r.URL.Query().Get("to"); toStr != "" {
+		if t, err := time.Parse(time.RFC3339, toStr); err == nil {
+			input.To = &t
+		} else if t, err := time.Parse("2006-01-02", toStr); err == nil {
+			eod := t.Add(24*time.Hour - time.Nanosecond)
+			input.To = &eod
+		}
+	}
 
 	results, total, err := h.service.List(r.Context(), input)
 	if err != nil {
@@ -277,6 +294,97 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpapi.JSON(w, http.StatusOK, map[string]any{"status": "deleted"})
+}
+
+// Export handles GET /api/v1/leads/export
+// @Summary Export leads as CSV
+// @Description Returns leads matching the given filters as a downloadable CSV file
+// @Tags Leads
+// @Produce text/csv
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param source query string false "Filter by source"
+// @Param lead_type query string false "Filter by type"
+// @Param from query string false "Start date (RFC3339 or YYYY-MM-DD)"
+// @Param to query string false "End date (RFC3339 or YYYY-MM-DD)"
+// @Success 200 {file} file "CSV file"
+// @Security bearerAuth
+// @Router /leads/export [get]
+func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := extractTenantID(r)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing or invalid X-Tenant-ID header", nil)
+		return
+	}
+
+	input := ListInput{
+		TenantID: tenantID,
+	}
+	if source := r.URL.Query().Get("source"); source != "" {
+		input.Source = &source
+	}
+	if leadType := r.URL.Query().Get("lead_type"); leadType != "" {
+		input.LeadType = &leadType
+	}
+	if fromStr := r.URL.Query().Get("from"); fromStr != "" {
+		if t, err := time.Parse(time.RFC3339, fromStr); err == nil {
+			input.From = &t
+		} else if t, err := time.Parse("2006-01-02", fromStr); err == nil {
+			input.From = &t
+		}
+	}
+	if toStr := r.URL.Query().Get("to"); toStr != "" {
+		if t, err := time.Parse(time.RFC3339, toStr); err == nil {
+			input.To = &t
+		} else if t, err := time.Parse("2006-01-02", toStr); err == nil {
+			eod := t.Add(24*time.Hour - time.Nanosecond)
+			input.To = &eod
+		}
+	}
+
+	results, err := h.service.ListAll(r.Context(), input)
+	if err != nil {
+		h.logger.Error("failed to export leads", zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "export_failed", "failed to export leads", nil)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", "attachment; filename=leads.csv")
+	w.WriteHeader(http.StatusOK)
+
+	writer := csv.NewWriter(w)
+	// Write header row
+	_ = writer.Write([]string{
+		"email", "phone", "first_name", "last_name", "source", "lead_type",
+		"utm_source", "utm_medium", "utm_campaign", "interest", "created_at",
+	})
+
+	// Stream rows directly
+	for _, l := range results {
+		row := []string{
+			derefStr(l.Email),
+			derefStr(l.Phone),
+			derefStr(l.FirstName),
+			derefStr(l.LastName),
+			l.Source,
+			l.LeadType,
+			derefStr(l.UtmSource),
+			derefStr(l.UtmMedium),
+			derefStr(l.UtmCampaign),
+			derefStr(l.Interest),
+			l.CreatedAt.Format(time.RFC3339),
+		}
+		_ = writer.Write(row)
+	}
+	writer.Flush()
+}
+
+// derefStr safely dereferences a string pointer.
+func derefStr(s *string) string {
+	if s != nil {
+		return *s
+	}
+	return ""
 }
 
 // extractTenantID extracts tenant ID from X-Tenant-ID header.

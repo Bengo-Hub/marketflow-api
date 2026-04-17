@@ -102,6 +102,7 @@ type LeadHandlers struct {
 	Get    http.HandlerFunc
 	Update http.HandlerFunc
 	Delete http.HandlerFunc
+	Export http.HandlerFunc
 }
 
 // ContactHandlers groups contact management HTTP handlers.
@@ -135,21 +136,23 @@ type CampaignHandlers struct {
 
 // FunnelHandlers groups funnel management HTTP handlers.
 type FunnelHandlers struct {
-	Create  http.HandlerFunc
-	List    http.HandlerFunc
-	Get     http.HandlerFunc
-	Update  http.HandlerFunc
-	Delete  http.HandlerFunc
-	Publish http.HandlerFunc
+	Create    http.HandlerFunc
+	List      http.HandlerFunc
+	Get       http.HandlerFunc
+	Update    http.HandlerFunc
+	Delete    http.HandlerFunc
+	Publish   http.HandlerFunc
+	Analytics http.HandlerFunc
 }
 
 // SequenceHandlers groups nurture sequence HTTP handlers.
 type SequenceHandlers struct {
-	Create http.HandlerFunc
-	List   http.HandlerFunc
-	Get    http.HandlerFunc
-	Update http.HandlerFunc
-	Delete http.HandlerFunc
+	Create    http.HandlerFunc
+	List      http.HandlerFunc
+	Get       http.HandlerFunc
+	Update    http.HandlerFunc
+	Delete    http.HandlerFunc
+	Analytics http.HandlerFunc
 }
 
 // MeetingHandlers groups scheduled meeting HTTP handlers.
@@ -191,6 +194,7 @@ type WebhookHandlers struct {
 	MetaLeadgen          http.HandlerFunc
 	CalcomBooking        http.HandlerFunc
 	NotificationsDelivery http.HandlerFunc
+	TikTokLeads          http.HandlerFunc
 }
 
 // PublicHandlers groups public HTTP handlers (no auth).
@@ -201,6 +205,7 @@ type PublicHandlers struct {
 	CreateLead          http.HandlerFunc
 	RecordProfileEvent  http.HandlerFunc
 	ListTestimonials    http.HandlerFunc
+	FunnelStepView      http.HandlerFunc
 }
 
 // TenantProfileHandlers groups tenant profile settings endpoints.
@@ -295,6 +300,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 			r.Route("/leads", func(r chi.Router) {
 				r.With(deps.TrackLeadCreated).Post("/", deps.LeadHandlers.Create)
 				r.Get("/", deps.LeadHandlers.List)
+				r.Get("/export", deps.LeadHandlers.Export)
 				r.Get("/{id}", deps.LeadHandlers.Get)
 				r.Put("/{id}", deps.LeadHandlers.Update)
 				r.Delete("/{id}", deps.LeadHandlers.Delete)
@@ -337,6 +343,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Put("/{id}", deps.FunnelHandlers.Update)
 				r.Delete("/{id}", deps.FunnelHandlers.Delete)
 				r.Post("/{id}/publish", deps.FunnelHandlers.Publish)
+				r.Get("/{id}/analytics", deps.FunnelHandlers.Analytics)
 			})
 
 			// Nurture sequence management
@@ -346,6 +353,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Get("/{id}", deps.SequenceHandlers.Get)
 				r.Put("/{id}", deps.SequenceHandlers.Update)
 				r.Delete("/{id}", deps.SequenceHandlers.Delete)
+				r.Get("/{id}/analytics", deps.SequenceHandlers.Analytics)
 			})
 
 			// Scheduled meeting management
@@ -435,6 +443,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 			r.Post("/meta/leadgen", deps.WebhookHandlers.MetaLeadgen)
 			r.Post("/calcom/booking", deps.WebhookHandlers.CalcomBooking)
 			r.Post("/notifications/delivery", deps.WebhookHandlers.NotificationsDelivery)
+			r.Post("/tiktok/leads", deps.WebhookHandlers.TikTokLeads)
 		})
 
 		// Public API routes (no auth). Lead capture is public and rate-limited
@@ -445,6 +454,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 			r.Get("/funnels/{slug}", deps.PublicHandlers.GetFunnel)
 			r.With(deps.TrackLeadCreated).Post("/leads/{slug}", deps.PublicHandlers.CreateLead)
 			r.Post("/profile-events", deps.PublicHandlers.RecordProfileEvent)
+			r.Post("/funnels/{slug}/step-view", deps.PublicHandlers.FunnelStepView)
 		})
 	})
 

@@ -17,6 +17,7 @@ type Config struct {
 	Security      SecurityConfig      `envPrefix:"MF_SECURITY_"`
 	Events        EventsConfig        `envPrefix:"MF_EVENTS_"`
 	Meta          MetaConfig          `envPrefix:"MF_META_"`
+	TikTok        TikTokConfig        `envPrefix:"MF_TIKTOK_"`
 	AI            AIConfig            `envPrefix:"MF_AI_"`
 	Subscriptions SubscriptionsConfig `envPrefix:"MF_SUBSCRIPTIONS_"`
 }
@@ -84,6 +85,11 @@ type MetaConfig struct {
 	VerifyToken string `env:"VERIFY_TOKEN"` // GET subscription verification
 	// GraphAPIVersion is the version of the Graph API to use.
 	GraphAPIVersion string `env:"GRAPH_API_VERSION" envDefault:"v21.0"`
+}
+
+// TikTokConfig holds TikTok Business API settings.
+type TikTokConfig struct {
+	WebhookSecret string `env:"WEBHOOK_SECRET"` // optional shared secret for webhook verification
 }
 
 // AIConfig holds AI/LLM integration settings.
