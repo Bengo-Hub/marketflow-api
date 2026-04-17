@@ -60,23 +60,20 @@ func (h *PublicHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Two lookup strategies, in order:
-	//   1. Tenant.slug (normal case — vanity URLs like marketflow.../p/my-fbo)
-	//   2. Tenant.fbo_distrib_id (FBO distributor IDs like 254200047984 —
-	//      shared by FLP and printed on business cards, so we support it
-	//      as a shortcut even though it's a number, not a slug).
+	// Lookup priority: slug exact match first, then fbo_distrib_id fallback.
+	// Two-step to avoid ambiguity when slug and distrib_id overlap across tenants.
 	t, err := h.entClient.Tenant.Query().
-		Where(
-			tenant.Or(
-				tenant.SlugEQ(slug),
-				tenant.FboDistribIDEQ(slug),
-			),
-			tenant.StatusEQ("active"),
-		).
+		Where(tenant.SlugEQ(slug), tenant.StatusEQ("active")).
 		Only(r.Context())
 	if err != nil {
-		httpapi.Error(w, http.StatusNotFound, "not_found", "profile not found", nil)
-		return
+		// Fallback: try fbo_distrib_id
+		t, err = h.entClient.Tenant.Query().
+			Where(tenant.FboDistribIDEQ(slug), tenant.StatusEQ("active")).
+			First(r.Context())
+		if err != nil {
+			httpapi.Error(w, http.StatusNotFound, "not_found", "profile not found", nil)
+			return
+		}
 	}
 
 	// Return only public-safe fields
