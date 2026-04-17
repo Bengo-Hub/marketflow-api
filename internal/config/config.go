@@ -10,14 +10,20 @@ import (
 
 // Config aggregates all runtime settings.
 type Config struct {
-	App      AppConfig      `envPrefix:""`
-	HTTP     HTTPConfig     `envPrefix:"HTTP_"`
-	Database DatabaseConfig `envPrefix:""`
-	Redis    RedisConfig    `envPrefix:"REDIS_"`
-	Security SecurityConfig `envPrefix:"MF_SECURITY_"`
-	Events   EventsConfig   `envPrefix:"MF_EVENTS_"`
-	Meta     MetaConfig     `envPrefix:"MF_META_"`
-	AI       AIConfig       `envPrefix:"MF_AI_"`
+	App           AppConfig           `envPrefix:""`
+	HTTP          HTTPConfig          `envPrefix:"HTTP_"`
+	Database      DatabaseConfig      `envPrefix:""`
+	Redis         RedisConfig         `envPrefix:"REDIS_"`
+	Security      SecurityConfig      `envPrefix:"MF_SECURITY_"`
+	Events        EventsConfig        `envPrefix:"MF_EVENTS_"`
+	Meta          MetaConfig          `envPrefix:"MF_META_"`
+	AI            AIConfig            `envPrefix:"MF_AI_"`
+	Subscriptions SubscriptionsConfig `envPrefix:"MF_SUBSCRIPTIONS_"`
+}
+
+type SubscriptionsConfig struct {
+	URL    string `env:"URL" envDefault:"http://subscriptions-api.infra.svc.cluster.local:4000"`
+	APIKey string `env:"API_KEY"`
 }
 
 type AppConfig struct {

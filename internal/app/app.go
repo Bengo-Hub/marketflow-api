@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/httpapi/handlers"
+	mfmiddleware "github.com/bengobox/marketflow-api/internal/middleware"
 	"github.com/bengobox/marketflow-api/internal/modules/admin"
 	"github.com/bengobox/marketflow-api/internal/modules/analytics"
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
@@ -53,6 +54,7 @@ type App struct {
 	tenantConsumer  *platformevents.TenantConsumer
 	providerManager *providers.Manager
 	rbacService     *rbac.Service
+	usagePublisher  *mfmiddleware.UsagePublisher
 	httpServer      *http.Server
 }
 
@@ -171,6 +173,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 
 	analyticsHandler := analytics.NewHandler(entClient, logger)
 	auditHandler := audit.NewHandler(entClient, logger)
+
+	// ── Subscription usage + feature gate ─────────────────────────────
+	usagePub := mfmiddleware.NewUsagePublisher(cfg.Subscriptions.URL, cfg.Subscriptions.APIKey, logger)
+	featureGate := mfmiddleware.NewFeatureGate(cfg.Subscriptions.URL, cfg.Subscriptions.APIKey, logger)
 
 	// Integrations OAuth flow handler. Uses the encryption key as the HMAC
 	// key for signing `state`; no separate secret needed.
@@ -307,6 +313,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		},
 		RequireAuthHandler: requireAuth,
 		RequirePlatformOwner: requirePlatformOwner(authMiddleware),
+		RequireAICredits:    featureGate.RequireFeature("ai_chat_messages", "AI credits exhausted — purchase more at /settings/billing"),
+		RequireCampaignSlot: featureGate.RequireFeature("campaigns_active", "Campaign limit reached — upgrade your plan at /settings/billing"),
 		AllowedOrigins:     cfg.HTTP.AllowedOrigins,
 	})
 
@@ -331,6 +339,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		tenantConsumer:  tenantConsumer,
 		providerManager: providerMgr,
 		rbacService:     rbacService,
+		usagePublisher:  usagePub,
 		httpServer:      server,
 	}, nil
 }

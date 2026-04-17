@@ -64,6 +64,10 @@ type RouterDeps struct {
 	RequireAuthHandler      func(http.Handler) http.Handler
 	RequirePlatformOwner    func(http.Handler) http.Handler
 
+	// Feature gate middleware (subscription tier enforcement)
+	RequireAICredits    func(http.Handler) http.Handler
+	RequireCampaignSlot func(http.Handler) http.Handler
+
 	// Allowed origins for CORS
 	AllowedOrigins string
 }
@@ -298,9 +302,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Delete("/entries/{id}", deps.KnowledgeHandlers.DeleteEntry)
 			})
 
-			// Campaign management
+			// Campaign management — create gated by subscription tier.
 			r.Route("/campaigns", func(r chi.Router) {
-				r.Post("/", deps.CampaignHandlers.Create)
+				r.With(deps.RequireCampaignSlot).Post("/", deps.CampaignHandlers.Create)
 				r.Get("/", deps.CampaignHandlers.List)
 				r.Get("/{id}", deps.CampaignHandlers.Get)
 				r.Put("/{id}", deps.CampaignHandlers.Update)
