@@ -401,6 +401,37 @@ func (h *Handler) ListTenant(w http.ResponseWriter, r *http.Request) {
 	httpapi.JSON(w, http.StatusOK, map[string]any{"integrations": out})
 }
 
+// AvailableIntegrations returns the list of platform-level provider types that
+// have active configuration. The frontend uses this to show only integration
+// cards whose OAuth apps / credentials are actually set up.
+// @Summary List available platform integrations
+// @Tags Integrations
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Security bearerAuth
+// @Router /integrations/available [get]
+func (h *Handler) AvailableIntegrations(w http.ResponseWriter, r *http.Request) {
+	rows, err := h.db.ProviderSetting.Query().
+		Where(
+			providersetting.TenantIDEQ("platform"),
+			providersetting.IsActiveEQ(true),
+		).
+		All(r.Context())
+	if err != nil {
+		httpapi.Error(w, http.StatusInternalServerError, "query_failed", err.Error(), nil)
+		return
+	}
+	seen := map[string]bool{}
+	for _, s := range rows {
+		seen[s.ProviderType] = true
+	}
+	types := make([]string, 0, len(seen))
+	for t := range seen {
+		types = append(types, t)
+	}
+	httpapi.JSON(w, http.StatusOK, map[string]any{"available": types})
+}
+
 // DisconnectTenant removes every ProviderSetting row for a given provider type.
 // @Summary Disconnect a tenant integration
 // @Tags Integrations

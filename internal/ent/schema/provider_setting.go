@@ -87,7 +87,8 @@ func (ProviderSetting) Fields() []ent.Field {
 // Indexes of the ProviderSetting.
 func (ProviderSetting) Indexes() []ent.Index {
 	return []ent.Index{
-		index.Fields("tenant_id", "environment", "provider_type", "provider_name", "key"),
+		index.Fields("tenant_id", "environment", "provider_type", "provider_name", "key").
+			Unique(),
 		index.Fields("tenant_id", "environment", "provider_type"),
 		index.Fields("tenant_id", "provider_type", "is_active"),
 	}

@@ -170,12 +170,13 @@ type AnalyticsHandlers struct {
 // IntegrationsHandlers groups OAuth authorize + callback endpoints
 // (Google Calendar, Meta) and any related per-tenant integration management.
 type IntegrationsHandlers struct {
-	GoogleAuthorize http.HandlerFunc
-	GoogleCallback  http.HandlerFunc
-	MetaAuthorize   http.HandlerFunc
-	MetaCallback    http.HandlerFunc
-	ListTenant      http.HandlerFunc
-	DisconnectTenant http.HandlerFunc
+	AvailableIntegrations http.HandlerFunc
+	GoogleAuthorize       http.HandlerFunc
+	GoogleCallback        http.HandlerFunc
+	MetaAuthorize         http.HandlerFunc
+	MetaCallback          http.HandlerFunc
+	ListTenant            http.HandlerFunc
+	DisconnectTenant      http.HandlerFunc
 }
 
 // WebhookHandlers groups webhook HTTP handlers (public, no auth).
@@ -375,6 +376,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 			// Per-tenant integration OAuth flows. authorize returns the
 			// provider auth URL; callback is hit by the provider.
 			r.Route("/integrations", func(r chi.Router) {
+				r.Get("/available", deps.IntegrationsHandlers.AvailableIntegrations)
 				r.Get("/google/authorize", deps.IntegrationsHandlers.GoogleAuthorize)
 				r.Get("/google/callback", deps.IntegrationsHandlers.GoogleCallback)
 				r.Get("/meta/authorize", deps.IntegrationsHandlers.MetaAuthorize)

@@ -3,6 +3,7 @@
 package migrate
 
 import (
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 )
@@ -830,7 +831,7 @@ var (
 		Indexes: []*schema.Index{
 			{
 				Name:    "providersetting_tenant_id_environment_provider_type_provider_name_key",
-				Unique:  false,
+				Unique:  true,
 				Columns: []*schema.Column{ProviderSettingsColumns[1], ProviderSettingsColumns[4], ProviderSettingsColumns[2], ProviderSettingsColumns[3], ProviderSettingsColumns[5]},
 			},
 			{
@@ -1074,6 +1075,22 @@ var (
 				Name:    "tenant_business_type",
 				Unique:  false,
 				Columns: []*schema.Column{TenantsColumns[9]},
+			},
+			{
+				Name:    "tenant_fbo_distrib_id",
+				Unique:  true,
+				Columns: []*schema.Column{TenantsColumns[4]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "fbo_distrib_id IS NOT NULL AND fbo_distrib_id != ''",
+				},
+			},
+			{
+				Name:    "tenant_whatsapp_number",
+				Unique:  true,
+				Columns: []*schema.Column{TenantsColumns[5]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "whatsapp_number IS NOT NULL AND whatsapp_number != ''",
+				},
 			},
 		},
 	}
