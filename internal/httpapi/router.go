@@ -60,6 +60,9 @@ type RouterDeps struct {
 	// Integration handlers (OAuth authorize + callback for Google / Meta)
 	IntegrationsHandlers IntegrationsHandlers
 
+	// Tenant profile CRUD (FBO settings)
+	TenantProfileHandlers TenantProfileHandlers
+
 	// Auth middleware
 	RequireAuthHandler      func(http.Handler) http.Handler
 	RequirePlatformOwner    func(http.Handler) http.Handler
@@ -191,6 +194,12 @@ type PublicHandlers struct {
 	CreateLead          http.HandlerFunc
 	RecordProfileEvent  http.HandlerFunc
 	ListTestimonials    http.HandlerFunc
+}
+
+// TenantProfileHandlers groups tenant profile settings endpoints.
+type TenantProfileHandlers struct {
+	Get    http.HandlerFunc
+	Update http.HandlerFunc
 }
 
 // TestimonialHandlers groups authenticated testimonial CRUD endpoints.
@@ -341,6 +350,12 @@ func NewRouter(deps RouterDeps) http.Handler {
 			})
 
 			// Testimonial CRUD — rendered on the public /p/{slug} page.
+			// Tenant profile settings (FBO branding, phone, bio, distribID)
+			r.Route("/tenant/profile", func(r chi.Router) {
+				r.Get("/", deps.TenantProfileHandlers.Get)
+				r.Patch("/", deps.TenantProfileHandlers.Update)
+			})
+
 			r.Route("/testimonials", func(r chi.Router) {
 				r.Get("/", deps.TestimonialHandlers.List)
 				r.Post("/", deps.TestimonialHandlers.Create)

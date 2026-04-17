@@ -108,6 +108,12 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 	if looksLikeDistribID(remote.Slug) {
 		builder = builder.SetFboDistribID(remote.Slug)
 	}
+	// Sync owner phone as WhatsApp number (cleaned + validated)
+	if remote.Owner != nil && remote.Owner.Phone != "" {
+		if clean, err := CleanPhone(remote.Owner.Phone); err == nil && clean != "" {
+			builder = builder.SetWhatsappNumber(clean)
+		}
+	}
 
 	if _, err := builder.Save(ctx); err != nil {
 		return uuid.Nil, fmt.Errorf("create tenant: %w", err)

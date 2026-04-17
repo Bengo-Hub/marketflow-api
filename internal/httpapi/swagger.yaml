@@ -437,6 +437,26 @@ definitions:
       title:
         type: string
     type: object
+  internal_modules_tenant.profileUpdateRequest:
+    properties:
+      business_type:
+        type: string
+      country:
+        type: string
+      fbo_distrib_id:
+        type: string
+      flp_language:
+        type: string
+      flp_store_code:
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      name:
+        type: string
+      whatsapp_number:
+        type: string
+    type: object
   internal_modules_testimonials.upsertRequest:
     properties:
       author_name:
@@ -2564,6 +2584,59 @@ paths:
       summary: Create a short link
       tags:
       - ShortLinks
+  /tenant/profile:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Get current tenant profile
+      tags:
+      - Tenant
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Profile fields to update
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_tenant.profileUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Update tenant profile
+      tags:
+      - Tenant
   /testimonials:
     get:
       parameters:

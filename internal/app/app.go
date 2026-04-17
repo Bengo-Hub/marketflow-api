@@ -193,6 +193,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 
 	// Testimonial CRUD + public reader for /p/{slug}
 	testimonialHandler := testimonials.NewHandler(entClient, logger)
+	tenantProfileHandler := tenant.NewHandler(entClient, logger)
 
 	// Public handlers
 	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, leadService, testimonialHandler, logger)
@@ -270,6 +271,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			CreateLead:         publicHandler.PublicCreateLead,
 			RecordProfileEvent: publicHandler.RecordProfileEvent,
 			ListTestimonials:   publicHandler.ListTestimonials,
+		},
+		TenantProfileHandlers: httpapi.TenantProfileHandlers{
+			Get:    tenantProfileHandler.GetProfile,
+			Update: tenantProfileHandler.UpdateProfile,
 		},
 		TestimonialHandlers: httpapi.TestimonialHandlers{
 			List:   testimonialHandler.List,
