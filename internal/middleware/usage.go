@@ -34,6 +34,32 @@ func NewUsagePublisher(subscriptionsURL, apiKey string, logger *zap.Logger) *Usa
 	}
 }
 
+// TrackUsage returns an HTTP middleware that fires a usage event after a
+// successful mutation (2xx status). Wraps the ResponseWriter to capture the
+// status code without buffering the body.
+func (u *UsagePublisher) TrackUsage(metric string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			sw := &statusWriter{ResponseWriter: w, status: 200}
+			next.ServeHTTP(sw, r)
+			if sw.status >= 200 && sw.status < 300 {
+				tenantID := r.Header.Get("X-Tenant-ID")
+				u.Report(tenantID, metric, 1)
+			}
+		})
+	}
+}
+
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (sw *statusWriter) WriteHeader(code int) {
+	sw.status = code
+	sw.ResponseWriter.WriteHeader(code)
+}
+
 // Report sends a usage event to subscriptions-api. metric is one of:
 // "leads_captured", "ai_chat_messages", "campaigns_active", "emails_sent".
 // value is the increment (typically 1). Fire-and-forget — errors are logged.

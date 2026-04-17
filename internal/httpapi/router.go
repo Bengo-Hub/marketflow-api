@@ -71,6 +71,10 @@ type RouterDeps struct {
 	RequireAICredits    func(http.Handler) http.Handler
 	RequireCampaignSlot func(http.Handler) http.Handler
 
+	// Usage tracking middleware (fire-and-forget to subscriptions-api)
+	TrackLeadCreated    func(http.Handler) http.Handler
+	TrackCampaignCreated func(http.Handler) http.Handler
+
 	// Allowed origins for CORS
 	AllowedOrigins string
 }
@@ -287,7 +291,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 			// Lead management
 			r.Route("/leads", func(r chi.Router) {
-				r.Post("/", deps.LeadHandlers.Create)
+				r.With(deps.TrackLeadCreated).Post("/", deps.LeadHandlers.Create)
 				r.Get("/", deps.LeadHandlers.List)
 				r.Get("/{id}", deps.LeadHandlers.Get)
 				r.Put("/{id}", deps.LeadHandlers.Update)
@@ -314,7 +318,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 			// Campaign management — create gated by subscription tier.
 			r.Route("/campaigns", func(r chi.Router) {
-				r.With(deps.RequireCampaignSlot).Post("/", deps.CampaignHandlers.Create)
+				r.With(deps.RequireCampaignSlot, deps.TrackCampaignCreated).Post("/", deps.CampaignHandlers.Create)
 				r.Get("/", deps.CampaignHandlers.List)
 				r.Get("/{id}", deps.CampaignHandlers.Get)
 				r.Put("/{id}", deps.CampaignHandlers.Update)
@@ -435,7 +439,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 			r.Get("/profile/{slug}", deps.PublicHandlers.GetProfile)
 			r.Get("/profile/{slug}/testimonials", deps.PublicHandlers.ListTestimonials)
 			r.Get("/funnels/{slug}", deps.PublicHandlers.GetFunnel)
-			r.Post("/leads/{slug}", deps.PublicHandlers.CreateLead)
+			r.With(deps.TrackLeadCreated).Post("/leads/{slug}", deps.PublicHandlers.CreateLead)
 			r.Post("/profile-events", deps.PublicHandlers.RecordProfileEvent)
 		})
 	})

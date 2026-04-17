@@ -319,8 +319,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		},
 		RequireAuthHandler: requireAuth,
 		RequirePlatformOwner: requirePlatformOwner(authMiddleware),
-		RequireAICredits:    featureGate.RequireFeature("ai_chat_messages", "AI credits exhausted — purchase more at /settings/billing"),
-		RequireCampaignSlot: featureGate.RequireFeature("campaigns_active", "Campaign limit reached — upgrade your plan at /settings/billing"),
+		RequireAICredits:     featureGate.RequireFeature("ai_chat_messages", "AI credits exhausted — purchase more at /settings/billing"),
+		RequireCampaignSlot:  featureGate.RequireFeature("campaigns_active", "Campaign limit reached — upgrade your plan at /settings/billing"),
+		TrackLeadCreated:     usagePub.TrackUsage("leads_captured"),
+		TrackCampaignCreated: usagePub.TrackUsage("campaigns_active"),
 		AllowedOrigins:     cfg.HTTP.AllowedOrigins,
 	})
 
