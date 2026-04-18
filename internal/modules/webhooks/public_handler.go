@@ -89,11 +89,13 @@ func (h *PublicHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 						Where(tenant.SlugEQ(slug), tenant.StatusEQ("active")).
 						Only(r.Context())
 					if err != nil {
-						// Try distrib_id fallback again after sync
+						// Try distrib_id fallback after sync
 						t, err = h.entClient.Tenant.Query().
 							Where(tenant.FboDistribIDEQ(slug), tenant.StatusEQ("active")).
 							First(r.Context())
 					}
+				} else {
+					h.logger.Error("JIT sync failed", zap.String("slug", slug), zap.Error(syncErr))
 				}
 			}
 

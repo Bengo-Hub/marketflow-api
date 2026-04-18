@@ -14,6 +14,15 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// FBO Profile Defaults
+	DefaultFBOTagline     = "Forever Living Products is the largest grower, manufacturer and distributor of Aloe Vera in the world."
+	DefaultFBOBio         = "Forever Living Products is the largest grower, manufacturer and distributor of Aloe Vera in the world."
+	DefaultFBOStory       = "Forever Living Products was founded in 1978 by Rex Maughan in Scottsdale, Arizona. We are the world's largest grower, manufacturer and distributor of aloe vera and bee products. Millions of people in over 160 countries have discovered the benefits of Forever’s aloe vera products to help them and their families look better and feel better. We own our own aloe fields, manufacturing and distribution facilities, and we utilize stabilized aloe vera gel because we control every step from plant to product to you."
+	DefaultFBOVideoURL     = "https://www.youtube.com/embed/YRvN_JkHSzQ"
+	DefaultFBOPrimaryColor = "#f59e0b"
+)
+
 // Syncer handles JIT syncing of tenant data from auth-api.
 // On first encounter of a tenant slug (from JWT), it fetches the canonical
 // tenant record from auth-api and upserts locally using the SAME UUID so
@@ -84,9 +93,42 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 			SetSlug(remote.Slug).
 			SetName(s.resolveName(remote)).
 			SetStatus(remote.Status)
+
 		if remote.Country != "" {
 			upd = upd.SetCountry(remote.Country)
 		}
+
+		// Update WhatsApp if available
+		if remote.Owner != nil && remote.Owner.Phone != "" {
+			if clean, err := CleanPhone(remote.Owner.Phone); err == nil && clean != "" {
+				upd = upd.SetWhatsappNumber(clean)
+			}
+		}
+
+		// Update FBO metadata defaults
+		if looksLikeDistribID(remote.Slug) {
+			meta := remote.Metadata
+			if meta == nil {
+				meta = make(map[string]any)
+			}
+			if _, ok := meta["tagline"]; !ok {
+				meta["tagline"] = DefaultFBOTagline
+			}
+			if _, ok := meta["bio"]; !ok {
+				meta["bio"] = DefaultFBOBio
+			}
+			if _, ok := meta["story"]; !ok {
+				meta["story"] = DefaultFBOStory
+			}
+			if _, ok := meta["video_url"]; !ok {
+				meta["video_url"] = DefaultFBOVideoURL
+			}
+			if _, ok := meta["brand_primary_color"]; !ok {
+				meta["brand_primary_color"] = DefaultFBOPrimaryColor
+			}
+			upd = upd.SetMetadata(meta).SetFboDistribID(remote.Slug)
+		}
+
 		if _, err := upd.Save(ctx); err != nil {
 			s.logger.Warn("tenant update failed", zap.String("slug", slug), zap.Error(err))
 		}
@@ -95,19 +137,44 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 
 	// Create tenant with the same UUID as auth-api
 	name := s.resolveName(remote)
+	meta := remote.Metadata
+	if meta == nil {
+		meta = make(map[string]any)
+	}
+
 	builder := s.client.Tenant.Create().
 		SetID(realID).
 		SetSlug(remote.Slug).
 		SetName(name).
 		SetStatus(remote.Status).
 		SetBusinessType("flp")
+
 	if remote.Country != "" {
 		builder = builder.SetCountry(remote.Country)
 	}
-	// For FBO tenants, the slug IS the distrib_id
+
+	// For FBO tenants, the slug IS the distrib_id. Apply defaults.
 	if looksLikeDistribID(remote.Slug) {
 		builder = builder.SetFboDistribID(remote.Slug)
+		if _, ok := meta["tagline"]; !ok {
+			meta["tagline"] = DefaultFBOTagline
+		}
+		if _, ok := meta["bio"]; !ok {
+			meta["bio"] = DefaultFBOBio
+		}
+		if _, ok := meta["story"]; !ok {
+			meta["story"] = DefaultFBOStory
+		}
+		if _, ok := meta["video_url"]; !ok {
+			meta["video_url"] = DefaultFBOVideoURL
+		}
+		if _, ok := meta["brand_primary_color"]; !ok {
+			meta["brand_primary_color"] = DefaultFBOPrimaryColor
+		}
 	}
+
+	builder = builder.SetMetadata(meta)
+
 	// Sync owner phone as WhatsApp number (cleaned + validated)
 	if remote.Owner != nil && remote.Owner.Phone != "" {
 		if clean, err := CleanPhone(remote.Owner.Phone); err == nil && clean != "" {
