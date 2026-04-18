@@ -21,6 +21,7 @@ const (
 	DefaultFBOStory        = "Forever Living Products was founded in 1978 by Rex Maughan in Scottsdale, Arizona. We are the world's largest grower, manufacturer and distributor of aloe vera and bee products. Millions of people in over 160 countries have discovered the benefits of Forever’s aloe vera products to help them and their families look better and feel better. We own our own aloe fields, manufacturing and distribution facilities, and we utilize stabilized aloe vera gel because we control every step from plant to product to you."
 	DefaultFBOVideoURL     = "https://www.youtube.com/embed/YRvN_JkHSzQ"
 	DefaultFBOPrimaryColor = "#f59e0b"
+	DefaultFBOLogo         = "https://accounts.codevertexitsolutions.com/images/logo/codevertex.png"
 )
 
 // Syncer handles JIT syncing of tenant data from auth-api.
@@ -55,6 +56,7 @@ type authTenant struct {
 	Slug     string         `json:"slug"`
 	Status   string         `json:"status"`
 	Country  string         `json:"country"`
+	LogoURL  string         `json:"logo_url"`
 	Metadata map[string]any `json:"metadata"`
 	// Auth-api may include the owner user's profile in the response.
 	Owner *struct {
@@ -126,6 +128,9 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 			if _, ok := meta["brand_primary_color"]; !ok {
 				meta["brand_primary_color"] = DefaultFBOPrimaryColor
 			}
+			if _, ok := meta["logo_url"]; !ok {
+				meta["logo_url"] = DefaultFBOLogo
+			}
 			upd = upd.SetMetadata(meta).SetFboDistribID(remote.Slug)
 		}
 
@@ -170,6 +175,9 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 		}
 		if _, ok := meta["brand_primary_color"]; !ok {
 			meta["brand_primary_color"] = DefaultFBOPrimaryColor
+		}
+		if _, ok := meta["logo_url"]; !ok {
+			meta["logo_url"] = DefaultFBOLogo
 		}
 	}
 
