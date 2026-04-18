@@ -28,7 +28,7 @@ func NewTenantConsumer(conn *nats.Conn, syncer *tenant.Syncer, logger *zap.Logge
 
 // Start subscribes to tenant events.
 func (c *TenantConsumer) Start() error {
-	subjects := []string{"tenant.tenant.created", "tenant.tenant.updated"}
+	subjects := []string{"auth.tenant.created", "auth.tenant.updated"}
 	for _, subject := range subjects {
 		sub, err := c.conn.Subscribe(subject, c.handleTenantEvent)
 		if err != nil {

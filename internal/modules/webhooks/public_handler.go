@@ -18,12 +18,19 @@ import (
 	"go.uber.org/zap"
 )
 
+// TenantSyncer is the interface for synchronizing tenant data from auth-api.
+// Defined here to avoid import cycles.
+type TenantSyncer interface {
+	SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
+}
+
 // PublicHandler handles public endpoints that require no authentication.
 type PublicHandler struct {
 	entClient          *ent.Client
 	funnelService      *funnels.Service
 	leadService        *leads.Service
 	testimonialService TestimonialReader
+	tenantSyncer       TenantSyncer
 	logger             *zap.Logger
 }
 
@@ -34,12 +41,13 @@ type TestimonialReader interface {
 }
 
 // NewPublicHandler creates a new public handler.
-func NewPublicHandler(entClient *ent.Client, funnelService *funnels.Service, leadService *leads.Service, testimonialReader TestimonialReader, logger *zap.Logger) *PublicHandler {
+func NewPublicHandler(entClient *ent.Client, funnelService *funnels.Service, leadService *leads.Service, testimonialReader TestimonialReader, tenantSyncer TenantSyncer, logger *zap.Logger) *PublicHandler {
 	return &PublicHandler{
 		entClient:          entClient,
 		funnelService:      funnelService,
 		leadService:        leadService,
 		testimonialService: testimonialReader,
+		tenantSyncer:       tenantSyncer,
 		logger:             logger.Named("public"),
 	}
 }
@@ -71,8 +79,28 @@ func (h *PublicHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 			Where(tenant.FboDistribIDEQ(slug), tenant.StatusEQ("active")).
 			First(r.Context())
 		if err != nil {
-			httpapi.Error(w, http.StatusNotFound, "not_found", "profile not found", nil)
-			return
+			// Profile not found in local DB. Try JIT sync if a syncer is available.
+			if h.tenantSyncer != nil {
+				h.logger.Info("tenant not found locally, attempting JIT sync", zap.String("slug", slug))
+				_, syncErr := h.tenantSyncer.SyncTenant(r.Context(), slug)
+				if syncErr == nil {
+					// Retry lookup after sync
+					t, err = h.entClient.Tenant.Query().
+						Where(tenant.SlugEQ(slug), tenant.StatusEQ("active")).
+						Only(r.Context())
+					if err != nil {
+						// Try distrib_id fallback again after sync
+						t, err = h.entClient.Tenant.Query().
+							Where(tenant.FboDistribIDEQ(slug), tenant.StatusEQ("active")).
+							First(r.Context())
+					}
+				}
+			}
+
+			if err != nil || t == nil {
+				httpapi.Error(w, http.StatusNotFound, "not_found", "profile not found", nil)
+				return
+			}
 		}
 	}
 

@@ -201,7 +201,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	tenantProfileHandler := tenant.NewHandler(entClient, logger)
 
 	// Public handlers
-	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, leadService, testimonialHandler, logger)
+	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, leadService, testimonialHandler, tenantSyncer, logger)
 
 	// ── Router ────────────────────────────────────────────────────────────
 	var requireAuth func(http.Handler) http.Handler
@@ -282,6 +282,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			ListTestimonials:   publicHandler.ListTestimonials,
 			FunnelStepView:     funnelAnalyticsHandler.RecordStepView,
 		},
+		TenantSyncer: tenantSyncer,
 		TenantProfileHandlers: httpapi.TenantProfileHandlers{
 			Get:    tenantProfileHandler.GetProfile,
 			Update: tenantProfileHandler.UpdateProfile,

@@ -1,19 +1,29 @@
 package httpapi
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/google/uuid"
 )
+
+// TenantSyncer defines the interface for synchronizing tenant data from auth-api.
+type TenantSyncer interface {
+	SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
+}
 
 // RouterDeps defines router construction dependencies.
 type RouterDeps struct {
 	HealthHandler  http.HandlerFunc
 	MetricsHandler http.Handler
+
+	TenantSyncer TenantSyncer
 
 	// Lead handlers
 	LeadHandlers LeadHandlers
@@ -294,6 +304,23 @@ func NewRouter(deps RouterDeps) http.Handler {
 		r.Group(func(r chi.Router) {
 			if deps.RequireAuthHandler != nil {
 				r.Use(deps.RequireAuthHandler)
+			}
+			
+			if deps.TenantSyncer != nil {
+				r.Use(func(next http.Handler) http.Handler {
+					return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						slug := r.Header.Get("X-Tenant-Slug")
+						if slug == "" {
+							if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
+								slug = claims.GetTenantSlug()
+							}
+						}
+						if slug != "" {
+							_, _ = deps.TenantSyncer.SyncTenant(r.Context(), slug)
+						}
+						next.ServeHTTP(w, r)
+					})
+				})
 			}
 
 			// Lead management
