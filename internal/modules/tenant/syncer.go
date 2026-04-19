@@ -22,6 +22,7 @@ const (
 	DefaultFBOVideoURL     = "https://www.youtube.com/embed/YRvN_JkHSzQ"
 	DefaultFBOPrimaryColor = "#f59e0b"
 	DefaultFBOLogo         = "https://accounts.codevertexitsolutions.com/images/logo/codevertex.png"
+	DefaultFBOOpportunity  = "Forever Business Owners are everyday people who choose to share products they enjoy. Some may earn supplemental income by building a customer base or team, but participation and effort vary from person to person. Our business model rewards individuals for product sales and for supporting others who choose to do the same.\n\nForever’s reward structure, known as the Marketing Plan, outlines the various roles, incentives, and bonuses available. It is a roadmap that explains how the business works and the requirements associated with each level. It offers tools and resources designed to support your activity, allowing you to work at your own pace."
 )
 
 // Syncer handles JIT syncing of tenant data from auth-api.
@@ -131,6 +132,9 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 			if _, ok := meta["logo_url"]; !ok {
 				meta["logo_url"] = DefaultFBOLogo
 			}
+			if _, ok := meta["opportunity_text"]; !ok {
+				meta["opportunity_text"] = DefaultFBOOpportunity
+			}
 			upd = upd.SetMetadata(meta).SetFboDistribID(remote.Slug)
 		}
 
@@ -178,6 +182,9 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 		}
 		if _, ok := meta["logo_url"]; !ok {
 			meta["logo_url"] = DefaultFBOLogo
+		}
+		if _, ok := meta["opportunity_text"]; !ok {
+			meta["opportunity_text"] = DefaultFBOOpportunity
 		}
 	}
 
