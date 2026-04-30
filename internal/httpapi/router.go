@@ -7,10 +7,12 @@ import (
 	"time"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
+	"github.com/Bengo-Hub/httpware"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 // TenantSyncer defines the interface for synchronizing tenant data from auth-api.
@@ -20,6 +22,7 @@ type TenantSyncer interface {
 
 // RouterDeps defines router construction dependencies.
 type RouterDeps struct {
+	Log            *zap.Logger
 	HealthHandler  http.HandlerFunc
 	MetricsHandler http.Handler
 
@@ -242,9 +245,10 @@ type ShortLinkHandlers struct {
 // NewRouter wires HTTP routes.
 func NewRouter(deps RouterDeps) http.Handler {
 	r := chi.NewRouter()
-	r.Use(chimiddleware.RequestID)
+	r.Use(httpware.RequestID)
 	r.Use(chimiddleware.RealIP)
-	r.Use(chimiddleware.Recoverer)
+	r.Use(httpware.Recover(deps.Log))
+	r.Use(httpware.Logging(deps.Log))
 	r.Use(chimiddleware.Timeout(60 * time.Second))
 	r.Use(cors.Handler(cors.Options{
 		AllowOriginFunc: func(r *http.Request, origin string) bool {

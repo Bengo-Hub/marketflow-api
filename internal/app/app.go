@@ -210,6 +210,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	}
 
 	router := httpapi.NewRouter(httpapi.RouterDeps{
+		Log:            logger,
 		HealthHandler:  handlers.Health,
 		MetricsHandler: promhttp.Handler(),
 		LeadHandlers: httpapi.LeadHandlers{
