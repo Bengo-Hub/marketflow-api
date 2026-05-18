@@ -331,6 +331,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Test:        platformProviderHandler.TestProvider,
 			Deactivate:  platformProviderHandler.DeactivateProvider,
 		},
+		InternalLeadHandlers: httpapi.InternalLeadHandlers{
+			IngestFromService: leadHandler.IngestFromService,
+		},
+		InternalServiceKey: cfg.Subscriptions.APIKey,
 		RequireAuthHandler: requireAuth,
 		RequirePlatformOwner: requirePlatformOwner(authMiddleware),
 		RequireAICredits:     featureGate.RequireFeature("ai_chat_messages", "AI credits exhausted — purchase more at /settings/billing"),

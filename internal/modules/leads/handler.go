@@ -379,6 +379,80 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	writer.Flush()
 }
 
+// ingestFromServiceRequest is the body accepted by POST /api/v1/internal/leads.
+// Called by Codevertex platform services (codevertex-website, ordering-backend, etc.)
+// to push leads into MarketFlow via the shared INTERNAL_SERVICE_KEY.
+type ingestFromServiceRequest struct {
+	ServiceOrigin string         `json:"service_origin"` // e.g. "codevertex-website", "ordering-backend"
+	Email         *string        `json:"email"`
+	Phone         *string        `json:"phone"`
+	FirstName     *string        `json:"first_name"`
+	LastName      *string        `json:"last_name"`
+	LeadType      string         `json:"lead_type"`   // customer | recruit
+	Interest      *string        `json:"interest"`
+	UTMSource     *string        `json:"utm_source"`
+	UTMMedium     *string        `json:"utm_medium"`
+	UTMCampaign   *string        `json:"utm_campaign"`
+	Metadata      map[string]any `json:"metadata"`
+}
+
+// IngestFromService handles POST /api/v1/internal/leads.
+// Authenticated by X-API-Key (INTERNAL_SERVICE_KEY); no JWT required.
+// X-Tenant-ID must be a valid UUID identifying the target tenant.
+func (h *Handler) IngestFromService(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := extractTenantID(r)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing or invalid X-Tenant-ID header", nil)
+		return
+	}
+
+	var req ingestFromServiceRequest
+	if err := httpapi.DecodeJSON(r, &req); err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid request body", nil)
+		return
+	}
+
+	if req.Email == nil && req.Phone == nil {
+		httpapi.Error(w, http.StatusBadRequest, "missing_contact", "at least one of email or phone is required", nil)
+		return
+	}
+	if req.ServiceOrigin == "" {
+		req.ServiceOrigin = "unknown"
+	}
+	if req.LeadType == "" {
+		req.LeadType = "customer"
+	}
+
+	// Merge service_origin into metadata so it's queryable from the CRM.
+	meta := req.Metadata
+	if meta == nil {
+		meta = make(map[string]any)
+	}
+	meta["service_origin"] = req.ServiceOrigin
+
+	result, err := h.service.Create(r.Context(), CreateInput{
+		TenantID:    tenantID,
+		Email:       req.Email,
+		Phone:       req.Phone,
+		FirstName:   req.FirstName,
+		LastName:    req.LastName,
+		Source:      "platform_service",
+		UTMSource:   req.UTMSource,
+		UTMMedium:   req.UTMMedium,
+		UTMCampaign: req.UTMCampaign,
+		LeadType:    req.LeadType,
+		Interest:    req.Interest,
+		Metadata:    meta,
+	})
+	if err != nil {
+		h.logger.Error("failed to ingest service lead", zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "ingest_failed", "failed to create lead", nil)
+		return
+	}
+
+	httpapi.JSON(w, http.StatusCreated, result)
+}
+
 // derefStr safely dereferences a string pointer.
 func derefStr(s *string) string {
 	if s != nil {

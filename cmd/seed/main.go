@@ -110,9 +110,10 @@ func main() {
 	faqSeeded := seedFAQ(ctx, client, tid, scope)
 	bizSeeded := seedBusinessOpportunity(ctx, client, tid, scope)
 	complianceSeeded := seedCompliance(ctx, client, tid, scope)
+	codevertexSeeded := seedCodevertexKB(ctx, client, tid, scope)
 
-	log.Printf("KB: %d products, %d FAQ, %d business, %d compliance entries",
-		productsSeeded, faqSeeded, bizSeeded, complianceSeeded)
+	log.Printf("KB: %d products, %d FAQ, %d business, %d compliance, %d codevertex entries",
+		productsSeeded, faqSeeded, bizSeeded, complianceSeeded, codevertexSeeded)
 
 	// Phase 3: Default nurture sequence templates (platform scope only).
 	// Every tenant auto-enrols leads into these on lead.created; tenants can
@@ -379,6 +380,205 @@ func seedCompliance(ctx context.Context, client *ent.Client, tenantID uuid.UUID,
 		count++
 	}
 
+	return count
+}
+
+// seedCodevertexKB seeds platform-wide knowledge base entries for Codevertex IT Solutions.
+// These entries are shared across all tenants (scope='platform') so Vera can answer
+// questions about Codevertex services, Digitika Academy courses, and the Power Suite
+// without needing FLP-specific context.
+func seedCodevertexKB(ctx context.Context, client *ent.Client, tenantID uuid.UUID, scope string) int {
+	type entry struct {
+		category string
+		title    string
+		content  string
+		tags     []string
+	}
+
+	entries := []entry{
+		{
+			category: "company",
+			title:    "Codevertex IT Solutions — Company Overview",
+			content: `Codevertex IT Solutions is a premier technology firm headquartered in Kisumu, Kenya, established in 2020.
+
+Contact:
+- HQ: Pioneer House, 2nd Floor, Oginga Street, Kisumu, Kenya
+- Phone: +254 743 793 901 | +254 792 548 766
+- Email: info@codevertexitsolutions.com
+- Website: https://codevertexitsolutions.com
+- Client Portal (SSO): https://accounts.codevertexitsolutions.com
+
+Services:
+1. Enterprise Software — full-stack platforms, mobile apps, ERP, CRM, workflow automation
+2. AI & Analytics — predictive modelling, NLP chatbots, BI dashboards (Apache Superset)
+3. Cloud Infrastructure — managed cloud, AES-256 encryption, domain management
+4. Network & Hardware — TruLoad (IoT axle-load compliance), ISP billing, network automation
+5. Digitika Academy — ICDL, CCNA v7, AI/ML courses, Software Engineering, Data Analytics
+
+Pricing Plans (KES/month): Starter 4,999 | Growth 14,999 | Enterprise: Custom
+Payments: M-Pesa and card via Treasury Gateway at https://books.codevertexitsolutions.com`,
+			tags: []string{"company", "contact", "about", "overview"},
+		},
+		{
+			category: "product",
+			title:    "Power Suite — ERP",
+			content: `Codevertex ERP is a full-featured enterprise resource planning platform for inventory, procurement, HR, payroll, and financial management.
+
+URL: https://erp.codevertexitsolutions.com
+Best for: Medium to large businesses needing integrated back-office operations.
+Pricing: Growth or Enterprise plan. Contact info@codevertexitsolutions.com for a demo.`,
+			tags: []string{"erp", "enterprise", "power-suite", "inventory", "payroll"},
+		},
+		{
+			category: "product",
+			title:    "Power Suite — POS (Point of Sale)",
+			content: `Codevertex POS is a cloud-based point-of-sale system supporting M-Pesa, card payments, inventory sync, and multi-branch management.
+
+URL: https://pos.codevertexitsolutions.com
+Best for: Retail shops, restaurants, supermarkets.
+Payments: M-Pesa Lipa Na, Visa/Mastercard via Treasury Gateway.`,
+			tags: []string{"pos", "point-of-sale", "retail", "mpesa", "power-suite"},
+		},
+		{
+			category: "product",
+			title:    "Power Suite — Books (Treasury / Accounting)",
+			content: `Codevertex Books is the platform's treasury and accounting module — invoicing, payment collection, ledger management, and M-Pesa/card gateway.
+
+URL: https://books.codevertexitsolutions.com
+Also used for: Digitika enrollment payments, Power Suite subscription billing.
+Supports: M-Pesa STK Push, Visa/Mastercard, payment plans, PDF invoices.`,
+			tags: []string{"books", "treasury", "accounting", "invoicing", "mpesa", "power-suite"},
+		},
+		{
+			category: "product",
+			title:    "Power Suite — Analytics (Apache Superset)",
+			content: `Codevertex Analytics is a business intelligence dashboard powered by Apache Superset. Connect any database, build charts, and share reports.
+
+URL: https://superset.codevertexitsolutions.com
+Best for: Data-driven businesses wanting live KPIs, sales trends, and custom reports.`,
+			tags: []string{"analytics", "superset", "bi", "dashboard", "power-suite"},
+		},
+		{
+			category: "product",
+			title:    "Power Suite — MarketFlow CRM",
+			content: `MarketFlow is Codevertex's AI-powered CRM and marketing automation platform. Manage leads, campaigns, funnels, WhatsApp/email nurture sequences, and ad integrations (Meta, TikTok, Google Ads, LinkedIn).
+
+URL: https://marketflow.codevertexitsolutions.com
+Best for: Sales teams, FBOs, agencies, and any business that needs automated lead management.`,
+			tags: []string{"marketflow", "crm", "marketing", "leads", "campaigns", "power-suite"},
+		},
+		{
+			category: "product",
+			title:    "Power Suite — ISP Billing",
+			content: `Codevertex ISP Billing is an internet service provider billing and management system — subscriber management, bandwidth policies, M-Pesa auto-payments, and Mikrotik/RouterOS integration.
+
+URL: https://ispbilling.codevertexitsolutions.com
+Best for: ISPs, WISPs, and SOHO network operators in Kenya and East Africa.`,
+			tags: []string{"isp", "billing", "internet", "mikrotik", "power-suite"},
+		},
+		{
+			category: "product",
+			title:    "Power Suite — TruLoad (IoT Axle-Load Compliance)",
+			content: `TruLoad is Codevertex's IoT-based axle-load monitoring and compliance platform for transport companies. Real-time weighbridge data, alerts, and regulatory reporting.
+
+URL: https://truload.codevertexitsolutions.com
+Best for: Logistics companies, truck operators, and compliance officers needing KENHA/NTSA axle-load data.`,
+			tags: []string{"truload", "iot", "logistics", "compliance", "transport", "power-suite"},
+		},
+		{
+			category: "product",
+			title:    "Power Suite — Notifications Service",
+			content: `Codevertex Notifications is a multi-channel notification delivery platform — email, SMS, WhatsApp, and push. Used by all Power Suite apps for transactional and marketing messages.
+
+URL: https://notifications.codevertexitsolutions.com`,
+			tags: []string{"notifications", "sms", "email", "whatsapp", "power-suite"},
+		},
+		{
+			category: "education",
+			title:    "Digitika Academy — Overview",
+			content: `Digitika Academy is Codevertex's technology training wing, offering professional IT certification courses, bootcamps, and specialist training in Kisumu and online via Zoom.
+
+All courses are taught by certified instructors. Payments via M-Pesa or card at https://books.codevertexitsolutions.com.
+Contact: info@codevertexitsolutions.com | +254 743 793 901`,
+			tags: []string{"digitika", "academy", "training", "courses", "kisumu"},
+		},
+		{
+			category: "education",
+			title:    "Digitika Academy — Software Engineering Courses",
+			content: `Software Engineering courses at Digitika Academy (KES):
+
+- Code-Starter Bootcamp: 30,000 (10 weeks, hybrid Kisumu + Zoom)
+- Full-Stack Web Development: 45,000
+- Mobile App Development: 38,000
+- DevOps & Cloud Engineering: 42,000
+- Cybersecurity Fundamentals: 28,000
+
+All courses include hands-on projects and a certificate of completion.`,
+			tags: []string{"software", "bootcamp", "web-dev", "mobile", "devops", "cybersecurity", "digitika"},
+		},
+		{
+			category: "education",
+			title:    "Digitika Academy — ICDL Courses",
+			content: `International Computer Driving Licence (ICDL) courses at Digitika Academy (KES):
+
+- ICDL Core: 12,000
+- ICDL Advanced: 18,000
+- ICDL Professional: 24,000
+- ICDL Digital Citizen: 6,500
+
+ICDL is internationally recognised. Codevertex is an accredited ICDL test centre.`,
+			tags: []string{"icdl", "computer", "certification", "digitika"},
+		},
+		{
+			category: "education",
+			title:    "Digitika Academy — Networking & CCNA Courses",
+			content: `Cisco CCNA v7 certification courses at Digitika Academy (KES):
+
+- CCNA v7 Part 1 (Introduction to Networks): 22,000
+- CCNA v7 Part 2 (Switching, Routing, and Wireless Essentials): 22,000
+- CCNA v7 Part 3 (Enterprise Networking, Security, and Automation): 22,000
+- CCNA Exam Preparation: 15,000
+
+Cisco-aligned curriculum. Ideal for network engineers and IT professionals.`,
+			tags: []string{"ccna", "cisco", "networking", "digitika"},
+		},
+		{
+			category: "education",
+			title:    "Digitika Academy — AI & Machine Learning Courses",
+			content: `AI and Machine Learning courses at Digitika Academy (KES):
+
+- AI Fundamentals: 14,000
+- Machine Learning with Python: 32,000
+- Generative AI & LLMs: 38,000
+- AI for Business: 9,000
+
+Practical, project-based. Suitable for professionals wanting to apply AI in their field.`,
+			tags: []string{"ai", "machine-learning", "python", "genai", "llm", "digitika"},
+		},
+		{
+			category: "education",
+			title:    "Digitika Academy — Data Analytics Courses",
+			content: `Data Analytics courses at Digitika Academy (KES):
+
+- Data Analysis with Python: 28,000
+- Power BI & Data Visualisation: 16,000
+- SQL for Data Analysis: 12,000
+- Advanced Analytics & Statistics: 22,000
+
+Suitable for analysts, finance professionals, and business owners wanting data-driven insights.`,
+			tags: []string{"data", "analytics", "python", "power-bi", "sql", "digitika"},
+		},
+	}
+
+	count := 0
+	for _, e := range entries {
+		if created := createIfNotExists(ctx, client, tenantID, scope, e.category, e.title, e.content, e.tags); created {
+			count++
+		}
+	}
+	if count > 0 {
+		log.Printf("  seeded %d Codevertex KB entries", count)
+	}
 	return count
 }
 

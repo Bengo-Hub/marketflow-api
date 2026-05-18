@@ -88,6 +88,10 @@ type RouterDeps struct {
 	TrackLeadCreated    func(http.Handler) http.Handler
 	TrackCampaignCreated func(http.Handler) http.Handler
 
+	// Internal S2S handlers — X-API-Key auth only, no JWT
+	InternalLeadHandlers InternalLeadHandlers
+	InternalServiceKey   string
+
 	// Allowed origins for CORS
 	AllowedOrigins string
 }
@@ -116,6 +120,12 @@ type LeadHandlers struct {
 	Update http.HandlerFunc
 	Delete http.HandlerFunc
 	Export http.HandlerFunc
+}
+
+// InternalLeadHandlers groups service-to-service lead ingestion handlers.
+// These routes are protected by X-API-Key only (no JWT required).
+type InternalLeadHandlers struct {
+	IngestFromService http.HandlerFunc
 }
 
 // ContactHandlers groups contact management HTTP handlers.
@@ -467,6 +477,27 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Get("/tenants", deps.AdminTenantsHandlers.List)
 			})
 		})
+
+		// Internal S2S routes — X-API-Key only, no JWT.
+		// Called by platform services (codevertex-website, ordering-backend, etc.)
+		// using the shared INTERNAL_SERVICE_KEY to push leads into MarketFlow.
+		if deps.InternalServiceKey != "" && deps.InternalLeadHandlers.IngestFromService != nil {
+			r.Group(func(r chi.Router) {
+				svcKey := deps.InternalServiceKey
+				r.Use(func(next http.Handler) http.Handler {
+					return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						if r.Header.Get("X-API-Key") != svcKey {
+							Error(w, http.StatusUnauthorized, "unauthorized", "invalid service key", nil)
+							return
+						}
+						next.ServeHTTP(w, r)
+					})
+				})
+				r.Route("/internal", func(r chi.Router) {
+					r.Post("/leads", deps.InternalLeadHandlers.IngestFromService)
+				})
+			})
+		}
 
 		// Webhook routes (public, no auth — signature-verified by each handler)
 		r.Route("/webhooks", func(r chi.Router) {
