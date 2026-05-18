@@ -92,10 +92,15 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 			httpapi.Error(w, http.StatusBadRequest, "invalid_phone", err.Error(), nil)
 			return
 		}
-		upd = upd.SetWhatsappNumber(clean)
+		if t.WhatsappNumber == nil || *t.WhatsappNumber != clean {
+			upd = upd.SetWhatsappNumber(clean)
+		}
 	}
 	if req.FboDistribID != nil {
-		upd = upd.SetFboDistribID(strings.TrimSpace(*req.FboDistribID))
+		v := strings.TrimSpace(*req.FboDistribID)
+		if t.FboDistribID == nil || *t.FboDistribID != v {
+			upd = upd.SetFboDistribID(v)
+		}
 	}
 	if req.FlpStoreCode != nil {
 		upd = upd.SetFlpStoreCode(strings.TrimSpace(*req.FlpStoreCode))
