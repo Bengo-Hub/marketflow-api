@@ -64,6 +64,9 @@ type RouterDeps struct {
 	// Admin tenants directory (platform owner only)
 	AdminTenantsHandlers AdminTenantsHandlers
 
+	// Admin service config CRUD (platform owner only)
+	AdminServiceConfigHandlers AdminServiceConfigHandlers
+
 	// Analytics handlers (tenant dashboard aggregates)
 	AnalyticsHandlers AnalyticsHandlers
 
@@ -110,6 +113,14 @@ type AdminProviderHandlers struct {
 // AdminTenantsHandlers groups platform tenant-directory HTTP handlers.
 type AdminTenantsHandlers struct {
 	List http.HandlerFunc
+}
+
+// AdminServiceConfigHandlers groups platform service-config CRUD HTTP handlers.
+type AdminServiceConfigHandlers struct {
+	ListPlatform   http.HandlerFunc
+	UpsertPlatform http.HandlerFunc
+	ListTenant     http.HandlerFunc
+	UpsertTenant   http.HandlerFunc
 }
 
 // LeadHandlers groups lead management HTTP handlers.
@@ -475,6 +486,16 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 				// Tenant directory (drives /platform/tenants UI + tenant switcher).
 				r.Get("/tenants", deps.AdminTenantsHandlers.List)
+
+				// Service config CRUD (platform defaults + tenant overrides)
+				if deps.AdminServiceConfigHandlers.ListPlatform != nil {
+					r.Route("/service-config", func(r chi.Router) {
+						r.Get("/", deps.AdminServiceConfigHandlers.ListPlatform)
+						r.Put("/{key}", deps.AdminServiceConfigHandlers.UpsertPlatform)
+						r.Get("/tenant/{tenantId}", deps.AdminServiceConfigHandlers.ListTenant)
+						r.Put("/tenant/{tenantId}/{key}", deps.AdminServiceConfigHandlers.UpsertTenant)
+					})
+				}
 			})
 		})
 

@@ -8,6 +8,7 @@ replace github.com/Bengo-Hub/shared-auth-client => github.com/Bengo-Hub/auth-cli
 require (
 	ariga.io/atlas v0.32.1-0.20250325101103-175b25e1c1b9
 	entgo.io/ent v0.14.5
+	github.com/Bengo-Hub/httpware v0.4.0
 	github.com/Bengo-Hub/shared-auth-client v0.5.0
 	github.com/Bengo-Hub/shared-events v0.2.0
 	github.com/caarlos0/env/v11 v11.3.1
@@ -29,7 +30,6 @@ require (
 	cloud.google.com/go/auth v0.20.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
-	github.com/Bengo-Hub/httpware v0.4.0 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect

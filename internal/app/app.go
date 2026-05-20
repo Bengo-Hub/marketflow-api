@@ -119,6 +119,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// ── Platform Provider Admin Handler ────────────────────────────────────
 	platformProviderHandler := admin.NewPlatformProviderHandler(entClient, encKey, logger)
 	adminTenantsHandler := admin.NewTenantsHandler(entClient, logger)
+	serviceConfigHandler := admin.NewServiceConfigHandler(entClient, logger)
 
 	// ── Auth Middleware (JWT via shared auth-client JWKS) ──────────────────
 	var authMiddleware *authclient.AuthMiddleware
@@ -330,6 +331,12 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			SyncModels:  platformProviderHandler.SyncModels,
 			Test:        platformProviderHandler.TestProvider,
 			Deactivate:  platformProviderHandler.DeactivateProvider,
+		},
+		AdminServiceConfigHandlers: httpapi.AdminServiceConfigHandlers{
+			ListPlatform:   serviceConfigHandler.ListPlatformSettings,
+			UpsertPlatform: serviceConfigHandler.UpsertPlatformSetting,
+			ListTenant:     serviceConfigHandler.ListTenantSettings,
+			UpsertTenant:   serviceConfigHandler.UpsertTenantSetting,
 		},
 		InternalLeadHandlers: httpapi.InternalLeadHandlers{
 			IngestFromService: leadHandler.IngestFromService,
