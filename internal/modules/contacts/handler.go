@@ -12,16 +12,26 @@ import (
 
 // Handler handles HTTP requests for contacts.
 type Handler struct {
-	service *Service
-	logger  *zap.Logger
+	service    *Service
+	logger     *zap.Logger
+	view360Cfg View360Config
 }
 
 // NewHandler creates a new contact handler.
-func NewHandler(service *Service, logger *zap.Logger) *Handler {
-	return &Handler{
+func NewHandler(service *Service, logger *zap.Logger, opts ...func(*Handler)) *Handler {
+	h := &Handler{
 		service: service,
 		logger:  logger.Named("contacts.handler"),
 	}
+	for _, o := range opts {
+		o(h)
+	}
+	return h
+}
+
+// WithView360Config sets the cross-service URL config for the 360° view.
+func WithView360Config(cfg View360Config) func(*Handler) {
+	return func(h *Handler) { h.view360Cfg = cfg }
 }
 
 type createContactRequest struct {
@@ -262,6 +272,62 @@ func extractTenantID(r *http.Request) (uuid.UUID, error) {
 		return uuid.UUID{}, fmt.Errorf("X-Tenant-ID header is required")
 	}
 	return uuid.Parse(header)
+}
+
+// Get360 handles GET /api/v1/contacts/{id}/360
+func (h *Handler) Get360(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := extractTenantID(r)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing or invalid X-Tenant-ID header", nil)
+		return
+	}
+
+	contactID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_id", "invalid contact ID", nil)
+		return
+	}
+
+	result, err := h.service.Get360(r.Context(), tenantID, contactID, h.view360Cfg)
+	if err != nil {
+		h.logger.Error("failed to get 360 view", zap.Error(err))
+		httpapi.Error(w, http.StatusNotFound, "not_found", "contact not found", nil)
+		return
+	}
+
+	httpapi.JSON(w, http.StatusOK, result)
+}
+
+// GetByEmail handles GET /api/v1/internal/contacts/by-email?email=&tenant_id=
+// S2S only — requires X-API-Key, no JWT.
+func (h *Handler) GetByEmail(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	if email == "" {
+		httpapi.Error(w, http.StatusBadRequest, "missing_email", "email query parameter required", nil)
+		return
+	}
+
+	tenantIDStr := r.URL.Query().Get("tenant_id")
+	tenantID, err := uuid.Parse(tenantIDStr)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "missing_tenant", "tenant_id query parameter required", nil)
+		return
+	}
+
+	c, err := h.service.ByEmail(r.Context(), tenantID, email)
+	if err != nil {
+		httpapi.Error(w, http.StatusNotFound, "not_found", "contact not found", nil)
+		return
+	}
+
+	// Return minimal profile only — never the full contact to S2S callers
+	httpapi.JSON(w, http.StatusOK, map[string]any{
+		"id":         c.ID,
+		"first_name": c.FirstName,
+		"last_name":  c.LastName,
+		"email":      c.Email,
+		"phone":      c.Phone,
+	})
 }
 
 func parseIntQuery(r *http.Request, key string, defaultVal int) int {

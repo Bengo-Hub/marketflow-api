@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
@@ -42,6 +43,14 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, logger *zap.Logger)
 		AuthToken: cfg.Notifications.Token,
 	})
 	activitySvc := activities.NewService(db, logger.Named("activities"))
+	agentHTTP := &http.Client{Timeout: 15 * time.Second}
+	leadScorer := &LeadScorerAgent{
+		db:         db,
+		apiBaseURL: cfg.API.MarketFlowAPIURL,
+		serviceKey: cfg.API.InternalServiceKey,
+		logger:     logger.Named("agent.lead-scorer"),
+		hc:         agentHTTP,
+	}
 	return &Registry{
 		cfg:    cfg,
 		db:     db,
@@ -52,10 +61,34 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, logger *zap.Logger)
 			&ChatCompletedHandler{db: db, logger: logger.Named("audit")},
 			&LeadCreatedHandler{cfg: cfg, db: db, logger: logger.Named("lead")},
 			&ConversionsHandler{cfg: cfg, db: db, logger: logger.Named("conversions")},
+			// CRM cross-service event consumers (Phase D)
 			&OrderingOrderCreatedHandler{db: db, svc: activitySvc, logger: logger.Named("crm-ordering")},
 			&POSSaleFinalizedHandler{db: db, svc: activitySvc, logger: logger.Named("crm-pos-sale")},
 			&POSAppointmentCompletedHandler{db: db, svc: activitySvc, logger: logger.Named("crm-pos-appt")},
 			&TreasuryPaymentSucceededHandler{db: db, svc: activitySvc, logger: logger.Named("crm-treasury")},
+			// Sprint 10 background AI agents
+			leadScorer,
+			&ActivityLoggedLeadScorerAgent{LeadScorerAgent: leadScorer},
+			&ProactiveFollowUpAgent{
+				db:         db,
+				apiBaseURL: cfg.API.MarketFlowAPIURL,
+				serviceKey: cfg.API.InternalServiceKey,
+				logger:     logger.Named("agent.followup"),
+				hc:         agentHTTP,
+			},
+			&DealStaleDetector{
+				apiBaseURL: cfg.API.MarketFlowAPIURL,
+				serviceKey: cfg.API.InternalServiceKey,
+				logger:     logger.Named("agent.deal-stale"),
+				hc:         agentHTTP,
+			},
+			&NurtureSequenceEnhancer{
+				db:         db,
+				apiBaseURL: cfg.API.MarketFlowAPIURL,
+				serviceKey: cfg.API.InternalServiceKey,
+				logger:     logger.Named("agent.nurture-enhancer"),
+				hc:         agentHTTP,
+			},
 		},
 	}
 }

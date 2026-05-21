@@ -43,9 +43,10 @@ type HTTPConfig struct {
 }
 
 type APIConfig struct {
-	MarketFlowAPIURL string `env:"API_URL" envDefault:"http://marketflow-api.marketflow.svc.cluster.local:4000"`
-	OllamaURL        string `env:"OLLAMA_URL" envDefault:"http://ollama.shared-infra.svc.cluster.local:11434"`
-	EmbeddingModel   string `env:"EMBEDDING_MODEL" envDefault:"nomic-embed-text"`
+	MarketFlowAPIURL   string `env:"API_URL" envDefault:"http://marketflow-api.marketflow.svc.cluster.local:4000"`
+	OllamaURL          string `env:"OLLAMA_URL" envDefault:"http://ollama.shared-infra.svc.cluster.local:11434"`
+	EmbeddingModel     string `env:"EMBEDDING_MODEL" envDefault:"nomic-embed-text"`
+	InternalServiceKey string `env:"INTERNAL_SERVICE_KEY"`
 }
 
 // NotificationsConfig carries the platform notifications-api coordinates.

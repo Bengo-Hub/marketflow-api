@@ -159,7 +159,14 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	leadHandler := leads.NewHandler(leadService, logger)
 
 	contactService := contacts.NewService(entClient, logger)
-	contactHandler := contacts.NewHandler(contactService, logger)
+	contactHandler := contacts.NewHandler(contactService, logger,
+		contacts.WithView360Config(contacts.View360Config{
+			OrderingURL: cfg.CrossService.OrderingURL,
+			POSURL:      cfg.CrossService.POSURL,
+			TreasuryURL: cfg.CrossService.TreasuryURL,
+			ServiceKey:  cfg.CrossService.InternalServiceKey,
+		}),
+	)
 
 	shortLinkService := shortlinks.NewService(entClient, logger, "")
 	shortLinkHandler := shortlinks.NewHandler(shortLinkService, logger)
@@ -252,11 +259,13 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Export: leadHandler.Export,
 		},
 		ContactHandlers: httpapi.ContactHandlers{
-			Create: contactHandler.Create,
-			List:   contactHandler.List,
-			Get:    contactHandler.Get,
-			Update: contactHandler.Update,
-			Delete: contactHandler.Delete,
+			Create:     contactHandler.Create,
+			List:       contactHandler.List,
+			Get:        contactHandler.Get,
+			Update:     contactHandler.Update,
+			Delete:     contactHandler.Delete,
+			Get360:     contactHandler.Get360,
+			GetByEmail: contactHandler.GetByEmail,
 		},
 		KnowledgeHandlers: httpapi.KnowledgeHandlers{
 			CreateEntry: kbHandler.CreateEntry,

@@ -20,6 +20,7 @@ type Config struct {
 	TikTok        TikTokConfig        `envPrefix:"MF_TIKTOK_"`
 	AI            AIConfig            `envPrefix:"MF_AI_"`
 	Subscriptions SubscriptionsConfig `envPrefix:"MF_SUBSCRIPTIONS_"`
+	CrossService  CrossServiceConfig  `envPrefix:"MF_CROSS_"`
 }
 
 type SubscriptionsConfig struct {
@@ -90,6 +91,14 @@ type MetaConfig struct {
 // TikTokConfig holds TikTok Business API settings.
 type TikTokConfig struct {
 	WebhookSecret string `env:"WEBHOOK_SECRET"` // optional shared secret for webhook verification
+}
+
+// CrossServiceConfig holds internal URLs for S2S calls to sibling services.
+type CrossServiceConfig struct {
+	InternalServiceKey string `env:"INTERNAL_SERVICE_KEY"`
+	OrderingURL        string `env:"ORDERING_URL" envDefault:"http://ordering-backend.ordering.svc.cluster.local:8080"`
+	POSURL             string `env:"POS_URL" envDefault:"http://pos-api.pos.svc.cluster.local:8080"`
+	TreasuryURL        string `env:"TREASURY_URL" envDefault:"http://treasury-api.finance.svc.cluster.local:8080"`
 }
 
 // AIConfig holds AI/LLM integration settings.

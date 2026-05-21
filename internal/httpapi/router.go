@@ -150,11 +150,13 @@ type InternalLeadHandlers struct {
 
 // ContactHandlers groups contact management HTTP handlers.
 type ContactHandlers struct {
-	Create http.HandlerFunc
-	List   http.HandlerFunc
-	Get    http.HandlerFunc
-	Update http.HandlerFunc
-	Delete http.HandlerFunc
+	Create     http.HandlerFunc
+	List       http.HandlerFunc
+	Get        http.HandlerFunc
+	Update     http.HandlerFunc
+	Delete     http.HandlerFunc
+	Get360     http.HandlerFunc // GET /contacts/{id}/360 — full 360° profile
+	GetByEmail http.HandlerFunc // GET /internal/contacts/by-email — S2S email lookup
 }
 
 // KnowledgeHandlers groups knowledge base HTTP handlers.
@@ -451,6 +453,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Get("/{id}", deps.ContactHandlers.Get)
 				r.Put("/{id}", deps.ContactHandlers.Update)
 				r.Delete("/{id}", deps.ContactHandlers.Delete)
+				if deps.ContactHandlers.Get360 != nil {
+					r.Get("/{id}/360", deps.ContactHandlers.Get360)
+				}
 			})
 
 			// Knowledge base management
@@ -693,6 +698,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				})
 				r.Route("/internal", func(r chi.Router) {
 					r.Post("/leads", deps.InternalLeadHandlers.IngestFromService)
+					if deps.ContactHandlers.GetByEmail != nil {
+						r.Get("/contacts/by-email", deps.ContactHandlers.GetByEmail)
+					}
 				})
 			})
 		}
