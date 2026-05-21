@@ -127,6 +127,16 @@ func main() {
 		})
 		go cronAgents.Run(ctx)
 
+		// SLA breach detection: every 5 min, queries ticketing-api and marks breached tickets.
+		slaCron := worker.NewSLABreachCron(
+			cfg.API.TicketingAPIURL,
+			cfg.Notifications.URL,
+			cfg.API.InternalServiceKey,
+			logger,
+			&http.Client{Timeout: 15 * time.Second},
+		)
+		go slaCron.Run(ctx)
+
 		// MeetingPrepAgent: every 15 min, sends prep briefs 25–35 min before meetings.
 		meetingPrep := worker.NewMeetingPrepAgent(
 			entClient,
