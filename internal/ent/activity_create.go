@@ -175,6 +175,20 @@ func (_c *ActivityCreate) SetNillablePerformedAt(v *time.Time) *ActivityCreate {
 	return _c
 }
 
+// SetIsRead sets the "is_read" field.
+func (_c *ActivityCreate) SetIsRead(v bool) *ActivityCreate {
+	_c.mutation.SetIsRead(v)
+	return _c
+}
+
+// SetNillableIsRead sets the "is_read" field if the given value is not nil.
+func (_c *ActivityCreate) SetNillableIsRead(v *bool) *ActivityCreate {
+	if v != nil {
+		_c.SetIsRead(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *ActivityCreate) SetCreatedAt(v time.Time) *ActivityCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -247,6 +261,10 @@ func (_c *ActivityCreate) defaults() {
 		v := activity.DefaultPerformedAt()
 		_c.mutation.SetPerformedAt(v)
 	}
+	if _, ok := _c.mutation.IsRead(); !ok {
+		v := activity.DefaultIsRead
+		_c.mutation.SetIsRead(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := activity.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -273,6 +291,9 @@ func (_c *ActivityCreate) check() error {
 	}
 	if _, ok := _c.mutation.PerformedAt(); !ok {
 		return &ValidationError{Name: "performed_at", err: errors.New(`ent: missing required field "Activity.performed_at"`)}
+	}
+	if _, ok := _c.mutation.IsRead(); !ok {
+		return &ValidationError{Name: "is_read", err: errors.New(`ent: missing required field "Activity.is_read"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Activity.created_at"`)}
@@ -363,6 +384,10 @@ func (_c *ActivityCreate) createSpec() (*Activity, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.PerformedAt(); ok {
 		_spec.SetField(activity.FieldPerformedAt, field.TypeTime, value)
 		_node.PerformedAt = value
+	}
+	if value, ok := _c.mutation.IsRead(); ok {
+		_spec.SetField(activity.FieldIsRead, field.TypeBool, value)
+		_node.IsRead = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(activity.FieldCreatedAt, field.TypeTime, value)
@@ -644,6 +669,18 @@ func (u *ActivityUpsert) SetPerformedAt(v time.Time) *ActivityUpsert {
 // UpdatePerformedAt sets the "performed_at" field to the value that was provided on create.
 func (u *ActivityUpsert) UpdatePerformedAt() *ActivityUpsert {
 	u.SetExcluded(activity.FieldPerformedAt)
+	return u
+}
+
+// SetIsRead sets the "is_read" field.
+func (u *ActivityUpsert) SetIsRead(v bool) *ActivityUpsert {
+	u.Set(activity.FieldIsRead, v)
+	return u
+}
+
+// UpdateIsRead sets the "is_read" field to the value that was provided on create.
+func (u *ActivityUpsert) UpdateIsRead() *ActivityUpsert {
+	u.SetExcluded(activity.FieldIsRead)
 	return u
 }
 
@@ -940,6 +977,20 @@ func (u *ActivityUpsertOne) SetPerformedAt(v time.Time) *ActivityUpsertOne {
 func (u *ActivityUpsertOne) UpdatePerformedAt() *ActivityUpsertOne {
 	return u.Update(func(s *ActivityUpsert) {
 		s.UpdatePerformedAt()
+	})
+}
+
+// SetIsRead sets the "is_read" field.
+func (u *ActivityUpsertOne) SetIsRead(v bool) *ActivityUpsertOne {
+	return u.Update(func(s *ActivityUpsert) {
+		s.SetIsRead(v)
+	})
+}
+
+// UpdateIsRead sets the "is_read" field to the value that was provided on create.
+func (u *ActivityUpsertOne) UpdateIsRead() *ActivityUpsertOne {
+	return u.Update(func(s *ActivityUpsert) {
+		s.UpdateIsRead()
 	})
 }
 
@@ -1403,6 +1454,20 @@ func (u *ActivityUpsertBulk) SetPerformedAt(v time.Time) *ActivityUpsertBulk {
 func (u *ActivityUpsertBulk) UpdatePerformedAt() *ActivityUpsertBulk {
 	return u.Update(func(s *ActivityUpsert) {
 		s.UpdatePerformedAt()
+	})
+}
+
+// SetIsRead sets the "is_read" field.
+func (u *ActivityUpsertBulk) SetIsRead(v bool) *ActivityUpsertBulk {
+	return u.Update(func(s *ActivityUpsert) {
+		s.SetIsRead(v)
+	})
+}
+
+// UpdateIsRead sets the "is_read" field to the value that was provided on create.
+func (u *ActivityUpsertBulk) UpdateIsRead() *ActivityUpsertBulk {
+	return u.Update(func(s *ActivityUpsert) {
+		s.UpdateIsRead()
 	})
 }
 

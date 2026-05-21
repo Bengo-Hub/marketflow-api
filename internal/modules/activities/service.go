@@ -149,3 +149,46 @@ func (s *Service) Get(ctx context.Context, tenantID, activityID uuid.UUID) (*ent
 	}
 	return result, nil
 }
+
+// ListSuggestions returns recent unread agent suggestions for the tenant dashboard.
+func (s *Service) ListSuggestions(ctx context.Context, tenantID uuid.UUID, limit int) ([]*ent.Activity, error) {
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+	src := "agent"
+	atype := "suggestion"
+	results, err := s.client.Activity.Query().
+		Where(
+			activity.TenantID(tenantID),
+			activity.SourceEQ(src),
+			activity.ActivityTypeEQ(atype),
+			activity.IsRead(false),
+		).
+		Order(ent.Desc(activity.FieldCreatedAt)).
+		Limit(limit).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list suggestions: %w", err)
+	}
+	return results, nil
+}
+
+// DismissSuggestion marks a suggestion activity as read.
+func (s *Service) DismissSuggestion(ctx context.Context, tenantID, activityID uuid.UUID) error {
+	n, err := s.client.Activity.Update().
+		Where(
+			activity.ID(activityID),
+			activity.TenantID(tenantID),
+			activity.SourceEQ("agent"),
+			activity.ActivityTypeEQ("suggestion"),
+		).
+		SetIsRead(true).
+		Save(ctx)
+	if err != nil {
+		return fmt.Errorf("dismiss suggestion: %w", err)
+	}
+	if n == 0 {
+		return fmt.Errorf("suggestion not found")
+	}
+	return nil
+}

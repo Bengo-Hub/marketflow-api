@@ -1,4 +1,4 @@
-h1:tcZrFoPFsA+7S/Kha3KFHChINzqjNaiXa2aA0MeOFNc=
+h1:qi8bHg7vYilBtMG51k7Kh3wcvVtorNpHzjtRHJnvSlg=
 20260409124338_initial_schema.sql h1:iNv9wYlWyj89NJ9fwXRtTK7/piL1QJoDgZ8I/Jez73Y=
 20260409172839_add_short_links.sql h1:5iB2/aEIkLcG9hJLXz6Q8LKgSy3XgdFs/FDeSEX9x+4=
 20260409183000_add_kb_embeddings.sql h1:j/jjGpiINXbc0CDLNDsb5R71JnmluZcewD0NdGFEZ5Q=
@@ -11,3 +11,4 @@ h1:tcZrFoPFsA+7S/Kha3KFHChINzqjNaiXa2aA0MeOFNc=
 20260416210442_add_analytics_testimonials.sql h1:egBib6aIN4DpUGaQ3jfxR13K4DWearfRn+jBq+H4Mz8=
 20260417213048_add_unique_constraints.sql h1:6rpdOjg2mfz1XALIQ7IWaHyRnIQ1dwGKBj+52uB5ruQ=
 20260521103748_crm_entities.sql h1:XlWvpxa3e9ViNMEVOkg0WR96uwGsqzaAl9y5YpOwU3o=
+20260521130855_activity_add_is_read.sql h1:cRUO5xFwy0h01qcsILOVvfk6BP0aJAChFMlMlomBrt8=

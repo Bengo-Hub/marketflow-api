@@ -89,6 +89,14 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, logger *zap.Logger)
 				logger:     logger.Named("agent.nurture-enhancer"),
 				hc:         agentHTTP,
 			},
+			&CustomAgentExecutionConsumer{
+				db:         db,
+				aiBaseURL:  cfg.API.MarketFlowAIURL,
+				apiBaseURL: cfg.API.MarketFlowAPIURL,
+				serviceKey: cfg.API.InternalServiceKey,
+				logger:     logger.Named("agent.custom-execution"),
+				hc:         agentHTTP,
+			},
 		},
 	}
 }

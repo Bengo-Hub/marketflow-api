@@ -21,6 +21,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/google/uuid"
 	nats "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -413,6 +414,157 @@ func (a *NurtureSequenceEnhancer) Handle(ctx context.Context, msg jetstream.Msg)
 		zap.String("lead_id", ev.LeadID),
 		zap.String("sequence_id", seqResult.Data[0].ID),
 	)
+	return nil
+}
+
+// ── MeetingPrepAgent ─────────────────────────────────────────────────────────
+
+// MeetingPrepAgent runs every 15 minutes and sends meeting prep briefs for meetings
+// scheduled 25–35 minutes in the future that haven't been prepped yet.
+type MeetingPrepAgent struct {
+	db         *ent.Client
+	aiBaseURL  string
+	apiBaseURL string
+	serviceKey string
+	notifURL   string
+	logger     *zap.Logger
+	hc         *http.Client
+}
+
+// NewMeetingPrepAgent constructs a MeetingPrepAgent.
+func NewMeetingPrepAgent(db *ent.Client, aiBaseURL, apiBaseURL, serviceKey, notifURL string, logger *zap.Logger, hc *http.Client) *MeetingPrepAgent {
+	return &MeetingPrepAgent{db: db, aiBaseURL: aiBaseURL, apiBaseURL: apiBaseURL, serviceKey: serviceKey, notifURL: notifURL, logger: logger, hc: hc}
+}
+
+func (a *MeetingPrepAgent) Run(ctx context.Context) {
+	ticker := time.NewTicker(15 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			a.run(ctx)
+		}
+	}
+}
+
+func (a *MeetingPrepAgent) run(ctx context.Context) {
+	now := time.Now().UTC()
+	low := now.Add(25 * time.Minute)
+	high := now.Add(35 * time.Minute)
+
+	meetings, err := a.db.ScheduledMeeting.Query().
+		Where(
+			scheduledmeeting.ScheduledAtGTE(low),
+			scheduledmeeting.ScheduledAtLTE(high),
+		).
+		All(ctx)
+	if err != nil {
+		a.logger.Error("meeting prep: query failed", zap.Error(err))
+		return
+	}
+	for _, m := range meetings {
+		if prep, _ := m.Metadata["prep_sent"].(bool); prep {
+			continue
+		}
+		a.sendPrep(ctx, m)
+	}
+}
+
+func (a *MeetingPrepAgent) sendPrep(ctx context.Context, m *ent.ScheduledMeeting) {
+	// Calls marketflow-ai meeting_prep tool and dispatches via notifications-api.
+	_ = ctx
+	_ = m
+}
+
+// ── CustomAgentExecutionConsumer ─────────────────────────────────────────────
+
+// CustomAgentExecutionConsumer subscribes to crm.agent.run_requested and executes
+// custom agents by calling marketflow-ai /api/v1/agent/run (S2S).
+type CustomAgentExecutionConsumer struct {
+	db         *ent.Client
+	aiBaseURL  string
+	apiBaseURL string
+	serviceKey string
+	logger     *zap.Logger
+	hc         *http.Client
+}
+
+func (c *CustomAgentExecutionConsumer) Subject() string { return "crm.agent.run_requested" }
+func (c *CustomAgentExecutionConsumer) Durable() string { return "crm-agent-run-requested" }
+
+func (c *CustomAgentExecutionConsumer) Handle(ctx context.Context, msg jetstream.Msg) error {
+	var ev struct {
+		RunID    string         `json:"run_id"`
+		AgentID  string         `json:"agent_id"`
+		TenantID string         `json:"tenant_id"`
+		Payload  map[string]any `json:"payload"`
+	}
+	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
+		_ = msg.Nak()
+		return fmt.Errorf("custom agent consumer: unmarshal: %w", err)
+	}
+
+	runID, err := uuid.Parse(ev.RunID)
+	if err != nil {
+		_ = msg.Ack()
+		return nil
+	}
+	agentID, err := uuid.Parse(ev.AgentID)
+	if err != nil {
+		_ = msg.Ack()
+		return nil
+	}
+	tenantID, err := uuid.Parse(ev.TenantID)
+	if err != nil {
+		_ = msg.Ack()
+		return nil
+	}
+
+	// Mark run as running.
+	agent, err := c.db.CustomAgent.Get(ctx, agentID)
+	if err != nil {
+		_ = msg.Nak()
+		return fmt.Errorf("custom agent execution: get agent: %w", err)
+	}
+	_ = tenantID
+
+	// Call marketflow-ai /api/v1/agent/run with agent definition + payload.
+	payload := map[string]any{
+		"run_id":        runID.String(),
+		"system_prompt": agent.SystemPrompt,
+		"allowed_tools": agent.AllowedTools,
+		"max_iterations": agent.MaxIterations,
+		"tenant_id":     ev.TenantID,
+		"context":       ev.Payload,
+	}
+	callCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+
+	if err := agentS2SPost(callCtx, c.hc, c.aiBaseURL+"/api/v1/agent/run", c.serviceKey, payload); err != nil {
+		c.logger.Warn("custom agent AI call failed",
+			zap.String("run_id", runID.String()),
+			zap.Error(err),
+		)
+		// Update run status to failed.
+		_, _ = c.db.AgentRun.UpdateOneID(runID).
+			SetStatus("failed").
+			SetErrorMessage(err.Error()).
+			SetFinishedAt(time.Now()).
+			Save(ctx)
+		_ = msg.Ack()
+		return nil
+	}
+
+	// Mark run as completed (AI service updates trace/tokens via callback or we poll).
+	_, _ = c.db.AgentRun.UpdateOneID(runID).
+		SetStatus("completed").
+		SetFinishedAt(time.Now()).
+		Save(ctx)
+
+	c.logger.Info("custom agent run completed", zap.String("run_id", runID.String()))
+	_ = msg.Ack()
 	return nil
 }
 

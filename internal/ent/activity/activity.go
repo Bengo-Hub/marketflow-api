@@ -41,6 +41,8 @@ const (
 	FieldExternalRef = "external_ref"
 	// FieldPerformedAt holds the string denoting the performed_at field in the database.
 	FieldPerformedAt = "performed_at"
+	// FieldIsRead holds the string denoting the is_read field in the database.
+	FieldIsRead = "is_read"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// EdgeTenant holds the string denoting the tenant edge name in mutations.
@@ -72,6 +74,7 @@ var Columns = []string{
 	FieldSource,
 	FieldExternalRef,
 	FieldPerformedAt,
+	FieldIsRead,
 	FieldCreatedAt,
 }
 
@@ -88,6 +91,8 @@ func ValidColumn(column string) bool {
 var (
 	// DefaultPerformedAt holds the default value on creation for the "performed_at" field.
 	DefaultPerformedAt func() time.Time
+	// DefaultIsRead holds the default value on creation for the "is_read" field.
+	DefaultIsRead bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultID holds the default value on creation for the "id" field.
@@ -165,6 +170,11 @@ func ByExternalRef(opts ...sql.OrderTermOption) OrderOption {
 // ByPerformedAt orders the results by the performed_at field.
 func ByPerformedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPerformedAt, opts...).ToFunc()
+}
+
+// ByIsRead orders the results by the is_read field.
+func ByIsRead(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsRead, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

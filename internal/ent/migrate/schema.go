@@ -71,6 +71,7 @@ var (
 		{Name: "source", Type: field.TypeString, Nullable: true},
 		{Name: "external_ref", Type: field.TypeString, Nullable: true},
 		{Name: "performed_at", Type: field.TypeTime},
+		{Name: "is_read", Type: field.TypeBool, Default: false},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "tenant_id", Type: field.TypeUUID},
 	}
@@ -82,7 +83,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "activities_tenants_activities",
-				Columns:    []*schema.Column{ActivitiesColumns[14]},
+				Columns:    []*schema.Column{ActivitiesColumns[15]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -91,17 +92,17 @@ var (
 			{
 				Name:    "activity_tenant_id_entity_type_entity_id",
 				Unique:  false,
-				Columns: []*schema.Column{ActivitiesColumns[14], ActivitiesColumns[1], ActivitiesColumns[2]},
+				Columns: []*schema.Column{ActivitiesColumns[15], ActivitiesColumns[1], ActivitiesColumns[2]},
 			},
 			{
 				Name:    "activity_tenant_id_entity_type_entity_id_performed_at",
 				Unique:  false,
-				Columns: []*schema.Column{ActivitiesColumns[14], ActivitiesColumns[1], ActivitiesColumns[2], ActivitiesColumns[12]},
+				Columns: []*schema.Column{ActivitiesColumns[15], ActivitiesColumns[1], ActivitiesColumns[2], ActivitiesColumns[12]},
 			},
 			{
 				Name:    "activity_tenant_id_activity_type",
 				Unique:  false,
-				Columns: []*schema.Column{ActivitiesColumns[14], ActivitiesColumns[3]},
+				Columns: []*schema.Column{ActivitiesColumns[15], ActivitiesColumns[3]},
 			},
 			{
 				Name:    "activity_external_ref",

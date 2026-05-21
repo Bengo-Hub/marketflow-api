@@ -245,6 +245,44 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 	httpapi.JSON(w, http.StatusOK, map[string]any{"data": results, "total": total})
 }
 
+// TriggerRun handles POST /api/v1/agents/custom/{id}/run
+// @Summary Manually trigger a custom agent run
+// @Tags Custom Agents
+// @Accept json
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Agent UUID"
+// @Param request body map[string]interface{} false "Optional trigger payload"
+// @Success 202 {object} map[string]interface{}
+// @Security bearerAuth
+// @Router /agents/custom/{id}/run [post]
+func (h *Handler) TriggerRun(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := extractTenantID(r)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing or invalid X-Tenant-ID header", nil)
+		return
+	}
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_id", "invalid agent ID", nil)
+		return
+	}
+	var payload map[string]any
+	_ = httpapi.DecodeJSON(r, &payload)
+
+	run, err := h.service.TriggerRun(r.Context(), tenantID, id, "manual", payload)
+	if err != nil {
+		if err.Error() == "custom agent not found" {
+			httpapi.Error(w, http.StatusNotFound, "not_found", "custom agent not found", nil)
+			return
+		}
+		h.logger.Error("failed to trigger agent run", zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "trigger_failed", "failed to trigger agent run", nil)
+		return
+	}
+	httpapi.JSON(w, http.StatusAccepted, map[string]any{"run_id": run.ID, "status": run.Status})
+}
+
 func extractTenantID(r *http.Request) (uuid.UUID, error) {
 	header := r.Header.Get("X-Tenant-ID")
 	if header == "" {

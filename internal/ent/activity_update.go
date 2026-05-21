@@ -268,6 +268,20 @@ func (_u *ActivityUpdate) SetNillablePerformedAt(v *time.Time) *ActivityUpdate {
 	return _u
 }
 
+// SetIsRead sets the "is_read" field.
+func (_u *ActivityUpdate) SetIsRead(v bool) *ActivityUpdate {
+	_u.mutation.SetIsRead(v)
+	return _u
+}
+
+// SetNillableIsRead sets the "is_read" field if the given value is not nil.
+func (_u *ActivityUpdate) SetNillableIsRead(v *bool) *ActivityUpdate {
+	if v != nil {
+		_u.SetIsRead(*v)
+	}
+	return _u
+}
+
 // SetTenant sets the "tenant" edge to the Tenant entity.
 func (_u *ActivityUpdate) SetTenant(v *Tenant) *ActivityUpdate {
 	return _u.SetTenantID(v.ID)
@@ -399,6 +413,9 @@ func (_u *ActivityUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.PerformedAt(); ok {
 		_spec.SetField(activity.FieldPerformedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.IsRead(); ok {
+		_spec.SetField(activity.FieldIsRead, field.TypeBool, value)
 	}
 	if _u.mutation.TenantCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -688,6 +705,20 @@ func (_u *ActivityUpdateOne) SetNillablePerformedAt(v *time.Time) *ActivityUpdat
 	return _u
 }
 
+// SetIsRead sets the "is_read" field.
+func (_u *ActivityUpdateOne) SetIsRead(v bool) *ActivityUpdateOne {
+	_u.mutation.SetIsRead(v)
+	return _u
+}
+
+// SetNillableIsRead sets the "is_read" field if the given value is not nil.
+func (_u *ActivityUpdateOne) SetNillableIsRead(v *bool) *ActivityUpdateOne {
+	if v != nil {
+		_u.SetIsRead(*v)
+	}
+	return _u
+}
+
 // SetTenant sets the "tenant" edge to the Tenant entity.
 func (_u *ActivityUpdateOne) SetTenant(v *Tenant) *ActivityUpdateOne {
 	return _u.SetTenantID(v.ID)
@@ -849,6 +880,9 @@ func (_u *ActivityUpdateOne) sqlSave(ctx context.Context) (_node *Activity, err 
 	}
 	if value, ok := _u.mutation.PerformedAt(); ok {
 		_spec.SetField(activity.FieldPerformedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.IsRead(); ok {
+		_spec.SetField(activity.FieldIsRead, field.TypeBool, value)
 	}
 	if _u.mutation.TenantCleared() {
 		edge := &sqlgraph.EdgeSpec{

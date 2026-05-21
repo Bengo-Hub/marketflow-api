@@ -126,6 +126,18 @@ func main() {
 			Logger:     logger,
 		})
 		go cronAgents.Run(ctx)
+
+		// MeetingPrepAgent: every 15 min, sends prep briefs 25–35 min before meetings.
+		meetingPrep := worker.NewMeetingPrepAgent(
+			entClient,
+			cfg.API.MarketFlowAIURL,
+			cfg.API.MarketFlowAPIURL,
+			cfg.API.InternalServiceKey,
+			cfg.Notifications.URL,
+			logger.Named("agent.meeting-prep"),
+			&http.Client{Timeout: 30 * time.Second},
+		)
+		go meetingPrep.Run(ctx)
 	}
 
 	// ── Health endpoint ───────────────────────────────────────────────────

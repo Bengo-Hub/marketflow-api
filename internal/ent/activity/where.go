@@ -121,6 +121,11 @@ func PerformedAt(v time.Time) predicate.Activity {
 	return predicate.Activity(sql.FieldEQ(FieldPerformedAt, v))
 }
 
+// IsRead applies equality check predicate on the "is_read" field. It's identical to IsReadEQ.
+func IsRead(v bool) predicate.Activity {
+	return predicate.Activity(sql.FieldEQ(FieldIsRead, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Activity {
 	return predicate.Activity(sql.FieldEQ(FieldCreatedAt, v))
@@ -904,6 +909,16 @@ func PerformedAtLT(v time.Time) predicate.Activity {
 // PerformedAtLTE applies the LTE predicate on the "performed_at" field.
 func PerformedAtLTE(v time.Time) predicate.Activity {
 	return predicate.Activity(sql.FieldLTE(FieldPerformedAt, v))
+}
+
+// IsReadEQ applies the EQ predicate on the "is_read" field.
+func IsReadEQ(v bool) predicate.Activity {
+	return predicate.Activity(sql.FieldEQ(FieldIsRead, v))
+}
+
+// IsReadNEQ applies the NEQ predicate on the "is_read" field.
+func IsReadNEQ(v bool) predicate.Activity {
+	return predicate.Activity(sql.FieldNEQ(FieldIsRead, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

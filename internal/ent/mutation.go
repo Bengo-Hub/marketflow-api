@@ -1493,6 +1493,7 @@ type ActivityMutation struct {
 	source              *string
 	external_ref        *string
 	performed_at        *time.Time
+	is_read             *bool
 	created_at          *time.Time
 	clearedFields       map[string]struct{}
 	tenant              *uuid.UUID
@@ -2199,6 +2200,42 @@ func (m *ActivityMutation) ResetPerformedAt() {
 	m.performed_at = nil
 }
 
+// SetIsRead sets the "is_read" field.
+func (m *ActivityMutation) SetIsRead(b bool) {
+	m.is_read = &b
+}
+
+// IsRead returns the value of the "is_read" field in the mutation.
+func (m *ActivityMutation) IsRead() (r bool, exists bool) {
+	v := m.is_read
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsRead returns the old "is_read" field's value of the Activity entity.
+// If the Activity object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ActivityMutation) OldIsRead(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsRead is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsRead requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsRead: %w", err)
+	}
+	return oldValue.IsRead, nil
+}
+
+// ResetIsRead resets all changes to the "is_read" field.
+func (m *ActivityMutation) ResetIsRead() {
+	m.is_read = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *ActivityMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -2296,7 +2333,7 @@ func (m *ActivityMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ActivityMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 15)
 	if m.tenant != nil {
 		fields = append(fields, activity.FieldTenantID)
 	}
@@ -2336,6 +2373,9 @@ func (m *ActivityMutation) Fields() []string {
 	if m.performed_at != nil {
 		fields = append(fields, activity.FieldPerformedAt)
 	}
+	if m.is_read != nil {
+		fields = append(fields, activity.FieldIsRead)
+	}
 	if m.created_at != nil {
 		fields = append(fields, activity.FieldCreatedAt)
 	}
@@ -2373,6 +2413,8 @@ func (m *ActivityMutation) Field(name string) (ent.Value, bool) {
 		return m.ExternalRef()
 	case activity.FieldPerformedAt:
 		return m.PerformedAt()
+	case activity.FieldIsRead:
+		return m.IsRead()
 	case activity.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -2410,6 +2452,8 @@ func (m *ActivityMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldExternalRef(ctx)
 	case activity.FieldPerformedAt:
 		return m.OldPerformedAt(ctx)
+	case activity.FieldIsRead:
+		return m.OldIsRead(ctx)
 	case activity.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -2511,6 +2555,13 @@ func (m *ActivityMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPerformedAt(v)
+		return nil
+	case activity.FieldIsRead:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsRead(v)
 		return nil
 	case activity.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -2672,6 +2723,9 @@ func (m *ActivityMutation) ResetField(name string) error {
 		return nil
 	case activity.FieldPerformedAt:
 		m.ResetPerformedAt()
+		return nil
+	case activity.FieldIsRead:
+		m.ResetIsRead()
 		return nil
 	case activity.FieldCreatedAt:
 		m.ResetCreatedAt()

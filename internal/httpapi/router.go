@@ -103,6 +103,7 @@ type RouterDeps struct {
 	TaskHandlers         TaskHandlers
 	CustomFieldHandlers  CustomFieldHandlers
 	CustomAgentHandlers  CustomAgentHandlers
+	SuggestionHandlers   SuggestionHandlers
 
 	// Allowed origins for CORS
 	AllowedOrigins string
@@ -317,6 +318,12 @@ type ActivityHandlers struct {
 	DealTimeline    http.HandlerFunc
 }
 
+// SuggestionHandlers groups proactive suggestion HTTP handlers.
+type SuggestionHandlers struct {
+	List    http.HandlerFunc
+	Dismiss http.HandlerFunc
+}
+
 // TaskHandlers groups task HTTP handlers.
 type TaskHandlers struct {
 	Create   http.HandlerFunc
@@ -343,12 +350,13 @@ type CustomFieldHandlers struct {
 
 // CustomAgentHandlers groups custom agent HTTP handlers.
 type CustomAgentHandlers struct {
-	Create   http.HandlerFunc
-	List     http.HandlerFunc
-	Get      http.HandlerFunc
-	Update   http.HandlerFunc
-	Delete   http.HandlerFunc
-	ListRuns http.HandlerFunc
+	Create     http.HandlerFunc
+	List       http.HandlerFunc
+	Get        http.HandlerFunc
+	Update     http.HandlerFunc
+	Delete     http.HandlerFunc
+	ListRuns   http.HandlerFunc
+	TriggerRun http.HandlerFunc
 }
 
 // NewRouter wires HTTP routes.
@@ -638,7 +646,18 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Put("/{id}", deps.CustomAgentHandlers.Update)
 					r.Delete("/{id}", deps.CustomAgentHandlers.Delete)
 					r.Get("/{id}/runs", deps.CustomAgentHandlers.ListRuns)
+					if deps.CustomAgentHandlers.TriggerRun != nil {
+						r.Post("/{id}/run", deps.CustomAgentHandlers.TriggerRun)
+					}
 				})
+			}
+
+			// CRM: Proactive suggestions
+			if deps.SuggestionHandlers.List != nil {
+				r.Get("/suggestions", deps.SuggestionHandlers.List)
+				if deps.SuggestionHandlers.Dismiss != nil {
+					r.Post("/suggestions/{id}/dismiss", deps.SuggestionHandlers.Dismiss)
+				}
 			}
 
 			// Admin routes (platform owner only)

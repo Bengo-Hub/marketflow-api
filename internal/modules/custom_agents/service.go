@@ -2,27 +2,40 @@ package custom_agents
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/agentrun"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/google/uuid"
+	nats "github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
 // Service handles custom agent management.
 type Service struct {
-	client *ent.Client
-	logger *zap.Logger
+	client   *ent.Client
+	logger   *zap.Logger
+	natsConn *nats.Conn
 }
 
 // NewService creates a new custom agents service.
-func NewService(client *ent.Client, logger *zap.Logger) *Service {
-	return &Service{
+func NewService(client *ent.Client, logger *zap.Logger, opts ...func(*Service)) *Service {
+	s := &Service{
 		client: client,
 		logger: logger.Named("custom_agents"),
 	}
+	for _, o := range opts {
+		o(s)
+	}
+	return s
+}
+
+// WithNATS wires a NATS connection for publishing run_requested events.
+func WithNATS(nc *nats.Conn) func(*Service) {
+	return func(s *Service) { s.natsConn = nc }
 }
 
 // CreateInput contains data needed to create a custom agent.
@@ -160,6 +173,48 @@ func (s *Service) Delete(ctx context.Context, tenantID, agentID uuid.UUID) error
 		return fmt.Errorf("custom agent not found")
 	}
 	return nil
+}
+
+// TriggerRun creates a pending AgentRun record and publishes crm.agent.run_requested.
+func (s *Service) TriggerRun(ctx context.Context, tenantID, agentID uuid.UUID, triggeredBy string, payload map[string]any) (*ent.AgentRun, error) {
+	agent, err := s.client.CustomAgent.Get(ctx, agentID)
+	if err != nil {
+		return nil, fmt.Errorf("custom agent not found")
+	}
+	if agent.TenantID != tenantID {
+		return nil, fmt.Errorf("custom agent not found")
+	}
+	if payload == nil {
+		payload = map[string]any{}
+	}
+	run, err := s.client.AgentRun.Create().
+		SetTenantID(tenantID).
+		SetCustomAgentID(agentID).
+		SetTriggeredBy(triggeredBy).
+		SetTriggerPayload(payload).
+		SetStatus("pending").
+		SetTrace(map[string]any{}).
+		SetTotalTokens(0).
+		SetToolCallsN(0).
+		SetStartedAt(time.Now()).
+		Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("create agent run: %w", err)
+	}
+
+	if s.natsConn != nil {
+		event := map[string]any{
+			"run_id":    run.ID.String(),
+			"agent_id":  agentID.String(),
+			"tenant_id": tenantID.String(),
+			"payload":   payload,
+		}
+		b, _ := json.Marshal(event)
+		if err := s.natsConn.Publish("crm.agent.run_requested", b); err != nil {
+			s.logger.Warn("failed to publish crm.agent.run_requested", zap.Error(err))
+		}
+	}
+	return run, nil
 }
 
 // ListRuns retrieves run history for a custom agent.

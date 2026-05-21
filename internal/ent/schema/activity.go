@@ -69,6 +69,9 @@ func (Activity) Fields() []ent.Field {
 		field.Time("performed_at").
 			Default(time.Now).
 			Comment("When the activity occurred"),
+		field.Bool("is_read").
+			Default(false).
+			Comment("Marks suggestion activities as dismissed/read"),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),

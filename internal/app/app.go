@@ -209,7 +209,11 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	customFieldService := custom_fields.NewService(entClient, logger)
 	customFieldHandler := custom_fields.NewHandler(customFieldService, logger)
 
-	customAgentService := custom_agents.NewService(entClient, logger)
+	customAgentServiceOpts := []func(*custom_agents.Service){}
+	if natsConn != nil {
+		customAgentServiceOpts = append(customAgentServiceOpts, custom_agents.WithNATS(natsConn))
+	}
+	customAgentService := custom_agents.NewService(entClient, logger, customAgentServiceOpts...)
 	customAgentHandler := custom_agents.NewHandler(customAgentService, logger)
 
 	// ── Subscription usage + feature gate ─────────────────────────────
@@ -415,6 +419,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			ContactTimeline: activityHandler.ListForEntity("contact"),
 			DealTimeline:    activityHandler.ListForEntity("deal"),
 		},
+		SuggestionHandlers: httpapi.SuggestionHandlers{
+			List:    activityHandler.ListSuggestions,
+			Dismiss: activityHandler.DismissSuggestion,
+		},
 		TaskHandlers: httpapi.TaskHandlers{
 			Create:   taskHandler.Create,
 			List:     taskHandler.List,
@@ -436,12 +444,13 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			GetDealValues:    customFieldHandler.GetValues("deal"),
 		},
 		CustomAgentHandlers: httpapi.CustomAgentHandlers{
-			Create:   customAgentHandler.Create,
-			List:     customAgentHandler.List,
-			Get:      customAgentHandler.Get,
-			Update:   customAgentHandler.Update,
-			Delete:   customAgentHandler.Delete,
-			ListRuns: customAgentHandler.ListRuns,
+			Create:     customAgentHandler.Create,
+			List:       customAgentHandler.List,
+			Get:        customAgentHandler.Get,
+			Update:     customAgentHandler.Update,
+			Delete:     customAgentHandler.Delete,
+			ListRuns:   customAgentHandler.ListRuns,
+			TriggerRun: customAgentHandler.TriggerRun,
 		},
 		RequireAuthHandler: requireAuth,
 		RequirePlatformOwner: requirePlatformOwner(authMiddleware),

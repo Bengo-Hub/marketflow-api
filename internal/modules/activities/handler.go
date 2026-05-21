@@ -185,6 +185,63 @@ func (h *Handler) GetTimeline(w http.ResponseWriter, r *http.Request) {
 	httpapi.JSON(w, http.StatusOK, map[string]any{"data": results, "total": total})
 }
 
+// ListSuggestions handles GET /api/v1/suggestions
+// @Summary List unread proactive agent suggestions
+// @Tags Suggestions
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param limit query int false "Max results (default 20)"
+// @Success 200 {object} map[string]interface{}
+// @Security bearerAuth
+// @Router /suggestions [get]
+func (h *Handler) ListSuggestions(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := extractTenantID(r)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing or invalid X-Tenant-ID header", nil)
+		return
+	}
+	limit := parseIntQuery(r, "limit", 20)
+	results, err := h.service.ListSuggestions(r.Context(), tenantID, limit)
+	if err != nil {
+		h.logger.Error("failed to list suggestions", zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "list_failed", "failed to list suggestions", nil)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, map[string]any{"data": results, "count": len(results)})
+}
+
+// DismissSuggestion handles POST /api/v1/suggestions/{id}/dismiss
+// @Summary Dismiss a proactive suggestion
+// @Tags Suggestions
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Activity UUID"
+// @Success 200 {object} map[string]interface{}
+// @Security bearerAuth
+// @Router /suggestions/{id}/dismiss [post]
+func (h *Handler) DismissSuggestion(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := extractTenantID(r)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing or invalid X-Tenant-ID header", nil)
+		return
+	}
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_id", "invalid suggestion ID", nil)
+		return
+	}
+	if err := h.service.DismissSuggestion(r.Context(), tenantID, id); err != nil {
+		if err.Error() == "suggestion not found" {
+			httpapi.Error(w, http.StatusNotFound, "not_found", "suggestion not found", nil)
+			return
+		}
+		h.logger.Error("failed to dismiss suggestion", zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "dismiss_failed", "failed to dismiss suggestion", nil)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, map[string]any{"status": "dismissed"})
+}
+
 func extractTenantID(r *http.Request) (uuid.UUID, error) {
 	header := r.Header.Get("X-Tenant-ID")
 	if header == "" {

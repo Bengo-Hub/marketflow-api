@@ -45,6 +45,8 @@ type Activity struct {
 	ExternalRef *string `json:"external_ref,omitempty"`
 	// When the activity occurred
 	PerformedAt time.Time `json:"performed_at,omitempty"`
+	// Marks suggestion activities as dismissed/read
+	IsRead bool `json:"is_read,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -80,6 +82,8 @@ func (*Activity) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case activity.FieldPerformedBy:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
+		case activity.FieldIsRead:
+			values[i] = new(sql.NullBool)
 		case activity.FieldDurationMinutes:
 			values[i] = new(sql.NullInt64)
 		case activity.FieldEntityType, activity.FieldActivityType, activity.FieldDirection, activity.FieldSubject, activity.FieldBody, activity.FieldOutcome, activity.FieldSource, activity.FieldExternalRef:
@@ -195,6 +199,12 @@ func (_m *Activity) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.PerformedAt = value.Time
 			}
+		case activity.FieldIsRead:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_read", values[i])
+			} else if value.Valid {
+				_m.IsRead = value.Bool
+			}
 		case activity.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -296,6 +306,9 @@ func (_m *Activity) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("performed_at=")
 	builder.WriteString(_m.PerformedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("is_read=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsRead))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
