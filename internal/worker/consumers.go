@@ -10,6 +10,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
+	"github.com/bengobox/marketflow-api/internal/modules/activities"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go/jetstream"
@@ -40,6 +41,7 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, logger *zap.Logger)
 		APIKey:    cfg.Notifications.APIKey,
 		AuthToken: cfg.Notifications.Token,
 	})
+	activitySvc := activities.NewService(db, logger.Named("activities"))
 	return &Registry{
 		cfg:    cfg,
 		db:     db,
@@ -50,6 +52,10 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, logger *zap.Logger)
 			&ChatCompletedHandler{db: db, logger: logger.Named("audit")},
 			&LeadCreatedHandler{cfg: cfg, db: db, logger: logger.Named("lead")},
 			&ConversionsHandler{cfg: cfg, db: db, logger: logger.Named("conversions")},
+			&OrderingOrderCreatedHandler{db: db, svc: activitySvc, logger: logger.Named("crm-ordering")},
+			&POSSaleFinalizedHandler{db: db, svc: activitySvc, logger: logger.Named("crm-pos-sale")},
+			&POSAppointmentCompletedHandler{db: db, svc: activitySvc, logger: logger.Named("crm-pos-appt")},
+			&TreasuryPaymentSucceededHandler{db: db, svc: activitySvc, logger: logger.Named("crm-treasury")},
 		},
 	}
 }
