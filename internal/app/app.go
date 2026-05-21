@@ -277,6 +277,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			GetEntry:    kbHandler.GetEntry,
 			UpdateEntry: kbHandler.UpdateEntry,
 			DeleteEntry: kbHandler.DeleteEntry,
+			ImportCSV:   kbHandler.ImportCSV,
 		},
 		CampaignHandlers: httpapi.CampaignHandlers{
 			Create: campaignHandler.Create,

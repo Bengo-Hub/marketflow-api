@@ -167,6 +167,7 @@ type KnowledgeHandlers struct {
 	GetEntry    http.HandlerFunc
 	UpdateEntry http.HandlerFunc
 	DeleteEntry http.HandlerFunc
+	ImportCSV   http.HandlerFunc
 }
 
 // CampaignHandlers groups campaign management HTTP handlers.
@@ -470,6 +471,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 			r.Route("/knowledge", func(r chi.Router) {
 				r.Post("/entries", deps.KnowledgeHandlers.CreateEntry)
 				r.Get("/entries", deps.KnowledgeHandlers.ListEntries)
+				r.Post("/entries/import", deps.KnowledgeHandlers.ImportCSV)
 				r.Get("/entries/{id}", deps.KnowledgeHandlers.GetEntry)
 				r.Put("/entries/{id}", deps.KnowledgeHandlers.UpdateEntry)
 				r.Delete("/entries/{id}", deps.KnowledgeHandlers.DeleteEntry)

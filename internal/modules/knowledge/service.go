@@ -2,7 +2,11 @@ package knowledge
 
 import (
 	"context"
+	"encoding/csv"
 	"fmt"
+	"io"
+	"strconv"
+	"strings"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
@@ -198,6 +202,124 @@ func (s *Service) UpdateEntry(ctx context.Context, tenantID, entryID uuid.UUID, 
 	result, err := builder.Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("update KB entry: %w", err)
+	}
+
+	return result, nil
+}
+
+// BulkImportResult holds the outcome of a CSV import.
+type BulkImportResult struct {
+	Imported int      `json:"imported"`
+	Skipped  int      `json:"skipped"`
+	Errors   []string `json:"errors,omitempty"`
+}
+
+// BulkImportCSV parses a CSV reader and bulk-creates KB entries for the tenant.
+// Expected columns (header row required):
+//
+//	category, title, content, product_code, product_price, product_cc,
+//	product_image_url, tags
+//
+// Only title and content are mandatory; all other columns are optional.
+func (s *Service) BulkImportCSV(ctx context.Context, tenantID uuid.UUID, r io.Reader) (BulkImportResult, error) {
+	reader := csv.NewReader(r)
+	reader.TrimLeadingSpace = true
+
+	header, err := reader.Read()
+	if err != nil {
+		return BulkImportResult{}, fmt.Errorf("read CSV header: %w", err)
+	}
+	col := make(map[string]int, len(header))
+	for i, h := range header {
+		col[strings.ToLower(strings.TrimSpace(h))] = i
+	}
+	if _, ok := col["title"]; !ok {
+		return BulkImportResult{}, fmt.Errorf("CSV missing required 'title' column")
+	}
+	if _, ok := col["content"]; !ok {
+		return BulkImportResult{}, fmt.Errorf("CSV missing required 'content' column")
+	}
+
+	get := func(row []string, name string) string {
+		i, ok := col[name]
+		if !ok || i >= len(row) {
+			return ""
+		}
+		return strings.TrimSpace(row[i])
+	}
+	getPtr := func(row []string, name string) *string {
+		v := get(row, name)
+		if v == "" {
+			return nil
+		}
+		return &v
+	}
+	getFloat := func(row []string, name string) *float64 {
+		v := get(row, name)
+		if v == "" {
+			return nil
+		}
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return nil
+		}
+		return &f
+	}
+
+	var result BulkImportResult
+	lineNum := 1
+	for {
+		row, err := reader.Read()
+		lineNum++
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("line %d: %s", lineNum, err))
+			result.Skipped++
+			continue
+		}
+
+		title := get(row, "title")
+		content := get(row, "content")
+		if title == "" || content == "" {
+			result.Errors = append(result.Errors, fmt.Sprintf("line %d: title and content are required", lineNum))
+			result.Skipped++
+			continue
+		}
+
+		category := get(row, "category")
+		if category == "" {
+			category = "product"
+		}
+
+		var tags []string
+		if t := get(row, "tags"); t != "" {
+			for _, tag := range strings.Split(t, "|") {
+				if v := strings.TrimSpace(tag); v != "" {
+					tags = append(tags, v)
+				}
+			}
+		}
+
+		in := CreateEntryInput{
+			TenantID:        tenantID,
+			Category:        category,
+			Title:           title,
+			Content:         content,
+			ProductCode:     getPtr(row, "product_code"),
+			ProductPrice:    getFloat(row, "product_price"),
+			ProductCC:       getFloat(row, "product_cc"),
+			ProductImageURL: getPtr(row, "product_image_url"),
+			Tags:            tags,
+		}
+
+		if _, err := s.CreateEntry(ctx, in); err != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("line %d: %s", lineNum, err))
+			result.Skipped++
+			continue
+		}
+		result.Imported++
 	}
 
 	return result, nil

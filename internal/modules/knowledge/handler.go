@@ -255,6 +255,47 @@ func (h *Handler) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 	httpapi.JSON(w, http.StatusOK, map[string]any{"status": "deleted"})
 }
 
+// ImportCSV handles POST /api/v1/knowledge/entries/import
+// @Summary Bulk-import knowledge base entries from a CSV file
+// @Description Accepts multipart/form-data with a 'file' field (CSV). Columns: category, title, content, product_code, product_price, product_cc, product_image_url, tags (pipe-separated)
+// @Tags KnowledgeBase
+// @Accept multipart/form-data
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param file formData file true "CSV file"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /knowledge/entries/import [post]
+func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := extractTenantID(r)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing or invalid X-Tenant-ID header", nil)
+		return
+	}
+
+	if err := r.ParseMultipartForm(10 << 20); err != nil { // 10 MB limit
+		httpapi.Error(w, http.StatusBadRequest, "parse_form_failed", "failed to parse multipart form", nil)
+		return
+	}
+
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "file_missing", "form field 'file' is required", nil)
+		return
+	}
+	defer file.Close()
+
+	result, err := h.service.BulkImportCSV(r.Context(), tenantID, file)
+	if err != nil {
+		h.logger.Error("CSV import failed", zap.Error(err))
+		httpapi.Error(w, http.StatusBadRequest, "import_failed", err.Error(), nil)
+		return
+	}
+
+	httpapi.JSON(w, http.StatusOK, result)
+}
+
 func extractTenantID(r *http.Request) (uuid.UUID, error) {
 	header := r.Header.Get("X-Tenant-ID")
 	if header == "" {
