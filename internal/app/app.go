@@ -42,6 +42,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/testimonials"
 	"github.com/bengobox/marketflow-api/internal/modules/webhooks"
 	platformevents "github.com/bengobox/marketflow-api/internal/platform/events"
+	"github.com/bengobox/marketflow-api/internal/platform/subscriptions"
 	"github.com/bengobox/marketflow-api/internal/providers"
 	"github.com/nats-io/nats.go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -120,6 +121,11 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		tenantConsumer = platformevents.NewTenantConsumer(natsConn, tenantSyncer, logger)
 		if err := tenantConsumer.Start(); err != nil {
 			logger.Warn("failed to start tenant consumer", zap.Error(err))
+		}
+
+		subCacheSub := subscriptions.NewCacheSubscriber(redisClient, logger)
+		if err := subCacheSub.Start(natsConn); err != nil {
+			logger.Warn("app: failed to start subscription cache subscriber", zap.Error(err))
 		}
 	}
 
