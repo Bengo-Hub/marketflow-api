@@ -117,6 +117,15 @@ func main() {
 		tokenResolver := worker.NewMetaTokenResolver(entClient, logger)
 		insights := worker.NewAdInsights(entClient, 15*time.Minute, tokenResolver.Resolve, logger)
 		go insights.Run(ctx)
+
+		// CRM background agents: ProactiveFollowUpAgent (hourly) + DealStaleDetector (daily).
+		cronAgents := worker.NewCronAgentRunner(worker.CronAgentRunnerConfig{
+			DB:         entClient,
+			APIBaseURL: cfg.API.MarketFlowAPIURL,
+			ServiceKey: cfg.API.InternalServiceKey,
+			Logger:     logger,
+		})
+		go cronAgents.Run(ctx)
 	}
 
 	// ── Health endpoint ───────────────────────────────────────────────────

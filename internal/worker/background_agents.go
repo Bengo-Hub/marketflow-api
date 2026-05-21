@@ -3,14 +3,10 @@ package worker
 // background_agents.go contains Vera's autonomous background agents that run
 // on cron schedules or NATS event triggers within the marketflow-worker.
 //
-// Each agent is a separate Handler implementation that integrates with the
-// marketflow-api via S2S calls using INTERNAL_SERVICE_KEY.
-//
-// Agents:
-//   - LeadScorerAgent          triggered by crm.lead.created + crm.activity.logged
-//   - ProactiveFollowUpAgent   hourly cron — creates tasks for stale leads/contacts
-//   - DealStaleDetector        daily cron — flags deals with no updates in 14+ days
-//   - NurtureSequenceEnhancer  triggered by crm.lead.qualified
+// Cron agents (ProactiveFollowUpAgent, DealStaleDetector) run as goroutines
+// via CronAgentRunner rather than NATS consumers since they are tenant-fan-out
+// loops. Event-triggered agents (LeadScorerAgent, NurtureSequenceEnhancer) run
+// as standard NATS Handler implementations registered in NewRegistry.
 
 import (
 	"bytes"
@@ -26,6 +22,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/google/uuid"
+	nats "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"go.uber.org/zap"
 )
@@ -418,3 +415,132 @@ func (a *NurtureSequenceEnhancer) Handle(ctx context.Context, msg jetstream.Msg)
 	)
 	return nil
 }
+
+// ── CronAgentRunner ──────────────────────────────────────────────────────────
+
+// CronAgentRunnerConfig configures the cron-based background agent runner.
+type CronAgentRunnerConfig struct {
+	DB              *ent.Client
+	APIBaseURL      string
+	ServiceKey      string
+	FollowUpDays    int
+	StaleDealDays   int
+	FollowUpEvery   time.Duration // default 1 hour
+	StaleDealEvery  time.Duration // default 24 hours
+	Logger          *zap.Logger
+}
+
+// CronAgentRunner runs ProactiveFollowUpAgent and DealStaleDetector on cron ticks.
+// It enumerates all active tenant IDs from the DB and runs each agent per tenant.
+type CronAgentRunner struct {
+	cfg CronAgentRunnerConfig
+}
+
+// NewCronAgentRunner constructs a CronAgentRunner with sensible defaults.
+func NewCronAgentRunner(cfg CronAgentRunnerConfig) *CronAgentRunner {
+	if cfg.FollowUpDays <= 0 {
+		cfg.FollowUpDays = 7
+	}
+	if cfg.StaleDealDays <= 0 {
+		cfg.StaleDealDays = 14
+	}
+	if cfg.FollowUpEvery <= 0 {
+		cfg.FollowUpEvery = 1 * time.Hour
+	}
+	if cfg.StaleDealEvery <= 0 {
+		cfg.StaleDealEvery = 24 * time.Hour
+	}
+	return &CronAgentRunner{cfg: cfg}
+}
+
+// Run blocks until ctx is cancelled, firing agents on their configured schedules.
+func (r *CronAgentRunner) Run(ctx context.Context) {
+	hc := &http.Client{Timeout: 15 * time.Second}
+	followupAgent := &ProactiveFollowUpAgent{
+		db:         r.cfg.DB,
+		apiBaseURL: r.cfg.APIBaseURL,
+		serviceKey: r.cfg.ServiceKey,
+		logger:     r.cfg.Logger.Named("cron.followup"),
+		hc:         hc,
+	}
+	staleAgent := &DealStaleDetector{
+		apiBaseURL: r.cfg.APIBaseURL,
+		serviceKey: r.cfg.ServiceKey,
+		logger:     r.cfg.Logger.Named("cron.deal-stale"),
+		hc:         hc,
+	}
+
+	followupTick := time.NewTicker(r.cfg.FollowUpEvery)
+	staleTick := time.NewTicker(r.cfg.StaleDealEvery)
+	defer followupTick.Stop()
+	defer staleTick.Stop()
+
+	r.cfg.Logger.Info("cron agent runner started",
+		zap.Duration("followup_every", r.cfg.FollowUpEvery),
+		zap.Duration("stale_every", r.cfg.StaleDealEvery),
+	)
+
+	for {
+		select {
+		case <-ctx.Done():
+			r.cfg.Logger.Info("cron agent runner stopped")
+			return
+		case <-followupTick.C:
+			r.runPerTenant(ctx, followupAgent.Handle, r.cfg.FollowUpDays, "followup")
+		case <-staleTick.C:
+			r.runPerTenant(ctx, staleAgent.Handle, r.cfg.StaleDealDays, "stale-deal")
+		}
+	}
+}
+
+// runPerTenant enumerates distinct tenant_ids from the leads table and fires the agent per tenant.
+func (r *CronAgentRunner) runPerTenant(ctx context.Context, handle func(context.Context, jetstream.Msg) error, days int, name string) {
+	if r.cfg.DB == nil {
+		return
+	}
+	// Get distinct tenant IDs from leads (proxy for active tenants using CRM)
+	type tenantRow struct{ TenantID uuid.UUID }
+	var tenants []tenantRow
+	rows, err := r.cfg.DB.Lead.Query().All(ctx)
+	if err != nil {
+		return
+	}
+	seen := map[uuid.UUID]bool{}
+	for _, l := range rows {
+		if !seen[l.TenantID] {
+			seen[l.TenantID] = true
+			tenants = append(tenants, tenantRow{l.TenantID})
+		}
+	}
+	for _, t := range tenants {
+		payload, _ := json.Marshal(map[string]any{
+			"tenant_id":    t.TenantID.String(),
+			"follow_up_days": days,
+			"stale_days":   days,
+		})
+		msg := &syntheticMsg{data: payload}
+		if err := handle(ctx, msg); err != nil {
+			r.cfg.Logger.Warn("cron agent error",
+				zap.String("agent", name),
+				zap.String("tenant", t.TenantID.String()),
+				zap.Error(err),
+			)
+		}
+	}
+}
+
+// syntheticMsg is a minimal jetstream.Msg implementation for cron-triggered agents.
+type syntheticMsg struct{ data []byte }
+
+func (m *syntheticMsg) Data() []byte                  { return m.data }
+func (m *syntheticMsg) Ack() error                    { return nil }
+func (m *syntheticMsg) Nak() error                    { return nil }
+func (m *syntheticMsg) NakWithDelay(d time.Duration) error { return nil }
+func (m *syntheticMsg) InProgress() error             { return nil }
+func (m *syntheticMsg) Term() error                   { return nil }
+func (m *syntheticMsg) TermWithReason(reason string) error { return nil }
+func (m *syntheticMsg) Subject() string               { return "" }
+func (m *syntheticMsg) Headers() nats.Header                       { return nil }
+func (m *syntheticMsg) Reply() string                              { return "" }
+func (m *syntheticMsg) DoubleAck(ctx context.Context) error        { return nil }
+func (m *syntheticMsg) Metadata() (*jetstream.MsgMetadata, error) { return nil, nil }
