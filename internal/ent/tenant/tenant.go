@@ -77,6 +77,30 @@ const (
 	EdgeNurtureDeliveryEvents = "nurture_delivery_events"
 	// EdgeAdMetrics holds the string denoting the ad_metrics edge name in mutations.
 	EdgeAdMetrics = "ad_metrics"
+	// EdgeAccounts holds the string denoting the accounts edge name in mutations.
+	EdgeAccounts = "accounts"
+	// EdgePipelines holds the string denoting the pipelines edge name in mutations.
+	EdgePipelines = "pipelines"
+	// EdgeDeals holds the string denoting the deals edge name in mutations.
+	EdgeDeals = "deals"
+	// EdgeActivities holds the string denoting the activities edge name in mutations.
+	EdgeActivities = "activities"
+	// EdgeTasks holds the string denoting the tasks edge name in mutations.
+	EdgeTasks = "tasks"
+	// EdgeCustomFieldDefs holds the string denoting the custom_field_defs edge name in mutations.
+	EdgeCustomFieldDefs = "custom_field_defs"
+	// EdgeCustomFieldValues holds the string denoting the custom_field_values edge name in mutations.
+	EdgeCustomFieldValues = "custom_field_values"
+	// EdgeLeadScoringRules holds the string denoting the lead_scoring_rules edge name in mutations.
+	EdgeLeadScoringRules = "lead_scoring_rules"
+	// EdgeCustomAgents holds the string denoting the custom_agents edge name in mutations.
+	EdgeCustomAgents = "custom_agents"
+	// EdgeAgentRuns holds the string denoting the agent_runs edge name in mutations.
+	EdgeAgentRuns = "agent_runs"
+	// EdgeSegments holds the string denoting the segments edge name in mutations.
+	EdgeSegments = "segments"
+	// EdgeBehavioralTriggers holds the string denoting the behavioral_triggers edge name in mutations.
+	EdgeBehavioralTriggers = "behavioral_triggers"
 	// Table holds the table name of the tenant in the database.
 	Table = "tenants"
 	// LeadsTable is the table that holds the leads relation/edge.
@@ -163,6 +187,90 @@ const (
 	AdMetricsInverseTable = "ad_metrics"
 	// AdMetricsColumn is the table column denoting the ad_metrics relation/edge.
 	AdMetricsColumn = "tenant_id"
+	// AccountsTable is the table that holds the accounts relation/edge.
+	AccountsTable = "accounts"
+	// AccountsInverseTable is the table name for the Account entity.
+	// It exists in this package in order to avoid circular dependency with the "account" package.
+	AccountsInverseTable = "accounts"
+	// AccountsColumn is the table column denoting the accounts relation/edge.
+	AccountsColumn = "tenant_id"
+	// PipelinesTable is the table that holds the pipelines relation/edge.
+	PipelinesTable = "pipelines"
+	// PipelinesInverseTable is the table name for the Pipeline entity.
+	// It exists in this package in order to avoid circular dependency with the "pipeline" package.
+	PipelinesInverseTable = "pipelines"
+	// PipelinesColumn is the table column denoting the pipelines relation/edge.
+	PipelinesColumn = "tenant_id"
+	// DealsTable is the table that holds the deals relation/edge.
+	DealsTable = "deals"
+	// DealsInverseTable is the table name for the Deal entity.
+	// It exists in this package in order to avoid circular dependency with the "deal" package.
+	DealsInverseTable = "deals"
+	// DealsColumn is the table column denoting the deals relation/edge.
+	DealsColumn = "tenant_id"
+	// ActivitiesTable is the table that holds the activities relation/edge.
+	ActivitiesTable = "activities"
+	// ActivitiesInverseTable is the table name for the Activity entity.
+	// It exists in this package in order to avoid circular dependency with the "activity" package.
+	ActivitiesInverseTable = "activities"
+	// ActivitiesColumn is the table column denoting the activities relation/edge.
+	ActivitiesColumn = "tenant_id"
+	// TasksTable is the table that holds the tasks relation/edge.
+	TasksTable = "tasks"
+	// TasksInverseTable is the table name for the Task entity.
+	// It exists in this package in order to avoid circular dependency with the "task" package.
+	TasksInverseTable = "tasks"
+	// TasksColumn is the table column denoting the tasks relation/edge.
+	TasksColumn = "tenant_id"
+	// CustomFieldDefsTable is the table that holds the custom_field_defs relation/edge.
+	CustomFieldDefsTable = "custom_field_defs"
+	// CustomFieldDefsInverseTable is the table name for the CustomFieldDef entity.
+	// It exists in this package in order to avoid circular dependency with the "customfielddef" package.
+	CustomFieldDefsInverseTable = "custom_field_defs"
+	// CustomFieldDefsColumn is the table column denoting the custom_field_defs relation/edge.
+	CustomFieldDefsColumn = "tenant_id"
+	// CustomFieldValuesTable is the table that holds the custom_field_values relation/edge.
+	CustomFieldValuesTable = "custom_field_values"
+	// CustomFieldValuesInverseTable is the table name for the CustomFieldValue entity.
+	// It exists in this package in order to avoid circular dependency with the "customfieldvalue" package.
+	CustomFieldValuesInverseTable = "custom_field_values"
+	// CustomFieldValuesColumn is the table column denoting the custom_field_values relation/edge.
+	CustomFieldValuesColumn = "tenant_id"
+	// LeadScoringRulesTable is the table that holds the lead_scoring_rules relation/edge.
+	LeadScoringRulesTable = "lead_scoring_rules"
+	// LeadScoringRulesInverseTable is the table name for the LeadScoringRule entity.
+	// It exists in this package in order to avoid circular dependency with the "leadscoringrule" package.
+	LeadScoringRulesInverseTable = "lead_scoring_rules"
+	// LeadScoringRulesColumn is the table column denoting the lead_scoring_rules relation/edge.
+	LeadScoringRulesColumn = "tenant_id"
+	// CustomAgentsTable is the table that holds the custom_agents relation/edge.
+	CustomAgentsTable = "custom_agents"
+	// CustomAgentsInverseTable is the table name for the CustomAgent entity.
+	// It exists in this package in order to avoid circular dependency with the "customagent" package.
+	CustomAgentsInverseTable = "custom_agents"
+	// CustomAgentsColumn is the table column denoting the custom_agents relation/edge.
+	CustomAgentsColumn = "tenant_id"
+	// AgentRunsTable is the table that holds the agent_runs relation/edge.
+	AgentRunsTable = "agent_runs"
+	// AgentRunsInverseTable is the table name for the AgentRun entity.
+	// It exists in this package in order to avoid circular dependency with the "agentrun" package.
+	AgentRunsInverseTable = "agent_runs"
+	// AgentRunsColumn is the table column denoting the agent_runs relation/edge.
+	AgentRunsColumn = "tenant_id"
+	// SegmentsTable is the table that holds the segments relation/edge.
+	SegmentsTable = "segments"
+	// SegmentsInverseTable is the table name for the Segment entity.
+	// It exists in this package in order to avoid circular dependency with the "segment" package.
+	SegmentsInverseTable = "segments"
+	// SegmentsColumn is the table column denoting the segments relation/edge.
+	SegmentsColumn = "tenant_id"
+	// BehavioralTriggersTable is the table that holds the behavioral_triggers relation/edge.
+	BehavioralTriggersTable = "behavioral_triggers"
+	// BehavioralTriggersInverseTable is the table name for the BehavioralTrigger entity.
+	// It exists in this package in order to avoid circular dependency with the "behavioraltrigger" package.
+	BehavioralTriggersInverseTable = "behavioral_triggers"
+	// BehavioralTriggersColumn is the table column denoting the behavioral_triggers relation/edge.
+	BehavioralTriggersColumn = "tenant_id"
 )
 
 // Columns holds all SQL columns for tenant fields.
@@ -491,6 +599,174 @@ func ByAdMetrics(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newAdMetricsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByAccountsCount orders the results by accounts count.
+func ByAccountsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newAccountsStep(), opts...)
+	}
+}
+
+// ByAccounts orders the results by accounts terms.
+func ByAccounts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAccountsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByPipelinesCount orders the results by pipelines count.
+func ByPipelinesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newPipelinesStep(), opts...)
+	}
+}
+
+// ByPipelines orders the results by pipelines terms.
+func ByPipelines(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newPipelinesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByDealsCount orders the results by deals count.
+func ByDealsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newDealsStep(), opts...)
+	}
+}
+
+// ByDeals orders the results by deals terms.
+func ByDeals(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newDealsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByActivitiesCount orders the results by activities count.
+func ByActivitiesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newActivitiesStep(), opts...)
+	}
+}
+
+// ByActivities orders the results by activities terms.
+func ByActivities(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newActivitiesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByTasksCount orders the results by tasks count.
+func ByTasksCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newTasksStep(), opts...)
+	}
+}
+
+// ByTasks orders the results by tasks terms.
+func ByTasks(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newTasksStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByCustomFieldDefsCount orders the results by custom_field_defs count.
+func ByCustomFieldDefsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCustomFieldDefsStep(), opts...)
+	}
+}
+
+// ByCustomFieldDefs orders the results by custom_field_defs terms.
+func ByCustomFieldDefs(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCustomFieldDefsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByCustomFieldValuesCount orders the results by custom_field_values count.
+func ByCustomFieldValuesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCustomFieldValuesStep(), opts...)
+	}
+}
+
+// ByCustomFieldValues orders the results by custom_field_values terms.
+func ByCustomFieldValues(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCustomFieldValuesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByLeadScoringRulesCount orders the results by lead_scoring_rules count.
+func ByLeadScoringRulesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newLeadScoringRulesStep(), opts...)
+	}
+}
+
+// ByLeadScoringRules orders the results by lead_scoring_rules terms.
+func ByLeadScoringRules(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newLeadScoringRulesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByCustomAgentsCount orders the results by custom_agents count.
+func ByCustomAgentsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCustomAgentsStep(), opts...)
+	}
+}
+
+// ByCustomAgents orders the results by custom_agents terms.
+func ByCustomAgents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCustomAgentsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByAgentRunsCount orders the results by agent_runs count.
+func ByAgentRunsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newAgentRunsStep(), opts...)
+	}
+}
+
+// ByAgentRuns orders the results by agent_runs terms.
+func ByAgentRuns(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAgentRunsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// BySegmentsCount orders the results by segments count.
+func BySegmentsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newSegmentsStep(), opts...)
+	}
+}
+
+// BySegments orders the results by segments terms.
+func BySegments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSegmentsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByBehavioralTriggersCount orders the results by behavioral_triggers count.
+func ByBehavioralTriggersCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newBehavioralTriggersStep(), opts...)
+	}
+}
+
+// ByBehavioralTriggers orders the results by behavioral_triggers terms.
+func ByBehavioralTriggers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newBehavioralTriggersStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newLeadsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -573,5 +849,89 @@ func newAdMetricsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(AdMetricsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, AdMetricsTable, AdMetricsColumn),
+	)
+}
+func newAccountsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AccountsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, AccountsTable, AccountsColumn),
+	)
+}
+func newPipelinesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(PipelinesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, PipelinesTable, PipelinesColumn),
+	)
+}
+func newDealsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(DealsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, DealsTable, DealsColumn),
+	)
+}
+func newActivitiesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ActivitiesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ActivitiesTable, ActivitiesColumn),
+	)
+}
+func newTasksStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(TasksInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, TasksTable, TasksColumn),
+	)
+}
+func newCustomFieldDefsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CustomFieldDefsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CustomFieldDefsTable, CustomFieldDefsColumn),
+	)
+}
+func newCustomFieldValuesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CustomFieldValuesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CustomFieldValuesTable, CustomFieldValuesColumn),
+	)
+}
+func newLeadScoringRulesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(LeadScoringRulesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, LeadScoringRulesTable, LeadScoringRulesColumn),
+	)
+}
+func newCustomAgentsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CustomAgentsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CustomAgentsTable, CustomAgentsColumn),
+	)
+}
+func newAgentRunsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AgentRunsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, AgentRunsTable, AgentRunsColumn),
+	)
+}
+func newSegmentsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SegmentsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, SegmentsTable, SegmentsColumn),
+	)
+}
+func newBehavioralTriggersStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(BehavioralTriggersInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, BehavioralTriggersTable, BehavioralTriggersColumn),
 	)
 }

@@ -12,17 +12,29 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/marketflow-api/internal/ent/account"
+	"github.com/bengobox/marketflow-api/internal/ent/activity"
 	"github.com/bengobox/marketflow-api/internal/ent/admetrics"
+	"github.com/bengobox/marketflow-api/internal/ent/agentrun"
+	"github.com/bengobox/marketflow-api/internal/ent/behavioraltrigger"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
+	"github.com/bengobox/marketflow-api/internal/ent/customagent"
+	"github.com/bengobox/marketflow-api/internal/ent/customfielddef"
+	"github.com/bengobox/marketflow-api/internal/ent/customfieldvalue"
+	"github.com/bengobox/marketflow-api/internal/ent/deal"
 	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/ent/leadscoringrule"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturedeliveryevent"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
+	"github.com/bengobox/marketflow-api/internal/ent/pipeline"
 	"github.com/bengobox/marketflow-api/internal/ent/profileevent"
+	"github.com/bengobox/marketflow-api/internal/ent/segment"
+	"github.com/bengobox/marketflow-api/internal/ent/task"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/ent/testimonial"
 	"github.com/google/uuid"
@@ -472,6 +484,186 @@ func (_c *TenantCreate) AddAdMetrics(v ...*AdMetrics) *TenantCreate {
 	return _c.AddAdMetricIDs(ids...)
 }
 
+// AddAccountIDs adds the "accounts" edge to the Account entity by IDs.
+func (_c *TenantCreate) AddAccountIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddAccountIDs(ids...)
+	return _c
+}
+
+// AddAccounts adds the "accounts" edges to the Account entity.
+func (_c *TenantCreate) AddAccounts(v ...*Account) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddAccountIDs(ids...)
+}
+
+// AddPipelineIDs adds the "pipelines" edge to the Pipeline entity by IDs.
+func (_c *TenantCreate) AddPipelineIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddPipelineIDs(ids...)
+	return _c
+}
+
+// AddPipelines adds the "pipelines" edges to the Pipeline entity.
+func (_c *TenantCreate) AddPipelines(v ...*Pipeline) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddPipelineIDs(ids...)
+}
+
+// AddDealIDs adds the "deals" edge to the Deal entity by IDs.
+func (_c *TenantCreate) AddDealIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddDealIDs(ids...)
+	return _c
+}
+
+// AddDeals adds the "deals" edges to the Deal entity.
+func (_c *TenantCreate) AddDeals(v ...*Deal) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddDealIDs(ids...)
+}
+
+// AddActivityIDs adds the "activities" edge to the Activity entity by IDs.
+func (_c *TenantCreate) AddActivityIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddActivityIDs(ids...)
+	return _c
+}
+
+// AddActivities adds the "activities" edges to the Activity entity.
+func (_c *TenantCreate) AddActivities(v ...*Activity) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddActivityIDs(ids...)
+}
+
+// AddTaskIDs adds the "tasks" edge to the Task entity by IDs.
+func (_c *TenantCreate) AddTaskIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddTaskIDs(ids...)
+	return _c
+}
+
+// AddTasks adds the "tasks" edges to the Task entity.
+func (_c *TenantCreate) AddTasks(v ...*Task) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddTaskIDs(ids...)
+}
+
+// AddCustomFieldDefIDs adds the "custom_field_defs" edge to the CustomFieldDef entity by IDs.
+func (_c *TenantCreate) AddCustomFieldDefIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddCustomFieldDefIDs(ids...)
+	return _c
+}
+
+// AddCustomFieldDefs adds the "custom_field_defs" edges to the CustomFieldDef entity.
+func (_c *TenantCreate) AddCustomFieldDefs(v ...*CustomFieldDef) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCustomFieldDefIDs(ids...)
+}
+
+// AddCustomFieldValueIDs adds the "custom_field_values" edge to the CustomFieldValue entity by IDs.
+func (_c *TenantCreate) AddCustomFieldValueIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddCustomFieldValueIDs(ids...)
+	return _c
+}
+
+// AddCustomFieldValues adds the "custom_field_values" edges to the CustomFieldValue entity.
+func (_c *TenantCreate) AddCustomFieldValues(v ...*CustomFieldValue) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCustomFieldValueIDs(ids...)
+}
+
+// AddLeadScoringRuleIDs adds the "lead_scoring_rules" edge to the LeadScoringRule entity by IDs.
+func (_c *TenantCreate) AddLeadScoringRuleIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddLeadScoringRuleIDs(ids...)
+	return _c
+}
+
+// AddLeadScoringRules adds the "lead_scoring_rules" edges to the LeadScoringRule entity.
+func (_c *TenantCreate) AddLeadScoringRules(v ...*LeadScoringRule) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddLeadScoringRuleIDs(ids...)
+}
+
+// AddCustomAgentIDs adds the "custom_agents" edge to the CustomAgent entity by IDs.
+func (_c *TenantCreate) AddCustomAgentIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddCustomAgentIDs(ids...)
+	return _c
+}
+
+// AddCustomAgents adds the "custom_agents" edges to the CustomAgent entity.
+func (_c *TenantCreate) AddCustomAgents(v ...*CustomAgent) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCustomAgentIDs(ids...)
+}
+
+// AddAgentRunIDs adds the "agent_runs" edge to the AgentRun entity by IDs.
+func (_c *TenantCreate) AddAgentRunIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddAgentRunIDs(ids...)
+	return _c
+}
+
+// AddAgentRuns adds the "agent_runs" edges to the AgentRun entity.
+func (_c *TenantCreate) AddAgentRuns(v ...*AgentRun) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddAgentRunIDs(ids...)
+}
+
+// AddSegmentIDs adds the "segments" edge to the Segment entity by IDs.
+func (_c *TenantCreate) AddSegmentIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddSegmentIDs(ids...)
+	return _c
+}
+
+// AddSegments adds the "segments" edges to the Segment entity.
+func (_c *TenantCreate) AddSegments(v ...*Segment) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddSegmentIDs(ids...)
+}
+
+// AddBehavioralTriggerIDs adds the "behavioral_triggers" edge to the BehavioralTrigger entity by IDs.
+func (_c *TenantCreate) AddBehavioralTriggerIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddBehavioralTriggerIDs(ids...)
+	return _c
+}
+
+// AddBehavioralTriggers adds the "behavioral_triggers" edges to the BehavioralTrigger entity.
+func (_c *TenantCreate) AddBehavioralTriggers(v ...*BehavioralTrigger) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddBehavioralTriggerIDs(ids...)
+}
+
 // Mutation returns the TenantMutation object of the builder.
 func (_c *TenantCreate) Mutation() *TenantMutation {
 	return _c.mutation
@@ -872,6 +1064,198 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(admetrics.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.AccountsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.AccountsTable,
+			Columns: []string{tenant.AccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(account.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.PipelinesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.PipelinesTable,
+			Columns: []string{tenant.PipelinesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(pipeline.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.DealsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.DealsTable,
+			Columns: []string{tenant.DealsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(deal.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ActivitiesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ActivitiesTable,
+			Columns: []string{tenant.ActivitiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(activity.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.TasksIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.TasksTable,
+			Columns: []string{tenant.TasksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(task.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.CustomFieldDefsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.CustomFieldDefsTable,
+			Columns: []string{tenant.CustomFieldDefsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(customfielddef.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.CustomFieldValuesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.CustomFieldValuesTable,
+			Columns: []string{tenant.CustomFieldValuesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(customfieldvalue.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.LeadScoringRulesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.LeadScoringRulesTable,
+			Columns: []string{tenant.LeadScoringRulesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(leadscoringrule.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.CustomAgentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.CustomAgentsTable,
+			Columns: []string{tenant.CustomAgentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(customagent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.AgentRunsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.AgentRunsTable,
+			Columns: []string{tenant.AgentRunsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(agentrun.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.SegmentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.SegmentsTable,
+			Columns: []string{tenant.SegmentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(segment.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.BehavioralTriggersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.BehavioralTriggersTable,
+			Columns: []string{tenant.BehavioralTriggersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(behavioraltrigger.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

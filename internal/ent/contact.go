@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/bengobox/marketflow-api/internal/ent/account"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/google/uuid"
@@ -42,6 +43,14 @@ type Contact struct {
 	TotalOrders int `json:"total_orders,omitempty"`
 	// LastOrderAt holds the value of the "last_order_at" field.
 	LastOrderAt *time.Time `json:"last_order_at,omitempty"`
+	// Linked company/account
+	AccountID *uuid.UUID `json:"account_id,omitempty"`
+	// Assigned owner user_id from auth-service
+	OwnerUserID *uuid.UUID `json:"owner_user_id,omitempty"`
+	// subscriber | lead | prospect | customer | evangelist
+	LifecycleStage string `json:"lifecycle_stage,omitempty"`
+	// AI-enriched company/LinkedIn data from ContactEnricherAgent
+	EnrichmentData map[string]interface{} `json:"enrichment_data,omitempty"`
 	// Product categories of interest
 	ProductInterests []string `json:"product_interests,omitempty"`
 	// Opted in for email marketing
@@ -68,9 +77,13 @@ type ContactEdges struct {
 	ChatSessions []*ChatSession `json:"chat_sessions,omitempty"`
 	// ScheduledMeetings holds the value of the scheduled_meetings edge.
 	ScheduledMeetings []*ScheduledMeeting `json:"scheduled_meetings,omitempty"`
+	// Account holds the value of the account edge.
+	Account *Account `json:"account,omitempty"`
+	// Deals holds the value of the deals edge.
+	Deals []*Deal `json:"deals,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [5]bool
 }
 
 // TenantOrErr returns the Tenant value or an error if the edge
@@ -102,14 +115,34 @@ func (e ContactEdges) ScheduledMeetingsOrErr() ([]*ScheduledMeeting, error) {
 	return nil, &NotLoadedError{edge: "scheduled_meetings"}
 }
 
+// AccountOrErr returns the Account value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e ContactEdges) AccountOrErr() (*Account, error) {
+	if e.Account != nil {
+		return e.Account, nil
+	} else if e.loadedTypes[3] {
+		return nil, &NotFoundError{label: account.Label}
+	}
+	return nil, &NotLoadedError{edge: "account"}
+}
+
+// DealsOrErr returns the Deals value or an error if the edge
+// was not loaded in eager-loading.
+func (e ContactEdges) DealsOrErr() ([]*Deal, error) {
+	if e.loadedTypes[4] {
+		return e.Deals, nil
+	}
+	return nil, &NotLoadedError{edge: "deals"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*Contact) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case contact.FieldLeadID:
+		case contact.FieldLeadID, contact.FieldAccountID, contact.FieldOwnerUserID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
-		case contact.FieldProductInterests, contact.FieldMetadata:
+		case contact.FieldEnrichmentData, contact.FieldProductInterests, contact.FieldMetadata:
 			values[i] = new([]byte)
 		case contact.FieldSubscribedEmail, contact.FieldSubscribedSms:
 			values[i] = new(sql.NullBool)
@@ -117,7 +150,7 @@ func (*Contact) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case contact.FieldTotalOrders:
 			values[i] = new(sql.NullInt64)
-		case contact.FieldEmail, contact.FieldPhone, contact.FieldFirstName, contact.FieldLastName, contact.FieldContactType, contact.FieldFlpCustomerID:
+		case contact.FieldEmail, contact.FieldPhone, contact.FieldFirstName, contact.FieldLastName, contact.FieldContactType, contact.FieldFlpCustomerID, contact.FieldLifecycleStage:
 			values[i] = new(sql.NullString)
 		case contact.FieldLastOrderAt, contact.FieldCreatedAt, contact.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -217,6 +250,34 @@ func (_m *Contact) assignValues(columns []string, values []any) error {
 				_m.LastOrderAt = new(time.Time)
 				*_m.LastOrderAt = value.Time
 			}
+		case contact.FieldAccountID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field account_id", values[i])
+			} else if value.Valid {
+				_m.AccountID = new(uuid.UUID)
+				*_m.AccountID = *value.S.(*uuid.UUID)
+			}
+		case contact.FieldOwnerUserID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field owner_user_id", values[i])
+			} else if value.Valid {
+				_m.OwnerUserID = new(uuid.UUID)
+				*_m.OwnerUserID = *value.S.(*uuid.UUID)
+			}
+		case contact.FieldLifecycleStage:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field lifecycle_stage", values[i])
+			} else if value.Valid {
+				_m.LifecycleStage = value.String
+			}
+		case contact.FieldEnrichmentData:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field enrichment_data", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.EnrichmentData); err != nil {
+					return fmt.Errorf("unmarshal field enrichment_data: %w", err)
+				}
+			}
 		case contact.FieldProductInterests:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field product_interests", values[i])
@@ -283,6 +344,16 @@ func (_m *Contact) QueryChatSessions() *ChatSessionQuery {
 // QueryScheduledMeetings queries the "scheduled_meetings" edge of the Contact entity.
 func (_m *Contact) QueryScheduledMeetings() *ScheduledMeetingQuery {
 	return NewContactClient(_m.config).QueryScheduledMeetings(_m)
+}
+
+// QueryAccount queries the "account" edge of the Contact entity.
+func (_m *Contact) QueryAccount() *AccountQuery {
+	return NewContactClient(_m.config).QueryAccount(_m)
+}
+
+// QueryDeals queries the "deals" edge of the Contact entity.
+func (_m *Contact) QueryDeals() *DealQuery {
+	return NewContactClient(_m.config).QueryDeals(_m)
 }
 
 // Update returns a builder for updating this Contact.
@@ -354,6 +425,22 @@ func (_m *Contact) String() string {
 		builder.WriteString("last_order_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
+	builder.WriteString(", ")
+	if v := _m.AccountID; v != nil {
+		builder.WriteString("account_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.OwnerUserID; v != nil {
+		builder.WriteString("owner_user_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("lifecycle_stage=")
+	builder.WriteString(_m.LifecycleStage)
+	builder.WriteString(", ")
+	builder.WriteString("enrichment_data=")
+	builder.WriteString(fmt.Sprintf("%v", _m.EnrichmentData))
 	builder.WriteString(", ")
 	builder.WriteString("product_interests=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProductInterests))

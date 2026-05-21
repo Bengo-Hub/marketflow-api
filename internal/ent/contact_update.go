@@ -12,8 +12,10 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/marketflow-api/internal/ent/account"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
+	"github.com/bengobox/marketflow-api/internal/ent/deal"
 	"github.com/bengobox/marketflow-api/internal/ent/predicate"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
@@ -244,6 +246,72 @@ func (_u *ContactUpdate) ClearLastOrderAt() *ContactUpdate {
 	return _u
 }
 
+// SetAccountID sets the "account_id" field.
+func (_u *ContactUpdate) SetAccountID(v uuid.UUID) *ContactUpdate {
+	_u.mutation.SetAccountID(v)
+	return _u
+}
+
+// SetNillableAccountID sets the "account_id" field if the given value is not nil.
+func (_u *ContactUpdate) SetNillableAccountID(v *uuid.UUID) *ContactUpdate {
+	if v != nil {
+		_u.SetAccountID(*v)
+	}
+	return _u
+}
+
+// ClearAccountID clears the value of the "account_id" field.
+func (_u *ContactUpdate) ClearAccountID() *ContactUpdate {
+	_u.mutation.ClearAccountID()
+	return _u
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (_u *ContactUpdate) SetOwnerUserID(v uuid.UUID) *ContactUpdate {
+	_u.mutation.SetOwnerUserID(v)
+	return _u
+}
+
+// SetNillableOwnerUserID sets the "owner_user_id" field if the given value is not nil.
+func (_u *ContactUpdate) SetNillableOwnerUserID(v *uuid.UUID) *ContactUpdate {
+	if v != nil {
+		_u.SetOwnerUserID(*v)
+	}
+	return _u
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (_u *ContactUpdate) ClearOwnerUserID() *ContactUpdate {
+	_u.mutation.ClearOwnerUserID()
+	return _u
+}
+
+// SetLifecycleStage sets the "lifecycle_stage" field.
+func (_u *ContactUpdate) SetLifecycleStage(v string) *ContactUpdate {
+	_u.mutation.SetLifecycleStage(v)
+	return _u
+}
+
+// SetNillableLifecycleStage sets the "lifecycle_stage" field if the given value is not nil.
+func (_u *ContactUpdate) SetNillableLifecycleStage(v *string) *ContactUpdate {
+	if v != nil {
+		_u.SetLifecycleStage(*v)
+	}
+	return _u
+}
+
+// SetEnrichmentData sets the "enrichment_data" field.
+func (_u *ContactUpdate) SetEnrichmentData(v map[string]interface{}) *ContactUpdate {
+	_u.mutation.SetEnrichmentData(v)
+	return _u
+}
+
+// ClearEnrichmentData clears the value of the "enrichment_data" field.
+func (_u *ContactUpdate) ClearEnrichmentData() *ContactUpdate {
+	_u.mutation.ClearEnrichmentData()
+	return _u
+}
+
 // SetProductInterests sets the "product_interests" field.
 func (_u *ContactUpdate) SetProductInterests(v []string) *ContactUpdate {
 	_u.mutation.SetProductInterests(v)
@@ -343,6 +411,26 @@ func (_u *ContactUpdate) AddScheduledMeetings(v ...*ScheduledMeeting) *ContactUp
 	return _u.AddScheduledMeetingIDs(ids...)
 }
 
+// SetAccount sets the "account" edge to the Account entity.
+func (_u *ContactUpdate) SetAccount(v *Account) *ContactUpdate {
+	return _u.SetAccountID(v.ID)
+}
+
+// AddDealIDs adds the "deals" edge to the Deal entity by IDs.
+func (_u *ContactUpdate) AddDealIDs(ids ...uuid.UUID) *ContactUpdate {
+	_u.mutation.AddDealIDs(ids...)
+	return _u
+}
+
+// AddDeals adds the "deals" edges to the Deal entity.
+func (_u *ContactUpdate) AddDeals(v ...*Deal) *ContactUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDealIDs(ids...)
+}
+
 // Mutation returns the ContactMutation object of the builder.
 func (_u *ContactUpdate) Mutation() *ContactMutation {
 	return _u.mutation
@@ -394,6 +482,33 @@ func (_u *ContactUpdate) RemoveScheduledMeetings(v ...*ScheduledMeeting) *Contac
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveScheduledMeetingIDs(ids...)
+}
+
+// ClearAccount clears the "account" edge to the Account entity.
+func (_u *ContactUpdate) ClearAccount() *ContactUpdate {
+	_u.mutation.ClearAccount()
+	return _u
+}
+
+// ClearDeals clears all "deals" edges to the Deal entity.
+func (_u *ContactUpdate) ClearDeals() *ContactUpdate {
+	_u.mutation.ClearDeals()
+	return _u
+}
+
+// RemoveDealIDs removes the "deals" edge to Deal entities by IDs.
+func (_u *ContactUpdate) RemoveDealIDs(ids ...uuid.UUID) *ContactUpdate {
+	_u.mutation.RemoveDealIDs(ids...)
+	return _u
+}
+
+// RemoveDeals removes "deals" edges to Deal entities.
+func (_u *ContactUpdate) RemoveDeals(v ...*Deal) *ContactUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDealIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -514,6 +629,21 @@ func (_u *ContactUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.LastOrderAtCleared() {
 		_spec.ClearField(contact.FieldLastOrderAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.OwnerUserID(); ok {
+		_spec.SetField(contact.FieldOwnerUserID, field.TypeUUID, value)
+	}
+	if _u.mutation.OwnerUserIDCleared() {
+		_spec.ClearField(contact.FieldOwnerUserID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.LifecycleStage(); ok {
+		_spec.SetField(contact.FieldLifecycleStage, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.EnrichmentData(); ok {
+		_spec.SetField(contact.FieldEnrichmentData, field.TypeJSON, value)
+	}
+	if _u.mutation.EnrichmentDataCleared() {
+		_spec.ClearField(contact.FieldEnrichmentData, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.ProductInterests(); ok {
 		_spec.SetField(contact.FieldProductInterests, field.TypeJSON, value)
@@ -653,6 +783,80 @@ func (_u *ContactUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(scheduledmeeting.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AccountCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   contact.AccountTable,
+			Columns: []string{contact.AccountColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(account.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AccountIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   contact.AccountTable,
+			Columns: []string{contact.AccountColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(account.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DealsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   contact.DealsTable,
+			Columns: []string{contact.DealsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(deal.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDealsIDs(); len(nodes) > 0 && !_u.mutation.DealsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   contact.DealsTable,
+			Columns: []string{contact.DealsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(deal.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DealsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   contact.DealsTable,
+			Columns: []string{contact.DealsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(deal.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -892,6 +1096,72 @@ func (_u *ContactUpdateOne) ClearLastOrderAt() *ContactUpdateOne {
 	return _u
 }
 
+// SetAccountID sets the "account_id" field.
+func (_u *ContactUpdateOne) SetAccountID(v uuid.UUID) *ContactUpdateOne {
+	_u.mutation.SetAccountID(v)
+	return _u
+}
+
+// SetNillableAccountID sets the "account_id" field if the given value is not nil.
+func (_u *ContactUpdateOne) SetNillableAccountID(v *uuid.UUID) *ContactUpdateOne {
+	if v != nil {
+		_u.SetAccountID(*v)
+	}
+	return _u
+}
+
+// ClearAccountID clears the value of the "account_id" field.
+func (_u *ContactUpdateOne) ClearAccountID() *ContactUpdateOne {
+	_u.mutation.ClearAccountID()
+	return _u
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (_u *ContactUpdateOne) SetOwnerUserID(v uuid.UUID) *ContactUpdateOne {
+	_u.mutation.SetOwnerUserID(v)
+	return _u
+}
+
+// SetNillableOwnerUserID sets the "owner_user_id" field if the given value is not nil.
+func (_u *ContactUpdateOne) SetNillableOwnerUserID(v *uuid.UUID) *ContactUpdateOne {
+	if v != nil {
+		_u.SetOwnerUserID(*v)
+	}
+	return _u
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (_u *ContactUpdateOne) ClearOwnerUserID() *ContactUpdateOne {
+	_u.mutation.ClearOwnerUserID()
+	return _u
+}
+
+// SetLifecycleStage sets the "lifecycle_stage" field.
+func (_u *ContactUpdateOne) SetLifecycleStage(v string) *ContactUpdateOne {
+	_u.mutation.SetLifecycleStage(v)
+	return _u
+}
+
+// SetNillableLifecycleStage sets the "lifecycle_stage" field if the given value is not nil.
+func (_u *ContactUpdateOne) SetNillableLifecycleStage(v *string) *ContactUpdateOne {
+	if v != nil {
+		_u.SetLifecycleStage(*v)
+	}
+	return _u
+}
+
+// SetEnrichmentData sets the "enrichment_data" field.
+func (_u *ContactUpdateOne) SetEnrichmentData(v map[string]interface{}) *ContactUpdateOne {
+	_u.mutation.SetEnrichmentData(v)
+	return _u
+}
+
+// ClearEnrichmentData clears the value of the "enrichment_data" field.
+func (_u *ContactUpdateOne) ClearEnrichmentData() *ContactUpdateOne {
+	_u.mutation.ClearEnrichmentData()
+	return _u
+}
+
 // SetProductInterests sets the "product_interests" field.
 func (_u *ContactUpdateOne) SetProductInterests(v []string) *ContactUpdateOne {
 	_u.mutation.SetProductInterests(v)
@@ -991,6 +1261,26 @@ func (_u *ContactUpdateOne) AddScheduledMeetings(v ...*ScheduledMeeting) *Contac
 	return _u.AddScheduledMeetingIDs(ids...)
 }
 
+// SetAccount sets the "account" edge to the Account entity.
+func (_u *ContactUpdateOne) SetAccount(v *Account) *ContactUpdateOne {
+	return _u.SetAccountID(v.ID)
+}
+
+// AddDealIDs adds the "deals" edge to the Deal entity by IDs.
+func (_u *ContactUpdateOne) AddDealIDs(ids ...uuid.UUID) *ContactUpdateOne {
+	_u.mutation.AddDealIDs(ids...)
+	return _u
+}
+
+// AddDeals adds the "deals" edges to the Deal entity.
+func (_u *ContactUpdateOne) AddDeals(v ...*Deal) *ContactUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDealIDs(ids...)
+}
+
 // Mutation returns the ContactMutation object of the builder.
 func (_u *ContactUpdateOne) Mutation() *ContactMutation {
 	return _u.mutation
@@ -1042,6 +1332,33 @@ func (_u *ContactUpdateOne) RemoveScheduledMeetings(v ...*ScheduledMeeting) *Con
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveScheduledMeetingIDs(ids...)
+}
+
+// ClearAccount clears the "account" edge to the Account entity.
+func (_u *ContactUpdateOne) ClearAccount() *ContactUpdateOne {
+	_u.mutation.ClearAccount()
+	return _u
+}
+
+// ClearDeals clears all "deals" edges to the Deal entity.
+func (_u *ContactUpdateOne) ClearDeals() *ContactUpdateOne {
+	_u.mutation.ClearDeals()
+	return _u
+}
+
+// RemoveDealIDs removes the "deals" edge to Deal entities by IDs.
+func (_u *ContactUpdateOne) RemoveDealIDs(ids ...uuid.UUID) *ContactUpdateOne {
+	_u.mutation.RemoveDealIDs(ids...)
+	return _u
+}
+
+// RemoveDeals removes "deals" edges to Deal entities.
+func (_u *ContactUpdateOne) RemoveDeals(v ...*Deal) *ContactUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDealIDs(ids...)
 }
 
 // Where appends a list predicates to the ContactUpdate builder.
@@ -1193,6 +1510,21 @@ func (_u *ContactUpdateOne) sqlSave(ctx context.Context) (_node *Contact, err er
 	if _u.mutation.LastOrderAtCleared() {
 		_spec.ClearField(contact.FieldLastOrderAt, field.TypeTime)
 	}
+	if value, ok := _u.mutation.OwnerUserID(); ok {
+		_spec.SetField(contact.FieldOwnerUserID, field.TypeUUID, value)
+	}
+	if _u.mutation.OwnerUserIDCleared() {
+		_spec.ClearField(contact.FieldOwnerUserID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.LifecycleStage(); ok {
+		_spec.SetField(contact.FieldLifecycleStage, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.EnrichmentData(); ok {
+		_spec.SetField(contact.FieldEnrichmentData, field.TypeJSON, value)
+	}
+	if _u.mutation.EnrichmentDataCleared() {
+		_spec.ClearField(contact.FieldEnrichmentData, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.ProductInterests(); ok {
 		_spec.SetField(contact.FieldProductInterests, field.TypeJSON, value)
 	}
@@ -1331,6 +1663,80 @@ func (_u *ContactUpdateOne) sqlSave(ctx context.Context) (_node *Contact, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(scheduledmeeting.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AccountCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   contact.AccountTable,
+			Columns: []string{contact.AccountColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(account.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AccountIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   contact.AccountTable,
+			Columns: []string{contact.AccountColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(account.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DealsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   contact.DealsTable,
+			Columns: []string{contact.DealsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(deal.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDealsIDs(); len(nodes) > 0 && !_u.mutation.DealsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   contact.DealsTable,
+			Columns: []string{contact.DealsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(deal.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DealsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   contact.DealsTable,
+			Columns: []string{contact.DealsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(deal.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

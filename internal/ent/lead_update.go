@@ -324,6 +324,50 @@ func (_u *LeadUpdate) ClearQualificationAnswers() *LeadUpdate {
 	return _u
 }
 
+// SetOwnerUserID sets the "owner_user_id" field.
+func (_u *LeadUpdate) SetOwnerUserID(v uuid.UUID) *LeadUpdate {
+	_u.mutation.SetOwnerUserID(v)
+	return _u
+}
+
+// SetNillableOwnerUserID sets the "owner_user_id" field if the given value is not nil.
+func (_u *LeadUpdate) SetNillableOwnerUserID(v *uuid.UUID) *LeadUpdate {
+	if v != nil {
+		_u.SetOwnerUserID(*v)
+	}
+	return _u
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (_u *LeadUpdate) ClearOwnerUserID() *LeadUpdate {
+	_u.mutation.ClearOwnerUserID()
+	return _u
+}
+
+// SetAiScoreBreakdown sets the "ai_score_breakdown" field.
+func (_u *LeadUpdate) SetAiScoreBreakdown(v map[string]interface{}) *LeadUpdate {
+	_u.mutation.SetAiScoreBreakdown(v)
+	return _u
+}
+
+// ClearAiScoreBreakdown clears the value of the "ai_score_breakdown" field.
+func (_u *LeadUpdate) ClearAiScoreBreakdown() *LeadUpdate {
+	_u.mutation.ClearAiScoreBreakdown()
+	return _u
+}
+
+// SetEnrichmentData sets the "enrichment_data" field.
+func (_u *LeadUpdate) SetEnrichmentData(v map[string]interface{}) *LeadUpdate {
+	_u.mutation.SetEnrichmentData(v)
+	return _u
+}
+
+// ClearEnrichmentData clears the value of the "enrichment_data" field.
+func (_u *LeadUpdate) ClearEnrichmentData() *LeadUpdate {
+	_u.mutation.ClearEnrichmentData()
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *LeadUpdate) SetMetadata(v map[string]interface{}) *LeadUpdate {
 	_u.mutation.SetMetadata(v)
@@ -642,6 +686,24 @@ func (_u *LeadUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.QualificationAnswersCleared() {
 		_spec.ClearField(lead.FieldQualificationAnswers, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.OwnerUserID(); ok {
+		_spec.SetField(lead.FieldOwnerUserID, field.TypeUUID, value)
+	}
+	if _u.mutation.OwnerUserIDCleared() {
+		_spec.ClearField(lead.FieldOwnerUserID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.AiScoreBreakdown(); ok {
+		_spec.SetField(lead.FieldAiScoreBreakdown, field.TypeJSON, value)
+	}
+	if _u.mutation.AiScoreBreakdownCleared() {
+		_spec.ClearField(lead.FieldAiScoreBreakdown, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.EnrichmentData(); ok {
+		_spec.SetField(lead.FieldEnrichmentData, field.TypeJSON, value)
+	}
+	if _u.mutation.EnrichmentDataCleared() {
+		_spec.ClearField(lead.FieldEnrichmentData, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(lead.FieldMetadata, field.TypeJSON, value)
@@ -1158,6 +1220,50 @@ func (_u *LeadUpdateOne) ClearQualificationAnswers() *LeadUpdateOne {
 	return _u
 }
 
+// SetOwnerUserID sets the "owner_user_id" field.
+func (_u *LeadUpdateOne) SetOwnerUserID(v uuid.UUID) *LeadUpdateOne {
+	_u.mutation.SetOwnerUserID(v)
+	return _u
+}
+
+// SetNillableOwnerUserID sets the "owner_user_id" field if the given value is not nil.
+func (_u *LeadUpdateOne) SetNillableOwnerUserID(v *uuid.UUID) *LeadUpdateOne {
+	if v != nil {
+		_u.SetOwnerUserID(*v)
+	}
+	return _u
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (_u *LeadUpdateOne) ClearOwnerUserID() *LeadUpdateOne {
+	_u.mutation.ClearOwnerUserID()
+	return _u
+}
+
+// SetAiScoreBreakdown sets the "ai_score_breakdown" field.
+func (_u *LeadUpdateOne) SetAiScoreBreakdown(v map[string]interface{}) *LeadUpdateOne {
+	_u.mutation.SetAiScoreBreakdown(v)
+	return _u
+}
+
+// ClearAiScoreBreakdown clears the value of the "ai_score_breakdown" field.
+func (_u *LeadUpdateOne) ClearAiScoreBreakdown() *LeadUpdateOne {
+	_u.mutation.ClearAiScoreBreakdown()
+	return _u
+}
+
+// SetEnrichmentData sets the "enrichment_data" field.
+func (_u *LeadUpdateOne) SetEnrichmentData(v map[string]interface{}) *LeadUpdateOne {
+	_u.mutation.SetEnrichmentData(v)
+	return _u
+}
+
+// ClearEnrichmentData clears the value of the "enrichment_data" field.
+func (_u *LeadUpdateOne) ClearEnrichmentData() *LeadUpdateOne {
+	_u.mutation.ClearEnrichmentData()
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *LeadUpdateOne) SetMetadata(v map[string]interface{}) *LeadUpdateOne {
 	_u.mutation.SetMetadata(v)
@@ -1506,6 +1612,24 @@ func (_u *LeadUpdateOne) sqlSave(ctx context.Context) (_node *Lead, err error) {
 	}
 	if _u.mutation.QualificationAnswersCleared() {
 		_spec.ClearField(lead.FieldQualificationAnswers, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.OwnerUserID(); ok {
+		_spec.SetField(lead.FieldOwnerUserID, field.TypeUUID, value)
+	}
+	if _u.mutation.OwnerUserIDCleared() {
+		_spec.ClearField(lead.FieldOwnerUserID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.AiScoreBreakdown(); ok {
+		_spec.SetField(lead.FieldAiScoreBreakdown, field.TypeJSON, value)
+	}
+	if _u.mutation.AiScoreBreakdownCleared() {
+		_spec.ClearField(lead.FieldAiScoreBreakdown, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.EnrichmentData(); ok {
+		_spec.SetField(lead.FieldEnrichmentData, field.TypeJSON, value)
+	}
+	if _u.mutation.EnrichmentDataCleared() {
+		_spec.ClearField(lead.FieldEnrichmentData, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(lead.FieldMetadata, field.TypeJSON, value)

@@ -12,14 +12,23 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/bengobox/marketflow-api/internal/ent/account"
+	"github.com/bengobox/marketflow-api/internal/ent/activity"
 	"github.com/bengobox/marketflow-api/internal/ent/admetrics"
+	"github.com/bengobox/marketflow-api/internal/ent/agentrun"
 	"github.com/bengobox/marketflow-api/internal/ent/auditlog"
+	"github.com/bengobox/marketflow-api/internal/ent/behavioraltrigger"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
+	"github.com/bengobox/marketflow-api/internal/ent/customagent"
+	"github.com/bengobox/marketflow-api/internal/ent/customfielddef"
+	"github.com/bengobox/marketflow-api/internal/ent/customfieldvalue"
+	"github.com/bengobox/marketflow-api/internal/ent/deal"
 	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/ent/leadscoringrule"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
@@ -27,12 +36,16 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/outboxevent"
+	"github.com/bengobox/marketflow-api/internal/ent/pipeline"
+	"github.com/bengobox/marketflow-api/internal/ent/pipelinestage"
 	"github.com/bengobox/marketflow-api/internal/ent/profileevent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/bengobox/marketflow-api/internal/ent/rolepermission"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
+	"github.com/bengobox/marketflow-api/internal/ent/segment"
 	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
 	"github.com/bengobox/marketflow-api/internal/ent/shortlink"
+	"github.com/bengobox/marketflow-api/internal/ent/task"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/ent/testimonial"
 	"github.com/bengobox/marketflow-api/internal/ent/userroleassignment"
@@ -96,14 +109,23 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			account.Table:              account.ValidColumn,
+			activity.Table:             activity.ValidColumn,
 			admetrics.Table:            admetrics.ValidColumn,
+			agentrun.Table:             agentrun.ValidColumn,
 			auditlog.Table:             auditlog.ValidColumn,
+			behavioraltrigger.Table:    behavioraltrigger.ValidColumn,
 			campaign.Table:             campaign.ValidColumn,
 			chatsession.Table:          chatsession.ValidColumn,
 			contact.Table:              contact.ValidColumn,
+			customagent.Table:          customagent.ValidColumn,
+			customfielddef.Table:       customfielddef.ValidColumn,
+			customfieldvalue.Table:     customfieldvalue.ValidColumn,
+			deal.Table:                 deal.ValidColumn,
 			funnel.Table:               funnel.ValidColumn,
 			knowledgebaseentry.Table:   knowledgebaseentry.ValidColumn,
 			lead.Table:                 lead.ValidColumn,
+			leadscoringrule.Table:      leadscoringrule.ValidColumn,
 			marketflowpermission.Table: marketflowpermission.ValidColumn,
 			marketflowrole.Table:       marketflowrole.ValidColumn,
 			marketflowuser.Table:       marketflowuser.ValidColumn,
@@ -111,12 +133,16 @@ func checkColumn(t, c string) error {
 			nurtureenrollment.Table:    nurtureenrollment.ValidColumn,
 			nurturesequence.Table:      nurturesequence.ValidColumn,
 			outboxevent.Table:          outboxevent.ValidColumn,
+			pipeline.Table:             pipeline.ValidColumn,
+			pipelinestage.Table:        pipelinestage.ValidColumn,
 			profileevent.Table:         profileevent.ValidColumn,
 			providersetting.Table:      providersetting.ValidColumn,
 			rolepermission.Table:       rolepermission.ValidColumn,
 			scheduledmeeting.Table:     scheduledmeeting.ValidColumn,
+			segment.Table:              segment.ValidColumn,
 			serviceconfig.Table:        serviceconfig.ValidColumn,
 			shortlink.Table:            shortlink.ValidColumn,
+			task.Table:                 task.ValidColumn,
 			tenant.Table:               tenant.ValidColumn,
 			testimonial.Table:          testimonial.ValidColumn,
 			userroleassignment.Table:   userroleassignment.ValidColumn,

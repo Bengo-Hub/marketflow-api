@@ -63,6 +63,24 @@ func (Contact) Fields() []ent.Field {
 			Optional().
 			Nillable(),
 
+		// CRM fields (Sprint 9)
+		field.UUID("account_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("Linked company/account"),
+		field.UUID("owner_user_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("Assigned owner user_id from auth-service"),
+		field.String("lifecycle_stage").
+			Default("lead").
+			Comment("subscriber | lead | prospect | customer | evangelist"),
+
+		// Enrichment (Sprint 10)
+		field.JSON("enrichment_data", map[string]any{}).
+			Optional().
+			Comment("AI-enriched company/LinkedIn data from ContactEnricherAgent"),
+
 		// Preferences
 		field.JSON("product_interests", []string{}).
 			Optional().
@@ -96,6 +114,12 @@ func (Contact) Edges() []ent.Edge {
 			Unique(),
 		edge.To("chat_sessions", ChatSession.Type),
 		edge.To("scheduled_meetings", ScheduledMeeting.Type),
+		// Sprint 9 CRM edges
+		edge.From("account", Account.Type).
+			Ref("contacts").
+			Field("account_id").
+			Unique(),
+		edge.To("deals", Deal.Type),
 	}
 }
 
@@ -106,5 +130,8 @@ func (Contact) Indexes() []ent.Index {
 		index.Fields("tenant_id", "phone"),
 		index.Fields("tenant_id", "contact_type"),
 		index.Fields("tenant_id", "last_order_at"),
+		index.Fields("tenant_id", "lifecycle_stage"),
+		index.Fields("tenant_id", "owner_user_id"),
+		index.Fields("account_id"),
 	}
 }

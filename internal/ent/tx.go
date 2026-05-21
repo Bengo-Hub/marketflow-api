@@ -12,22 +12,40 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
+	// Account is the client for interacting with the Account builders.
+	Account *AccountClient
+	// Activity is the client for interacting with the Activity builders.
+	Activity *ActivityClient
 	// AdMetrics is the client for interacting with the AdMetrics builders.
 	AdMetrics *AdMetricsClient
+	// AgentRun is the client for interacting with the AgentRun builders.
+	AgentRun *AgentRunClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
+	// BehavioralTrigger is the client for interacting with the BehavioralTrigger builders.
+	BehavioralTrigger *BehavioralTriggerClient
 	// Campaign is the client for interacting with the Campaign builders.
 	Campaign *CampaignClient
 	// ChatSession is the client for interacting with the ChatSession builders.
 	ChatSession *ChatSessionClient
 	// Contact is the client for interacting with the Contact builders.
 	Contact *ContactClient
+	// CustomAgent is the client for interacting with the CustomAgent builders.
+	CustomAgent *CustomAgentClient
+	// CustomFieldDef is the client for interacting with the CustomFieldDef builders.
+	CustomFieldDef *CustomFieldDefClient
+	// CustomFieldValue is the client for interacting with the CustomFieldValue builders.
+	CustomFieldValue *CustomFieldValueClient
+	// Deal is the client for interacting with the Deal builders.
+	Deal *DealClient
 	// Funnel is the client for interacting with the Funnel builders.
 	Funnel *FunnelClient
 	// KnowledgeBaseEntry is the client for interacting with the KnowledgeBaseEntry builders.
 	KnowledgeBaseEntry *KnowledgeBaseEntryClient
 	// Lead is the client for interacting with the Lead builders.
 	Lead *LeadClient
+	// LeadScoringRule is the client for interacting with the LeadScoringRule builders.
+	LeadScoringRule *LeadScoringRuleClient
 	// MarketflowPermission is the client for interacting with the MarketflowPermission builders.
 	MarketflowPermission *MarketflowPermissionClient
 	// MarketflowRole is the client for interacting with the MarketflowRole builders.
@@ -42,6 +60,10 @@ type Tx struct {
 	NurtureSequence *NurtureSequenceClient
 	// OutboxEvent is the client for interacting with the OutboxEvent builders.
 	OutboxEvent *OutboxEventClient
+	// Pipeline is the client for interacting with the Pipeline builders.
+	Pipeline *PipelineClient
+	// PipelineStage is the client for interacting with the PipelineStage builders.
+	PipelineStage *PipelineStageClient
 	// ProfileEvent is the client for interacting with the ProfileEvent builders.
 	ProfileEvent *ProfileEventClient
 	// ProviderSetting is the client for interacting with the ProviderSetting builders.
@@ -50,10 +72,14 @@ type Tx struct {
 	RolePermission *RolePermissionClient
 	// ScheduledMeeting is the client for interacting with the ScheduledMeeting builders.
 	ScheduledMeeting *ScheduledMeetingClient
+	// Segment is the client for interacting with the Segment builders.
+	Segment *SegmentClient
 	// ServiceConfig is the client for interacting with the ServiceConfig builders.
 	ServiceConfig *ServiceConfigClient
 	// ShortLink is the client for interacting with the ShortLink builders.
 	ShortLink *ShortLinkClient
+	// Task is the client for interacting with the Task builders.
+	Task *TaskClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
 	// Testimonial is the client for interacting with the Testimonial builders.
@@ -191,14 +217,23 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
+	tx.Account = NewAccountClient(tx.config)
+	tx.Activity = NewActivityClient(tx.config)
 	tx.AdMetrics = NewAdMetricsClient(tx.config)
+	tx.AgentRun = NewAgentRunClient(tx.config)
 	tx.AuditLog = NewAuditLogClient(tx.config)
+	tx.BehavioralTrigger = NewBehavioralTriggerClient(tx.config)
 	tx.Campaign = NewCampaignClient(tx.config)
 	tx.ChatSession = NewChatSessionClient(tx.config)
 	tx.Contact = NewContactClient(tx.config)
+	tx.CustomAgent = NewCustomAgentClient(tx.config)
+	tx.CustomFieldDef = NewCustomFieldDefClient(tx.config)
+	tx.CustomFieldValue = NewCustomFieldValueClient(tx.config)
+	tx.Deal = NewDealClient(tx.config)
 	tx.Funnel = NewFunnelClient(tx.config)
 	tx.KnowledgeBaseEntry = NewKnowledgeBaseEntryClient(tx.config)
 	tx.Lead = NewLeadClient(tx.config)
+	tx.LeadScoringRule = NewLeadScoringRuleClient(tx.config)
 	tx.MarketflowPermission = NewMarketflowPermissionClient(tx.config)
 	tx.MarketflowRole = NewMarketflowRoleClient(tx.config)
 	tx.MarketflowUser = NewMarketflowUserClient(tx.config)
@@ -206,12 +241,16 @@ func (tx *Tx) init() {
 	tx.NurtureEnrollment = NewNurtureEnrollmentClient(tx.config)
 	tx.NurtureSequence = NewNurtureSequenceClient(tx.config)
 	tx.OutboxEvent = NewOutboxEventClient(tx.config)
+	tx.Pipeline = NewPipelineClient(tx.config)
+	tx.PipelineStage = NewPipelineStageClient(tx.config)
 	tx.ProfileEvent = NewProfileEventClient(tx.config)
 	tx.ProviderSetting = NewProviderSettingClient(tx.config)
 	tx.RolePermission = NewRolePermissionClient(tx.config)
 	tx.ScheduledMeeting = NewScheduledMeetingClient(tx.config)
+	tx.Segment = NewSegmentClient(tx.config)
 	tx.ServiceConfig = NewServiceConfigClient(tx.config)
 	tx.ShortLink = NewShortLinkClient(tx.config)
+	tx.Task = NewTaskClient(tx.config)
 	tx.Tenant = NewTenantClient(tx.config)
 	tx.Testimonial = NewTestimonialClient(tx.config)
 	tx.UserRoleAssignment = NewUserRoleAssignmentClient(tx.config)
@@ -224,7 +263,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: AdMetrics.QueryXXX(), the query will be executed
+// applies a query, for example: Account.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.

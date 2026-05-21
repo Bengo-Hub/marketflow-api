@@ -95,6 +95,15 @@ type RouterDeps struct {
 	InternalLeadHandlers InternalLeadHandlers
 	InternalServiceKey   string
 
+	// CRM Sprint 9 handlers
+	DealHandlers         DealHandlers
+	PipelineHandlers     PipelineHandlers
+	AccountHandlers      AccountHandlers
+	ActivityHandlers     ActivityHandlers
+	TaskHandlers         TaskHandlers
+	CustomFieldHandlers  CustomFieldHandlers
+	CustomAgentHandlers  CustomAgentHandlers
+
 	// Allowed origins for CORS
 	AllowedOrigins string
 }
@@ -261,6 +270,83 @@ type ShortLinkHandlers struct {
 	Create   http.HandlerFunc
 	List     http.HandlerFunc
 	Redirect http.HandlerFunc // Public — no auth, GET /s/{code}
+}
+
+// DealHandlers groups deal management HTTP handlers.
+type DealHandlers struct {
+	Create   http.HandlerFunc
+	List     http.HandlerFunc
+	Get      http.HandlerFunc
+	Update   http.HandlerFunc
+	Move     http.HandlerFunc
+	MarkWon  http.HandlerFunc
+	MarkLost http.HandlerFunc
+	Delete   http.HandlerFunc
+}
+
+// PipelineHandlers groups pipeline and stage HTTP handlers.
+type PipelineHandlers struct {
+	Create      http.HandlerFunc
+	List        http.HandlerFunc
+	Get         http.HandlerFunc
+	Update      http.HandlerFunc
+	Delete      http.HandlerFunc
+	CreateStage http.HandlerFunc
+	UpdateStage http.HandlerFunc
+	DeleteStage http.HandlerFunc
+}
+
+// AccountHandlers groups account (company) HTTP handlers.
+type AccountHandlers struct {
+	Create       http.HandlerFunc
+	List         http.HandlerFunc
+	Get          http.HandlerFunc
+	Update       http.HandlerFunc
+	Delete       http.HandlerFunc
+	ListContacts http.HandlerFunc
+}
+
+// ActivityHandlers groups activity timeline HTTP handlers.
+type ActivityHandlers struct {
+	Log             http.HandlerFunc
+	GetTimeline     http.HandlerFunc
+	LeadTimeline    http.HandlerFunc
+	ContactTimeline http.HandlerFunc
+	DealTimeline    http.HandlerFunc
+}
+
+// TaskHandlers groups task HTTP handlers.
+type TaskHandlers struct {
+	Create   http.HandlerFunc
+	List     http.HandlerFunc
+	Get      http.HandlerFunc
+	Update   http.HandlerFunc
+	Complete http.HandlerFunc
+	Delete   http.HandlerFunc
+}
+
+// CustomFieldHandlers groups custom field definition and value HTTP handlers.
+type CustomFieldHandlers struct {
+	CreateDef        http.HandlerFunc
+	ListDefs         http.HandlerFunc
+	UpdateDef        http.HandlerFunc
+	DeleteDef        http.HandlerFunc
+	SetLeadValues    http.HandlerFunc
+	GetLeadValues    http.HandlerFunc
+	SetContactValues http.HandlerFunc
+	GetContactValues http.HandlerFunc
+	SetDealValues    http.HandlerFunc
+	GetDealValues    http.HandlerFunc
+}
+
+// CustomAgentHandlers groups custom agent HTTP handlers.
+type CustomAgentHandlers struct {
+	Create   http.HandlerFunc
+	List     http.HandlerFunc
+	Get      http.HandlerFunc
+	Update   http.HandlerFunc
+	Delete   http.HandlerFunc
+	ListRuns http.HandlerFunc
 }
 
 // NewRouter wires HTTP routes.
@@ -458,6 +544,97 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Post("/", deps.ShortLinkHandlers.Create)
 				r.Get("/", deps.ShortLinkHandlers.List)
 			})
+
+			// CRM: Deal management
+			if deps.DealHandlers.Create != nil {
+				r.Route("/deals", func(r chi.Router) {
+					r.Post("/", deps.DealHandlers.Create)
+					r.Get("/", deps.DealHandlers.List)
+					r.Get("/{id}", deps.DealHandlers.Get)
+					r.Put("/{id}", deps.DealHandlers.Update)
+					r.Delete("/{id}", deps.DealHandlers.Delete)
+					r.Post("/{id}/move", deps.DealHandlers.Move)
+					r.Post("/{id}/won", deps.DealHandlers.MarkWon)
+					r.Post("/{id}/lost", deps.DealHandlers.MarkLost)
+				})
+			}
+
+			// CRM: Pipeline management
+			if deps.PipelineHandlers.Create != nil {
+				r.Route("/pipelines", func(r chi.Router) {
+					r.Post("/", deps.PipelineHandlers.Create)
+					r.Get("/", deps.PipelineHandlers.List)
+					r.Get("/{id}", deps.PipelineHandlers.Get)
+					r.Put("/{id}", deps.PipelineHandlers.Update)
+					r.Delete("/{id}", deps.PipelineHandlers.Delete)
+					r.Post("/{id}/stages", deps.PipelineHandlers.CreateStage)
+					r.Put("/{id}/stages/{stageId}", deps.PipelineHandlers.UpdateStage)
+					r.Delete("/{id}/stages/{stageId}", deps.PipelineHandlers.DeleteStage)
+				})
+			}
+
+			// CRM: Account management
+			if deps.AccountHandlers.Create != nil {
+				r.Route("/accounts", func(r chi.Router) {
+					r.Post("/", deps.AccountHandlers.Create)
+					r.Get("/", deps.AccountHandlers.List)
+					r.Get("/{id}", deps.AccountHandlers.Get)
+					r.Put("/{id}", deps.AccountHandlers.Update)
+					r.Delete("/{id}", deps.AccountHandlers.Delete)
+					r.Get("/{id}/contacts", deps.AccountHandlers.ListContacts)
+				})
+			}
+
+			// CRM: Activity timeline
+			if deps.ActivityHandlers.Log != nil {
+				r.Route("/activities", func(r chi.Router) {
+					r.Post("/", deps.ActivityHandlers.Log)
+					r.Get("/", deps.ActivityHandlers.GetTimeline)
+				})
+				r.Get("/leads/{id}/timeline", deps.ActivityHandlers.LeadTimeline)
+				r.Get("/contacts/{id}/timeline", deps.ActivityHandlers.ContactTimeline)
+				r.Get("/deals/{id}/timeline", deps.ActivityHandlers.DealTimeline)
+			}
+
+			// CRM: Task management
+			if deps.TaskHandlers.Create != nil {
+				r.Route("/tasks", func(r chi.Router) {
+					r.Post("/", deps.TaskHandlers.Create)
+					r.Get("/", deps.TaskHandlers.List)
+					r.Get("/{id}", deps.TaskHandlers.Get)
+					r.Put("/{id}", deps.TaskHandlers.Update)
+					r.Delete("/{id}", deps.TaskHandlers.Delete)
+					r.Post("/{id}/complete", deps.TaskHandlers.Complete)
+				})
+			}
+
+			// CRM: Custom fields
+			if deps.CustomFieldHandlers.CreateDef != nil {
+				r.Route("/custom-fields", func(r chi.Router) {
+					r.Post("/defs", deps.CustomFieldHandlers.CreateDef)
+					r.Get("/defs", deps.CustomFieldHandlers.ListDefs)
+					r.Put("/defs/{id}", deps.CustomFieldHandlers.UpdateDef)
+					r.Delete("/defs/{id}", deps.CustomFieldHandlers.DeleteDef)
+				})
+				r.Get("/leads/{id}/custom-fields", deps.CustomFieldHandlers.GetLeadValues)
+				r.Put("/leads/{id}/custom-fields", deps.CustomFieldHandlers.SetLeadValues)
+				r.Get("/contacts/{id}/custom-fields", deps.CustomFieldHandlers.GetContactValues)
+				r.Put("/contacts/{id}/custom-fields", deps.CustomFieldHandlers.SetContactValues)
+				r.Get("/deals/{id}/custom-fields", deps.CustomFieldHandlers.GetDealValues)
+				r.Put("/deals/{id}/custom-fields", deps.CustomFieldHandlers.SetDealValues)
+			}
+
+			// CRM: Custom agents
+			if deps.CustomAgentHandlers.Create != nil {
+				r.Route("/agents/custom", func(r chi.Router) {
+					r.Post("/", deps.CustomAgentHandlers.Create)
+					r.Get("/", deps.CustomAgentHandlers.List)
+					r.Get("/{id}", deps.CustomAgentHandlers.Get)
+					r.Put("/{id}", deps.CustomAgentHandlers.Update)
+					r.Delete("/{id}", deps.CustomAgentHandlers.Delete)
+					r.Get("/{id}/runs", deps.CustomAgentHandlers.ListRuns)
+				})
+			}
 
 			// Admin routes (platform owner only)
 			r.Route("/admin", func(r chi.Router) {

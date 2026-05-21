@@ -1,4 +1,4 @@
-h1:9KCOvTgBLiqCCpu1XYHNJ8LnaWpwkFqYyYfaCG0xENE=
+h1:tcZrFoPFsA+7S/Kha3KFHChINzqjNaiXa2aA0MeOFNc=
 20260409124338_initial_schema.sql h1:iNv9wYlWyj89NJ9fwXRtTK7/piL1QJoDgZ8I/Jez73Y=
 20260409172839_add_short_links.sql h1:5iB2/aEIkLcG9hJLXz6Q8LKgSy3XgdFs/FDeSEX9x+4=
 20260409183000_add_kb_embeddings.sql h1:j/jjGpiINXbc0CDLNDsb5R71JnmluZcewD0NdGFEZ5Q=
@@ -8,5 +8,6 @@ h1:9KCOvTgBLiqCCpu1XYHNJ8LnaWpwkFqYyYfaCG0xENE=
 20260416100409_add_audit_log.sql h1:7wWWafdDETxMALEs3pT4Mm1lwyKqvNcgy8MbYePwdno=
 20260416112236_add_kb_scope.sql h1:aPNTH6KjOl3ZsX/otQMSIYCM5RGwCib/FAAuntW52dQ=
 20260416112856_add_scope_shared_data.sql h1:u+5NOA72Oma2JkXj4MjkBcDfcMCi99H1IHpPpr36r0s=
-20260416210442_add_analytics_testimonials.sql h1:NTqDBUzw/r4TNOdY1kPrahu1Si9t4mZPUJBECQIKG1U=
-20260417213048_add_unique_constraints.sql h1:PC3i01fGD+f20GUTqY4MhUuzm1Tielsww3Toh/kBpQU=
+20260416210442_add_analytics_testimonials.sql h1:egBib6aIN4DpUGaQ3jfxR13K4DWearfRn+jBq+H4Mz8=
+20260417213048_add_unique_constraints.sql h1:6rpdOjg2mfz1XALIQ7IWaHyRnIQ1dwGKBj+52uB5ruQ=
+20260521103748_crm_entities.sql h1:XlWvpxa3e9ViNMEVOkg0WR96uwGsqzaAl9y5YpOwU3o=

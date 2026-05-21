@@ -8,10 +8,10 @@ cloud.google.com/go/compute/metadata v0.9.0 h1:pDUj4QMoPejqq20dK0Pg2N4yG9zIkYGdB
 cloud.google.com/go/compute/metadata v0.9.0/go.mod h1:E0bWwX5wTnLPedCKqk3pJmVgCBSM6qQI1yTBdEb3C10=
 entgo.io/ent v0.14.5 h1:Rj2WOYJtCkWyFo6a+5wB3EfBRP0rnx1fMk6gGA0UUe4=
 entgo.io/ent v0.14.5/go.mod h1:zTzLmWtPvGpmSwtkaayM2cm5m819NdM7z7tYPq3vN0U=
-github.com/Bengo-Hub/auth-client v0.6.0 h1:c2+v4nGGXCk9vGL0oJXIyvsXN1j2foDIe+8EbD06zaM=
-github.com/Bengo-Hub/auth-client v0.6.0/go.mod h1:DTfmZRTomkZRFm1YYKO8DmvwjLIchZnM7ZaFArIffsI=
-github.com/Bengo-Hub/httpware v0.4.0 h1:nOk2JYNMBWYfPnXPEhtec+dhZ6jxLKrRCFHyncbpo/A=
-github.com/Bengo-Hub/httpware v0.4.0/go.mod h1:iplyopAHMEyJL7lLlJoharGvb5uN04OcQEZjX85O8TU=
+github.com/Bengo-Hub/auth-client v0.6.1 h1:7yW9wbp70gcirFJlmVQe+b2GDEgFV2DdBqfL8+bAFxs=
+github.com/Bengo-Hub/auth-client v0.6.1/go.mod h1:DTfmZRTomkZRFm1YYKO8DmvwjLIchZnM7ZaFArIffsI=
+github.com/Bengo-Hub/httpware v0.4.1 h1:4I2C82lxJeRnETxJKxyMpFfsH1gk9r7ytLxiIwLVmaM=
+github.com/Bengo-Hub/httpware v0.4.1/go.mod h1:iplyopAHMEyJL7lLlJoharGvb5uN04OcQEZjX85O8TU=
 github.com/Bengo-Hub/shared-events v0.2.0 h1:boWYHnssTEmUg1c4qd7/YiMoo0ShBqrg4xyUwxwKFsY=
 github.com/Bengo-Hub/shared-events v0.2.0/go.mod h1:lUGlufCZcRz3pgkmEo552zOO5ove6s6ekf/SRvQ0/N0=
 github.com/DATA-DOG/go-sqlmock v1.5.0 h1:Shsta01QNfFxHCfpW6YH2STWB0MudeXXEWMr20OEh60=

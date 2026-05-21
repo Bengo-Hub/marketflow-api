@@ -9,6 +9,112 @@ import (
 )
 
 var (
+	// AccountsColumns holds the columns for the "accounts" table.
+	AccountsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "industry", Type: field.TypeString, Nullable: true},
+		{Name: "website", Type: field.TypeString, Nullable: true},
+		{Name: "phone", Type: field.TypeString, Nullable: true},
+		{Name: "address", Type: field.TypeJSON, Nullable: true},
+		{Name: "employee_count", Type: field.TypeInt, Nullable: true},
+		{Name: "annual_revenue", Type: field.TypeFloat64, Nullable: true},
+		{Name: "owner_user_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// AccountsTable holds the schema information for the "accounts" table.
+	AccountsTable = &schema.Table{
+		Name:       "accounts",
+		Columns:    AccountsColumns,
+		PrimaryKey: []*schema.Column{AccountsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "accounts_tenants_accounts",
+				Columns:    []*schema.Column{AccountsColumns[12]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "account_tenant_id_name",
+				Unique:  false,
+				Columns: []*schema.Column{AccountsColumns[12], AccountsColumns[1]},
+			},
+			{
+				Name:    "account_tenant_id_industry",
+				Unique:  false,
+				Columns: []*schema.Column{AccountsColumns[12], AccountsColumns[2]},
+			},
+			{
+				Name:    "account_owner_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{AccountsColumns[8]},
+			},
+		},
+	}
+	// ActivitiesColumns holds the columns for the "activities" table.
+	ActivitiesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "entity_type", Type: field.TypeString},
+		{Name: "entity_id", Type: field.TypeUUID},
+		{Name: "activity_type", Type: field.TypeString},
+		{Name: "direction", Type: field.TypeString, Nullable: true},
+		{Name: "subject", Type: field.TypeString, Nullable: true},
+		{Name: "body", Type: field.TypeString, Nullable: true},
+		{Name: "outcome", Type: field.TypeString, Nullable: true},
+		{Name: "duration_minutes", Type: field.TypeInt, Nullable: true},
+		{Name: "performed_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "source", Type: field.TypeString, Nullable: true},
+		{Name: "external_ref", Type: field.TypeString, Nullable: true},
+		{Name: "performed_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// ActivitiesTable holds the schema information for the "activities" table.
+	ActivitiesTable = &schema.Table{
+		Name:       "activities",
+		Columns:    ActivitiesColumns,
+		PrimaryKey: []*schema.Column{ActivitiesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "activities_tenants_activities",
+				Columns:    []*schema.Column{ActivitiesColumns[14]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "activity_tenant_id_entity_type_entity_id",
+				Unique:  false,
+				Columns: []*schema.Column{ActivitiesColumns[14], ActivitiesColumns[1], ActivitiesColumns[2]},
+			},
+			{
+				Name:    "activity_tenant_id_entity_type_entity_id_performed_at",
+				Unique:  false,
+				Columns: []*schema.Column{ActivitiesColumns[14], ActivitiesColumns[1], ActivitiesColumns[2], ActivitiesColumns[12]},
+			},
+			{
+				Name:    "activity_tenant_id_activity_type",
+				Unique:  false,
+				Columns: []*schema.Column{ActivitiesColumns[14], ActivitiesColumns[3]},
+			},
+			{
+				Name:    "activity_external_ref",
+				Unique:  false,
+				Columns: []*schema.Column{ActivitiesColumns[11]},
+			},
+			{
+				Name:    "activity_performed_at",
+				Unique:  false,
+				Columns: []*schema.Column{ActivitiesColumns[12]},
+			},
+		},
+	}
 	// AdMetricsColumns holds the columns for the "ad_metrics" table.
 	AdMetricsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -66,6 +172,58 @@ var (
 			},
 		},
 	}
+	// AgentRunsColumns holds the columns for the "agent_runs" table.
+	AgentRunsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "triggered_by", Type: field.TypeString},
+		{Name: "trigger_payload", Type: field.TypeJSON, Nullable: true},
+		{Name: "status", Type: field.TypeString, Default: "running"},
+		{Name: "trace", Type: field.TypeJSON, Nullable: true},
+		{Name: "total_tokens", Type: field.TypeInt, Default: 0},
+		{Name: "tool_calls_n", Type: field.TypeInt, Default: 0},
+		{Name: "started_at", Type: field.TypeTime},
+		{Name: "finished_at", Type: field.TypeTime, Nullable: true},
+		{Name: "error_message", Type: field.TypeString, Nullable: true},
+		{Name: "custom_agent_id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// AgentRunsTable holds the schema information for the "agent_runs" table.
+	AgentRunsTable = &schema.Table{
+		Name:       "agent_runs",
+		Columns:    AgentRunsColumns,
+		PrimaryKey: []*schema.Column{AgentRunsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "agent_runs_custom_agents_runs",
+				Columns:    []*schema.Column{AgentRunsColumns[10]},
+				RefColumns: []*schema.Column{CustomAgentsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "agent_runs_tenants_agent_runs",
+				Columns:    []*schema.Column{AgentRunsColumns[11]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "agentrun_tenant_id_custom_agent_id",
+				Unique:  false,
+				Columns: []*schema.Column{AgentRunsColumns[11], AgentRunsColumns[10]},
+			},
+			{
+				Name:    "agentrun_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{AgentRunsColumns[11], AgentRunsColumns[3]},
+			},
+			{
+				Name:    "agentrun_started_at",
+				Unique:  false,
+				Columns: []*schema.Column{AgentRunsColumns[7]},
+			},
+		},
+	}
 	// AuditLogsColumns holds the columns for the "audit_logs" table.
 	AuditLogsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -99,6 +257,45 @@ var (
 				Name:    "auditlog_occurred_at",
 				Unique:  false,
 				Columns: []*schema.Column{AuditLogsColumns[8]},
+			},
+		},
+	}
+	// BehavioralTriggersColumns holds the columns for the "behavioral_triggers" table.
+	BehavioralTriggersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString, Size: 128},
+		{Name: "event_type", Type: field.TypeString},
+		{Name: "conditions", Type: field.TypeJSON, Nullable: true},
+		{Name: "action", Type: field.TypeJSON},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "fire_count", Type: field.TypeInt, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// BehavioralTriggersTable holds the schema information for the "behavioral_triggers" table.
+	BehavioralTriggersTable = &schema.Table{
+		Name:       "behavioral_triggers",
+		Columns:    BehavioralTriggersColumns,
+		PrimaryKey: []*schema.Column{BehavioralTriggersColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "behavioral_triggers_tenants_behavioral_triggers",
+				Columns:    []*schema.Column{BehavioralTriggersColumns[9]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "behavioraltrigger_tenant_id_event_type_is_active",
+				Unique:  false,
+				Columns: []*schema.Column{BehavioralTriggersColumns[9], BehavioralTriggersColumns[2], BehavioralTriggersColumns[5]},
+			},
+			{
+				Name:    "behavioraltrigger_tenant_id_is_active",
+				Unique:  false,
+				Columns: []*schema.Column{BehavioralTriggersColumns[9], BehavioralTriggersColumns[5]},
 			},
 		},
 	}
@@ -240,12 +437,16 @@ var (
 		{Name: "total_cc", Type: field.TypeFloat64, Default: 0},
 		{Name: "total_orders", Type: field.TypeInt, Default: 0},
 		{Name: "last_order_at", Type: field.TypeTime, Nullable: true},
+		{Name: "owner_user_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "lifecycle_stage", Type: field.TypeString, Default: "lead"},
+		{Name: "enrichment_data", Type: field.TypeJSON, Nullable: true},
 		{Name: "product_interests", Type: field.TypeJSON, Nullable: true},
 		{Name: "subscribed_email", Type: field.TypeBool, Default: true},
 		{Name: "subscribed_sms", Type: field.TypeBool, Default: true},
 		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "account_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "tenant_id", Type: field.TypeUUID},
 	}
 	// ContactsTable holds the schema information for the "contacts" table.
@@ -255,8 +456,14 @@ var (
 		PrimaryKey: []*schema.Column{ContactsColumns[0]},
 		ForeignKeys: []*schema.ForeignKey{
 			{
+				Symbol:     "contacts_accounts_contacts",
+				Columns:    []*schema.Column{ContactsColumns[20]},
+				RefColumns: []*schema.Column{AccountsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
 				Symbol:     "contacts_tenants_contacts",
-				Columns:    []*schema.Column{ContactsColumns[17]},
+				Columns:    []*schema.Column{ContactsColumns[21]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -265,22 +472,265 @@ var (
 			{
 				Name:    "contact_tenant_id_email",
 				Unique:  false,
-				Columns: []*schema.Column{ContactsColumns[17], ContactsColumns[1]},
+				Columns: []*schema.Column{ContactsColumns[21], ContactsColumns[1]},
 			},
 			{
 				Name:    "contact_tenant_id_phone",
 				Unique:  false,
-				Columns: []*schema.Column{ContactsColumns[17], ContactsColumns[2]},
+				Columns: []*schema.Column{ContactsColumns[21], ContactsColumns[2]},
 			},
 			{
 				Name:    "contact_tenant_id_contact_type",
 				Unique:  false,
-				Columns: []*schema.Column{ContactsColumns[17], ContactsColumns[5]},
+				Columns: []*schema.Column{ContactsColumns[21], ContactsColumns[5]},
 			},
 			{
 				Name:    "contact_tenant_id_last_order_at",
 				Unique:  false,
-				Columns: []*schema.Column{ContactsColumns[17], ContactsColumns[10]},
+				Columns: []*schema.Column{ContactsColumns[21], ContactsColumns[10]},
+			},
+			{
+				Name:    "contact_tenant_id_lifecycle_stage",
+				Unique:  false,
+				Columns: []*schema.Column{ContactsColumns[21], ContactsColumns[12]},
+			},
+			{
+				Name:    "contact_tenant_id_owner_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{ContactsColumns[21], ContactsColumns[11]},
+			},
+			{
+				Name:    "contact_account_id",
+				Unique:  false,
+				Columns: []*schema.Column{ContactsColumns[20]},
+			},
+		},
+	}
+	// CustomAgentsColumns holds the columns for the "custom_agents" table.
+	CustomAgentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString, Size: 128},
+		{Name: "description", Type: field.TypeString, Nullable: true},
+		{Name: "trigger_type", Type: field.TypeString, Default: "manual"},
+		{Name: "trigger_config", Type: field.TypeJSON, Nullable: true},
+		{Name: "system_prompt", Type: field.TypeString, Nullable: true},
+		{Name: "allowed_tools", Type: field.TypeJSON, Nullable: true},
+		{Name: "max_iterations", Type: field.TypeInt, Default: 5},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "run_count", Type: field.TypeInt, Default: 0},
+		{Name: "last_run_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// CustomAgentsTable holds the schema information for the "custom_agents" table.
+	CustomAgentsTable = &schema.Table{
+		Name:       "custom_agents",
+		Columns:    CustomAgentsColumns,
+		PrimaryKey: []*schema.Column{CustomAgentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "custom_agents_tenants_custom_agents",
+				Columns:    []*schema.Column{CustomAgentsColumns[13]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "customagent_tenant_id_is_active",
+				Unique:  false,
+				Columns: []*schema.Column{CustomAgentsColumns[13], CustomAgentsColumns[8]},
+			},
+			{
+				Name:    "customagent_tenant_id_trigger_type",
+				Unique:  false,
+				Columns: []*schema.Column{CustomAgentsColumns[13], CustomAgentsColumns[3]},
+			},
+		},
+	}
+	// CustomFieldDefsColumns holds the columns for the "custom_field_defs" table.
+	CustomFieldDefsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "entity_type", Type: field.TypeString},
+		{Name: "field_key", Type: field.TypeString, Size: 64},
+		{Name: "field_label", Type: field.TypeString, Size: 128},
+		{Name: "field_type", Type: field.TypeString, Default: "text"},
+		{Name: "options", Type: field.TypeJSON, Nullable: true},
+		{Name: "is_required", Type: field.TypeBool, Default: false},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// CustomFieldDefsTable holds the schema information for the "custom_field_defs" table.
+	CustomFieldDefsTable = &schema.Table{
+		Name:       "custom_field_defs",
+		Columns:    CustomFieldDefsColumns,
+		PrimaryKey: []*schema.Column{CustomFieldDefsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "custom_field_defs_tenants_custom_field_defs",
+				Columns:    []*schema.Column{CustomFieldDefsColumns[10]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "customfielddef_tenant_id_entity_type_field_key",
+				Unique:  true,
+				Columns: []*schema.Column{CustomFieldDefsColumns[10], CustomFieldDefsColumns[1], CustomFieldDefsColumns[2]},
+			},
+			{
+				Name:    "customfielddef_tenant_id_entity_type",
+				Unique:  false,
+				Columns: []*schema.Column{CustomFieldDefsColumns[10], CustomFieldDefsColumns[1]},
+			},
+		},
+	}
+	// CustomFieldValuesColumns holds the columns for the "custom_field_values" table.
+	CustomFieldValuesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "entity_type", Type: field.TypeString},
+		{Name: "entity_id", Type: field.TypeUUID},
+		{Name: "value", Type: field.TypeString, Nullable: true},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "field_def_id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// CustomFieldValuesTable holds the schema information for the "custom_field_values" table.
+	CustomFieldValuesTable = &schema.Table{
+		Name:       "custom_field_values",
+		Columns:    CustomFieldValuesColumns,
+		PrimaryKey: []*schema.Column{CustomFieldValuesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "custom_field_values_custom_field_defs_values",
+				Columns:    []*schema.Column{CustomFieldValuesColumns[5]},
+				RefColumns: []*schema.Column{CustomFieldDefsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "custom_field_values_tenants_custom_field_values",
+				Columns:    []*schema.Column{CustomFieldValuesColumns[6]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "customfieldvalue_entity_type_entity_id_field_def_id",
+				Unique:  true,
+				Columns: []*schema.Column{CustomFieldValuesColumns[1], CustomFieldValuesColumns[2], CustomFieldValuesColumns[5]},
+			},
+			{
+				Name:    "customfieldvalue_tenant_id_entity_type_entity_id",
+				Unique:  false,
+				Columns: []*schema.Column{CustomFieldValuesColumns[6], CustomFieldValuesColumns[1], CustomFieldValuesColumns[2]},
+			},
+			{
+				Name:    "customfieldvalue_field_def_id",
+				Unique:  false,
+				Columns: []*schema.Column{CustomFieldValuesColumns[5]},
+			},
+		},
+	}
+	// DealsColumns holds the columns for the "deals" table.
+	DealsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "title", Type: field.TypeString},
+		{Name: "lead_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "value", Type: field.TypeFloat64, Nullable: true},
+		{Name: "currency", Type: field.TypeString, Default: "USD"},
+		{Name: "probability", Type: field.TypeFloat64, Nullable: true},
+		{Name: "expected_close_date", Type: field.TypeTime, Nullable: true},
+		{Name: "status", Type: field.TypeString, Default: "open"},
+		{Name: "lost_reason", Type: field.TypeString, Nullable: true},
+		{Name: "owner_user_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
+		{Name: "won_at", Type: field.TypeTime, Nullable: true},
+		{Name: "lost_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "account_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "contact_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "pipeline_id", Type: field.TypeUUID},
+		{Name: "stage_id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// DealsTable holds the schema information for the "deals" table.
+	DealsTable = &schema.Table{
+		Name:       "deals",
+		Columns:    DealsColumns,
+		PrimaryKey: []*schema.Column{DealsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "deals_accounts_deals",
+				Columns:    []*schema.Column{DealsColumns[15]},
+				RefColumns: []*schema.Column{AccountsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "deals_contacts_deals",
+				Columns:    []*schema.Column{DealsColumns[16]},
+				RefColumns: []*schema.Column{ContactsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "deals_pipelines_deals",
+				Columns:    []*schema.Column{DealsColumns[17]},
+				RefColumns: []*schema.Column{PipelinesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "deals_pipeline_stages_deals",
+				Columns:    []*schema.Column{DealsColumns[18]},
+				RefColumns: []*schema.Column{PipelineStagesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "deals_tenants_deals",
+				Columns:    []*schema.Column{DealsColumns[19]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "deal_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{DealsColumns[19], DealsColumns[7]},
+			},
+			{
+				Name:    "deal_tenant_id_contact_id",
+				Unique:  false,
+				Columns: []*schema.Column{DealsColumns[19], DealsColumns[16]},
+			},
+			{
+				Name:    "deal_tenant_id_pipeline_id",
+				Unique:  false,
+				Columns: []*schema.Column{DealsColumns[19], DealsColumns[17]},
+			},
+			{
+				Name:    "deal_tenant_id_stage_id",
+				Unique:  false,
+				Columns: []*schema.Column{DealsColumns[19], DealsColumns[18]},
+			},
+			{
+				Name:    "deal_tenant_id_owner_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{DealsColumns[19], DealsColumns[9]},
+			},
+			{
+				Name:    "deal_tenant_id_expected_close_date",
+				Unique:  false,
+				Columns: []*schema.Column{DealsColumns[19], DealsColumns[6]},
+			},
+			{
+				Name:    "deal_tenant_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{DealsColumns[19], DealsColumns[13]},
 			},
 		},
 	}
@@ -405,6 +855,9 @@ var (
 		{Name: "score", Type: field.TypeInt, Default: 0},
 		{Name: "interest", Type: field.TypeString, Nullable: true},
 		{Name: "qualification_answers", Type: field.TypeJSON, Nullable: true},
+		{Name: "owner_user_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "ai_score_breakdown", Type: field.TypeJSON, Nullable: true},
+		{Name: "enrichment_data", Type: field.TypeJSON, Nullable: true},
 		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
 		{Name: "contacted_at", Type: field.TypeTime, Nullable: true},
 		{Name: "qualified_at", Type: field.TypeTime, Nullable: true},
@@ -423,19 +876,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "leads_campaigns_leads",
-				Columns:    []*schema.Column{LeadsColumns[20]},
+				Columns:    []*schema.Column{LeadsColumns[23]},
 				RefColumns: []*schema.Column{CampaignsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "leads_funnels_leads",
-				Columns:    []*schema.Column{LeadsColumns[21]},
+				Columns:    []*schema.Column{LeadsColumns[24]},
 				RefColumns: []*schema.Column{FunnelsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "leads_tenants_leads",
-				Columns:    []*schema.Column{LeadsColumns[22]},
+				Columns:    []*schema.Column{LeadsColumns[25]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -444,32 +897,71 @@ var (
 			{
 				Name:    "lead_tenant_id_email",
 				Unique:  false,
-				Columns: []*schema.Column{LeadsColumns[22], LeadsColumns[1]},
+				Columns: []*schema.Column{LeadsColumns[25], LeadsColumns[1]},
 			},
 			{
 				Name:    "lead_tenant_id_phone",
 				Unique:  false,
-				Columns: []*schema.Column{LeadsColumns[22], LeadsColumns[2]},
+				Columns: []*schema.Column{LeadsColumns[25], LeadsColumns[2]},
 			},
 			{
 				Name:    "lead_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{LeadsColumns[22], LeadsColumns[9]},
+				Columns: []*schema.Column{LeadsColumns[25], LeadsColumns[9]},
 			},
 			{
 				Name:    "lead_tenant_id_source",
 				Unique:  false,
-				Columns: []*schema.Column{LeadsColumns[22], LeadsColumns[5]},
+				Columns: []*schema.Column{LeadsColumns[25], LeadsColumns[5]},
 			},
 			{
 				Name:    "lead_tenant_id_lead_type",
 				Unique:  false,
-				Columns: []*schema.Column{LeadsColumns[22], LeadsColumns[10]},
+				Columns: []*schema.Column{LeadsColumns[25], LeadsColumns[10]},
 			},
 			{
 				Name:    "lead_tenant_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{LeadsColumns[22], LeadsColumns[18]},
+				Columns: []*schema.Column{LeadsColumns[25], LeadsColumns[21]},
+			},
+		},
+	}
+	// LeadScoringRulesColumns holds the columns for the "lead_scoring_rules" table.
+	LeadScoringRulesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString, Size: 128},
+		{Name: "conditions", Type: field.TypeJSON},
+		{Name: "score_delta", Type: field.TypeInt},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+		{Name: "apply_mode", Type: field.TypeString, Default: "cumulative"},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// LeadScoringRulesTable holds the schema information for the "lead_scoring_rules" table.
+	LeadScoringRulesTable = &schema.Table{
+		Name:       "lead_scoring_rules",
+		Columns:    LeadScoringRulesColumns,
+		PrimaryKey: []*schema.Column{LeadScoringRulesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "lead_scoring_rules_tenants_lead_scoring_rules",
+				Columns:    []*schema.Column{LeadScoringRulesColumns[9]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "leadscoringrule_tenant_id_is_active",
+				Unique:  false,
+				Columns: []*schema.Column{LeadScoringRulesColumns[9], LeadScoringRulesColumns[4]},
+			},
+			{
+				Name:    "leadscoringrule_tenant_id_sort_order",
+				Unique:  false,
+				Columns: []*schema.Column{LeadScoringRulesColumns[9], LeadScoringRulesColumns[5]},
 			},
 		},
 	}
@@ -766,6 +1258,81 @@ var (
 			},
 		},
 	}
+	// PipelinesColumns holds the columns for the "pipelines" table.
+	PipelinesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "is_default", Type: field.TypeBool, Default: false},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// PipelinesTable holds the schema information for the "pipelines" table.
+	PipelinesTable = &schema.Table{
+		Name:       "pipelines",
+		Columns:    PipelinesColumns,
+		PrimaryKey: []*schema.Column{PipelinesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "pipelines_tenants_pipelines",
+				Columns:    []*schema.Column{PipelinesColumns[5]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "pipeline_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{PipelinesColumns[5]},
+			},
+			{
+				Name:    "pipeline_tenant_id_is_default",
+				Unique:  false,
+				Columns: []*schema.Column{PipelinesColumns[5], PipelinesColumns[2]},
+			},
+		},
+	}
+	// PipelineStagesColumns holds the columns for the "pipeline_stages" table.
+	PipelineStagesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "stage_order", Type: field.TypeInt, Default: 0},
+		{Name: "win_probability", Type: field.TypeFloat64, Default: 0},
+		{Name: "is_won_stage", Type: field.TypeBool, Default: false},
+		{Name: "is_lost_stage", Type: field.TypeBool, Default: false},
+		{Name: "color", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "pipeline_id", Type: field.TypeUUID},
+	}
+	// PipelineStagesTable holds the schema information for the "pipeline_stages" table.
+	PipelineStagesTable = &schema.Table{
+		Name:       "pipeline_stages",
+		Columns:    PipelineStagesColumns,
+		PrimaryKey: []*schema.Column{PipelineStagesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "pipeline_stages_pipelines_stages",
+				Columns:    []*schema.Column{PipelineStagesColumns[10]},
+				RefColumns: []*schema.Column{PipelinesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "pipelinestage_pipeline_id_stage_order",
+				Unique:  false,
+				Columns: []*schema.Column{PipelineStagesColumns[10], PipelineStagesColumns[3]},
+			},
+			{
+				Name:    "pipelinestage_tenant_id",
+				Unique:  false,
+				Columns: []*schema.Column{PipelineStagesColumns[1]},
+			},
+		},
+	}
 	// ProfileEventsColumns holds the columns for the "profile_events" table.
 	ProfileEventsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -959,6 +1526,45 @@ var (
 			},
 		},
 	}
+	// SegmentsColumns holds the columns for the "segments" table.
+	SegmentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString, Size: 128},
+		{Name: "entity_type", Type: field.TypeString, Default: "contact"},
+		{Name: "filter_rules", Type: field.TypeJSON},
+		{Name: "is_dynamic", Type: field.TypeBool, Default: true},
+		{Name: "member_count", Type: field.TypeInt, Default: 0},
+		{Name: "last_calculated_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// SegmentsTable holds the schema information for the "segments" table.
+	SegmentsTable = &schema.Table{
+		Name:       "segments",
+		Columns:    SegmentsColumns,
+		PrimaryKey: []*schema.Column{SegmentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "segments_tenants_segments",
+				Columns:    []*schema.Column{SegmentsColumns[9]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "segment_tenant_id_entity_type",
+				Unique:  false,
+				Columns: []*schema.Column{SegmentsColumns[9], SegmentsColumns[2]},
+			},
+			{
+				Name:    "segment_tenant_id_is_dynamic",
+				Unique:  false,
+				Columns: []*schema.Column{SegmentsColumns[9], SegmentsColumns[4]},
+			},
+		},
+	}
 	// ServiceConfigsColumns holds the columns for the "service_configs" table.
 	ServiceConfigsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -1029,6 +1635,64 @@ var (
 				Name:    "shortlink_tenant_id_created_at",
 				Unique:  false,
 				Columns: []*schema.Column{ShortLinksColumns[1], ShortLinksColumns[11]},
+			},
+		},
+	}
+	// TasksColumns holds the columns for the "tasks" table.
+	TasksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "entity_type", Type: field.TypeString},
+		{Name: "entity_id", Type: field.TypeUUID},
+		{Name: "title", Type: field.TypeString, Size: 255},
+		{Name: "description", Type: field.TypeString, Nullable: true},
+		{Name: "due_at", Type: field.TypeTime, Nullable: true},
+		{Name: "priority", Type: field.TypeString, Default: "normal"},
+		{Name: "status", Type: field.TypeString, Default: "open"},
+		{Name: "assigned_to_user_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "completed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// TasksTable holds the schema information for the "tasks" table.
+	TasksTable = &schema.Table{
+		Name:       "tasks",
+		Columns:    TasksColumns,
+		PrimaryKey: []*schema.Column{TasksColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "tasks_tenants_tasks",
+				Columns:    []*schema.Column{TasksColumns[13]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "task_tenant_id_entity_type_entity_id",
+				Unique:  false,
+				Columns: []*schema.Column{TasksColumns[13], TasksColumns[1], TasksColumns[2]},
+			},
+			{
+				Name:    "task_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{TasksColumns[13], TasksColumns[7]},
+			},
+			{
+				Name:    "task_tenant_id_due_at",
+				Unique:  false,
+				Columns: []*schema.Column{TasksColumns[13], TasksColumns[5]},
+			},
+			{
+				Name:    "task_tenant_id_assigned_to_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{TasksColumns[13], TasksColumns[8]},
+			},
+			{
+				Name:    "task_tenant_id_status_due_at",
+				Unique:  false,
+				Columns: []*schema.Column{TasksColumns[13], TasksColumns[7], TasksColumns[5]},
 			},
 		},
 	}
@@ -1200,14 +1864,23 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AccountsTable,
+		ActivitiesTable,
 		AdMetricsTable,
+		AgentRunsTable,
 		AuditLogsTable,
+		BehavioralTriggersTable,
 		CampaignsTable,
 		ChatSessionsTable,
 		ContactsTable,
+		CustomAgentsTable,
+		CustomFieldDefsTable,
+		CustomFieldValuesTable,
+		DealsTable,
 		FunnelsTable,
 		KnowledgeBaseEntriesTable,
 		LeadsTable,
+		LeadScoringRulesTable,
 		MarketflowPermissionsTable,
 		MarketflowRolesTable,
 		MarketflowUsersTable,
@@ -1215,12 +1888,16 @@ var (
 		NurtureEnrollmentsTable,
 		NurtureSequencesTable,
 		OutboxEventsTable,
+		PipelinesTable,
+		PipelineStagesTable,
 		ProfileEventsTable,
 		ProviderSettingsTable,
 		RolePermissionsTable,
 		ScheduledMeetingsTable,
+		SegmentsTable,
 		ServiceConfigsTable,
 		ShortLinksTable,
+		TasksTable,
 		TenantsTable,
 		TestimonialsTable,
 		UserRoleAssignmentsTable,
@@ -1228,27 +1905,47 @@ var (
 )
 
 func init() {
+	AccountsTable.ForeignKeys[0].RefTable = TenantsTable
+	ActivitiesTable.ForeignKeys[0].RefTable = TenantsTable
 	AdMetricsTable.ForeignKeys[0].RefTable = CampaignsTable
 	AdMetricsTable.ForeignKeys[1].RefTable = TenantsTable
+	AgentRunsTable.ForeignKeys[0].RefTable = CustomAgentsTable
+	AgentRunsTable.ForeignKeys[1].RefTable = TenantsTable
+	BehavioralTriggersTable.ForeignKeys[0].RefTable = TenantsTable
 	CampaignsTable.ForeignKeys[0].RefTable = TenantsTable
 	ChatSessionsTable.ForeignKeys[0].RefTable = ContactsTable
 	ChatSessionsTable.ForeignKeys[1].RefTable = LeadsTable
 	ChatSessionsTable.ForeignKeys[2].RefTable = TenantsTable
-	ContactsTable.ForeignKeys[0].RefTable = TenantsTable
+	ContactsTable.ForeignKeys[0].RefTable = AccountsTable
+	ContactsTable.ForeignKeys[1].RefTable = TenantsTable
+	CustomAgentsTable.ForeignKeys[0].RefTable = TenantsTable
+	CustomFieldDefsTable.ForeignKeys[0].RefTable = TenantsTable
+	CustomFieldValuesTable.ForeignKeys[0].RefTable = CustomFieldDefsTable
+	CustomFieldValuesTable.ForeignKeys[1].RefTable = TenantsTable
+	DealsTable.ForeignKeys[0].RefTable = AccountsTable
+	DealsTable.ForeignKeys[1].RefTable = ContactsTable
+	DealsTable.ForeignKeys[2].RefTable = PipelinesTable
+	DealsTable.ForeignKeys[3].RefTable = PipelineStagesTable
+	DealsTable.ForeignKeys[4].RefTable = TenantsTable
 	FunnelsTable.ForeignKeys[0].RefTable = TenantsTable
 	KnowledgeBaseEntriesTable.ForeignKeys[0].RefTable = TenantsTable
 	LeadsTable.ForeignKeys[0].RefTable = CampaignsTable
 	LeadsTable.ForeignKeys[1].RefTable = FunnelsTable
 	LeadsTable.ForeignKeys[2].RefTable = TenantsTable
+	LeadScoringRulesTable.ForeignKeys[0].RefTable = TenantsTable
 	NurtureDeliveryEventsTable.ForeignKeys[0].RefTable = NurtureEnrollmentsTable
 	NurtureDeliveryEventsTable.ForeignKeys[1].RefTable = TenantsTable
 	NurtureEnrollmentsTable.ForeignKeys[0].RefTable = TenantsTable
 	NurtureSequencesTable.ForeignKeys[0].RefTable = TenantsTable
+	PipelinesTable.ForeignKeys[0].RefTable = TenantsTable
+	PipelineStagesTable.ForeignKeys[0].RefTable = PipelinesTable
 	ProfileEventsTable.ForeignKeys[0].RefTable = TenantsTable
 	RolePermissionsTable.ForeignKeys[0].RefTable = MarketflowRolesTable
 	RolePermissionsTable.ForeignKeys[1].RefTable = MarketflowPermissionsTable
 	ScheduledMeetingsTable.ForeignKeys[0].RefTable = ContactsTable
 	ScheduledMeetingsTable.ForeignKeys[1].RefTable = LeadsTable
+	SegmentsTable.ForeignKeys[0].RefTable = TenantsTable
+	TasksTable.ForeignKeys[0].RefTable = TenantsTable
 	TestimonialsTable.ForeignKeys[0].RefTable = TenantsTable
 	UserRoleAssignmentsTable.ForeignKeys[0].RefTable = MarketflowRolesTable
 	UserRoleAssignmentsTable.ForeignKeys[1].RefTable = MarketflowUsersTable

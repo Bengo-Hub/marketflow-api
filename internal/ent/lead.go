@@ -54,6 +54,12 @@ type Lead struct {
 	Interest *string `json:"interest,omitempty"`
 	// Answers from funnel qualification steps
 	QualificationAnswers map[string]interface{} `json:"qualification_answers,omitempty"`
+	// Assigned owner user_id from auth-service
+	OwnerUserID *uuid.UUID `json:"owner_user_id,omitempty"`
+	// Scoring rule breakdown: [{rule_name, delta, matched}]
+	AiScoreBreakdown map[string]interface{} `json:"ai_score_breakdown,omitempty"`
+	// AI-enriched data from ContactEnricherAgent
+	EnrichmentData map[string]interface{} `json:"enrichment_data,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// ContactedAt holds the value of the "contacted_at" field.
@@ -145,9 +151,9 @@ func (*Lead) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case lead.FieldCampaignID, lead.FieldFunnelID:
+		case lead.FieldCampaignID, lead.FieldFunnelID, lead.FieldOwnerUserID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
-		case lead.FieldQualificationAnswers, lead.FieldMetadata:
+		case lead.FieldQualificationAnswers, lead.FieldAiScoreBreakdown, lead.FieldEnrichmentData, lead.FieldMetadata:
 			values[i] = new([]byte)
 		case lead.FieldScore:
 			values[i] = new(sql.NullInt64)
@@ -284,6 +290,29 @@ func (_m *Lead) assignValues(columns []string, values []any) error {
 			} else if value != nil && len(*value) > 0 {
 				if err := json.Unmarshal(*value, &_m.QualificationAnswers); err != nil {
 					return fmt.Errorf("unmarshal field qualification_answers: %w", err)
+				}
+			}
+		case lead.FieldOwnerUserID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field owner_user_id", values[i])
+			} else if value.Valid {
+				_m.OwnerUserID = new(uuid.UUID)
+				*_m.OwnerUserID = *value.S.(*uuid.UUID)
+			}
+		case lead.FieldAiScoreBreakdown:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field ai_score_breakdown", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.AiScoreBreakdown); err != nil {
+					return fmt.Errorf("unmarshal field ai_score_breakdown: %w", err)
+				}
+			}
+		case lead.FieldEnrichmentData:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field enrichment_data", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.EnrichmentData); err != nil {
+					return fmt.Errorf("unmarshal field enrichment_data: %w", err)
 				}
 			}
 		case lead.FieldMetadata:
@@ -455,6 +484,17 @@ func (_m *Lead) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("qualification_answers=")
 	builder.WriteString(fmt.Sprintf("%v", _m.QualificationAnswers))
+	builder.WriteString(", ")
+	if v := _m.OwnerUserID; v != nil {
+		builder.WriteString("owner_user_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("ai_score_breakdown=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AiScoreBreakdown))
+	builder.WriteString(", ")
+	builder.WriteString("enrichment_data=")
+	builder.WriteString(fmt.Sprintf("%v", _m.EnrichmentData))
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))

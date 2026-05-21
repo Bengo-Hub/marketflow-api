@@ -133,6 +133,19 @@ func (Tenant) Edges() []ent.Edge {
 		edge.To("profile_events", ProfileEvent.Type),
 		edge.To("nurture_delivery_events", NurtureDeliveryEvent.Type),
 		edge.To("ad_metrics", AdMetrics.Type),
+		// Sprint 9 CRM entities
+		edge.To("accounts", Account.Type),
+		edge.To("pipelines", Pipeline.Type),
+		edge.To("deals", Deal.Type),
+		edge.To("activities", Activity.Type),
+		edge.To("tasks", Task.Type),
+		edge.To("custom_field_defs", CustomFieldDef.Type),
+		edge.To("custom_field_values", CustomFieldValue.Type),
+		edge.To("lead_scoring_rules", LeadScoringRule.Type),
+		edge.To("custom_agents", CustomAgent.Type),
+		edge.To("agent_runs", AgentRun.Type),
+		edge.To("segments", Segment.Type),
+		edge.To("behavioral_triggers", BehavioralTrigger.Type),
 	}
 }
 

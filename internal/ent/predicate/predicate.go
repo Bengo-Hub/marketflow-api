@@ -6,11 +6,23 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// Account is the predicate function for account builders.
+type Account func(*sql.Selector)
+
+// Activity is the predicate function for activity builders.
+type Activity func(*sql.Selector)
+
 // AdMetrics is the predicate function for admetrics builders.
 type AdMetrics func(*sql.Selector)
 
+// AgentRun is the predicate function for agentrun builders.
+type AgentRun func(*sql.Selector)
+
 // AuditLog is the predicate function for auditlog builders.
 type AuditLog func(*sql.Selector)
+
+// BehavioralTrigger is the predicate function for behavioraltrigger builders.
+type BehavioralTrigger func(*sql.Selector)
 
 // Campaign is the predicate function for campaign builders.
 type Campaign func(*sql.Selector)
@@ -21,6 +33,18 @@ type ChatSession func(*sql.Selector)
 // Contact is the predicate function for contact builders.
 type Contact func(*sql.Selector)
 
+// CustomAgent is the predicate function for customagent builders.
+type CustomAgent func(*sql.Selector)
+
+// CustomFieldDef is the predicate function for customfielddef builders.
+type CustomFieldDef func(*sql.Selector)
+
+// CustomFieldValue is the predicate function for customfieldvalue builders.
+type CustomFieldValue func(*sql.Selector)
+
+// Deal is the predicate function for deal builders.
+type Deal func(*sql.Selector)
+
 // Funnel is the predicate function for funnel builders.
 type Funnel func(*sql.Selector)
 
@@ -29,6 +53,9 @@ type KnowledgeBaseEntry func(*sql.Selector)
 
 // Lead is the predicate function for lead builders.
 type Lead func(*sql.Selector)
+
+// LeadScoringRule is the predicate function for leadscoringrule builders.
+type LeadScoringRule func(*sql.Selector)
 
 // MarketflowPermission is the predicate function for marketflowpermission builders.
 type MarketflowPermission func(*sql.Selector)
@@ -51,6 +78,12 @@ type NurtureSequence func(*sql.Selector)
 // OutboxEvent is the predicate function for outboxevent builders.
 type OutboxEvent func(*sql.Selector)
 
+// Pipeline is the predicate function for pipeline builders.
+type Pipeline func(*sql.Selector)
+
+// PipelineStage is the predicate function for pipelinestage builders.
+type PipelineStage func(*sql.Selector)
+
 // ProfileEvent is the predicate function for profileevent builders.
 type ProfileEvent func(*sql.Selector)
 
@@ -63,11 +96,17 @@ type RolePermission func(*sql.Selector)
 // ScheduledMeeting is the predicate function for scheduledmeeting builders.
 type ScheduledMeeting func(*sql.Selector)
 
+// Segment is the predicate function for segment builders.
+type Segment func(*sql.Selector)
+
 // ServiceConfig is the predicate function for serviceconfig builders.
 type ServiceConfig func(*sql.Selector)
 
 // ShortLink is the predicate function for shortlink builders.
 type ShortLink func(*sql.Selector)
+
+// Task is the predicate function for task builders.
+type Task func(*sql.Selector)
 
 // Tenant is the predicate function for tenant builders.
 type Tenant func(*sql.Selector)

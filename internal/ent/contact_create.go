@@ -12,8 +12,10 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/marketflow-api/internal/ent/account"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
+	"github.com/bengobox/marketflow-api/internal/ent/deal"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/google/uuid"
@@ -173,6 +175,54 @@ func (_c *ContactCreate) SetNillableLastOrderAt(v *time.Time) *ContactCreate {
 	return _c
 }
 
+// SetAccountID sets the "account_id" field.
+func (_c *ContactCreate) SetAccountID(v uuid.UUID) *ContactCreate {
+	_c.mutation.SetAccountID(v)
+	return _c
+}
+
+// SetNillableAccountID sets the "account_id" field if the given value is not nil.
+func (_c *ContactCreate) SetNillableAccountID(v *uuid.UUID) *ContactCreate {
+	if v != nil {
+		_c.SetAccountID(*v)
+	}
+	return _c
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (_c *ContactCreate) SetOwnerUserID(v uuid.UUID) *ContactCreate {
+	_c.mutation.SetOwnerUserID(v)
+	return _c
+}
+
+// SetNillableOwnerUserID sets the "owner_user_id" field if the given value is not nil.
+func (_c *ContactCreate) SetNillableOwnerUserID(v *uuid.UUID) *ContactCreate {
+	if v != nil {
+		_c.SetOwnerUserID(*v)
+	}
+	return _c
+}
+
+// SetLifecycleStage sets the "lifecycle_stage" field.
+func (_c *ContactCreate) SetLifecycleStage(v string) *ContactCreate {
+	_c.mutation.SetLifecycleStage(v)
+	return _c
+}
+
+// SetNillableLifecycleStage sets the "lifecycle_stage" field if the given value is not nil.
+func (_c *ContactCreate) SetNillableLifecycleStage(v *string) *ContactCreate {
+	if v != nil {
+		_c.SetLifecycleStage(*v)
+	}
+	return _c
+}
+
+// SetEnrichmentData sets the "enrichment_data" field.
+func (_c *ContactCreate) SetEnrichmentData(v map[string]interface{}) *ContactCreate {
+	_c.mutation.SetEnrichmentData(v)
+	return _c
+}
+
 // SetProductInterests sets the "product_interests" field.
 func (_c *ContactCreate) SetProductInterests(v []string) *ContactCreate {
 	_c.mutation.SetProductInterests(v)
@@ -290,6 +340,26 @@ func (_c *ContactCreate) AddScheduledMeetings(v ...*ScheduledMeeting) *ContactCr
 	return _c.AddScheduledMeetingIDs(ids...)
 }
 
+// SetAccount sets the "account" edge to the Account entity.
+func (_c *ContactCreate) SetAccount(v *Account) *ContactCreate {
+	return _c.SetAccountID(v.ID)
+}
+
+// AddDealIDs adds the "deals" edge to the Deal entity by IDs.
+func (_c *ContactCreate) AddDealIDs(ids ...uuid.UUID) *ContactCreate {
+	_c.mutation.AddDealIDs(ids...)
+	return _c
+}
+
+// AddDeals adds the "deals" edges to the Deal entity.
+func (_c *ContactCreate) AddDeals(v ...*Deal) *ContactCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddDealIDs(ids...)
+}
+
 // Mutation returns the ContactMutation object of the builder.
 func (_c *ContactCreate) Mutation() *ContactMutation {
 	return _c.mutation
@@ -337,6 +407,10 @@ func (_c *ContactCreate) defaults() {
 		v := contact.DefaultTotalOrders
 		_c.mutation.SetTotalOrders(v)
 	}
+	if _, ok := _c.mutation.LifecycleStage(); !ok {
+		v := contact.DefaultLifecycleStage
+		_c.mutation.SetLifecycleStage(v)
+	}
 	if _, ok := _c.mutation.SubscribedEmail(); !ok {
 		v := contact.DefaultSubscribedEmail
 		_c.mutation.SetSubscribedEmail(v)
@@ -372,6 +446,9 @@ func (_c *ContactCreate) check() error {
 	}
 	if _, ok := _c.mutation.TotalOrders(); !ok {
 		return &ValidationError{Name: "total_orders", err: errors.New(`ent: missing required field "Contact.total_orders"`)}
+	}
+	if _, ok := _c.mutation.LifecycleStage(); !ok {
+		return &ValidationError{Name: "lifecycle_stage", err: errors.New(`ent: missing required field "Contact.lifecycle_stage"`)}
 	}
 	if _, ok := _c.mutation.SubscribedEmail(); !ok {
 		return &ValidationError{Name: "subscribed_email", err: errors.New(`ent: missing required field "Contact.subscribed_email"`)}
@@ -464,6 +541,18 @@ func (_c *ContactCreate) createSpec() (*Contact, *sqlgraph.CreateSpec) {
 		_spec.SetField(contact.FieldLastOrderAt, field.TypeTime, value)
 		_node.LastOrderAt = &value
 	}
+	if value, ok := _c.mutation.OwnerUserID(); ok {
+		_spec.SetField(contact.FieldOwnerUserID, field.TypeUUID, value)
+		_node.OwnerUserID = &value
+	}
+	if value, ok := _c.mutation.LifecycleStage(); ok {
+		_spec.SetField(contact.FieldLifecycleStage, field.TypeString, value)
+		_node.LifecycleStage = value
+	}
+	if value, ok := _c.mutation.EnrichmentData(); ok {
+		_spec.SetField(contact.FieldEnrichmentData, field.TypeJSON, value)
+		_node.EnrichmentData = value
+	}
 	if value, ok := _c.mutation.ProductInterests(); ok {
 		_spec.SetField(contact.FieldProductInterests, field.TypeJSON, value)
 		_node.ProductInterests = value
@@ -530,6 +619,39 @@ func (_c *ContactCreate) createSpec() (*Contact, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(scheduledmeeting.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.AccountIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   contact.AccountTable,
+			Columns: []string{contact.AccountColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(account.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.AccountID = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.DealsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   contact.DealsTable,
+			Columns: []string{contact.DealsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(deal.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -772,6 +894,72 @@ func (u *ContactUpsert) UpdateLastOrderAt() *ContactUpsert {
 // ClearLastOrderAt clears the value of the "last_order_at" field.
 func (u *ContactUpsert) ClearLastOrderAt() *ContactUpsert {
 	u.SetNull(contact.FieldLastOrderAt)
+	return u
+}
+
+// SetAccountID sets the "account_id" field.
+func (u *ContactUpsert) SetAccountID(v uuid.UUID) *ContactUpsert {
+	u.Set(contact.FieldAccountID, v)
+	return u
+}
+
+// UpdateAccountID sets the "account_id" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateAccountID() *ContactUpsert {
+	u.SetExcluded(contact.FieldAccountID)
+	return u
+}
+
+// ClearAccountID clears the value of the "account_id" field.
+func (u *ContactUpsert) ClearAccountID() *ContactUpsert {
+	u.SetNull(contact.FieldAccountID)
+	return u
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (u *ContactUpsert) SetOwnerUserID(v uuid.UUID) *ContactUpsert {
+	u.Set(contact.FieldOwnerUserID, v)
+	return u
+}
+
+// UpdateOwnerUserID sets the "owner_user_id" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateOwnerUserID() *ContactUpsert {
+	u.SetExcluded(contact.FieldOwnerUserID)
+	return u
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (u *ContactUpsert) ClearOwnerUserID() *ContactUpsert {
+	u.SetNull(contact.FieldOwnerUserID)
+	return u
+}
+
+// SetLifecycleStage sets the "lifecycle_stage" field.
+func (u *ContactUpsert) SetLifecycleStage(v string) *ContactUpsert {
+	u.Set(contact.FieldLifecycleStage, v)
+	return u
+}
+
+// UpdateLifecycleStage sets the "lifecycle_stage" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateLifecycleStage() *ContactUpsert {
+	u.SetExcluded(contact.FieldLifecycleStage)
+	return u
+}
+
+// SetEnrichmentData sets the "enrichment_data" field.
+func (u *ContactUpsert) SetEnrichmentData(v map[string]interface{}) *ContactUpsert {
+	u.Set(contact.FieldEnrichmentData, v)
+	return u
+}
+
+// UpdateEnrichmentData sets the "enrichment_data" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateEnrichmentData() *ContactUpsert {
+	u.SetExcluded(contact.FieldEnrichmentData)
+	return u
+}
+
+// ClearEnrichmentData clears the value of the "enrichment_data" field.
+func (u *ContactUpsert) ClearEnrichmentData() *ContactUpsert {
+	u.SetNull(contact.FieldEnrichmentData)
 	return u
 }
 
@@ -1112,6 +1300,83 @@ func (u *ContactUpsertOne) UpdateLastOrderAt() *ContactUpsertOne {
 func (u *ContactUpsertOne) ClearLastOrderAt() *ContactUpsertOne {
 	return u.Update(func(s *ContactUpsert) {
 		s.ClearLastOrderAt()
+	})
+}
+
+// SetAccountID sets the "account_id" field.
+func (u *ContactUpsertOne) SetAccountID(v uuid.UUID) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetAccountID(v)
+	})
+}
+
+// UpdateAccountID sets the "account_id" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateAccountID() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateAccountID()
+	})
+}
+
+// ClearAccountID clears the value of the "account_id" field.
+func (u *ContactUpsertOne) ClearAccountID() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearAccountID()
+	})
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (u *ContactUpsertOne) SetOwnerUserID(v uuid.UUID) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetOwnerUserID(v)
+	})
+}
+
+// UpdateOwnerUserID sets the "owner_user_id" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateOwnerUserID() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateOwnerUserID()
+	})
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (u *ContactUpsertOne) ClearOwnerUserID() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearOwnerUserID()
+	})
+}
+
+// SetLifecycleStage sets the "lifecycle_stage" field.
+func (u *ContactUpsertOne) SetLifecycleStage(v string) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetLifecycleStage(v)
+	})
+}
+
+// UpdateLifecycleStage sets the "lifecycle_stage" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateLifecycleStage() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateLifecycleStage()
+	})
+}
+
+// SetEnrichmentData sets the "enrichment_data" field.
+func (u *ContactUpsertOne) SetEnrichmentData(v map[string]interface{}) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetEnrichmentData(v)
+	})
+}
+
+// UpdateEnrichmentData sets the "enrichment_data" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateEnrichmentData() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateEnrichmentData()
+	})
+}
+
+// ClearEnrichmentData clears the value of the "enrichment_data" field.
+func (u *ContactUpsertOne) ClearEnrichmentData() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearEnrichmentData()
 	})
 }
 
@@ -1631,6 +1896,83 @@ func (u *ContactUpsertBulk) UpdateLastOrderAt() *ContactUpsertBulk {
 func (u *ContactUpsertBulk) ClearLastOrderAt() *ContactUpsertBulk {
 	return u.Update(func(s *ContactUpsert) {
 		s.ClearLastOrderAt()
+	})
+}
+
+// SetAccountID sets the "account_id" field.
+func (u *ContactUpsertBulk) SetAccountID(v uuid.UUID) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetAccountID(v)
+	})
+}
+
+// UpdateAccountID sets the "account_id" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateAccountID() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateAccountID()
+	})
+}
+
+// ClearAccountID clears the value of the "account_id" field.
+func (u *ContactUpsertBulk) ClearAccountID() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearAccountID()
+	})
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (u *ContactUpsertBulk) SetOwnerUserID(v uuid.UUID) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetOwnerUserID(v)
+	})
+}
+
+// UpdateOwnerUserID sets the "owner_user_id" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateOwnerUserID() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateOwnerUserID()
+	})
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (u *ContactUpsertBulk) ClearOwnerUserID() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearOwnerUserID()
+	})
+}
+
+// SetLifecycleStage sets the "lifecycle_stage" field.
+func (u *ContactUpsertBulk) SetLifecycleStage(v string) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetLifecycleStage(v)
+	})
+}
+
+// UpdateLifecycleStage sets the "lifecycle_stage" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateLifecycleStage() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateLifecycleStage()
+	})
+}
+
+// SetEnrichmentData sets the "enrichment_data" field.
+func (u *ContactUpsertBulk) SetEnrichmentData(v map[string]interface{}) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetEnrichmentData(v)
+	})
+}
+
+// UpdateEnrichmentData sets the "enrichment_data" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateEnrichmentData() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateEnrichmentData()
+	})
+}
+
+// ClearEnrichmentData clears the value of the "enrichment_data" field.
+func (u *ContactUpsertBulk) ClearEnrichmentData() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearEnrichmentData()
 	})
 }
 

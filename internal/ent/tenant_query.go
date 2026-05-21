@@ -12,18 +12,30 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/marketflow-api/internal/ent/account"
+	"github.com/bengobox/marketflow-api/internal/ent/activity"
 	"github.com/bengobox/marketflow-api/internal/ent/admetrics"
+	"github.com/bengobox/marketflow-api/internal/ent/agentrun"
+	"github.com/bengobox/marketflow-api/internal/ent/behavioraltrigger"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
+	"github.com/bengobox/marketflow-api/internal/ent/customagent"
+	"github.com/bengobox/marketflow-api/internal/ent/customfielddef"
+	"github.com/bengobox/marketflow-api/internal/ent/customfieldvalue"
+	"github.com/bengobox/marketflow-api/internal/ent/deal"
 	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/ent/leadscoringrule"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturedeliveryevent"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
+	"github.com/bengobox/marketflow-api/internal/ent/pipeline"
 	"github.com/bengobox/marketflow-api/internal/ent/predicate"
 	"github.com/bengobox/marketflow-api/internal/ent/profileevent"
+	"github.com/bengobox/marketflow-api/internal/ent/segment"
+	"github.com/bengobox/marketflow-api/internal/ent/task"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/ent/testimonial"
 	"github.com/google/uuid"
@@ -48,6 +60,18 @@ type TenantQuery struct {
 	withProfileEvents         *ProfileEventQuery
 	withNurtureDeliveryEvents *NurtureDeliveryEventQuery
 	withAdMetrics             *AdMetricsQuery
+	withAccounts              *AccountQuery
+	withPipelines             *PipelineQuery
+	withDeals                 *DealQuery
+	withActivities            *ActivityQuery
+	withTasks                 *TaskQuery
+	withCustomFieldDefs       *CustomFieldDefQuery
+	withCustomFieldValues     *CustomFieldValueQuery
+	withLeadScoringRules      *LeadScoringRuleQuery
+	withCustomAgents          *CustomAgentQuery
+	withAgentRuns             *AgentRunQuery
+	withSegments              *SegmentQuery
+	withBehavioralTriggers    *BehavioralTriggerQuery
 	modifiers                 []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -349,6 +373,270 @@ func (_q *TenantQuery) QueryAdMetrics() *AdMetricsQuery {
 	return query
 }
 
+// QueryAccounts chains the current query on the "accounts" edge.
+func (_q *TenantQuery) QueryAccounts() *AccountQuery {
+	query := (&AccountClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(account.Table, account.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.AccountsTable, tenant.AccountsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryPipelines chains the current query on the "pipelines" edge.
+func (_q *TenantQuery) QueryPipelines() *PipelineQuery {
+	query := (&PipelineClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(pipeline.Table, pipeline.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.PipelinesTable, tenant.PipelinesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryDeals chains the current query on the "deals" edge.
+func (_q *TenantQuery) QueryDeals() *DealQuery {
+	query := (&DealClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(deal.Table, deal.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.DealsTable, tenant.DealsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryActivities chains the current query on the "activities" edge.
+func (_q *TenantQuery) QueryActivities() *ActivityQuery {
+	query := (&ActivityClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(activity.Table, activity.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.ActivitiesTable, tenant.ActivitiesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryTasks chains the current query on the "tasks" edge.
+func (_q *TenantQuery) QueryTasks() *TaskQuery {
+	query := (&TaskClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(task.Table, task.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.TasksTable, tenant.TasksColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCustomFieldDefs chains the current query on the "custom_field_defs" edge.
+func (_q *TenantQuery) QueryCustomFieldDefs() *CustomFieldDefQuery {
+	query := (&CustomFieldDefClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(customfielddef.Table, customfielddef.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.CustomFieldDefsTable, tenant.CustomFieldDefsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCustomFieldValues chains the current query on the "custom_field_values" edge.
+func (_q *TenantQuery) QueryCustomFieldValues() *CustomFieldValueQuery {
+	query := (&CustomFieldValueClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(customfieldvalue.Table, customfieldvalue.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.CustomFieldValuesTable, tenant.CustomFieldValuesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryLeadScoringRules chains the current query on the "lead_scoring_rules" edge.
+func (_q *TenantQuery) QueryLeadScoringRules() *LeadScoringRuleQuery {
+	query := (&LeadScoringRuleClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(leadscoringrule.Table, leadscoringrule.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.LeadScoringRulesTable, tenant.LeadScoringRulesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCustomAgents chains the current query on the "custom_agents" edge.
+func (_q *TenantQuery) QueryCustomAgents() *CustomAgentQuery {
+	query := (&CustomAgentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(customagent.Table, customagent.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.CustomAgentsTable, tenant.CustomAgentsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryAgentRuns chains the current query on the "agent_runs" edge.
+func (_q *TenantQuery) QueryAgentRuns() *AgentRunQuery {
+	query := (&AgentRunClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(agentrun.Table, agentrun.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.AgentRunsTable, tenant.AgentRunsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QuerySegments chains the current query on the "segments" edge.
+func (_q *TenantQuery) QuerySegments() *SegmentQuery {
+	query := (&SegmentClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(segment.Table, segment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.SegmentsTable, tenant.SegmentsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryBehavioralTriggers chains the current query on the "behavioral_triggers" edge.
+func (_q *TenantQuery) QueryBehavioralTriggers() *BehavioralTriggerQuery {
+	query := (&BehavioralTriggerClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(behavioraltrigger.Table, behavioraltrigger.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.BehavioralTriggersTable, tenant.BehavioralTriggersColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // First returns the first Tenant entity from the query.
 // Returns a *NotFoundError when no Tenant was found.
 func (_q *TenantQuery) First(ctx context.Context) (*Tenant, error) {
@@ -553,6 +841,18 @@ func (_q *TenantQuery) Clone() *TenantQuery {
 		withProfileEvents:         _q.withProfileEvents.Clone(),
 		withNurtureDeliveryEvents: _q.withNurtureDeliveryEvents.Clone(),
 		withAdMetrics:             _q.withAdMetrics.Clone(),
+		withAccounts:              _q.withAccounts.Clone(),
+		withPipelines:             _q.withPipelines.Clone(),
+		withDeals:                 _q.withDeals.Clone(),
+		withActivities:            _q.withActivities.Clone(),
+		withTasks:                 _q.withTasks.Clone(),
+		withCustomFieldDefs:       _q.withCustomFieldDefs.Clone(),
+		withCustomFieldValues:     _q.withCustomFieldValues.Clone(),
+		withLeadScoringRules:      _q.withLeadScoringRules.Clone(),
+		withCustomAgents:          _q.withCustomAgents.Clone(),
+		withAgentRuns:             _q.withAgentRuns.Clone(),
+		withSegments:              _q.withSegments.Clone(),
+		withBehavioralTriggers:    _q.withBehavioralTriggers.Clone(),
 		// clone intermediate query.
 		sql:       _q.sql.Clone(),
 		path:      _q.path,
@@ -692,6 +992,138 @@ func (_q *TenantQuery) WithAdMetrics(opts ...func(*AdMetricsQuery)) *TenantQuery
 	return _q
 }
 
+// WithAccounts tells the query-builder to eager-load the nodes that are connected to
+// the "accounts" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithAccounts(opts ...func(*AccountQuery)) *TenantQuery {
+	query := (&AccountClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withAccounts = query
+	return _q
+}
+
+// WithPipelines tells the query-builder to eager-load the nodes that are connected to
+// the "pipelines" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithPipelines(opts ...func(*PipelineQuery)) *TenantQuery {
+	query := (&PipelineClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withPipelines = query
+	return _q
+}
+
+// WithDeals tells the query-builder to eager-load the nodes that are connected to
+// the "deals" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithDeals(opts ...func(*DealQuery)) *TenantQuery {
+	query := (&DealClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withDeals = query
+	return _q
+}
+
+// WithActivities tells the query-builder to eager-load the nodes that are connected to
+// the "activities" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithActivities(opts ...func(*ActivityQuery)) *TenantQuery {
+	query := (&ActivityClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withActivities = query
+	return _q
+}
+
+// WithTasks tells the query-builder to eager-load the nodes that are connected to
+// the "tasks" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithTasks(opts ...func(*TaskQuery)) *TenantQuery {
+	query := (&TaskClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withTasks = query
+	return _q
+}
+
+// WithCustomFieldDefs tells the query-builder to eager-load the nodes that are connected to
+// the "custom_field_defs" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithCustomFieldDefs(opts ...func(*CustomFieldDefQuery)) *TenantQuery {
+	query := (&CustomFieldDefClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCustomFieldDefs = query
+	return _q
+}
+
+// WithCustomFieldValues tells the query-builder to eager-load the nodes that are connected to
+// the "custom_field_values" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithCustomFieldValues(opts ...func(*CustomFieldValueQuery)) *TenantQuery {
+	query := (&CustomFieldValueClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCustomFieldValues = query
+	return _q
+}
+
+// WithLeadScoringRules tells the query-builder to eager-load the nodes that are connected to
+// the "lead_scoring_rules" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithLeadScoringRules(opts ...func(*LeadScoringRuleQuery)) *TenantQuery {
+	query := (&LeadScoringRuleClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withLeadScoringRules = query
+	return _q
+}
+
+// WithCustomAgents tells the query-builder to eager-load the nodes that are connected to
+// the "custom_agents" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithCustomAgents(opts ...func(*CustomAgentQuery)) *TenantQuery {
+	query := (&CustomAgentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCustomAgents = query
+	return _q
+}
+
+// WithAgentRuns tells the query-builder to eager-load the nodes that are connected to
+// the "agent_runs" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithAgentRuns(opts ...func(*AgentRunQuery)) *TenantQuery {
+	query := (&AgentRunClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withAgentRuns = query
+	return _q
+}
+
+// WithSegments tells the query-builder to eager-load the nodes that are connected to
+// the "segments" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithSegments(opts ...func(*SegmentQuery)) *TenantQuery {
+	query := (&SegmentClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withSegments = query
+	return _q
+}
+
+// WithBehavioralTriggers tells the query-builder to eager-load the nodes that are connected to
+// the "behavioral_triggers" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithBehavioralTriggers(opts ...func(*BehavioralTriggerQuery)) *TenantQuery {
+	query := (&BehavioralTriggerClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withBehavioralTriggers = query
+	return _q
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 //
@@ -770,7 +1202,7 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 	var (
 		nodes       = []*Tenant{}
 		_spec       = _q.querySpec()
-		loadedTypes = [12]bool{
+		loadedTypes = [24]bool{
 			_q.withLeads != nil,
 			_q.withContacts != nil,
 			_q.withCampaigns != nil,
@@ -783,6 +1215,18 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 			_q.withProfileEvents != nil,
 			_q.withNurtureDeliveryEvents != nil,
 			_q.withAdMetrics != nil,
+			_q.withAccounts != nil,
+			_q.withPipelines != nil,
+			_q.withDeals != nil,
+			_q.withActivities != nil,
+			_q.withTasks != nil,
+			_q.withCustomFieldDefs != nil,
+			_q.withCustomFieldValues != nil,
+			_q.withLeadScoringRules != nil,
+			_q.withCustomAgents != nil,
+			_q.withAgentRuns != nil,
+			_q.withSegments != nil,
+			_q.withBehavioralTriggers != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -893,6 +1337,92 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 		if err := _q.loadAdMetrics(ctx, query, nodes,
 			func(n *Tenant) { n.Edges.AdMetrics = []*AdMetrics{} },
 			func(n *Tenant, e *AdMetrics) { n.Edges.AdMetrics = append(n.Edges.AdMetrics, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withAccounts; query != nil {
+		if err := _q.loadAccounts(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.Accounts = []*Account{} },
+			func(n *Tenant, e *Account) { n.Edges.Accounts = append(n.Edges.Accounts, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withPipelines; query != nil {
+		if err := _q.loadPipelines(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.Pipelines = []*Pipeline{} },
+			func(n *Tenant, e *Pipeline) { n.Edges.Pipelines = append(n.Edges.Pipelines, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withDeals; query != nil {
+		if err := _q.loadDeals(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.Deals = []*Deal{} },
+			func(n *Tenant, e *Deal) { n.Edges.Deals = append(n.Edges.Deals, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withActivities; query != nil {
+		if err := _q.loadActivities(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.Activities = []*Activity{} },
+			func(n *Tenant, e *Activity) { n.Edges.Activities = append(n.Edges.Activities, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withTasks; query != nil {
+		if err := _q.loadTasks(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.Tasks = []*Task{} },
+			func(n *Tenant, e *Task) { n.Edges.Tasks = append(n.Edges.Tasks, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withCustomFieldDefs; query != nil {
+		if err := _q.loadCustomFieldDefs(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.CustomFieldDefs = []*CustomFieldDef{} },
+			func(n *Tenant, e *CustomFieldDef) { n.Edges.CustomFieldDefs = append(n.Edges.CustomFieldDefs, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withCustomFieldValues; query != nil {
+		if err := _q.loadCustomFieldValues(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.CustomFieldValues = []*CustomFieldValue{} },
+			func(n *Tenant, e *CustomFieldValue) { n.Edges.CustomFieldValues = append(n.Edges.CustomFieldValues, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withLeadScoringRules; query != nil {
+		if err := _q.loadLeadScoringRules(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.LeadScoringRules = []*LeadScoringRule{} },
+			func(n *Tenant, e *LeadScoringRule) { n.Edges.LeadScoringRules = append(n.Edges.LeadScoringRules, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withCustomAgents; query != nil {
+		if err := _q.loadCustomAgents(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.CustomAgents = []*CustomAgent{} },
+			func(n *Tenant, e *CustomAgent) { n.Edges.CustomAgents = append(n.Edges.CustomAgents, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withAgentRuns; query != nil {
+		if err := _q.loadAgentRuns(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.AgentRuns = []*AgentRun{} },
+			func(n *Tenant, e *AgentRun) { n.Edges.AgentRuns = append(n.Edges.AgentRuns, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withSegments; query != nil {
+		if err := _q.loadSegments(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.Segments = []*Segment{} },
+			func(n *Tenant, e *Segment) { n.Edges.Segments = append(n.Edges.Segments, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withBehavioralTriggers; query != nil {
+		if err := _q.loadBehavioralTriggers(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.BehavioralTriggers = []*BehavioralTrigger{} },
+			func(n *Tenant, e *BehavioralTrigger) {
+				n.Edges.BehavioralTriggers = append(n.Edges.BehavioralTriggers, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -1244,6 +1774,366 @@ func (_q *TenantQuery) loadAdMetrics(ctx context.Context, query *AdMetricsQuery,
 	}
 	query.Where(predicate.AdMetrics(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(tenant.AdMetricsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadAccounts(ctx context.Context, query *AccountQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *Account)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(account.FieldTenantID)
+	}
+	query.Where(predicate.Account(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.AccountsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadPipelines(ctx context.Context, query *PipelineQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *Pipeline)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(pipeline.FieldTenantID)
+	}
+	query.Where(predicate.Pipeline(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.PipelinesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadDeals(ctx context.Context, query *DealQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *Deal)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(deal.FieldTenantID)
+	}
+	query.Where(predicate.Deal(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.DealsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadActivities(ctx context.Context, query *ActivityQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *Activity)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(activity.FieldTenantID)
+	}
+	query.Where(predicate.Activity(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.ActivitiesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadTasks(ctx context.Context, query *TaskQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *Task)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(task.FieldTenantID)
+	}
+	query.Where(predicate.Task(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.TasksColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadCustomFieldDefs(ctx context.Context, query *CustomFieldDefQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *CustomFieldDef)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(customfielddef.FieldTenantID)
+	}
+	query.Where(predicate.CustomFieldDef(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.CustomFieldDefsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadCustomFieldValues(ctx context.Context, query *CustomFieldValueQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *CustomFieldValue)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(customfieldvalue.FieldTenantID)
+	}
+	query.Where(predicate.CustomFieldValue(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.CustomFieldValuesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadLeadScoringRules(ctx context.Context, query *LeadScoringRuleQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *LeadScoringRule)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(leadscoringrule.FieldTenantID)
+	}
+	query.Where(predicate.LeadScoringRule(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.LeadScoringRulesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadCustomAgents(ctx context.Context, query *CustomAgentQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *CustomAgent)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(customagent.FieldTenantID)
+	}
+	query.Where(predicate.CustomAgent(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.CustomAgentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadAgentRuns(ctx context.Context, query *AgentRunQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *AgentRun)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(agentrun.FieldTenantID)
+	}
+	query.Where(predicate.AgentRun(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.AgentRunsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadSegments(ctx context.Context, query *SegmentQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *Segment)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(segment.FieldTenantID)
+	}
+	query.Where(predicate.Segment(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.SegmentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadBehavioralTriggers(ctx context.Context, query *BehavioralTriggerQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *BehavioralTrigger)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(behavioraltrigger.FieldTenantID)
+	}
+	query.Where(predicate.BehavioralTrigger(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.BehavioralTriggersColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

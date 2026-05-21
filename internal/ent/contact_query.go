@@ -12,8 +12,10 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/bengobox/marketflow-api/internal/ent/account"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
+	"github.com/bengobox/marketflow-api/internal/ent/deal"
 	"github.com/bengobox/marketflow-api/internal/ent/predicate"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
@@ -30,6 +32,8 @@ type ContactQuery struct {
 	withTenant            *TenantQuery
 	withChatSessions      *ChatSessionQuery
 	withScheduledMeetings *ScheduledMeetingQuery
+	withAccount           *AccountQuery
+	withDeals             *DealQuery
 	modifiers             []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -126,6 +130,50 @@ func (_q *ContactQuery) QueryScheduledMeetings() *ScheduledMeetingQuery {
 			sqlgraph.From(contact.Table, contact.FieldID, selector),
 			sqlgraph.To(scheduledmeeting.Table, scheduledmeeting.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, contact.ScheduledMeetingsTable, contact.ScheduledMeetingsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryAccount chains the current query on the "account" edge.
+func (_q *ContactQuery) QueryAccount() *AccountQuery {
+	query := (&AccountClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(contact.Table, contact.FieldID, selector),
+			sqlgraph.To(account.Table, account.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, contact.AccountTable, contact.AccountColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryDeals chains the current query on the "deals" edge.
+func (_q *ContactQuery) QueryDeals() *DealQuery {
+	query := (&DealClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(contact.Table, contact.FieldID, selector),
+			sqlgraph.To(deal.Table, deal.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, contact.DealsTable, contact.DealsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -328,6 +376,8 @@ func (_q *ContactQuery) Clone() *ContactQuery {
 		withTenant:            _q.withTenant.Clone(),
 		withChatSessions:      _q.withChatSessions.Clone(),
 		withScheduledMeetings: _q.withScheduledMeetings.Clone(),
+		withAccount:           _q.withAccount.Clone(),
+		withDeals:             _q.withDeals.Clone(),
 		// clone intermediate query.
 		sql:       _q.sql.Clone(),
 		path:      _q.path,
@@ -365,6 +415,28 @@ func (_q *ContactQuery) WithScheduledMeetings(opts ...func(*ScheduledMeetingQuer
 		opt(query)
 	}
 	_q.withScheduledMeetings = query
+	return _q
+}
+
+// WithAccount tells the query-builder to eager-load the nodes that are connected to
+// the "account" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ContactQuery) WithAccount(opts ...func(*AccountQuery)) *ContactQuery {
+	query := (&AccountClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withAccount = query
+	return _q
+}
+
+// WithDeals tells the query-builder to eager-load the nodes that are connected to
+// the "deals" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ContactQuery) WithDeals(opts ...func(*DealQuery)) *ContactQuery {
+	query := (&DealClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withDeals = query
 	return _q
 }
 
@@ -446,10 +518,12 @@ func (_q *ContactQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Cont
 	var (
 		nodes       = []*Contact{}
 		_spec       = _q.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [5]bool{
 			_q.withTenant != nil,
 			_q.withChatSessions != nil,
 			_q.withScheduledMeetings != nil,
+			_q.withAccount != nil,
+			_q.withDeals != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -492,6 +566,19 @@ func (_q *ContactQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Cont
 			func(n *Contact, e *ScheduledMeeting) {
 				n.Edges.ScheduledMeetings = append(n.Edges.ScheduledMeetings, e)
 			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withAccount; query != nil {
+		if err := _q.loadAccount(ctx, query, nodes, nil,
+			func(n *Contact, e *Account) { n.Edges.Account = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withDeals; query != nil {
+		if err := _q.loadDeals(ctx, query, nodes,
+			func(n *Contact) { n.Edges.Deals = []*Deal{} },
+			func(n *Contact, e *Deal) { n.Edges.Deals = append(n.Edges.Deals, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -593,6 +680,71 @@ func (_q *ContactQuery) loadScheduledMeetings(ctx context.Context, query *Schedu
 	}
 	return nil
 }
+func (_q *ContactQuery) loadAccount(ctx context.Context, query *AccountQuery, nodes []*Contact, init func(*Contact), assign func(*Contact, *Account)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*Contact)
+	for i := range nodes {
+		if nodes[i].AccountID == nil {
+			continue
+		}
+		fk := *nodes[i].AccountID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(account.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "account_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
+func (_q *ContactQuery) loadDeals(ctx context.Context, query *DealQuery, nodes []*Contact, init func(*Contact), assign func(*Contact, *Deal)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Contact)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(deal.FieldContactID)
+	}
+	query.Where(predicate.Deal(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(contact.DealsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ContactID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "contact_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "contact_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 
 func (_q *ContactQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
@@ -624,6 +776,9 @@ func (_q *ContactQuery) querySpec() *sqlgraph.QuerySpec {
 		}
 		if _q.withTenant != nil {
 			_spec.Node.AddColumnOnce(contact.FieldTenantID)
+		}
+		if _q.withAccount != nil {
+			_spec.Node.AddColumnOnce(contact.FieldAccountID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

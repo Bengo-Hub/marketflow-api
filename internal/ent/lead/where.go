@@ -131,6 +131,11 @@ func Interest(v string) predicate.Lead {
 	return predicate.Lead(sql.FieldEQ(FieldInterest, v))
 }
 
+// OwnerUserID applies equality check predicate on the "owner_user_id" field. It's identical to OwnerUserIDEQ.
+func OwnerUserID(v uuid.UUID) predicate.Lead {
+	return predicate.Lead(sql.FieldEQ(FieldOwnerUserID, v))
+}
+
 // ContactedAt applies equality check predicate on the "contacted_at" field. It's identical to ContactedAtEQ.
 func ContactedAt(v time.Time) predicate.Lead {
 	return predicate.Lead(sql.FieldEQ(FieldContactedAt, v))
@@ -1079,6 +1084,76 @@ func QualificationAnswersIsNil() predicate.Lead {
 // QualificationAnswersNotNil applies the NotNil predicate on the "qualification_answers" field.
 func QualificationAnswersNotNil() predicate.Lead {
 	return predicate.Lead(sql.FieldNotNull(FieldQualificationAnswers))
+}
+
+// OwnerUserIDEQ applies the EQ predicate on the "owner_user_id" field.
+func OwnerUserIDEQ(v uuid.UUID) predicate.Lead {
+	return predicate.Lead(sql.FieldEQ(FieldOwnerUserID, v))
+}
+
+// OwnerUserIDNEQ applies the NEQ predicate on the "owner_user_id" field.
+func OwnerUserIDNEQ(v uuid.UUID) predicate.Lead {
+	return predicate.Lead(sql.FieldNEQ(FieldOwnerUserID, v))
+}
+
+// OwnerUserIDIn applies the In predicate on the "owner_user_id" field.
+func OwnerUserIDIn(vs ...uuid.UUID) predicate.Lead {
+	return predicate.Lead(sql.FieldIn(FieldOwnerUserID, vs...))
+}
+
+// OwnerUserIDNotIn applies the NotIn predicate on the "owner_user_id" field.
+func OwnerUserIDNotIn(vs ...uuid.UUID) predicate.Lead {
+	return predicate.Lead(sql.FieldNotIn(FieldOwnerUserID, vs...))
+}
+
+// OwnerUserIDGT applies the GT predicate on the "owner_user_id" field.
+func OwnerUserIDGT(v uuid.UUID) predicate.Lead {
+	return predicate.Lead(sql.FieldGT(FieldOwnerUserID, v))
+}
+
+// OwnerUserIDGTE applies the GTE predicate on the "owner_user_id" field.
+func OwnerUserIDGTE(v uuid.UUID) predicate.Lead {
+	return predicate.Lead(sql.FieldGTE(FieldOwnerUserID, v))
+}
+
+// OwnerUserIDLT applies the LT predicate on the "owner_user_id" field.
+func OwnerUserIDLT(v uuid.UUID) predicate.Lead {
+	return predicate.Lead(sql.FieldLT(FieldOwnerUserID, v))
+}
+
+// OwnerUserIDLTE applies the LTE predicate on the "owner_user_id" field.
+func OwnerUserIDLTE(v uuid.UUID) predicate.Lead {
+	return predicate.Lead(sql.FieldLTE(FieldOwnerUserID, v))
+}
+
+// OwnerUserIDIsNil applies the IsNil predicate on the "owner_user_id" field.
+func OwnerUserIDIsNil() predicate.Lead {
+	return predicate.Lead(sql.FieldIsNull(FieldOwnerUserID))
+}
+
+// OwnerUserIDNotNil applies the NotNil predicate on the "owner_user_id" field.
+func OwnerUserIDNotNil() predicate.Lead {
+	return predicate.Lead(sql.FieldNotNull(FieldOwnerUserID))
+}
+
+// AiScoreBreakdownIsNil applies the IsNil predicate on the "ai_score_breakdown" field.
+func AiScoreBreakdownIsNil() predicate.Lead {
+	return predicate.Lead(sql.FieldIsNull(FieldAiScoreBreakdown))
+}
+
+// AiScoreBreakdownNotNil applies the NotNil predicate on the "ai_score_breakdown" field.
+func AiScoreBreakdownNotNil() predicate.Lead {
+	return predicate.Lead(sql.FieldNotNull(FieldAiScoreBreakdown))
+}
+
+// EnrichmentDataIsNil applies the IsNil predicate on the "enrichment_data" field.
+func EnrichmentDataIsNil() predicate.Lead {
+	return predicate.Lead(sql.FieldIsNull(FieldEnrichmentData))
+}
+
+// EnrichmentDataNotNil applies the NotNil predicate on the "enrichment_data" field.
+func EnrichmentDataNotNil() predicate.Lead {
+	return predicate.Lead(sql.FieldNotNull(FieldEnrichmentData))
 }
 
 // MetadataIsNil applies the IsNil predicate on the "metadata" field.

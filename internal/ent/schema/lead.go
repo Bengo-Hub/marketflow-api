@@ -82,6 +82,22 @@ func (Lead) Fields() []ent.Field {
 			Optional().
 			Comment("Answers from funnel qualification steps"),
 
+		// CRM fields (Sprint 9)
+		field.UUID("owner_user_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("Assigned owner user_id from auth-service"),
+
+		// Lead scoring (Sprint 9)
+		field.JSON("ai_score_breakdown", map[string]any{}).
+			Optional().
+			Comment("Scoring rule breakdown: [{rule_name, delta, matched}]"),
+
+		// Enrichment (Sprint 10)
+		field.JSON("enrichment_data", map[string]any{}).
+			Optional().
+			Comment("AI-enriched data from ContactEnricherAgent"),
+
 		field.JSON("metadata", map[string]any{}).
 			Optional(),
 

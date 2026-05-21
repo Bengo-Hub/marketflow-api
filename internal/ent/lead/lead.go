@@ -47,6 +47,12 @@ const (
 	FieldInterest = "interest"
 	// FieldQualificationAnswers holds the string denoting the qualification_answers field in the database.
 	FieldQualificationAnswers = "qualification_answers"
+	// FieldOwnerUserID holds the string denoting the owner_user_id field in the database.
+	FieldOwnerUserID = "owner_user_id"
+	// FieldAiScoreBreakdown holds the string denoting the ai_score_breakdown field in the database.
+	FieldAiScoreBreakdown = "ai_score_breakdown"
+	// FieldEnrichmentData holds the string denoting the enrichment_data field in the database.
+	FieldEnrichmentData = "enrichment_data"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
 	// FieldContactedAt holds the string denoting the contacted_at field in the database.
@@ -127,6 +133,9 @@ var Columns = []string{
 	FieldScore,
 	FieldInterest,
 	FieldQualificationAnswers,
+	FieldOwnerUserID,
+	FieldAiScoreBreakdown,
+	FieldEnrichmentData,
 	FieldMetadata,
 	FieldContactedAt,
 	FieldQualifiedAt,
@@ -245,6 +254,11 @@ func ByScore(opts ...sql.OrderTermOption) OrderOption {
 // ByInterest orders the results by the interest field.
 func ByInterest(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldInterest, opts...).ToFunc()
+}
+
+// ByOwnerUserID orders the results by the owner_user_id field.
+func ByOwnerUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOwnerUserID, opts...).ToFunc()
 }
 
 // ByContactedAt orders the results by the contacted_at field.

@@ -37,6 +37,14 @@ const (
 	FieldTotalOrders = "total_orders"
 	// FieldLastOrderAt holds the string denoting the last_order_at field in the database.
 	FieldLastOrderAt = "last_order_at"
+	// FieldAccountID holds the string denoting the account_id field in the database.
+	FieldAccountID = "account_id"
+	// FieldOwnerUserID holds the string denoting the owner_user_id field in the database.
+	FieldOwnerUserID = "owner_user_id"
+	// FieldLifecycleStage holds the string denoting the lifecycle_stage field in the database.
+	FieldLifecycleStage = "lifecycle_stage"
+	// FieldEnrichmentData holds the string denoting the enrichment_data field in the database.
+	FieldEnrichmentData = "enrichment_data"
 	// FieldProductInterests holds the string denoting the product_interests field in the database.
 	FieldProductInterests = "product_interests"
 	// FieldSubscribedEmail holds the string denoting the subscribed_email field in the database.
@@ -55,6 +63,10 @@ const (
 	EdgeChatSessions = "chat_sessions"
 	// EdgeScheduledMeetings holds the string denoting the scheduled_meetings edge name in mutations.
 	EdgeScheduledMeetings = "scheduled_meetings"
+	// EdgeAccount holds the string denoting the account edge name in mutations.
+	EdgeAccount = "account"
+	// EdgeDeals holds the string denoting the deals edge name in mutations.
+	EdgeDeals = "deals"
 	// Table holds the table name of the contact in the database.
 	Table = "contacts"
 	// TenantTable is the table that holds the tenant relation/edge.
@@ -78,6 +90,20 @@ const (
 	ScheduledMeetingsInverseTable = "scheduled_meetings"
 	// ScheduledMeetingsColumn is the table column denoting the scheduled_meetings relation/edge.
 	ScheduledMeetingsColumn = "contact_id"
+	// AccountTable is the table that holds the account relation/edge.
+	AccountTable = "contacts"
+	// AccountInverseTable is the table name for the Account entity.
+	// It exists in this package in order to avoid circular dependency with the "account" package.
+	AccountInverseTable = "accounts"
+	// AccountColumn is the table column denoting the account relation/edge.
+	AccountColumn = "account_id"
+	// DealsTable is the table that holds the deals relation/edge.
+	DealsTable = "deals"
+	// DealsInverseTable is the table name for the Deal entity.
+	// It exists in this package in order to avoid circular dependency with the "deal" package.
+	DealsInverseTable = "deals"
+	// DealsColumn is the table column denoting the deals relation/edge.
+	DealsColumn = "contact_id"
 )
 
 // Columns holds all SQL columns for contact fields.
@@ -94,6 +120,10 @@ var Columns = []string{
 	FieldTotalCc,
 	FieldTotalOrders,
 	FieldLastOrderAt,
+	FieldAccountID,
+	FieldOwnerUserID,
+	FieldLifecycleStage,
+	FieldEnrichmentData,
 	FieldProductInterests,
 	FieldSubscribedEmail,
 	FieldSubscribedSms,
@@ -119,6 +149,8 @@ var (
 	DefaultTotalCc float64
 	// DefaultTotalOrders holds the default value on creation for the "total_orders" field.
 	DefaultTotalOrders int
+	// DefaultLifecycleStage holds the default value on creation for the "lifecycle_stage" field.
+	DefaultLifecycleStage string
 	// DefaultSubscribedEmail holds the default value on creation for the "subscribed_email" field.
 	DefaultSubscribedEmail bool
 	// DefaultSubscribedSms holds the default value on creation for the "subscribed_sms" field.
@@ -196,6 +228,21 @@ func ByLastOrderAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLastOrderAt, opts...).ToFunc()
 }
 
+// ByAccountID orders the results by the account_id field.
+func ByAccountID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAccountID, opts...).ToFunc()
+}
+
+// ByOwnerUserID orders the results by the owner_user_id field.
+func ByOwnerUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOwnerUserID, opts...).ToFunc()
+}
+
+// ByLifecycleStage orders the results by the lifecycle_stage field.
+func ByLifecycleStage(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLifecycleStage, opts...).ToFunc()
+}
+
 // BySubscribedEmail orders the results by the subscribed_email field.
 func BySubscribedEmail(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSubscribedEmail, opts...).ToFunc()
@@ -250,6 +297,27 @@ func ByScheduledMeetings(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption
 		sqlgraph.OrderByNeighborTerms(s, newScheduledMeetingsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByAccountField orders the results by account field.
+func ByAccountField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAccountStep(), sql.OrderByField(field, opts...))
+	}
+}
+
+// ByDealsCount orders the results by deals count.
+func ByDealsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newDealsStep(), opts...)
+	}
+}
+
+// ByDeals orders the results by deals terms.
+func ByDeals(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newDealsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newTenantStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -269,5 +337,19 @@ func newScheduledMeetingsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ScheduledMeetingsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ScheduledMeetingsTable, ScheduledMeetingsColumn),
+	)
+}
+func newAccountStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AccountInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, AccountTable, AccountColumn),
+	)
+}
+func newDealsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(DealsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, DealsTable, DealsColumn),
 	)
 }

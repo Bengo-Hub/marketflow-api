@@ -3,12 +3,12 @@ module github.com/bengobox/marketflow-api
 go 1.25.0
 
 // Auth client module redirect (same pattern as notifications-api)
-replace github.com/Bengo-Hub/shared-auth-client => github.com/Bengo-Hub/auth-client v0.6.0
+replace github.com/Bengo-Hub/shared-auth-client => github.com/Bengo-Hub/auth-client v0.6.1
 
 require (
 	ariga.io/atlas v0.32.1-0.20250325101103-175b25e1c1b9
 	entgo.io/ent v0.14.5
-	github.com/Bengo-Hub/httpware v0.4.0
+	github.com/Bengo-Hub/httpware v0.4.1
 	github.com/Bengo-Hub/shared-auth-client v0.5.0
 	github.com/Bengo-Hub/shared-events v0.2.0
 	github.com/caarlos0/env/v11 v11.3.1

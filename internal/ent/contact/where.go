@@ -111,6 +111,21 @@ func LastOrderAt(v time.Time) predicate.Contact {
 	return predicate.Contact(sql.FieldEQ(FieldLastOrderAt, v))
 }
 
+// AccountID applies equality check predicate on the "account_id" field. It's identical to AccountIDEQ.
+func AccountID(v uuid.UUID) predicate.Contact {
+	return predicate.Contact(sql.FieldEQ(FieldAccountID, v))
+}
+
+// OwnerUserID applies equality check predicate on the "owner_user_id" field. It's identical to OwnerUserIDEQ.
+func OwnerUserID(v uuid.UUID) predicate.Contact {
+	return predicate.Contact(sql.FieldEQ(FieldOwnerUserID, v))
+}
+
+// LifecycleStage applies equality check predicate on the "lifecycle_stage" field. It's identical to LifecycleStageEQ.
+func LifecycleStage(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldEQ(FieldLifecycleStage, v))
+}
+
 // SubscribedEmail applies equality check predicate on the "subscribed_email" field. It's identical to SubscribedEmailEQ.
 func SubscribedEmail(v bool) predicate.Contact {
 	return predicate.Contact(sql.FieldEQ(FieldSubscribedEmail, v))
@@ -771,6 +786,161 @@ func LastOrderAtNotNil() predicate.Contact {
 	return predicate.Contact(sql.FieldNotNull(FieldLastOrderAt))
 }
 
+// AccountIDEQ applies the EQ predicate on the "account_id" field.
+func AccountIDEQ(v uuid.UUID) predicate.Contact {
+	return predicate.Contact(sql.FieldEQ(FieldAccountID, v))
+}
+
+// AccountIDNEQ applies the NEQ predicate on the "account_id" field.
+func AccountIDNEQ(v uuid.UUID) predicate.Contact {
+	return predicate.Contact(sql.FieldNEQ(FieldAccountID, v))
+}
+
+// AccountIDIn applies the In predicate on the "account_id" field.
+func AccountIDIn(vs ...uuid.UUID) predicate.Contact {
+	return predicate.Contact(sql.FieldIn(FieldAccountID, vs...))
+}
+
+// AccountIDNotIn applies the NotIn predicate on the "account_id" field.
+func AccountIDNotIn(vs ...uuid.UUID) predicate.Contact {
+	return predicate.Contact(sql.FieldNotIn(FieldAccountID, vs...))
+}
+
+// AccountIDIsNil applies the IsNil predicate on the "account_id" field.
+func AccountIDIsNil() predicate.Contact {
+	return predicate.Contact(sql.FieldIsNull(FieldAccountID))
+}
+
+// AccountIDNotNil applies the NotNil predicate on the "account_id" field.
+func AccountIDNotNil() predicate.Contact {
+	return predicate.Contact(sql.FieldNotNull(FieldAccountID))
+}
+
+// OwnerUserIDEQ applies the EQ predicate on the "owner_user_id" field.
+func OwnerUserIDEQ(v uuid.UUID) predicate.Contact {
+	return predicate.Contact(sql.FieldEQ(FieldOwnerUserID, v))
+}
+
+// OwnerUserIDNEQ applies the NEQ predicate on the "owner_user_id" field.
+func OwnerUserIDNEQ(v uuid.UUID) predicate.Contact {
+	return predicate.Contact(sql.FieldNEQ(FieldOwnerUserID, v))
+}
+
+// OwnerUserIDIn applies the In predicate on the "owner_user_id" field.
+func OwnerUserIDIn(vs ...uuid.UUID) predicate.Contact {
+	return predicate.Contact(sql.FieldIn(FieldOwnerUserID, vs...))
+}
+
+// OwnerUserIDNotIn applies the NotIn predicate on the "owner_user_id" field.
+func OwnerUserIDNotIn(vs ...uuid.UUID) predicate.Contact {
+	return predicate.Contact(sql.FieldNotIn(FieldOwnerUserID, vs...))
+}
+
+// OwnerUserIDGT applies the GT predicate on the "owner_user_id" field.
+func OwnerUserIDGT(v uuid.UUID) predicate.Contact {
+	return predicate.Contact(sql.FieldGT(FieldOwnerUserID, v))
+}
+
+// OwnerUserIDGTE applies the GTE predicate on the "owner_user_id" field.
+func OwnerUserIDGTE(v uuid.UUID) predicate.Contact {
+	return predicate.Contact(sql.FieldGTE(FieldOwnerUserID, v))
+}
+
+// OwnerUserIDLT applies the LT predicate on the "owner_user_id" field.
+func OwnerUserIDLT(v uuid.UUID) predicate.Contact {
+	return predicate.Contact(sql.FieldLT(FieldOwnerUserID, v))
+}
+
+// OwnerUserIDLTE applies the LTE predicate on the "owner_user_id" field.
+func OwnerUserIDLTE(v uuid.UUID) predicate.Contact {
+	return predicate.Contact(sql.FieldLTE(FieldOwnerUserID, v))
+}
+
+// OwnerUserIDIsNil applies the IsNil predicate on the "owner_user_id" field.
+func OwnerUserIDIsNil() predicate.Contact {
+	return predicate.Contact(sql.FieldIsNull(FieldOwnerUserID))
+}
+
+// OwnerUserIDNotNil applies the NotNil predicate on the "owner_user_id" field.
+func OwnerUserIDNotNil() predicate.Contact {
+	return predicate.Contact(sql.FieldNotNull(FieldOwnerUserID))
+}
+
+// LifecycleStageEQ applies the EQ predicate on the "lifecycle_stage" field.
+func LifecycleStageEQ(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldEQ(FieldLifecycleStage, v))
+}
+
+// LifecycleStageNEQ applies the NEQ predicate on the "lifecycle_stage" field.
+func LifecycleStageNEQ(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldNEQ(FieldLifecycleStage, v))
+}
+
+// LifecycleStageIn applies the In predicate on the "lifecycle_stage" field.
+func LifecycleStageIn(vs ...string) predicate.Contact {
+	return predicate.Contact(sql.FieldIn(FieldLifecycleStage, vs...))
+}
+
+// LifecycleStageNotIn applies the NotIn predicate on the "lifecycle_stage" field.
+func LifecycleStageNotIn(vs ...string) predicate.Contact {
+	return predicate.Contact(sql.FieldNotIn(FieldLifecycleStage, vs...))
+}
+
+// LifecycleStageGT applies the GT predicate on the "lifecycle_stage" field.
+func LifecycleStageGT(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldGT(FieldLifecycleStage, v))
+}
+
+// LifecycleStageGTE applies the GTE predicate on the "lifecycle_stage" field.
+func LifecycleStageGTE(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldGTE(FieldLifecycleStage, v))
+}
+
+// LifecycleStageLT applies the LT predicate on the "lifecycle_stage" field.
+func LifecycleStageLT(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldLT(FieldLifecycleStage, v))
+}
+
+// LifecycleStageLTE applies the LTE predicate on the "lifecycle_stage" field.
+func LifecycleStageLTE(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldLTE(FieldLifecycleStage, v))
+}
+
+// LifecycleStageContains applies the Contains predicate on the "lifecycle_stage" field.
+func LifecycleStageContains(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldContains(FieldLifecycleStage, v))
+}
+
+// LifecycleStageHasPrefix applies the HasPrefix predicate on the "lifecycle_stage" field.
+func LifecycleStageHasPrefix(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldHasPrefix(FieldLifecycleStage, v))
+}
+
+// LifecycleStageHasSuffix applies the HasSuffix predicate on the "lifecycle_stage" field.
+func LifecycleStageHasSuffix(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldHasSuffix(FieldLifecycleStage, v))
+}
+
+// LifecycleStageEqualFold applies the EqualFold predicate on the "lifecycle_stage" field.
+func LifecycleStageEqualFold(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldEqualFold(FieldLifecycleStage, v))
+}
+
+// LifecycleStageContainsFold applies the ContainsFold predicate on the "lifecycle_stage" field.
+func LifecycleStageContainsFold(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldContainsFold(FieldLifecycleStage, v))
+}
+
+// EnrichmentDataIsNil applies the IsNil predicate on the "enrichment_data" field.
+func EnrichmentDataIsNil() predicate.Contact {
+	return predicate.Contact(sql.FieldIsNull(FieldEnrichmentData))
+}
+
+// EnrichmentDataNotNil applies the NotNil predicate on the "enrichment_data" field.
+func EnrichmentDataNotNil() predicate.Contact {
+	return predicate.Contact(sql.FieldNotNull(FieldEnrichmentData))
+}
+
 // ProductInterestsIsNil applies the IsNil predicate on the "product_interests" field.
 func ProductInterestsIsNil() predicate.Contact {
 	return predicate.Contact(sql.FieldIsNull(FieldProductInterests))
@@ -952,6 +1122,52 @@ func HasScheduledMeetings() predicate.Contact {
 func HasScheduledMeetingsWith(preds ...predicate.ScheduledMeeting) predicate.Contact {
 	return predicate.Contact(func(s *sql.Selector) {
 		step := newScheduledMeetingsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasAccount applies the HasEdge predicate on the "account" edge.
+func HasAccount() predicate.Contact {
+	return predicate.Contact(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, AccountTable, AccountColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAccountWith applies the HasEdge predicate on the "account" edge with a given conditions (other predicates).
+func HasAccountWith(preds ...predicate.Account) predicate.Contact {
+	return predicate.Contact(func(s *sql.Selector) {
+		step := newAccountStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasDeals applies the HasEdge predicate on the "deals" edge.
+func HasDeals() predicate.Contact {
+	return predicate.Contact(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, DealsTable, DealsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasDealsWith applies the HasEdge predicate on the "deals" edge with a given conditions (other predicates).
+func HasDealsWith(preds ...predicate.Deal) predicate.Contact {
+	return predicate.Contact(func(s *sql.Selector) {
+		step := newDealsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

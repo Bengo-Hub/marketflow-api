@@ -237,6 +237,32 @@ func (_c *LeadCreate) SetQualificationAnswers(v map[string]interface{}) *LeadCre
 	return _c
 }
 
+// SetOwnerUserID sets the "owner_user_id" field.
+func (_c *LeadCreate) SetOwnerUserID(v uuid.UUID) *LeadCreate {
+	_c.mutation.SetOwnerUserID(v)
+	return _c
+}
+
+// SetNillableOwnerUserID sets the "owner_user_id" field if the given value is not nil.
+func (_c *LeadCreate) SetNillableOwnerUserID(v *uuid.UUID) *LeadCreate {
+	if v != nil {
+		_c.SetOwnerUserID(*v)
+	}
+	return _c
+}
+
+// SetAiScoreBreakdown sets the "ai_score_breakdown" field.
+func (_c *LeadCreate) SetAiScoreBreakdown(v map[string]interface{}) *LeadCreate {
+	_c.mutation.SetAiScoreBreakdown(v)
+	return _c
+}
+
+// SetEnrichmentData sets the "enrichment_data" field.
+func (_c *LeadCreate) SetEnrichmentData(v map[string]interface{}) *LeadCreate {
+	_c.mutation.SetEnrichmentData(v)
+	return _c
+}
+
 // SetMetadata sets the "metadata" field.
 func (_c *LeadCreate) SetMetadata(v map[string]interface{}) *LeadCreate {
 	_c.mutation.SetMetadata(v)
@@ -550,6 +576,18 @@ func (_c *LeadCreate) createSpec() (*Lead, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.QualificationAnswers(); ok {
 		_spec.SetField(lead.FieldQualificationAnswers, field.TypeJSON, value)
 		_node.QualificationAnswers = value
+	}
+	if value, ok := _c.mutation.OwnerUserID(); ok {
+		_spec.SetField(lead.FieldOwnerUserID, field.TypeUUID, value)
+		_node.OwnerUserID = &value
+	}
+	if value, ok := _c.mutation.AiScoreBreakdown(); ok {
+		_spec.SetField(lead.FieldAiScoreBreakdown, field.TypeJSON, value)
+		_node.AiScoreBreakdown = value
+	}
+	if value, ok := _c.mutation.EnrichmentData(); ok {
+		_spec.SetField(lead.FieldEnrichmentData, field.TypeJSON, value)
+		_node.EnrichmentData = value
 	}
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(lead.FieldMetadata, field.TypeJSON, value)
@@ -971,6 +1009,60 @@ func (u *LeadUpsert) UpdateQualificationAnswers() *LeadUpsert {
 // ClearQualificationAnswers clears the value of the "qualification_answers" field.
 func (u *LeadUpsert) ClearQualificationAnswers() *LeadUpsert {
 	u.SetNull(lead.FieldQualificationAnswers)
+	return u
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (u *LeadUpsert) SetOwnerUserID(v uuid.UUID) *LeadUpsert {
+	u.Set(lead.FieldOwnerUserID, v)
+	return u
+}
+
+// UpdateOwnerUserID sets the "owner_user_id" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateOwnerUserID() *LeadUpsert {
+	u.SetExcluded(lead.FieldOwnerUserID)
+	return u
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (u *LeadUpsert) ClearOwnerUserID() *LeadUpsert {
+	u.SetNull(lead.FieldOwnerUserID)
+	return u
+}
+
+// SetAiScoreBreakdown sets the "ai_score_breakdown" field.
+func (u *LeadUpsert) SetAiScoreBreakdown(v map[string]interface{}) *LeadUpsert {
+	u.Set(lead.FieldAiScoreBreakdown, v)
+	return u
+}
+
+// UpdateAiScoreBreakdown sets the "ai_score_breakdown" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateAiScoreBreakdown() *LeadUpsert {
+	u.SetExcluded(lead.FieldAiScoreBreakdown)
+	return u
+}
+
+// ClearAiScoreBreakdown clears the value of the "ai_score_breakdown" field.
+func (u *LeadUpsert) ClearAiScoreBreakdown() *LeadUpsert {
+	u.SetNull(lead.FieldAiScoreBreakdown)
+	return u
+}
+
+// SetEnrichmentData sets the "enrichment_data" field.
+func (u *LeadUpsert) SetEnrichmentData(v map[string]interface{}) *LeadUpsert {
+	u.Set(lead.FieldEnrichmentData, v)
+	return u
+}
+
+// UpdateEnrichmentData sets the "enrichment_data" field to the value that was provided on create.
+func (u *LeadUpsert) UpdateEnrichmentData() *LeadUpsert {
+	u.SetExcluded(lead.FieldEnrichmentData)
+	return u
+}
+
+// ClearEnrichmentData clears the value of the "enrichment_data" field.
+func (u *LeadUpsert) ClearEnrichmentData() *LeadUpsert {
+	u.SetNull(lead.FieldEnrichmentData)
 	return u
 }
 
@@ -1414,6 +1506,69 @@ func (u *LeadUpsertOne) UpdateQualificationAnswers() *LeadUpsertOne {
 func (u *LeadUpsertOne) ClearQualificationAnswers() *LeadUpsertOne {
 	return u.Update(func(s *LeadUpsert) {
 		s.ClearQualificationAnswers()
+	})
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (u *LeadUpsertOne) SetOwnerUserID(v uuid.UUID) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetOwnerUserID(v)
+	})
+}
+
+// UpdateOwnerUserID sets the "owner_user_id" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateOwnerUserID() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateOwnerUserID()
+	})
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (u *LeadUpsertOne) ClearOwnerUserID() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearOwnerUserID()
+	})
+}
+
+// SetAiScoreBreakdown sets the "ai_score_breakdown" field.
+func (u *LeadUpsertOne) SetAiScoreBreakdown(v map[string]interface{}) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetAiScoreBreakdown(v)
+	})
+}
+
+// UpdateAiScoreBreakdown sets the "ai_score_breakdown" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateAiScoreBreakdown() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateAiScoreBreakdown()
+	})
+}
+
+// ClearAiScoreBreakdown clears the value of the "ai_score_breakdown" field.
+func (u *LeadUpsertOne) ClearAiScoreBreakdown() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearAiScoreBreakdown()
+	})
+}
+
+// SetEnrichmentData sets the "enrichment_data" field.
+func (u *LeadUpsertOne) SetEnrichmentData(v map[string]interface{}) *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetEnrichmentData(v)
+	})
+}
+
+// UpdateEnrichmentData sets the "enrichment_data" field to the value that was provided on create.
+func (u *LeadUpsertOne) UpdateEnrichmentData() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateEnrichmentData()
+	})
+}
+
+// ClearEnrichmentData clears the value of the "enrichment_data" field.
+func (u *LeadUpsertOne) ClearEnrichmentData() *LeadUpsertOne {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearEnrichmentData()
 	})
 }
 
@@ -2038,6 +2193,69 @@ func (u *LeadUpsertBulk) UpdateQualificationAnswers() *LeadUpsertBulk {
 func (u *LeadUpsertBulk) ClearQualificationAnswers() *LeadUpsertBulk {
 	return u.Update(func(s *LeadUpsert) {
 		s.ClearQualificationAnswers()
+	})
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (u *LeadUpsertBulk) SetOwnerUserID(v uuid.UUID) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetOwnerUserID(v)
+	})
+}
+
+// UpdateOwnerUserID sets the "owner_user_id" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateOwnerUserID() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateOwnerUserID()
+	})
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (u *LeadUpsertBulk) ClearOwnerUserID() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearOwnerUserID()
+	})
+}
+
+// SetAiScoreBreakdown sets the "ai_score_breakdown" field.
+func (u *LeadUpsertBulk) SetAiScoreBreakdown(v map[string]interface{}) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetAiScoreBreakdown(v)
+	})
+}
+
+// UpdateAiScoreBreakdown sets the "ai_score_breakdown" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateAiScoreBreakdown() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateAiScoreBreakdown()
+	})
+}
+
+// ClearAiScoreBreakdown clears the value of the "ai_score_breakdown" field.
+func (u *LeadUpsertBulk) ClearAiScoreBreakdown() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearAiScoreBreakdown()
+	})
+}
+
+// SetEnrichmentData sets the "enrichment_data" field.
+func (u *LeadUpsertBulk) SetEnrichmentData(v map[string]interface{}) *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.SetEnrichmentData(v)
+	})
+}
+
+// UpdateEnrichmentData sets the "enrichment_data" field to the value that was provided on create.
+func (u *LeadUpsertBulk) UpdateEnrichmentData() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.UpdateEnrichmentData()
+	})
+}
+
+// ClearEnrichmentData clears the value of the "enrichment_data" field.
+func (u *LeadUpsertBulk) ClearEnrichmentData() *LeadUpsertBulk {
+	return u.Update(func(s *LeadUpsert) {
+		s.ClearEnrichmentData()
 	})
 }
 

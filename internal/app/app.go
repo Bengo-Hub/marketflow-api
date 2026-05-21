@@ -16,11 +16,16 @@ import (
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/httpapi/handlers"
 	mfmiddleware "github.com/bengobox/marketflow-api/internal/middleware"
+	"github.com/bengobox/marketflow-api/internal/modules/accounts"
+	"github.com/bengobox/marketflow-api/internal/modules/activities"
 	"github.com/bengobox/marketflow-api/internal/modules/admin"
 	"github.com/bengobox/marketflow-api/internal/modules/analytics"
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
 	"github.com/bengobox/marketflow-api/internal/modules/campaigns"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
+	custom_agents "github.com/bengobox/marketflow-api/internal/modules/custom_agents"
+	custom_fields "github.com/bengobox/marketflow-api/internal/modules/custom_fields"
+	"github.com/bengobox/marketflow-api/internal/modules/deals"
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
 	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
@@ -28,9 +33,11 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/integrations"
 	"github.com/bengobox/marketflow-api/internal/modules/meetings"
 	"github.com/bengobox/marketflow-api/internal/modules/outbox"
+	"github.com/bengobox/marketflow-api/internal/modules/pipelines"
 	"github.com/bengobox/marketflow-api/internal/modules/rbac"
 	"github.com/bengobox/marketflow-api/internal/modules/sequences"
 	"github.com/bengobox/marketflow-api/internal/modules/shortlinks"
+	"github.com/bengobox/marketflow-api/internal/modules/tasks"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant"
 	"github.com/bengobox/marketflow-api/internal/modules/testimonials"
 	"github.com/bengobox/marketflow-api/internal/modules/webhooks"
@@ -175,6 +182,28 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 
 	analyticsHandler := analytics.NewHandler(entClient, logger)
 	auditHandler := audit.NewHandler(entClient, logger)
+
+	// CRM Sprint 9 modules
+	dealService := deals.NewService(entClient, logger)
+	dealHandler := deals.NewHandler(dealService, logger)
+
+	pipelineService := pipelines.NewService(entClient, logger)
+	pipelineHandler := pipelines.NewHandler(pipelineService, logger)
+
+	accountService := accounts.NewService(entClient, logger)
+	accountHandler := accounts.NewHandler(accountService, logger)
+
+	activityService := activities.NewService(entClient, logger)
+	activityHandler := activities.NewHandler(activityService, logger)
+
+	taskService := tasks.NewService(entClient, logger)
+	taskHandler := tasks.NewHandler(taskService, logger)
+
+	customFieldService := custom_fields.NewService(entClient, logger)
+	customFieldHandler := custom_fields.NewHandler(customFieldService, logger)
+
+	customAgentService := custom_agents.NewService(entClient, logger)
+	customAgentHandler := custom_agents.NewHandler(customAgentService, logger)
 
 	// ── Subscription usage + feature gate ─────────────────────────────
 	usagePub := mfmiddleware.NewUsagePublisher(cfg.Subscriptions.URL, cfg.Subscriptions.APIKey, logger)
@@ -342,6 +371,69 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			IngestFromService: leadHandler.IngestFromService,
 		},
 		InternalServiceKey: cfg.Subscriptions.APIKey,
+		DealHandlers: httpapi.DealHandlers{
+			Create:   dealHandler.Create,
+			List:     dealHandler.List,
+			Get:      dealHandler.Get,
+			Update:   dealHandler.Update,
+			Move:     dealHandler.Move,
+			MarkWon:  dealHandler.MarkWon,
+			MarkLost: dealHandler.MarkLost,
+			Delete:   dealHandler.Delete,
+		},
+		PipelineHandlers: httpapi.PipelineHandlers{
+			Create:      pipelineHandler.Create,
+			List:        pipelineHandler.List,
+			Get:         pipelineHandler.Get,
+			Update:      pipelineHandler.Update,
+			Delete:      pipelineHandler.Delete,
+			CreateStage: pipelineHandler.CreateStage,
+			UpdateStage: pipelineHandler.UpdateStage,
+			DeleteStage: pipelineHandler.DeleteStage,
+		},
+		AccountHandlers: httpapi.AccountHandlers{
+			Create:       accountHandler.Create,
+			List:         accountHandler.List,
+			Get:          accountHandler.Get,
+			Update:       accountHandler.Update,
+			Delete:       accountHandler.Delete,
+			ListContacts: accountHandler.ListContacts,
+		},
+		ActivityHandlers: httpapi.ActivityHandlers{
+			Log:             activityHandler.Log,
+			GetTimeline:     activityHandler.GetTimeline,
+			LeadTimeline:    activityHandler.ListForEntity("lead"),
+			ContactTimeline: activityHandler.ListForEntity("contact"),
+			DealTimeline:    activityHandler.ListForEntity("deal"),
+		},
+		TaskHandlers: httpapi.TaskHandlers{
+			Create:   taskHandler.Create,
+			List:     taskHandler.List,
+			Get:      taskHandler.Get,
+			Update:   taskHandler.Update,
+			Complete: taskHandler.Complete,
+			Delete:   taskHandler.Delete,
+		},
+		CustomFieldHandlers: httpapi.CustomFieldHandlers{
+			CreateDef:        customFieldHandler.CreateDef,
+			ListDefs:         customFieldHandler.ListDefs,
+			UpdateDef:        customFieldHandler.UpdateDef,
+			DeleteDef:        customFieldHandler.DeleteDef,
+			SetLeadValues:    customFieldHandler.SetValues("lead"),
+			GetLeadValues:    customFieldHandler.GetValues("lead"),
+			SetContactValues: customFieldHandler.SetValues("contact"),
+			GetContactValues: customFieldHandler.GetValues("contact"),
+			SetDealValues:    customFieldHandler.SetValues("deal"),
+			GetDealValues:    customFieldHandler.GetValues("deal"),
+		},
+		CustomAgentHandlers: httpapi.CustomAgentHandlers{
+			Create:   customAgentHandler.Create,
+			List:     customAgentHandler.List,
+			Get:      customAgentHandler.Get,
+			Update:   customAgentHandler.Update,
+			Delete:   customAgentHandler.Delete,
+			ListRuns: customAgentHandler.ListRuns,
+		},
 		RequireAuthHandler: requireAuth,
 		RequirePlatformOwner: requirePlatformOwner(authMiddleware),
 		RequireAICredits:     featureGate.RequireFeature("ai_chat_messages", "AI credits exhausted — purchase more at /settings/billing"),

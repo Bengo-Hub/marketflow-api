@@ -89,9 +89,33 @@ type TenantEdges struct {
 	NurtureDeliveryEvents []*NurtureDeliveryEvent `json:"nurture_delivery_events,omitempty"`
 	// AdMetrics holds the value of the ad_metrics edge.
 	AdMetrics []*AdMetrics `json:"ad_metrics,omitempty"`
+	// Accounts holds the value of the accounts edge.
+	Accounts []*Account `json:"accounts,omitempty"`
+	// Pipelines holds the value of the pipelines edge.
+	Pipelines []*Pipeline `json:"pipelines,omitempty"`
+	// Deals holds the value of the deals edge.
+	Deals []*Deal `json:"deals,omitempty"`
+	// Activities holds the value of the activities edge.
+	Activities []*Activity `json:"activities,omitempty"`
+	// Tasks holds the value of the tasks edge.
+	Tasks []*Task `json:"tasks,omitempty"`
+	// CustomFieldDefs holds the value of the custom_field_defs edge.
+	CustomFieldDefs []*CustomFieldDef `json:"custom_field_defs,omitempty"`
+	// CustomFieldValues holds the value of the custom_field_values edge.
+	CustomFieldValues []*CustomFieldValue `json:"custom_field_values,omitempty"`
+	// LeadScoringRules holds the value of the lead_scoring_rules edge.
+	LeadScoringRules []*LeadScoringRule `json:"lead_scoring_rules,omitempty"`
+	// CustomAgents holds the value of the custom_agents edge.
+	CustomAgents []*CustomAgent `json:"custom_agents,omitempty"`
+	// AgentRuns holds the value of the agent_runs edge.
+	AgentRuns []*AgentRun `json:"agent_runs,omitempty"`
+	// Segments holds the value of the segments edge.
+	Segments []*Segment `json:"segments,omitempty"`
+	// BehavioralTriggers holds the value of the behavioral_triggers edge.
+	BehavioralTriggers []*BehavioralTrigger `json:"behavioral_triggers,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [12]bool
+	loadedTypes [24]bool
 }
 
 // LeadsOrErr returns the Leads value or an error if the edge
@@ -200,6 +224,114 @@ func (e TenantEdges) AdMetricsOrErr() ([]*AdMetrics, error) {
 		return e.AdMetrics, nil
 	}
 	return nil, &NotLoadedError{edge: "ad_metrics"}
+}
+
+// AccountsOrErr returns the Accounts value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) AccountsOrErr() ([]*Account, error) {
+	if e.loadedTypes[12] {
+		return e.Accounts, nil
+	}
+	return nil, &NotLoadedError{edge: "accounts"}
+}
+
+// PipelinesOrErr returns the Pipelines value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) PipelinesOrErr() ([]*Pipeline, error) {
+	if e.loadedTypes[13] {
+		return e.Pipelines, nil
+	}
+	return nil, &NotLoadedError{edge: "pipelines"}
+}
+
+// DealsOrErr returns the Deals value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) DealsOrErr() ([]*Deal, error) {
+	if e.loadedTypes[14] {
+		return e.Deals, nil
+	}
+	return nil, &NotLoadedError{edge: "deals"}
+}
+
+// ActivitiesOrErr returns the Activities value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) ActivitiesOrErr() ([]*Activity, error) {
+	if e.loadedTypes[15] {
+		return e.Activities, nil
+	}
+	return nil, &NotLoadedError{edge: "activities"}
+}
+
+// TasksOrErr returns the Tasks value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) TasksOrErr() ([]*Task, error) {
+	if e.loadedTypes[16] {
+		return e.Tasks, nil
+	}
+	return nil, &NotLoadedError{edge: "tasks"}
+}
+
+// CustomFieldDefsOrErr returns the CustomFieldDefs value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) CustomFieldDefsOrErr() ([]*CustomFieldDef, error) {
+	if e.loadedTypes[17] {
+		return e.CustomFieldDefs, nil
+	}
+	return nil, &NotLoadedError{edge: "custom_field_defs"}
+}
+
+// CustomFieldValuesOrErr returns the CustomFieldValues value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) CustomFieldValuesOrErr() ([]*CustomFieldValue, error) {
+	if e.loadedTypes[18] {
+		return e.CustomFieldValues, nil
+	}
+	return nil, &NotLoadedError{edge: "custom_field_values"}
+}
+
+// LeadScoringRulesOrErr returns the LeadScoringRules value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) LeadScoringRulesOrErr() ([]*LeadScoringRule, error) {
+	if e.loadedTypes[19] {
+		return e.LeadScoringRules, nil
+	}
+	return nil, &NotLoadedError{edge: "lead_scoring_rules"}
+}
+
+// CustomAgentsOrErr returns the CustomAgents value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) CustomAgentsOrErr() ([]*CustomAgent, error) {
+	if e.loadedTypes[20] {
+		return e.CustomAgents, nil
+	}
+	return nil, &NotLoadedError{edge: "custom_agents"}
+}
+
+// AgentRunsOrErr returns the AgentRuns value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) AgentRunsOrErr() ([]*AgentRun, error) {
+	if e.loadedTypes[21] {
+		return e.AgentRuns, nil
+	}
+	return nil, &NotLoadedError{edge: "agent_runs"}
+}
+
+// SegmentsOrErr returns the Segments value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) SegmentsOrErr() ([]*Segment, error) {
+	if e.loadedTypes[22] {
+		return e.Segments, nil
+	}
+	return nil, &NotLoadedError{edge: "segments"}
+}
+
+// BehavioralTriggersOrErr returns the BehavioralTriggers value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) BehavioralTriggersOrErr() ([]*BehavioralTrigger, error) {
+	if e.loadedTypes[23] {
+		return e.BehavioralTriggers, nil
+	}
+	return nil, &NotLoadedError{edge: "behavioral_triggers"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -435,6 +567,66 @@ func (_m *Tenant) QueryNurtureDeliveryEvents() *NurtureDeliveryEventQuery {
 // QueryAdMetrics queries the "ad_metrics" edge of the Tenant entity.
 func (_m *Tenant) QueryAdMetrics() *AdMetricsQuery {
 	return NewTenantClient(_m.config).QueryAdMetrics(_m)
+}
+
+// QueryAccounts queries the "accounts" edge of the Tenant entity.
+func (_m *Tenant) QueryAccounts() *AccountQuery {
+	return NewTenantClient(_m.config).QueryAccounts(_m)
+}
+
+// QueryPipelines queries the "pipelines" edge of the Tenant entity.
+func (_m *Tenant) QueryPipelines() *PipelineQuery {
+	return NewTenantClient(_m.config).QueryPipelines(_m)
+}
+
+// QueryDeals queries the "deals" edge of the Tenant entity.
+func (_m *Tenant) QueryDeals() *DealQuery {
+	return NewTenantClient(_m.config).QueryDeals(_m)
+}
+
+// QueryActivities queries the "activities" edge of the Tenant entity.
+func (_m *Tenant) QueryActivities() *ActivityQuery {
+	return NewTenantClient(_m.config).QueryActivities(_m)
+}
+
+// QueryTasks queries the "tasks" edge of the Tenant entity.
+func (_m *Tenant) QueryTasks() *TaskQuery {
+	return NewTenantClient(_m.config).QueryTasks(_m)
+}
+
+// QueryCustomFieldDefs queries the "custom_field_defs" edge of the Tenant entity.
+func (_m *Tenant) QueryCustomFieldDefs() *CustomFieldDefQuery {
+	return NewTenantClient(_m.config).QueryCustomFieldDefs(_m)
+}
+
+// QueryCustomFieldValues queries the "custom_field_values" edge of the Tenant entity.
+func (_m *Tenant) QueryCustomFieldValues() *CustomFieldValueQuery {
+	return NewTenantClient(_m.config).QueryCustomFieldValues(_m)
+}
+
+// QueryLeadScoringRules queries the "lead_scoring_rules" edge of the Tenant entity.
+func (_m *Tenant) QueryLeadScoringRules() *LeadScoringRuleQuery {
+	return NewTenantClient(_m.config).QueryLeadScoringRules(_m)
+}
+
+// QueryCustomAgents queries the "custom_agents" edge of the Tenant entity.
+func (_m *Tenant) QueryCustomAgents() *CustomAgentQuery {
+	return NewTenantClient(_m.config).QueryCustomAgents(_m)
+}
+
+// QueryAgentRuns queries the "agent_runs" edge of the Tenant entity.
+func (_m *Tenant) QueryAgentRuns() *AgentRunQuery {
+	return NewTenantClient(_m.config).QueryAgentRuns(_m)
+}
+
+// QuerySegments queries the "segments" edge of the Tenant entity.
+func (_m *Tenant) QuerySegments() *SegmentQuery {
+	return NewTenantClient(_m.config).QuerySegments(_m)
+}
+
+// QueryBehavioralTriggers queries the "behavioral_triggers" edge of the Tenant entity.
+func (_m *Tenant) QueryBehavioralTriggers() *BehavioralTriggerQuery {
+	return NewTenantClient(_m.config).QueryBehavioralTriggers(_m)
 }
 
 // Update returns a builder for updating this Tenant.
