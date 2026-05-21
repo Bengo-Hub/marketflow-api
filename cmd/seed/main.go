@@ -957,6 +957,57 @@ func defaultSequences() []seqDef {
 					Body:    "Update your preferences or unsubscribe in one click. We'll respect whichever you choose."},
 			},
 		},
+		// ── Plan-requested baseline templates ────────────────────────────────
+		{
+			Name:           "Welcome Sequence",
+			TriggerEvent:   "lead.created",
+			LeadTypeFilter: "all",
+			Description:    "Default welcome flow for all new leads.",
+			Steps: []seqStep{
+				{DelayHours: 0, Channel: "email",
+					Subject: "Welcome to [Company Name]",
+					Body:    "Hi {{lead_name}}, welcome! We're excited to have you. Let us know how we can help."},
+				{DelayHours: 24, Channel: "email",
+					Subject: "Here's how we can help you",
+					Body:    "Here are some ways we can support your goals. Reply to this email or chat with us any time."},
+			},
+		},
+		{
+			Name:           "Product Tips",
+			TriggerEvent:   "lead.created",
+			LeadTypeFilter: "distributor",
+			Description:    "Practical tips for distributor leads to grow their business.",
+			Steps: []seqStep{
+				{DelayHours: 48, Channel: "email",
+					Subject: "Tips for your business",
+					Body:    "Here are our top tips to get your business off to a strong start."},
+				{DelayHours: 168, Channel: "email",
+					Subject: "Advanced strategies",
+					Body:    "Ready to take it further? These advanced strategies will help you scale."},
+			},
+		},
+		{
+			Name:           "Follow-up",
+			TriggerEvent:   "lead.created",
+			LeadTypeFilter: "pilot",
+			Description:    "Follow-up sequence for pilot leads after initial inquiry.",
+			Steps: []seqStep{
+				{DelayHours: 24, Channel: "email",
+					Subject: "Following up on your inquiry",
+					Body:    "Hi {{lead_name}}, I wanted to follow up on your inquiry. Please let us know if you have any questions."},
+			},
+		},
+		{
+			Name:           "Reorder Reminder",
+			TriggerEvent:   "lead.order_completed",
+			LeadTypeFilter: "distributor",
+			Description:    "Remind distributors to reorder at the 30-day mark.",
+			Steps: []seqStep{
+				{DelayHours: 720, Channel: "email",
+					Subject: "Time to reorder?",
+					Body:    "Hi {{lead_name}}, it's been about 30 days since your last order. Ready to restock?"},
+			},
+		},
 	}
 }
 
