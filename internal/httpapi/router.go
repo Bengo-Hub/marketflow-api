@@ -398,7 +398,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 			return false
 		},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID", "X-Tenant-Slug", "X-Tenant-ID"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID", "X-Tenant-Slug", "X-Tenant-ID", "X-Outlet-ID"},
 		ExposedHeaders:   []string{"Set-Cookie"},
 		AllowCredentials: true,
 		MaxAge:           300,
@@ -444,6 +444,16 @@ func NewRouter(deps RouterDeps) http.Handler {
 					})
 				})
 			}
+
+			// Optional outlet context — extracts X-Outlet-ID if present
+			r.Use(func(next http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if outletID := httpware.OutletHeader(r); outletID != "" {
+						r = r.WithContext(httpware.WithOutletID(r.Context(), outletID))
+					}
+					next.ServeHTTP(w, r)
+				})
+			})
 
 			// Lead management
 			r.Route("/leads", func(r chi.Router) {
