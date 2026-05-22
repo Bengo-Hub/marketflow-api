@@ -79,6 +79,9 @@ type RouterDeps struct {
 	// Tenant profile CRUD (FBO settings)
 	TenantProfileHandlers TenantProfileHandlers
 
+	// Tenant team member management
+	TenantMemberHandlers TenantMemberHandlers
+
 	// Auth middleware
 	RequireAuthHandler      func(http.Handler) http.Handler
 	RequirePlatformOwner    func(http.Handler) http.Handler
@@ -104,6 +107,7 @@ type RouterDeps struct {
 	CustomFieldHandlers  CustomFieldHandlers
 	CustomAgentHandlers  CustomAgentHandlers
 	SuggestionHandlers   SuggestionHandlers
+	SegmentHandlers      SegmentHandlers
 
 	// Allowed origins for CORS
 	AllowedOrigins string
@@ -261,6 +265,14 @@ type TenantProfileHandlers struct {
 	Update http.HandlerFunc
 }
 
+// TenantMemberHandlers groups team member management endpoints.
+type TenantMemberHandlers struct {
+	List         http.HandlerFunc
+	Invite       http.HandlerFunc
+	UpdateRole   http.HandlerFunc
+	Remove       http.HandlerFunc
+}
+
 // TestimonialHandlers groups authenticated testimonial CRUD endpoints.
 type TestimonialHandlers struct {
 	List   http.HandlerFunc
@@ -360,6 +372,16 @@ type CustomAgentHandlers struct {
 	TriggerRun http.HandlerFunc
 }
 
+// SegmentHandlers groups segment management HTTP handlers.
+type SegmentHandlers struct {
+	Create   http.HandlerFunc
+	List     http.HandlerFunc
+	Get      http.HandlerFunc
+	Update   http.HandlerFunc
+	Delete   http.HandlerFunc
+	Evaluate http.HandlerFunc
+}
+
 // NewRouter wires HTTP routes.
 func NewRouter(deps RouterDeps) http.Handler {
 	r := chi.NewRouter()
@@ -427,7 +449,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 			if deps.RequireAuthHandler != nil {
 				r.Use(deps.RequireAuthHandler)
 			}
-			
+			// Subscription enforcement — mutations only (GET/HEAD/OPTIONS pass through)
+			r.Use(authclient.RequireActiveSubscriptionForMutations())
+
 			if deps.TenantSyncer != nil {
 				r.Use(func(next http.Handler) http.Handler {
 					return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -533,6 +557,16 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Get("/", deps.TenantProfileHandlers.Get)
 				r.Patch("/", deps.TenantProfileHandlers.Update)
 			})
+
+			// Tenant team member management
+			if deps.TenantMemberHandlers.List != nil {
+				r.Route("/tenant/members", func(r chi.Router) {
+					r.Get("/", deps.TenantMemberHandlers.List)
+					r.Post("/invite", deps.TenantMemberHandlers.Invite)
+					r.Put("/{userId}", deps.TenantMemberHandlers.UpdateRole)
+					r.Delete("/{userId}", deps.TenantMemberHandlers.Remove)
+				})
+			}
 
 			r.Route("/testimonials", func(r chi.Router) {
 				r.Get("/", deps.TestimonialHandlers.List)
@@ -670,6 +704,18 @@ func NewRouter(deps RouterDeps) http.Handler {
 				if deps.SuggestionHandlers.Dismiss != nil {
 					r.Post("/suggestions/{id}/dismiss", deps.SuggestionHandlers.Dismiss)
 				}
+			}
+
+			// CRM: Segments
+			if deps.SegmentHandlers.Create != nil {
+				r.Route("/segments", func(r chi.Router) {
+					r.Post("/", deps.SegmentHandlers.Create)
+					r.Get("/", deps.SegmentHandlers.List)
+					r.Get("/{id}", deps.SegmentHandlers.Get)
+					r.Put("/{id}", deps.SegmentHandlers.Update)
+					r.Delete("/{id}", deps.SegmentHandlers.Delete)
+					r.Post("/{id}/evaluate", deps.SegmentHandlers.Evaluate)
+				})
 			}
 
 			// Admin routes (platform owner only)

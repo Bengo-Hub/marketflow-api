@@ -24,6 +24,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/campaigns"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	custom_agents "github.com/bengobox/marketflow-api/internal/modules/custom_agents"
+	"github.com/bengobox/marketflow-api/internal/modules/segments"
 	custom_fields "github.com/bengobox/marketflow-api/internal/modules/custom_fields"
 	"github.com/bengobox/marketflow-api/internal/modules/deals"
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
@@ -222,6 +223,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	customAgentService := custom_agents.NewService(entClient, logger, customAgentServiceOpts...)
 	customAgentHandler := custom_agents.NewHandler(customAgentService, logger)
 
+	segmentService := segments.NewService(entClient, logger)
+	segmentHandler := segments.NewHandler(segmentService, logger)
+
 	// ── Subscription usage + feature gate ─────────────────────────────
 	usagePub := mfmiddleware.NewUsagePublisher(cfg.Subscriptions.URL, cfg.Subscriptions.APIKey, logger)
 	featureGate := mfmiddleware.NewFeatureGate(cfg.Subscriptions.URL, cfg.Subscriptions.APIKey, logger)
@@ -246,6 +250,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// Testimonial CRUD + public reader for /p/{slug}
 	testimonialHandler := testimonials.NewHandler(entClient, logger)
 	tenantProfileHandler := tenant.NewHandler(entClient, logger)
+	tenantMembersHandler := tenant.NewMembersHandler(rbacService, cfg.Security.AuthServiceURL, cfg.CrossService.InternalServiceKey, logger)
 
 	// Public handlers
 	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, leadService, testimonialHandler, tenantSyncer, logger)
@@ -337,6 +342,12 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		TenantProfileHandlers: httpapi.TenantProfileHandlers{
 			Get:    tenantProfileHandler.GetProfile,
 			Update: tenantProfileHandler.UpdateProfile,
+		},
+		TenantMemberHandlers: httpapi.TenantMemberHandlers{
+			List:       tenantMembersHandler.ListMembers,
+			Invite:     tenantMembersHandler.InviteMember,
+			UpdateRole: tenantMembersHandler.UpdateMemberRole,
+			Remove:     tenantMembersHandler.RemoveMember,
 		},
 		TestimonialHandlers: httpapi.TestimonialHandlers{
 			List:   testimonialHandler.List,
@@ -458,6 +469,14 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Delete:     customAgentHandler.Delete,
 			ListRuns:   customAgentHandler.ListRuns,
 			TriggerRun: customAgentHandler.TriggerRun,
+		},
+		SegmentHandlers: httpapi.SegmentHandlers{
+			Create:   segmentHandler.Create,
+			List:     segmentHandler.List,
+			Get:      segmentHandler.Get,
+			Update:   segmentHandler.Update,
+			Delete:   segmentHandler.Delete,
+			Evaluate: segmentHandler.Evaluate,
 		},
 		RequireAuthHandler: requireAuth,
 		RequirePlatformOwner: requirePlatformOwner(authMiddleware),

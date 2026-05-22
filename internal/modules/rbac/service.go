@@ -195,6 +195,43 @@ func (s *Service) HasRole(ctx context.Context, tenantID uuid.UUID, userID uuid.U
 	return false, nil
 }
 
+// ListUsers returns all active users for the given tenant with their roles.
+func (s *Service) ListUsers(ctx context.Context, tenantID uuid.UUID) ([]*MarketflowUser, error) {
+	return s.repo.ListUsers(ctx, tenantID)
+}
+
+// GetUserRoles returns roles for a specific user.
+func (s *Service) GetUserRoles(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID) ([]*MarketflowRole, error) {
+	return s.repo.GetUserRoles(ctx, tenantID, userID)
+}
+
+// UpdateUserRole replaces a user's current role with a new role code.
+func (s *Service) UpdateUserRole(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID, newRoleCode string, assignedBy uuid.UUID) error {
+	newRole, err := s.repo.GetRoleByCode(ctx, tenantID, newRoleCode)
+	if err != nil {
+		return fmt.Errorf("role %q not found: %w", newRoleCode, err)
+	}
+	existing, err := s.repo.GetUserRoles(ctx, tenantID, userID)
+	if err != nil {
+		return err
+	}
+	for _, r := range existing {
+		_ = s.repo.RevokeRoleFromUser(ctx, tenantID, userID, r.ID)
+	}
+	return s.repo.AssignRoleToUser(ctx, tenantID, &UserRoleAssignment{
+		ID:         uuid.New(),
+		TenantID:   tenantID,
+		UserID:     userID,
+		RoleID:     newRole.ID,
+		AssignedBy: assignedBy,
+	})
+}
+
+// DeactivateUser marks a tenant user as deactivated.
+func (s *Service) DeactivateUser(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID) error {
+	return s.repo.DeactivateUser(ctx, tenantID, userID)
+}
+
 func stringPtr(s string) *string {
 	return &s
 }

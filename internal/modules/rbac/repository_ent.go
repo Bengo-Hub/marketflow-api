@@ -75,6 +75,29 @@ func (r *EntRepository) UpdateUser(ctx context.Context, tenantID uuid.UUID, user
 	return err
 }
 
+func (r *EntRepository) ListUsers(ctx context.Context, tenantID uuid.UUID) ([]*MarketflowUser, error) {
+	users, err := r.client.MarketflowUser.Query().
+		Where(marketflowuser.TenantID(tenantID)).
+		Order(ent.Asc(marketflowuser.FieldCreatedAt)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list users: %w", err)
+	}
+	out := make([]*MarketflowUser, len(users))
+	for i, u := range users {
+		out[i] = mapEntUser(u)
+	}
+	return out, nil
+}
+
+func (r *EntRepository) DeactivateUser(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID) error {
+	_, err := r.client.MarketflowUser.Update().
+		Where(marketflowuser.ID(userID), marketflowuser.TenantID(tenantID)).
+		SetStatus("deactivated").
+		Save(ctx)
+	return err
+}
+
 func (r *EntRepository) CreateRole(ctx context.Context, tenantID uuid.UUID, role *MarketflowRole) error {
 	if role == nil {
 		return errors.New("role cannot be nil")

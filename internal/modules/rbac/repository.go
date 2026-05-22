@@ -31,6 +31,10 @@ type Repository interface {
 	RemovePermissionFromRole(ctx context.Context, roleID uuid.UUID, permissionID uuid.UUID) error
 	GetRolePermissions(ctx context.Context, roleID uuid.UUID) ([]*MarketflowPermission, error)
 
+	// User listing
+	ListUsers(ctx context.Context, tenantID uuid.UUID) ([]*MarketflowUser, error)
+	DeactivateUser(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID) error
+
 	// User-Role assignment operations
 	AssignRoleToUser(ctx context.Context, tenantID uuid.UUID, assignment *UserRoleAssignment) error
 	RevokeRoleFromUser(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID, roleID uuid.UUID) error
