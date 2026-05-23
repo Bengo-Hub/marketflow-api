@@ -58,6 +58,7 @@ type UpdateInput struct {
 type ListInput struct {
 	TenantID    uuid.UUID
 	ContactType *string
+	Query       *string // optional name/email substring search
 	Limit       int
 	Offset      int
 }
@@ -155,6 +156,14 @@ func (s *Service) List(ctx context.Context, in ListInput) ([]*ent.Contact, int, 
 
 	if in.ContactType != nil {
 		query = query.Where(contact.ContactTypeEQ(*in.ContactType))
+	}
+	if in.Query != nil && *in.Query != "" {
+		q := *in.Query
+		query = query.Where(contact.Or(
+			contact.FirstNameContainsFold(q),
+			contact.LastNameContainsFold(q),
+			contact.EmailContainsFold(q),
+		))
 	}
 
 	total, err := query.Clone().Count(ctx)

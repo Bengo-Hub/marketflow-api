@@ -129,6 +129,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	contactType := r.URL.Query().Get("contact_type")
+	q := r.URL.Query().Get("q")
 	input := ListInput{
 		TenantID: tenantID,
 		Limit:    parseIntQuery(r, "limit", 20),
@@ -136,6 +137,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	if contactType != "" {
 		input.ContactType = &contactType
+	}
+	if q != "" {
+		input.Query = &q
 	}
 
 	results, total, err := h.service.List(r.Context(), input)

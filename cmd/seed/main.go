@@ -383,7 +383,7 @@ func seedCompliance(ctx context.Context, client *ent.Client, tenantID uuid.UUID,
 	return count
 }
 
-// seedCodevertexKB seeds platform-wide knowledge base entries for Codevertex IT Solutions.
+// seedCodevertexKB seeds platform-wide knowledge base entries for Codevertex Africa Limited.
 // These entries are shared across all tenants (scope='platform') so Vera can answer
 // questions about Codevertex services, Digitika Academy courses, and the Power Suite
 // without needing FLP-specific context.
@@ -398,12 +398,12 @@ func seedCodevertexKB(ctx context.Context, client *ent.Client, tenantID uuid.UUI
 	entries := []entry{
 		{
 			category: "company",
-			title:    "Codevertex IT Solutions — Company Overview",
-			content: `Codevertex IT Solutions is a premier technology firm headquartered in Kisumu, Kenya, established in 2020.
+			title:    "Codevertex Africa Limited — Company Overview",
+			content: `Codevertex Africa Limited is a premier technology firm headquartered in Kisumu, Kenya. Incorporated as a Private Limited Company on 21 May 2026 (Company No: PVT-VQ1OEVB3, KRA PIN: P052543168K).
 
 Contact:
-- HQ: Pioneer House, 2nd Floor, Oginga Street, Kisumu, Kenya
-- Phone: +254 743 793 901 | +254 792 548 766
+- HQ: Pioneer House, Oginga-Odinga Road, Kisumu CBD, Kisumu East District, Kenya
+- Phone: +254 742 201 368 | +254 743 793 901 | +254 792 548 766
 - Email: info@codevertexitsolutions.com
 - Website: https://codevertexitsolutions.com
 - Client Portal (SSO): https://accounts.codevertexitsolutions.com
