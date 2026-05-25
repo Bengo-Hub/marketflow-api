@@ -158,3 +158,14 @@ func (s *Service) ByEmail(ctx context.Context, tenantID uuid.UUID, email string)
 	}
 	return c, nil
 }
+
+// ByPhone finds a contact by phone number within a tenant (S2S minimal lookup).
+func (s *Service) ByPhone(ctx context.Context, tenantID uuid.UUID, phone string) (*ent.Contact, error) {
+	c, err := s.client.Contact.Query().
+		Where(contact.TenantID(tenantID), contact.PhoneEQ(phone)).
+		First(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("contact not found: %w", err)
+	}
+	return c, nil
+}

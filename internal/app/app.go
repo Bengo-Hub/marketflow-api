@@ -128,6 +128,11 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		if err := subCacheSub.Start(natsConn); err != nil {
 			logger.Warn("app: failed to start subscription cache subscriber", zap.Error(err))
 		}
+
+		loyaltyConsumer := platformevents.NewLoyaltyConsumer(entClient, logger)
+		if err := loyaltyConsumer.Start(natsConn); err != nil {
+			logger.Warn("app: failed to start loyalty tier consumer", zap.Error(err))
+		}
 	}
 
 	// ── Platform Provider Admin Handler ────────────────────────────────────
@@ -281,6 +286,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Delete:     contactHandler.Delete,
 			Get360:     contactHandler.Get360,
 			GetByEmail: contactHandler.GetByEmail,
+			GetByPhone: contactHandler.GetByPhone,
 		},
 		KnowledgeHandlers: httpapi.KnowledgeHandlers{
 			CreateEntry: kbHandler.CreateEntry,

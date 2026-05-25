@@ -334,6 +334,37 @@ func (h *Handler) GetByEmail(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetByPhone handles GET /api/v1/internal/contacts/by-phone?phone=&tenant_id=
+// S2S only — requires X-API-Key, no JWT.
+func (h *Handler) GetByPhone(w http.ResponseWriter, r *http.Request) {
+	phone := r.URL.Query().Get("phone")
+	if phone == "" {
+		httpapi.Error(w, http.StatusBadRequest, "missing_phone", "phone query parameter required", nil)
+		return
+	}
+
+	tenantIDStr := r.URL.Query().Get("tenant_id")
+	tenantID, err := uuid.Parse(tenantIDStr)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "missing_tenant", "tenant_id query parameter required", nil)
+		return
+	}
+
+	c, err := h.service.ByPhone(r.Context(), tenantID, phone)
+	if err != nil {
+		httpapi.Error(w, http.StatusNotFound, "not_found", "contact not found", nil)
+		return
+	}
+
+	httpapi.JSON(w, http.StatusOK, map[string]any{
+		"id":         c.ID,
+		"first_name": c.FirstName,
+		"last_name":  c.LastName,
+		"email":      c.Email,
+		"phone":      c.Phone,
+	})
+}
+
 func parseIntQuery(r *http.Request, key string, defaultVal int) int {
 	val := r.URL.Query().Get(key)
 	if val == "" {
