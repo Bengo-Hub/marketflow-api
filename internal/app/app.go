@@ -74,7 +74,19 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		return nil, err
 	}
 	if cfg.Database.RunMigrations {
-		if err := database.RunMigrations(ctx, entClient); err != nil {
+		// Use direct PostgreSQL connection for migrations to bypass PgBouncer
+		// transaction mode (which blocks Atlas advisory locks and DDL transactions).
+		migCfg := cfg.Database
+		if migCfg.MigrateURL != "" {
+			migCfg.URL = migCfg.MigrateURL
+		}
+		migClient, migDB, err := database.NewClient(ctx, migCfg)
+		if err != nil {
+			return nil, fmt.Errorf("migration client: %w", err)
+		}
+		defer migDB.Close()
+		defer migClient.Close()
+		if err := database.RunMigrations(ctx, migClient); err != nil {
 			return nil, err
 		}
 	}
