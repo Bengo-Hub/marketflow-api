@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -120,10 +121,11 @@ func (h *Handler) ListEntries(w http.ResponseWriter, r *http.Request) {
 	}
 
 	category := r.URL.Query().Get("category")
+	p := pagination.Parse(r)
 	input := ListEntriesInput{
 		TenantID: tenantID,
-		Limit:    parseIntQuery(r, "limit", 20),
-		Offset:   parseIntQuery(r, "offset", 0),
+		Limit:    p.Limit,
+		Offset:   p.Offset,
 	}
 	if category != "" {
 		input.Category = &category
@@ -136,10 +138,7 @@ func (h *Handler) ListEntries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httpapi.JSON(w, http.StatusOK, map[string]any{
-		"data":  results,
-		"total": total,
-	})
+	httpapi.JSON(w, http.StatusOK, pagination.NewResponse(results, total, p))
 }
 
 // GetEntry handles GET /api/v1/knowledge/entries/{id}
@@ -304,17 +303,3 @@ func extractTenantID(r *http.Request) (uuid.UUID, error) {
 	return uuid.Parse(header)
 }
 
-func parseIntQuery(r *http.Request, key string, defaultVal int) int {
-	val := r.URL.Query().Get(key)
-	if val == "" {
-		return defaultVal
-	}
-	n := 0
-	for _, c := range val {
-		if c < '0' || c > '9' {
-			return defaultVal
-		}
-		n = n*10 + int(c-'0')
-	}
-	return n
-}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -233,16 +234,15 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_id", "invalid agent ID", nil)
 		return
 	}
-	limit := parseIntQuery(r, "limit", 20)
-	offset := parseIntQuery(r, "offset", 0)
+	p := pagination.Parse(r)
 
-	results, total, err := h.service.ListRuns(r.Context(), tenantID, id, limit, offset)
+	results, total, err := h.service.ListRuns(r.Context(), tenantID, id, p.Limit, p.Offset)
 	if err != nil {
 		h.logger.Error("failed to list agent runs", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "list_failed", "failed to list agent runs", nil)
 		return
 	}
-	httpapi.JSON(w, http.StatusOK, map[string]any{"data": results, "total": total})
+	httpapi.JSON(w, http.StatusOK, pagination.NewResponse(results, total, p))
 }
 
 // TriggerRun handles POST /api/v1/agents/custom/{id}/run
@@ -291,17 +291,3 @@ func extractTenantID(r *http.Request) (uuid.UUID, error) {
 	return uuid.Parse(header)
 }
 
-func parseIntQuery(r *http.Request, key string, defaultVal int) int {
-	val := r.URL.Query().Get(key)
-	if val == "" {
-		return defaultVal
-	}
-	n := 0
-	for _, c := range val {
-		if c < '0' || c > '9' {
-			return defaultVal
-		}
-		n = n*10 + int(c-'0')
-	}
-	return n
-}

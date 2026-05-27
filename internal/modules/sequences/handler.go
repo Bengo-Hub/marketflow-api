@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -114,10 +115,11 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	triggerEvent := r.URL.Query().Get("trigger_event")
 	activeStr := r.URL.Query().Get("active")
 
+	p := pagination.Parse(r)
 	input := ListInput{
 		TenantID: tenantID,
-		Limit:    parseIntQuery(r, "limit", 20),
-		Offset:   parseIntQuery(r, "offset", 0),
+		Limit:    p.Limit,
+		Offset:   p.Offset,
 	}
 	if triggerEvent != "" {
 		input.TriggerEvent = &triggerEvent
@@ -134,10 +136,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httpapi.JSON(w, http.StatusOK, map[string]any{
-		"data":  results,
-		"total": total,
-	})
+	httpapi.JSON(w, http.StatusOK, pagination.NewResponse(results, total, p))
 }
 
 // Get handles GET /api/v1/sequences/{id}
@@ -294,18 +293,3 @@ func extractTenantID(r *http.Request) (uuid.UUID, error) {
 	return uuid.Parse(header)
 }
 
-// parseIntQuery parses an integer query parameter with a default value.
-func parseIntQuery(r *http.Request, key string, defaultVal int) int {
-	val := r.URL.Query().Get(key)
-	if val == "" {
-		return defaultVal
-	}
-	n := 0
-	for _, c := range val {
-		if c < '0' || c > '9' {
-			return defaultVal
-		}
-		n = n*10 + int(c-'0')
-	}
-	return n
-}

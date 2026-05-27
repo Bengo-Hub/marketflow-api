@@ -12,6 +12,8 @@ github.com/Bengo-Hub/auth-client v0.6.1 h1:7yW9wbp70gcirFJlmVQe+b2GDEgFV2DdBqfL8
 github.com/Bengo-Hub/auth-client v0.6.1/go.mod h1:DTfmZRTomkZRFm1YYKO8DmvwjLIchZnM7ZaFArIffsI=
 github.com/Bengo-Hub/httpware v0.4.1 h1:4I2C82lxJeRnETxJKxyMpFfsH1gk9r7ytLxiIwLVmaM=
 github.com/Bengo-Hub/httpware v0.4.1/go.mod h1:iplyopAHMEyJL7lLlJoharGvb5uN04OcQEZjX85O8TU=
+github.com/Bengo-Hub/pagination v0.2.0 h1:o5bYf0/YiFW/5KJrsct5gGT+1YW1hrrOEkKMVCVBrvQ=
+github.com/Bengo-Hub/pagination v0.2.0/go.mod h1:hRtnYM//1M5tcMW67lNBMVY5zcD8ktrrOQ1kunFJzhw=
 github.com/Bengo-Hub/shared-events v0.2.0 h1:boWYHnssTEmUg1c4qd7/YiMoo0ShBqrg4xyUwxwKFsY=
 github.com/Bengo-Hub/shared-events v0.2.0/go.mod h1:lUGlufCZcRz3pgkmEo552zOO5ove6s6ekf/SRvQ0/N0=
 github.com/Bengo-Hub/shared-events v0.3.0 h1:RDT3mGrku4aDBAOsWiHPQBtuOv3X4lkQrAbMvMIdyJE=

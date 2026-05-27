@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -106,7 +107,8 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		lt = &linkType
 	}
 
-	results, total, err := h.service.ListByTenant(r.Context(), tenantID, lt, parseIntQuery(r, "limit", 20), parseIntQuery(r, "offset", 0))
+	p := pagination.Parse(r)
+	results, total, err := h.service.ListByTenant(r.Context(), tenantID, lt, p.Limit, p.Offset)
 	if err != nil {
 		h.logger.Error("failed to list short links", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "list_failed", "failed to list short links", nil)
@@ -129,10 +131,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	httpapi.JSON(w, http.StatusOK, map[string]any{
-		"data":  items,
-		"total": total,
-	})
+	httpapi.JSON(w, http.StatusOK, pagination.NewResponse(items, total, p))
 }
 
 // Redirect handles GET /s/{code} — public, no auth required.
@@ -162,17 +161,3 @@ func extractTenantID(r *http.Request) (uuid.UUID, error) {
 	return uuid.Parse(header)
 }
 
-func parseIntQuery(r *http.Request, key string, defaultVal int) int {
-	val := r.URL.Query().Get(key)
-	if val == "" {
-		return defaultVal
-	}
-	n := 0
-	for _, c := range val {
-		if c < '0' || c > '9' {
-			return defaultVal
-		}
-		n = n*10 + int(c-'0')
-	}
-	return n
-}

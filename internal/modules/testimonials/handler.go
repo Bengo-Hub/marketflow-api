@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/testimonial"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
@@ -55,10 +56,12 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "X-Tenant-ID required", nil)
 		return
 	}
-	rows, err := h.db.Testimonial.Query().
+	p := pagination.Parse(r)
+	q := h.db.Testimonial.Query().
 		Where(testimonial.TenantIDEQ(tenantID)).
-		Order(ent.Asc(testimonial.FieldDisplayOrder), ent.Desc(testimonial.FieldCreatedAt)).
-		All(r.Context())
+		Order(ent.Asc(testimonial.FieldDisplayOrder), ent.Desc(testimonial.FieldCreatedAt))
+	total, _ := q.Clone().Count(r.Context())
+	rows, err := q.Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		httpapi.Error(w, http.StatusInternalServerError, "query_failed", err.Error(), nil)
 		return
@@ -67,7 +70,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	for i, t := range rows {
 		out[i] = serializeTestimonial(t)
 	}
-	httpapi.JSON(w, http.StatusOK, map[string]any{"data": out})
+	httpapi.JSON(w, http.StatusOK, pagination.NewResponse(out, total, p))
 }
 
 // Create handles POST /api/v1/testimonials.

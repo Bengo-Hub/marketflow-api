@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -141,10 +142,11 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	p := pagination.Parse(r)
 	in := ListInput{
 		TenantID: tenantID,
-		Limit:    parseIntQuery(r, "limit", 20),
-		Offset:   parseIntQuery(r, "offset", 0),
+		Limit:    p.Limit,
+		Offset:   p.Offset,
 	}
 	if s := r.URL.Query().Get("status"); s != "" {
 		in.Status = &s
@@ -182,7 +184,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httpapi.JSON(w, http.StatusOK, map[string]any{"data": results, "total": total})
+	httpapi.JSON(w, http.StatusOK, pagination.NewResponse(results, total, p))
 }
 
 // Get handles GET /api/v1/deals/{id}
@@ -409,22 +411,6 @@ func extractTenantID(r *http.Request) (uuid.UUID, error) {
 		return uuid.UUID{}, fmt.Errorf("X-Tenant-ID header is required")
 	}
 	return uuid.Parse(header)
-}
-
-// parseIntQuery parses an integer query parameter with a default value.
-func parseIntQuery(r *http.Request, key string, defaultVal int) int {
-	val := r.URL.Query().Get(key)
-	if val == "" {
-		return defaultVal
-	}
-	n := 0
-	for _, c := range val {
-		if c < '0' || c > '9' {
-			return defaultVal
-		}
-		n = n*10 + int(c-'0')
-	}
-	return n
 }
 
 // parseDate parses a date string in RFC3339 or YYYY-MM-DD format.

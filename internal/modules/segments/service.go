@@ -63,12 +63,12 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Segment, err
 	return seg, nil
 }
 
-// List returns all segments for a tenant.
-func (s *Service) List(ctx context.Context, tenantID uuid.UUID) ([]*ent.Segment, error) {
-	return s.client.Segment.Query().
-		Where(entsegment.TenantID(tenantID)).
-		Order(ent.Asc(entsegment.FieldCreatedAt)).
-		All(ctx)
+// List returns paginated segments for a tenant.
+func (s *Service) List(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]*ent.Segment, int, error) {
+	q := s.client.Segment.Query().Where(entsegment.TenantID(tenantID))
+	total, _ := q.Clone().Count(ctx)
+	segs, err := q.Order(ent.Asc(entsegment.FieldCreatedAt)).Limit(limit).Offset(offset).All(ctx)
+	return segs, total, err
 }
 
 // Get returns a single segment.

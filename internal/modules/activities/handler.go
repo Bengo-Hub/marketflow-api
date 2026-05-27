@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -112,12 +113,13 @@ func (h *Handler) ListForEntity(entityType string) http.HandlerFunc {
 			return
 		}
 
+		p := pagination.Parse(r)
 		in := ListInput{
 			TenantID:   tenantID,
 			EntityType: entityType,
 			EntityID:   entityID,
-			Limit:      parseIntQuery(r, "limit", 50),
-			Offset:     parseIntQuery(r, "offset", 0),
+			Limit:      p.Limit,
+			Offset:     p.Offset,
 		}
 		if at := r.URL.Query().Get("activity_type"); at != "" {
 			in.ActivityType = &at
@@ -129,7 +131,7 @@ func (h *Handler) ListForEntity(entityType string) http.HandlerFunc {
 			httpapi.Error(w, http.StatusInternalServerError, "list_failed", "failed to list activities", nil)
 			return
 		}
-		httpapi.JSON(w, http.StatusOK, map[string]any{"data": results, "total": total})
+		httpapi.JSON(w, http.StatusOK, pagination.NewResponse(results, total, p))
 	}
 }
 
@@ -165,12 +167,13 @@ func (h *Handler) GetTimeline(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	p := pagination.Parse(r)
 	in := ListInput{
 		TenantID:   tenantID,
 		EntityType: entityType,
 		EntityID:   entityID,
-		Limit:      parseIntQuery(r, "limit", 50),
-		Offset:     parseIntQuery(r, "offset", 0),
+		Limit:      p.Limit,
+		Offset:     p.Offset,
 	}
 	if at := r.URL.Query().Get("activity_type"); at != "" {
 		in.ActivityType = &at
@@ -182,7 +185,7 @@ func (h *Handler) GetTimeline(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusInternalServerError, "list_failed", "failed to list activities", nil)
 		return
 	}
-	httpapi.JSON(w, http.StatusOK, map[string]any{"data": results, "total": total})
+	httpapi.JSON(w, http.StatusOK, pagination.NewResponse(results, total, p))
 }
 
 // ListSuggestions handles GET /api/v1/suggestions
@@ -200,8 +203,8 @@ func (h *Handler) ListSuggestions(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing or invalid X-Tenant-ID header", nil)
 		return
 	}
-	limit := parseIntQuery(r, "limit", 20)
-	results, err := h.service.ListSuggestions(r.Context(), tenantID, limit)
+	p := pagination.Parse(r)
+	results, err := h.service.ListSuggestions(r.Context(), tenantID, p.Limit)
 	if err != nil {
 		h.logger.Error("failed to list suggestions", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "list_failed", "failed to list suggestions", nil)
@@ -250,17 +253,3 @@ func extractTenantID(r *http.Request) (uuid.UUID, error) {
 	return uuid.Parse(header)
 }
 
-func parseIntQuery(r *http.Request, key string, defaultVal int) int {
-	val := r.URL.Query().Get(key)
-	if val == "" {
-		return defaultVal
-	}
-	n := 0
-	for _, c := range val {
-		if c < '0' || c > '9' {
-			return defaultVal
-		}
-		n = n*10 + int(c-'0')
-	}
-	return n
-}

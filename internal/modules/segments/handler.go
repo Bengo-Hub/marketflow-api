@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -79,7 +80,8 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "X-Tenant-ID required", nil)
 		return
 	}
-	segs, err := h.svc.List(r.Context(), tid)
+	p := pagination.Parse(r)
+	segs, total, err := h.svc.List(r.Context(), tid, p.Limit, p.Offset)
 	if err != nil {
 		httpapi.Error(w, http.StatusInternalServerError, "list_failed", err.Error(), nil)
 		return
@@ -88,7 +90,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	for i, s := range segs {
 		out[i] = serialize(s)
 	}
-	httpapi.JSON(w, http.StatusOK, map[string]any{"segments": out, "total": len(out)})
+	httpapi.JSON(w, http.StatusOK, pagination.NewResponse(out, total, p))
 }
 
 // Get handles GET /api/v1/segments/{id}.

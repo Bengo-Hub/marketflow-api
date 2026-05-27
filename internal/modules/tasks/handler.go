@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Bengo-Hub/pagination"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -116,10 +117,11 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing or invalid X-Tenant-ID header", nil)
 		return
 	}
+	p := pagination.Parse(r)
 	in := ListInput{
 		TenantID: tenantID,
-		Limit:    parseIntQuery(r, "limit", 20),
-		Offset:   parseIntQuery(r, "offset", 0),
+		Limit:    p.Limit,
+		Offset:   p.Offset,
 		Overdue:  r.URL.Query().Get("overdue") == "true",
 	}
 	if s := r.URL.Query().Get("entity_type"); s != "" {
@@ -145,7 +147,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusInternalServerError, "list_failed", "failed to list tasks", nil)
 		return
 	}
-	httpapi.JSON(w, http.StatusOK, map[string]any{"data": results, "total": total})
+	httpapi.JSON(w, http.StatusOK, pagination.NewResponse(results, total, p))
 }
 
 // Get handles GET /api/v1/tasks/{id}
@@ -292,17 +294,3 @@ func extractTenantID(r *http.Request) (uuid.UUID, error) {
 	return uuid.Parse(header)
 }
 
-func parseIntQuery(r *http.Request, key string, defaultVal int) int {
-	val := r.URL.Query().Get(key)
-	if val == "" {
-		return defaultVal
-	}
-	n := 0
-	for _, c := range val {
-		if c < '0' || c > '9' {
-			return defaultVal
-		}
-		n = n*10 + int(c-'0')
-	}
-	return n
-}

@@ -4,9 +4,9 @@ package audit
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 
+	"github.com/Bengo-Hub/pagination"
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/auditlog"
@@ -37,17 +37,18 @@ func NewHandler(db *ent.Client, logger *zap.Logger) *Handler {
 // @Router /admin/audit [get]
 func (h *Handler) ListPlatform(w http.ResponseWriter, r *http.Request) {
 	event := r.URL.Query().Get("event")
-	limit := parseLimit(r)
+	p := pagination.Parse(r)
 	q := h.db.AuditLog.Query().Where(auditlog.ScopeEQ("platform"))
 	if event != "" {
 		q = q.Where(auditlog.EventEQ(event))
 	}
-	rows, err := q.Order(ent.Desc(auditlog.FieldOccurredAt)).Limit(limit).All(r.Context())
+	total, _ := q.Clone().Count(r.Context())
+	rows, err := q.Order(ent.Desc(auditlog.FieldOccurredAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		httpapi.Error(w, http.StatusInternalServerError, "query_failed", err.Error(), nil)
 		return
 	}
-	httpapi.JSON(w, http.StatusOK, map[string]any{"data": rows, "total": len(rows)})
+	httpapi.JSON(w, http.StatusOK, pagination.NewResponse(rows, total, p))
 }
 
 // ListTenant returns tenant-scope audit events for the authenticated tenant.
@@ -69,25 +70,18 @@ func (h *Handler) ListTenant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	event := r.URL.Query().Get("event")
-	limit := parseLimit(r)
+	p := pagination.Parse(r)
 	q := h.db.AuditLog.Query().Where(auditlog.TenantIDEQ(tenantID))
 	if event != "" {
 		q = q.Where(auditlog.EventEQ(event))
 	}
-	rows, err := q.Order(ent.Desc(auditlog.FieldOccurredAt)).Limit(limit).All(r.Context())
+	total, _ := q.Clone().Count(r.Context())
+	rows, err := q.Order(ent.Desc(auditlog.FieldOccurredAt)).Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
 		httpapi.Error(w, http.StatusInternalServerError, "query_failed", err.Error(), nil)
 		return
 	}
-	httpapi.JSON(w, http.StatusOK, map[string]any{"data": rows, "total": len(rows)})
-}
-
-func parseLimit(r *http.Request) int {
-	n, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	if n <= 0 || n > 200 {
-		return 50
-	}
-	return n
+	httpapi.JSON(w, http.StatusOK, pagination.NewResponse(rows, total, p))
 }
 
 // resolveTenant picks a tenant UUID from X-Tenant-ID, X-Tenant-Slug (with DB

@@ -6,6 +6,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/account"
+	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -202,14 +203,21 @@ func (s *Service) Delete(ctx context.Context, tenantID, accountID uuid.UUID) err
 	return nil
 }
 
-// ListContacts retrieves contacts linked to an account.
-func (s *Service) ListContacts(ctx context.Context, tenantID, accountID uuid.UUID) ([]*ent.Contact, error) {
-	acc, err := s.client.Account.Query().
+// ListContacts retrieves paginated contacts linked to an account.
+func (s *Service) ListContacts(ctx context.Context, tenantID, accountID uuid.UUID, limit, offset int) ([]*ent.Contact, int, error) {
+	// Verify account belongs to tenant
+	exists, err := s.client.Account.Query().
 		Where(account.ID(accountID), account.TenantID(tenantID)).
-		WithContacts().
-		Only(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("get account contacts: %w", err)
+		Exist(ctx)
+	if err != nil || !exists {
+		return nil, 0, fmt.Errorf("account not found")
 	}
-	return acc.Edges.Contacts, nil
+
+	q := s.client.Contact.Query().Where(contact.AccountID(accountID), contact.TenantID(tenantID))
+	total, _ := q.Clone().Count(ctx)
+	results, err := q.Limit(limit).Offset(offset).All(ctx)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list account contacts: %w", err)
+	}
+	return results, total, nil
 }
