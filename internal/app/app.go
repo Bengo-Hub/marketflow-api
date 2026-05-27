@@ -33,7 +33,6 @@ import (
 	"github.com/bengobox/marketflow-api/internal/integrations/gcal"
 	"github.com/bengobox/marketflow-api/internal/modules/integrations"
 	"github.com/bengobox/marketflow-api/internal/modules/meetings"
-	"github.com/bengobox/marketflow-api/internal/modules/outbox"
 	"github.com/bengobox/marketflow-api/internal/modules/pipelines"
 	"github.com/bengobox/marketflow-api/internal/modules/rbac"
 	"github.com/bengobox/marketflow-api/internal/modules/sequences"
@@ -59,7 +58,7 @@ type App struct {
 	db              *sql.DB
 	redis           *redis.Client
 	natsConn        *nats.Conn
-	outboxPublisher *outbox.Publisher
+	outboxPublisher *eventslib.OutboxPoller
 	tenantConsumer  *platformevents.TenantConsumer
 	providerManager *providers.Manager
 	rbacService     *rbac.Service
@@ -88,7 +87,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 
 	// ── NATS Event Publishing (optional) ──────────────────────────────────
 	var natsConn *nats.Conn
-	var outboxPub *outbox.Publisher
+	var outboxPub *eventslib.OutboxPoller
 	if cfg.Events.Enabled {
 		natsConn, err = platformevents.Connect(cfg.Events)
 		if err != nil {
@@ -97,8 +96,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		logger.Info("NATS connection established", zap.String("url", cfg.Events.NATSURL))
 
 		outboxRepo := eventslib.NewSQLOutboxRepository(sqlDB)
-		outboxNatsPublisher := platformevents.NewOutboxPublisher(natsConn, logger)
-		outboxPub = outbox.NewPublisher(outboxRepo, outboxNatsPublisher, logger, outbox.PublisherConfig{
+		outboxNatsPublisher := eventslib.NewNATSAdapter(natsConn, logger)
+		outboxPub = eventslib.NewOutboxPoller(outboxRepo, outboxNatsPublisher, logger, eventslib.PollerConfig{
 			BatchSize:  cfg.Events.OutboxBatchSize,
 			PollPeriod: cfg.Events.OutboxPollPeriod,
 		})
