@@ -296,8 +296,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Update:     contactHandler.Update,
 			Delete:     contactHandler.Delete,
 			Get360:     contactHandler.Get360,
-			GetByEmail: contactHandler.GetByEmail,
-			GetByPhone: contactHandler.GetByPhone,
+			GetByEmail:    contactHandler.GetByEmail,
+			GetByPhone:    contactHandler.GetByPhone,
+			UpsertByPhone: contactHandler.UpsertByPhone,
 		},
 		KnowledgeHandlers: httpapi.KnowledgeHandlers{
 			CreateEntry: kbHandler.CreateEntry,

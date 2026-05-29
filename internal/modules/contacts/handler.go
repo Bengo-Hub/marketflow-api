@@ -333,6 +333,57 @@ func (h *Handler) GetByEmail(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// UpsertByPhone handles POST /api/v1/internal/contacts/upsert.
+// S2S only — creates or returns existing contact by phone. Requires X-API-Key, no JWT.
+func (h *Handler) UpsertByPhone(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TenantID  string `json:"tenant_id"`
+		Phone     string `json:"phone"`
+		FirstName string `json:"first_name"`
+		LastName  string `json:"last_name"`
+	}
+	if err := httpapi.DecodeJSON(r, &req); err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid request body", nil)
+		return
+	}
+	if req.Phone == "" {
+		httpapi.Error(w, http.StatusBadRequest, "missing_phone", "phone is required", nil)
+		return
+	}
+	tenantID, err := uuid.Parse(req.TenantID)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "missing_tenant", "valid tenant_id is required", nil)
+		return
+	}
+	var firstName *string
+	if req.FirstName != "" {
+		firstName = &req.FirstName
+	}
+	var lastName *string
+	if req.LastName != "" {
+		lastName = &req.LastName
+	}
+	phone := req.Phone
+	c, err := h.service.Create(r.Context(), CreateInput{
+		TenantID:    tenantID,
+		Phone:       &phone,
+		FirstName:   firstName,
+		LastName:    lastName,
+		ContactType: "customer",
+	})
+	if err != nil {
+		h.logger.Error("upsert contact by phone failed", zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "upsert_failed", "failed to upsert contact", nil)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, map[string]any{
+		"id":         c.ID,
+		"first_name": c.FirstName,
+		"last_name":  c.LastName,
+		"phone":      c.Phone,
+	})
+}
+
 // GetByPhone handles GET /api/v1/internal/contacts/by-phone?phone=&tenant_id=
 // S2S only — requires X-API-Key, no JWT.
 func (h *Handler) GetByPhone(w http.ResponseWriter, r *http.Request) {
