@@ -59,7 +59,8 @@ type App struct {
 	redis           *redis.Client
 	natsConn        *nats.Conn
 	outboxPublisher *eventslib.OutboxPoller
-	tenantConsumer  *platformevents.TenantConsumer
+	tenantConsumer        *platformevents.TenantConsumer
+	subscriptionConsumer  *platformevents.SubscriptionConsumer
 	providerManager *providers.Manager
 	rbacService     *rbac.Service
 	usagePublisher  *mfmiddleware.UsagePublisher
@@ -129,6 +130,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 
 	// ── NATS Tenant Consumer ──────────────────────────────────────────────
 	var tenantConsumer *platformevents.TenantConsumer
+	var subscriptionConsumer *platformevents.SubscriptionConsumer
 	if natsConn != nil {
 		tenantConsumer = platformevents.NewTenantConsumer(natsConn, tenantSyncer, logger)
 		if err := tenantConsumer.Start(); err != nil {
@@ -143,6 +145,11 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		loyaltyConsumer := platformevents.NewLoyaltyConsumer(entClient, logger)
 		if err := loyaltyConsumer.Start(natsConn); err != nil {
 			logger.Warn("app: failed to start loyalty tier consumer", zap.Error(err))
+		}
+
+		subscriptionConsumer = platformevents.NewSubscriptionConsumer(natsConn, entClient, logger)
+		if err := subscriptionConsumer.Start(); err != nil {
+			logger.Warn("app: failed to start subscription consumer", zap.Error(err))
 		}
 	}
 
@@ -516,18 +523,19 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	}
 
 	return &App{
-		cfg:             cfg,
-		logger:          logger,
-		entClient:       entClient,
-		db:              sqlDB,
-		redis:           redisClient,
-		natsConn:        natsConn,
-		outboxPublisher: outboxPub,
-		tenantConsumer:  tenantConsumer,
-		providerManager: providerMgr,
-		rbacService:     rbacService,
-		usagePublisher:  usagePub,
-		httpServer:      server,
+		cfg:                  cfg,
+		logger:               logger,
+		entClient:            entClient,
+		db:                   sqlDB,
+		redis:                redisClient,
+		natsConn:             natsConn,
+		outboxPublisher:      outboxPub,
+		tenantConsumer:       tenantConsumer,
+		subscriptionConsumer: subscriptionConsumer,
+		providerManager:      providerMgr,
+		rbacService:          rbacService,
+		usagePublisher:       usagePub,
+		httpServer:           server,
 	}, nil
 }
 
@@ -574,6 +582,10 @@ func (a *App) Shutdown(ctx context.Context) error {
 
 	if a.tenantConsumer != nil {
 		a.tenantConsumer.Stop()
+	}
+
+	if a.subscriptionConsumer != nil {
+		a.subscriptionConsumer.Stop()
 	}
 
 	if a.outboxPublisher != nil {
