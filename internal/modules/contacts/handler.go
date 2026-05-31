@@ -334,11 +334,15 @@ func (h *Handler) GetByEmail(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpsertByPhone handles POST /api/v1/internal/contacts/upsert.
-// S2S only — creates or returns existing contact by phone. Requires X-API-Key, no JWT.
+// S2S only — creates or returns an existing contact by phone and/or email.
+// Requires X-API-Key, no JWT. At least one of phone or email must be provided.
+// Deduplication checks email first, then phone, so a customer returning with a
+// different payment method but the same email or phone is never duplicated.
 func (h *Handler) UpsertByPhone(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		TenantID  string `json:"tenant_id"`
 		Phone     string `json:"phone"`
+		Email     string `json:"email"`
 		FirstName string `json:"first_name"`
 		LastName  string `json:"last_name"`
 	}
@@ -346,8 +350,8 @@ func (h *Handler) UpsertByPhone(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid request body", nil)
 		return
 	}
-	if req.Phone == "" {
-		httpapi.Error(w, http.StatusBadRequest, "missing_phone", "phone is required", nil)
+	if req.Phone == "" && req.Email == "" {
+		httpapi.Error(w, http.StatusBadRequest, "missing_identifier", "at least one of phone or email is required", nil)
 		return
 	}
 	tenantID, err := uuid.Parse(req.TenantID)
@@ -363,16 +367,21 @@ func (h *Handler) UpsertByPhone(w http.ResponseWriter, r *http.Request) {
 	if req.LastName != "" {
 		lastName = &req.LastName
 	}
-	phone := req.Phone
-	c, err := h.service.Create(r.Context(), CreateInput{
+	inp := CreateInput{
 		TenantID:    tenantID,
-		Phone:       &phone,
 		FirstName:   firstName,
 		LastName:    lastName,
 		ContactType: "customer",
-	})
+	}
+	if req.Phone != "" {
+		inp.Phone = &req.Phone
+	}
+	if req.Email != "" {
+		inp.Email = &req.Email
+	}
+	c, err := h.service.Create(r.Context(), inp)
 	if err != nil {
-		h.logger.Error("upsert contact by phone failed", zap.Error(err))
+		h.logger.Error("upsert contact failed", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "upsert_failed", "failed to upsert contact", nil)
 		return
 	}
@@ -381,6 +390,7 @@ func (h *Handler) UpsertByPhone(w http.ResponseWriter, r *http.Request) {
 		"first_name": c.FirstName,
 		"last_name":  c.LastName,
 		"phone":      c.Phone,
+		"email":      c.Email,
 	})
 }
 
