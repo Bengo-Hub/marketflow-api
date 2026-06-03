@@ -1,6 +1,6 @@
 module github.com/bengobox/marketflow-api
 
-go 1.25.0
+go 1.26.0
 
 // Auth client module redirect (same pattern as notifications-api)
 replace github.com/Bengo-Hub/shared-auth-client => github.com/Bengo-Hub/auth-client v0.6.1
