@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	enttenant "github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -30,10 +31,11 @@ const (
 // tenant record from auth-api and upserts locally using the SAME UUID so
 // all services share a consistent tenant identifier.
 type Syncer struct {
-	client     *ent.Client
-	authAPIURL string
-	httpClient *http.Client
-	logger     *zap.Logger
+	client             *ent.Client
+	authAPIURL         string
+	platformTenantSlug string
+	httpClient         *http.Client
+	logger             *zap.Logger
 }
 
 // NewSyncer creates a new TenantSyncer.
@@ -42,11 +44,16 @@ func NewSyncer(client *ent.Client, logger *zap.Logger) *Syncer {
 	if authAPIURL == "" {
 		authAPIURL = "https://sso.codevertexitsolutions.com"
 	}
+	platformSlug := os.Getenv("PLATFORM_TENANT")
+	if platformSlug == "" {
+		platformSlug = "codevertex"
+	}
 	return &Syncer{
-		client:     client,
-		authAPIURL: authAPIURL,
-		httpClient: &http.Client{Timeout: 10 * time.Second},
-		logger:     logger.Named("tenant.syncer"),
+		client:             client,
+		authAPIURL:         authAPIURL,
+		platformTenantSlug: platformSlug,
+		httpClient:         &http.Client{Timeout: 10 * time.Second},
+		logger:             logger.Named("tenant.syncer"),
 	}
 }
 
@@ -206,7 +213,78 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 		zap.String("id", realID.String()),
 		zap.String("name", name),
 	)
+
+	// Record the tenant's owner (the tenant admin) as a CUSTOMER in the PLATFORM CRM — a tenant is
+	// Codevertex's customer at the platform level. Tenant end-customers are synced separately into
+	// their own tenant's CRM (by ordering/pos on transaction). Best-effort; never fails the sync.
+	s.upsertPlatformCustomer(ctx, remote)
+
 	return realID, nil
+}
+
+// upsertPlatformCustomer records a tenant's owner as a customer contact under the PLATFORM tenant's
+// CRM scope. Idempotent (dedups by email/phone). Skips the platform tenant itself and owners with no
+// contact info. This is how tenant ADMINS (Codevertex's customers) reach the CRM — distinct from
+// tenant END-customers (synced into their tenant's CRM on order) and from platform owners / tenant
+// staff, who are never recorded as customers.
+func (s *Syncer) upsertPlatformCustomer(ctx context.Context, remote *authTenant) {
+	if remote == nil || remote.Owner == nil {
+		return
+	}
+	owner := remote.Owner
+	if owner.Email == "" && owner.Phone == "" {
+		return
+	}
+	if s.platformTenantSlug == "" || remote.Slug == s.platformTenantSlug {
+		return // don't record the platform tenant's own owner as its own customer
+	}
+
+	platform, err := s.client.Tenant.Query().Where(enttenant.SlugEQ(s.platformTenantSlug)).Only(ctx)
+	if err != nil {
+		s.logger.Warn("platform CRM: platform tenant not found; skipping owner contact",
+			zap.String("platform_slug", s.platformTenantSlug), zap.Error(err))
+		return
+	}
+
+	cleanPhone := ""
+	if owner.Phone != "" {
+		if c, perr := CleanPhone(owner.Phone); perr == nil {
+			cleanPhone = c
+		}
+	}
+
+	// Dedup by email or phone within the platform tenant.
+	if owner.Email != "" {
+		if _, e := s.client.Contact.Query().Where(contact.TenantID(platform.ID), contact.EmailEQ(owner.Email)).First(ctx); e == nil {
+			return
+		}
+	}
+	if cleanPhone != "" {
+		if _, e := s.client.Contact.Query().Where(contact.TenantID(platform.ID), contact.PhoneEQ(cleanPhone)).First(ctx); e == nil {
+			return
+		}
+	}
+
+	builder := s.client.Contact.Create().SetTenantID(platform.ID).SetContactType("customer")
+	if owner.Email != "" {
+		builder = builder.SetEmail(owner.Email)
+	}
+	if cleanPhone != "" {
+		builder = builder.SetPhone(cleanPhone)
+	}
+	if owner.FirstName != "" {
+		builder = builder.SetFirstName(owner.FirstName)
+	}
+	if owner.LastName != "" {
+		builder = builder.SetLastName(owner.LastName)
+	}
+	if _, err := builder.Save(ctx); err != nil {
+		s.logger.Warn("platform CRM: upsert owner contact failed",
+			zap.String("tenant_slug", remote.Slug), zap.Error(err))
+		return
+	}
+	s.logger.Info("platform CRM: tenant owner recorded as platform customer",
+		zap.String("tenant_slug", remote.Slug))
 }
 
 // resolveName picks the best display name: owner full name > tenant name.
