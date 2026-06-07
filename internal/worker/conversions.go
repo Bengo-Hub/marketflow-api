@@ -54,10 +54,11 @@ func (*ConversionsHandler) Durable() string { return "marketflow-worker-conversi
 func (h *ConversionsHandler) Handle(ctx context.Context, msg jetstream.Msg) error {
 	var ev ConversionEvent
 	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
-		return fmt.Errorf("decode conversion event: %w", err)
+		return dropPoison(h.logger, msg, "decode conversion event", err)
 	}
 	if ev.TenantID == "" || ev.EventName == "" {
-		return fmt.Errorf("conversion event missing tenant_id or event_name")
+		return dropPoison(h.logger, msg, "missing tenant_id or event_name",
+			fmt.Errorf("conversion event missing tenant_id or event_name"))
 	}
 	if h.db == nil {
 		h.logger.Warn("conversion received but DB not configured; skipping", zap.String("event", ev.EventName))

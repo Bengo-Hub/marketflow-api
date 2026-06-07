@@ -82,7 +82,7 @@ func (a *LeadScorerAgent) Handle(ctx context.Context, msg jetstream.Msg) error {
 		LeadID   string `json:"lead_id"`
 	}
 	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
-		return fmt.Errorf("decode crm.lead.created: %w", err)
+		return dropPoison(a.logger, msg, "decode crm.lead.created", err)
 	}
 	if ev.LeadID == "" || a.apiBaseURL == "" {
 		return nil
@@ -502,30 +502,26 @@ func (c *CustomAgentExecutionConsumer) Handle(ctx context.Context, msg jetstream
 		Payload  map[string]any `json:"payload"`
 	}
 	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
-		_ = msg.Nak()
-		return fmt.Errorf("custom agent consumer: unmarshal: %w", err)
+		return dropPoison(c.logger, msg, "custom agent consumer: unmarshal", err)
 	}
 
 	runID, err := uuid.Parse(ev.RunID)
 	if err != nil {
-		_ = msg.Ack()
-		return nil
+		return dropPoison(c.logger, msg, "bad run_id", err)
 	}
 	agentID, err := uuid.Parse(ev.AgentID)
 	if err != nil {
-		_ = msg.Ack()
-		return nil
+		return dropPoison(c.logger, msg, "bad agent_id", err)
 	}
 	tenantID, err := uuid.Parse(ev.TenantID)
 	if err != nil {
-		_ = msg.Ack()
-		return nil
+		return dropPoison(c.logger, msg, "bad tenant_id", err)
 	}
 
 	// Mark run as running.
 	agent, err := c.db.CustomAgent.Get(ctx, agentID)
 	if err != nil {
-		_ = msg.Nak()
+		// Transient DB error — Nak via wrapper so it retries.
 		return fmt.Errorf("custom agent execution: get agent: %w", err)
 	}
 	_ = tenantID
