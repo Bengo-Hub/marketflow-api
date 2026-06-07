@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -23,6 +24,31 @@ type Handler interface {
 	Subject() string
 	Durable() string
 	Handle(ctx context.Context, msg jetstream.Msg) error
+}
+
+// errPoisonDropped is a sentinel returned by handlers after they have already
+// settled an UNRECOVERABLE (poison) message via msg.Term(). The Consume
+// wrapper treats it as "do not redeliver, do not re-settle": it neither Naks
+// nor Acks again. Use dropPoison to terminate + return it.
+var errPoisonDropped = errors.New("poison message dropped")
+
+// dropPoison terminates a JetStream message so it is NOT redelivered, logs a
+// warning, and returns the errPoisonDropped sentinel. Call this ONLY for
+// clearly unrecoverable decode/validation failures (bad JSON, invalid UUID,
+// malformed payload that can never succeed) instead of returning a real error
+// (which would Nak and waste the MaxDeliver redelivery budget). Transient
+// errors (DB, downstream calls, timeouts) must still return a normal error so
+// they are Nak'd and retried.
+func dropPoison(logger *zap.Logger, msg jetstream.Msg, reason string, err error) error {
+	logger.Warn("dropping poison message (unrecoverable)",
+		zap.String("subject", msg.Subject()),
+		zap.String("reason", reason),
+		zap.Error(err),
+	)
+	// Term tells JetStream to stop redelivery entirely (nats.go v1.48). Ignore
+	// the settle error (e.g. already settled) — the drop is logged either way.
+	_ = msg.Term()
+	return errPoisonDropped
 }
 
 // Registry keeps the set of registered consumers.
@@ -116,6 +142,11 @@ func (r *Registry) RegisterAll(ctx context.Context, js jetstream.JetStream) erro
 		hc := h
 		if _, err := cons.Consume(func(msg jetstream.Msg) {
 			if err := hc.Handle(ctx, msg); err != nil {
+				// Poison messages were already terminated by the handler via
+				// dropPoison — do NOT Nak (would re-settle / redeliver).
+				if errors.Is(err, errPoisonDropped) {
+					return
+				}
 				r.logger.Error("handler error",
 					zap.String("subject", msg.Subject()),
 					zap.Error(err),
@@ -156,14 +187,14 @@ func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 		StepIndex    int    `json:"step_index"`
 	}
 	if err := json.Unmarshal(msg.Data(), &envelope); err != nil {
-		return fmt.Errorf("decode envelope: %w", err)
+		return dropPoison(h.logger, msg, "decode envelope", err)
 	}
 	if h.db == nil {
 		return fmt.Errorf("nurture dispatch requires DB — POSTGRES_URL not configured")
 	}
 	enrollmentID, err := uuid.Parse(envelope.EnrollmentID)
 	if err != nil {
-		return fmt.Errorf("bad enrollment_id: %w", err)
+		return dropPoison(h.logger, msg, "bad enrollment_id", err)
 	}
 
 	enrollment, err := h.db.NurtureEnrollment.Get(ctx, enrollmentID)
@@ -334,7 +365,7 @@ func (h *EmbeddingHandler) Handle(ctx context.Context, msg jetstream.Msg) error 
 		EntryID  string `json:"entry_id"`
 	}
 	if err := json.Unmarshal(msg.Data(), &req); err != nil {
-		return err
+		return dropPoison(h.logger, msg, "decode embedding request", err)
 	}
 	if h.db == nil {
 		h.logger.Warn("embedding.requested but no DB — skipping", zap.String("entry", req.EntryID))
@@ -342,7 +373,7 @@ func (h *EmbeddingHandler) Handle(ctx context.Context, msg jetstream.Msg) error 
 	}
 	entryID, err := uuid.Parse(req.EntryID)
 	if err != nil {
-		return fmt.Errorf("bad entry_id: %w", err)
+		return dropPoison(h.logger, msg, "bad entry_id", err)
 	}
 	entry, err := h.db.KnowledgeBaseEntry.Get(ctx, entryID)
 	if err != nil {
@@ -463,7 +494,7 @@ func (h *LeadCreatedHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 		Source   string `json:"source"`
 	}
 	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
-		return err
+		return dropPoison(h.logger, msg, "decode lead.created", err)
 	}
 	if h.db == nil {
 		h.logger.Warn("lead.created received but no DB client configured — skipping auto-enrol",
@@ -472,11 +503,11 @@ func (h *LeadCreatedHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 	}
 	tenantUUID, err := uuid.Parse(ev.TenantID)
 	if err != nil {
-		return fmt.Errorf("invalid tenant_id: %w", err)
+		return dropPoison(h.logger, msg, "invalid tenant_id", err)
 	}
 	leadUUID, err := uuid.Parse(ev.LeadID)
 	if err != nil {
-		return fmt.Errorf("invalid lead_id: %w", err)
+		return dropPoison(h.logger, msg, "invalid lead_id", err)
 	}
 
 	// Match the first active sequence with trigger_event="lead.created" whose

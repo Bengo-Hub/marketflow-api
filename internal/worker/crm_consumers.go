@@ -39,7 +39,7 @@ func (h *OrderingOrderCreatedHandler) Handle(ctx context.Context, msg jetstream.
 		Status       string  `json:"status"`
 	}
 	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
-		return fmt.Errorf("decode ordering.order.created: %w", err)
+		return dropPoison(h.logger, msg, "decode ordering.order.created", err)
 	}
 
 	if ev.CRMContactID == nil || *ev.CRMContactID == "" {
@@ -51,11 +51,11 @@ func (h *OrderingOrderCreatedHandler) Handle(ctx context.Context, msg jetstream.
 
 	tenantID, err := uuid.Parse(ev.TenantID)
 	if err != nil {
-		return fmt.Errorf("bad tenant_id: %w", err)
+		return dropPoison(h.logger, msg, "bad tenant_id", err)
 	}
 	contactID, err := uuid.Parse(*ev.CRMContactID)
 	if err != nil {
-		return fmt.Errorf("bad crm_contact_id: %w", err)
+		return dropPoison(h.logger, msg, "bad crm_contact_id", err)
 	}
 
 	body := fmt.Sprintf("Order %s placed — %s %.2f", ev.OrderNumber, ev.Currency, ev.Total)
@@ -108,7 +108,7 @@ func (h *POSSaleFinalizedHandler) Handle(ctx context.Context, msg jetstream.Msg)
 		Currency     string  `json:"currency"`
 	}
 	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
-		return fmt.Errorf("decode pos.sale.finalized: %w", err)
+		return dropPoison(h.logger, msg, "decode pos.sale.finalized", err)
 	}
 
 	if ev.CRMContactID == nil || *ev.CRMContactID == "" {
@@ -120,11 +120,11 @@ func (h *POSSaleFinalizedHandler) Handle(ctx context.Context, msg jetstream.Msg)
 
 	tenantID, err := uuid.Parse(ev.TenantID)
 	if err != nil {
-		return fmt.Errorf("bad tenant_id: %w", err)
+		return dropPoison(h.logger, msg, "bad tenant_id", err)
 	}
 	contactID, err := uuid.Parse(*ev.CRMContactID)
 	if err != nil {
-		return fmt.Errorf("bad crm_contact_id: %w", err)
+		return dropPoison(h.logger, msg, "bad crm_contact_id", err)
 	}
 
 	body := fmt.Sprintf("POS sale %s — %s %.2f", ev.OrderNumber, ev.Currency, ev.Total)
@@ -171,7 +171,7 @@ func (h *POSAppointmentCompletedHandler) Handle(ctx context.Context, msg jetstre
 		CRMContactID  *string `json:"crm_contact_id"`
 	}
 	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
-		return fmt.Errorf("decode pos.appointment.completed: %w", err)
+		return dropPoison(h.logger, msg, "decode pos.appointment.completed", err)
 	}
 
 	if ev.CRMContactID == nil || *ev.CRMContactID == "" {
@@ -183,11 +183,11 @@ func (h *POSAppointmentCompletedHandler) Handle(ctx context.Context, msg jetstre
 
 	tenantID, err := uuid.Parse(ev.TenantID)
 	if err != nil {
-		return fmt.Errorf("bad tenant_id: %w", err)
+		return dropPoison(h.logger, msg, "bad tenant_id", err)
 	}
 	contactID, err := uuid.Parse(*ev.CRMContactID)
 	if err != nil {
-		return fmt.Errorf("bad crm_contact_id: %w", err)
+		return dropPoison(h.logger, msg, "bad crm_contact_id", err)
 	}
 
 	subject := fmt.Sprintf("Appointment completed: %s", ev.ServiceName)
@@ -238,7 +238,7 @@ func (h *TreasuryPaymentSucceededHandler) Handle(ctx context.Context, msg jetstr
 		Method       string  `json:"payment_method"`
 	}
 	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
-		return fmt.Errorf("decode treasury.payment.succeeded: %w", err)
+		return dropPoison(h.logger, msg, "decode treasury.payment.succeeded", err)
 	}
 
 	if ev.CRMContactID == nil || *ev.CRMContactID == "" {
@@ -250,11 +250,11 @@ func (h *TreasuryPaymentSucceededHandler) Handle(ctx context.Context, msg jetstr
 
 	tenantID, err := uuid.Parse(ev.TenantID)
 	if err != nil {
-		return fmt.Errorf("bad tenant_id: %w", err)
+		return dropPoison(h.logger, msg, "bad tenant_id", err)
 	}
 	contactID, err := uuid.Parse(*ev.CRMContactID)
 	if err != nil {
-		return fmt.Errorf("bad crm_contact_id: %w", err)
+		return dropPoison(h.logger, msg, "bad crm_contact_id", err)
 	}
 
 	subject := fmt.Sprintf("Payment %s %.2f via %s", ev.Currency, ev.Amount, ev.Method)
