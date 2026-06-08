@@ -95,6 +95,20 @@ func (_c *CampaignCreate) SetNillableStatus(v *string) *CampaignCreate {
 	return _c
 }
 
+// SetChannel sets the "channel" field.
+func (_c *CampaignCreate) SetChannel(v string) *CampaignCreate {
+	_c.mutation.SetChannel(v)
+	return _c
+}
+
+// SetNillableChannel sets the "channel" field if the given value is not nil.
+func (_c *CampaignCreate) SetNillableChannel(v *string) *CampaignCreate {
+	if v != nil {
+		_c.SetChannel(*v)
+	}
+	return _c
+}
+
 // SetMetaCampaignID sets the "meta_campaign_id" field.
 func (_c *CampaignCreate) SetMetaCampaignID(v string) *CampaignCreate {
 	_c.mutation.SetMetaCampaignID(v)
@@ -367,6 +381,10 @@ func (_c *CampaignCreate) defaults() {
 		v := campaign.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.Channel(); !ok {
+		v := campaign.DefaultChannel
+		_c.mutation.SetChannel(v)
+	}
 	if _, ok := _c.mutation.Currency(); !ok {
 		v := campaign.DefaultCurrency
 		_c.mutation.SetCurrency(v)
@@ -409,6 +427,9 @@ func (_c *CampaignCreate) check() error {
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Campaign.status"`)}
+	}
+	if _, ok := _c.mutation.Channel(); !ok {
+		return &ValidationError{Name: "channel", err: errors.New(`ent: missing required field "Campaign.channel"`)}
 	}
 	if _, ok := _c.mutation.Currency(); !ok {
 		return &ValidationError{Name: "currency", err: errors.New(`ent: missing required field "Campaign.currency"`)}
@@ -477,6 +498,10 @@ func (_c *CampaignCreate) createSpec() (*Campaign, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(campaign.FieldStatus, field.TypeString, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.Channel(); ok {
+		_spec.SetField(campaign.FieldChannel, field.TypeString, value)
+		_node.Channel = value
 	}
 	if value, ok := _c.mutation.MetaCampaignID(); ok {
 		_spec.SetField(campaign.FieldMetaCampaignID, field.TypeString, value)
@@ -704,6 +729,18 @@ func (u *CampaignUpsert) SetStatus(v string) *CampaignUpsert {
 // UpdateStatus sets the "status" field to the value that was provided on create.
 func (u *CampaignUpsert) UpdateStatus() *CampaignUpsert {
 	u.SetExcluded(campaign.FieldStatus)
+	return u
+}
+
+// SetChannel sets the "channel" field.
+func (u *CampaignUpsert) SetChannel(v string) *CampaignUpsert {
+	u.Set(campaign.FieldChannel, v)
+	return u
+}
+
+// UpdateChannel sets the "channel" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateChannel() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldChannel)
 	return u
 }
 
@@ -1073,6 +1110,20 @@ func (u *CampaignUpsertOne) SetStatus(v string) *CampaignUpsertOne {
 func (u *CampaignUpsertOne) UpdateStatus() *CampaignUpsertOne {
 	return u.Update(func(s *CampaignUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetChannel sets the "channel" field.
+func (u *CampaignUpsertOne) SetChannel(v string) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetChannel(v)
+	})
+}
+
+// UpdateChannel sets the "channel" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateChannel() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateChannel()
 	})
 }
 
@@ -1648,6 +1699,20 @@ func (u *CampaignUpsertBulk) SetStatus(v string) *CampaignUpsertBulk {
 func (u *CampaignUpsertBulk) UpdateStatus() *CampaignUpsertBulk {
 	return u.Update(func(s *CampaignUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetChannel sets the "channel" field.
+func (u *CampaignUpsertBulk) SetChannel(v string) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetChannel(v)
+	})
+}
+
+// UpdateChannel sets the "channel" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateChannel() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateChannel()
 	})
 }
 

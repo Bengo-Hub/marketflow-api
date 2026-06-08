@@ -27,6 +27,8 @@ const (
 	FieldPlatform = "platform"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldChannel holds the string denoting the channel field in the database.
+	FieldChannel = "channel"
 	// FieldMetaCampaignID holds the string denoting the meta_campaign_id field in the database.
 	FieldMetaCampaignID = "meta_campaign_id"
 	// FieldMetaAdsetID holds the string denoting the meta_adset_id field in the database.
@@ -95,6 +97,7 @@ var Columns = []string{
 	FieldCampaignType,
 	FieldPlatform,
 	FieldStatus,
+	FieldChannel,
 	FieldMetaCampaignID,
 	FieldMetaAdsetID,
 	FieldMetaAdID,
@@ -132,6 +135,8 @@ var (
 	DefaultPlatform string
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
+	// DefaultChannel holds the default value on creation for the "channel" field.
+	DefaultChannel string
 	// DefaultCurrency holds the default value on creation for the "currency" field.
 	DefaultCurrency string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -180,6 +185,11 @@ func ByPlatform(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByChannel orders the results by the channel field.
+func ByChannel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChannel, opts...).ToFunc()
 }
 
 // ByMetaCampaignID orders the results by the meta_campaign_id field.

@@ -183,8 +183,9 @@ type CampaignHandlers struct {
 	Get    http.HandlerFunc
 	Update http.HandlerFunc
 	Delete http.HandlerFunc
-	Pause  http.HandlerFunc
-	Resume http.HandlerFunc
+	Pause   http.HandlerFunc
+	Resume  http.HandlerFunc
+	SendSMS http.HandlerFunc
 }
 
 // FunnelHandlers groups funnel management HTTP handlers.
@@ -522,6 +523,12 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Delete("/{id}", deps.CampaignHandlers.Delete)
 				r.Post("/{id}/pause", deps.CampaignHandlers.Pause)
 				r.Post("/{id}/resume", deps.CampaignHandlers.Resume)
+			})
+
+			// Bulk SMS for a campaign — tenant + campaign in the path so POS/admin
+			// callers can target a CRM segment without relying on header context.
+			r.Route("/{tenantID}/campaigns/{campaignID}", func(r chi.Router) {
+				r.Post("/send-sms", deps.CampaignHandlers.SendSMS)
 			})
 
 			// Funnel management

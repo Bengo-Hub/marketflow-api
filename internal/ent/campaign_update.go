@@ -117,6 +117,20 @@ func (_u *CampaignUpdate) SetNillableStatus(v *string) *CampaignUpdate {
 	return _u
 }
 
+// SetChannel sets the "channel" field.
+func (_u *CampaignUpdate) SetChannel(v string) *CampaignUpdate {
+	_u.mutation.SetChannel(v)
+	return _u
+}
+
+// SetNillableChannel sets the "channel" field if the given value is not nil.
+func (_u *CampaignUpdate) SetNillableChannel(v *string) *CampaignUpdate {
+	if v != nil {
+		_u.SetChannel(*v)
+	}
+	return _u
+}
+
 // SetMetaCampaignID sets the "meta_campaign_id" field.
 func (_u *CampaignUpdate) SetMetaCampaignID(v string) *CampaignUpdate {
 	_u.mutation.SetMetaCampaignID(v)
@@ -517,6 +531,9 @@ func (_u *CampaignUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(campaign.FieldStatus, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Channel(); ok {
+		_spec.SetField(campaign.FieldChannel, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.MetaCampaignID(); ok {
 		_spec.SetField(campaign.FieldMetaCampaignID, field.TypeString, value)
 	}
@@ -816,6 +833,20 @@ func (_u *CampaignUpdateOne) SetStatus(v string) *CampaignUpdateOne {
 func (_u *CampaignUpdateOne) SetNillableStatus(v *string) *CampaignUpdateOne {
 	if v != nil {
 		_u.SetStatus(*v)
+	}
+	return _u
+}
+
+// SetChannel sets the "channel" field.
+func (_u *CampaignUpdateOne) SetChannel(v string) *CampaignUpdateOne {
+	_u.mutation.SetChannel(v)
+	return _u
+}
+
+// SetNillableChannel sets the "channel" field if the given value is not nil.
+func (_u *CampaignUpdateOne) SetNillableChannel(v *string) *CampaignUpdateOne {
+	if v != nil {
+		_u.SetChannel(*v)
 	}
 	return _u
 }
@@ -1249,6 +1280,9 @@ func (_u *CampaignUpdateOne) sqlSave(ctx context.Context) (_node *Campaign, err 
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(campaign.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Channel(); ok {
+		_spec.SetField(campaign.FieldChannel, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.MetaCampaignID(); ok {
 		_spec.SetField(campaign.FieldMetaCampaignID, field.TypeString, value)

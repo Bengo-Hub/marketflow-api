@@ -40,6 +40,9 @@ func (Campaign) Fields() []ent.Field {
 		field.String("status").
 			Default("draft").
 			Comment("draft | active | paused | completed | failed"),
+		field.String("channel").
+			Default("email").
+			Comment("Delivery channel for this campaign: email | sms | whatsapp"),
 
 		// Meta API references
 		field.String("meta_campaign_id").

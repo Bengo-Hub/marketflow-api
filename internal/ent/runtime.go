@@ -251,16 +251,20 @@ func init() {
 	campaignDescStatus := campaignFields[6].Descriptor()
 	// campaign.DefaultStatus holds the default value on creation for the status field.
 	campaign.DefaultStatus = campaignDescStatus.Default.(string)
+	// campaignDescChannel is the schema descriptor for channel field.
+	campaignDescChannel := campaignFields[7].Descriptor()
+	// campaign.DefaultChannel holds the default value on creation for the channel field.
+	campaign.DefaultChannel = campaignDescChannel.Default.(string)
 	// campaignDescCurrency is the schema descriptor for currency field.
-	campaignDescCurrency := campaignFields[12].Descriptor()
+	campaignDescCurrency := campaignFields[13].Descriptor()
 	// campaign.DefaultCurrency holds the default value on creation for the currency field.
 	campaign.DefaultCurrency = campaignDescCurrency.Default.(string)
 	// campaignDescCreatedAt is the schema descriptor for created_at field.
-	campaignDescCreatedAt := campaignFields[19].Descriptor()
+	campaignDescCreatedAt := campaignFields[20].Descriptor()
 	// campaign.DefaultCreatedAt holds the default value on creation for the created_at field.
 	campaign.DefaultCreatedAt = campaignDescCreatedAt.Default.(func() time.Time)
 	// campaignDescUpdatedAt is the schema descriptor for updated_at field.
-	campaignDescUpdatedAt := campaignFields[20].Descriptor()
+	campaignDescUpdatedAt := campaignFields[21].Descriptor()
 	// campaign.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	campaign.DefaultUpdatedAt = campaignDescUpdatedAt.Default.(func() time.Time)
 	// campaign.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
