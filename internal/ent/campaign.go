@@ -32,6 +32,8 @@ type Campaign struct {
 	Platform string `json:"platform,omitempty"`
 	// draft | active | paused | completed | failed
 	Status string `json:"status,omitempty"`
+	// Delivery channel for this campaign: email | sms | whatsapp
+	Channel string `json:"channel,omitempty"`
 	// Facebook campaign ID
 	MetaCampaignID *string `json:"meta_campaign_id,omitempty"`
 	// Facebook ad set ID
@@ -119,7 +121,7 @@ func (*Campaign) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case campaign.FieldBudgetDaily, campaign.FieldBudgetTotal:
 			values[i] = new(sql.NullFloat64)
-		case campaign.FieldScope, campaign.FieldName, campaign.FieldCampaignType, campaign.FieldPlatform, campaign.FieldStatus, campaign.FieldMetaCampaignID, campaign.FieldMetaAdsetID, campaign.FieldMetaAdID, campaign.FieldCurrency:
+		case campaign.FieldScope, campaign.FieldName, campaign.FieldCampaignType, campaign.FieldPlatform, campaign.FieldStatus, campaign.FieldChannel, campaign.FieldMetaCampaignID, campaign.FieldMetaAdsetID, campaign.FieldMetaAdID, campaign.FieldCurrency:
 			values[i] = new(sql.NullString)
 		case campaign.FieldStartDate, campaign.FieldEndDate, campaign.FieldCreatedAt, campaign.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -181,6 +183,12 @@ func (_m *Campaign) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = value.String
+			}
+		case campaign.FieldChannel:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field channel", values[i])
+			} else if value.Valid {
+				_m.Channel = value.String
 			}
 		case campaign.FieldMetaCampaignID:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -348,6 +356,9 @@ func (_m *Campaign) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
+	builder.WriteString(", ")
+	builder.WriteString("channel=")
+	builder.WriteString(_m.Channel)
 	builder.WriteString(", ")
 	if v := _m.MetaCampaignID; v != nil {
 		builder.WriteString("meta_campaign_id=")

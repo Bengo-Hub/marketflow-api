@@ -308,6 +308,7 @@ var (
 		{Name: "campaign_type", Type: field.TypeString, Default: "lead_gen"},
 		{Name: "platform", Type: field.TypeString, Default: "meta"},
 		{Name: "status", Type: field.TypeString, Default: "draft"},
+		{Name: "channel", Type: field.TypeString, Default: "email"},
 		{Name: "meta_campaign_id", Type: field.TypeString, Nullable: true},
 		{Name: "meta_adset_id", Type: field.TypeString, Nullable: true},
 		{Name: "meta_ad_id", Type: field.TypeString, Nullable: true},
@@ -332,7 +333,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "campaigns_tenants_campaigns",
-				Columns:    []*schema.Column{CampaignsColumns[20]},
+				Columns:    []*schema.Column{CampaignsColumns[21]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -341,22 +342,22 @@ var (
 			{
 				Name:    "campaign_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{CampaignsColumns[20], CampaignsColumns[5]},
+				Columns: []*schema.Column{CampaignsColumns[21], CampaignsColumns[5]},
 			},
 			{
 				Name:    "campaign_tenant_id_campaign_type",
 				Unique:  false,
-				Columns: []*schema.Column{CampaignsColumns[20], CampaignsColumns[3]},
+				Columns: []*schema.Column{CampaignsColumns[21], CampaignsColumns[3]},
 			},
 			{
 				Name:    "campaign_tenant_id_platform",
 				Unique:  false,
-				Columns: []*schema.Column{CampaignsColumns[20], CampaignsColumns[4]},
+				Columns: []*schema.Column{CampaignsColumns[21], CampaignsColumns[4]},
 			},
 			{
 				Name:    "campaign_meta_campaign_id",
 				Unique:  false,
-				Columns: []*schema.Column{CampaignsColumns[6]},
+				Columns: []*schema.Column{CampaignsColumns[7]},
 			},
 		},
 	}

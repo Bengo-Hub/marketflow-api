@@ -7194,6 +7194,7 @@ type CampaignMutation struct {
 	campaign_type     *string
 	platform          *string
 	status            *string
+	channel           *string
 	meta_campaign_id  *string
 	meta_adset_id     *string
 	meta_ad_id        *string
@@ -7542,6 +7543,42 @@ func (m *CampaignMutation) OldStatus(ctx context.Context) (v string, err error) 
 // ResetStatus resets all changes to the "status" field.
 func (m *CampaignMutation) ResetStatus() {
 	m.status = nil
+}
+
+// SetChannel sets the "channel" field.
+func (m *CampaignMutation) SetChannel(s string) {
+	m.channel = &s
+}
+
+// Channel returns the value of the "channel" field in the mutation.
+func (m *CampaignMutation) Channel() (r string, exists bool) {
+	v := m.channel
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannel returns the old "channel" field's value of the Campaign entity.
+// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CampaignMutation) OldChannel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannel: %w", err)
+	}
+	return oldValue.Channel, nil
+}
+
+// ResetChannel resets all changes to the "channel" field.
+func (m *CampaignMutation) ResetChannel() {
+	m.channel = nil
 }
 
 // SetMetaCampaignID sets the "meta_campaign_id" field.
@@ -8402,7 +8439,7 @@ func (m *CampaignMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CampaignMutation) Fields() []string {
-	fields := make([]string, 0, 20)
+	fields := make([]string, 0, 21)
 	if m.tenant != nil {
 		fields = append(fields, campaign.FieldTenantID)
 	}
@@ -8420,6 +8457,9 @@ func (m *CampaignMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, campaign.FieldStatus)
+	}
+	if m.channel != nil {
+		fields = append(fields, campaign.FieldChannel)
 	}
 	if m.meta_campaign_id != nil {
 		fields = append(fields, campaign.FieldMetaCampaignID)
@@ -8483,6 +8523,8 @@ func (m *CampaignMutation) Field(name string) (ent.Value, bool) {
 		return m.Platform()
 	case campaign.FieldStatus:
 		return m.Status()
+	case campaign.FieldChannel:
+		return m.Channel()
 	case campaign.FieldMetaCampaignID:
 		return m.MetaCampaignID()
 	case campaign.FieldMetaAdsetID:
@@ -8532,6 +8574,8 @@ func (m *CampaignMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldPlatform(ctx)
 	case campaign.FieldStatus:
 		return m.OldStatus(ctx)
+	case campaign.FieldChannel:
+		return m.OldChannel(ctx)
 	case campaign.FieldMetaCampaignID:
 		return m.OldMetaCampaignID(ctx)
 	case campaign.FieldMetaAdsetID:
@@ -8610,6 +8654,13 @@ func (m *CampaignMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
+		return nil
+	case campaign.FieldChannel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannel(v)
 		return nil
 	case campaign.FieldMetaCampaignID:
 		v, ok := value.(string)
@@ -8871,6 +8922,9 @@ func (m *CampaignMutation) ResetField(name string) error {
 		return nil
 	case campaign.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case campaign.FieldChannel:
+		m.ResetChannel()
 		return nil
 	case campaign.FieldMetaCampaignID:
 		m.ResetMetaCampaignID()

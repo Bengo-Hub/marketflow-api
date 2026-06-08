@@ -321,8 +321,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Get:    campaignHandler.Get,
 			Update: campaignHandler.Update,
 			Delete: campaignHandler.Delete,
-			Pause:  campaignHandler.Pause,
-			Resume: campaignHandler.Resume,
+			Pause:   campaignHandler.Pause,
+			Resume:  campaignHandler.Resume,
+			SendSMS: campaignHandler.SendSMS,
 		},
 		FunnelHandlers: httpapi.FunnelHandlers{
 			Create:    funnelHandler.Create,
