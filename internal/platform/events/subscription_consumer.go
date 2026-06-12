@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	eventslib "github.com/Bengo-Hub/shared-events"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/google/uuid"
@@ -34,7 +35,7 @@ func NewSubscriptionConsumer(conn *nats.Conn, orm *ent.Client, logger *zap.Logge
 
 // Start subscribes to subscription events.
 func (c *SubscriptionConsumer) Start() error {
-	sub, err := c.conn.Subscribe(subscriptionTenantActivatedSubject, c.handleTenantActivated)
+	sub, err := eventslib.QueueSubscribe(c.logger, c.conn, subscriptionTenantActivatedSubject, "marketflow-subscription", c.handleTenantActivated)
 	if err != nil {
 		return err
 	}
