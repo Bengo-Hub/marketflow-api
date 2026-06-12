@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	eventslib "github.com/Bengo-Hub/shared-events"
 	"github.com/nats-io/nats.go"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
@@ -28,7 +29,7 @@ func NewCacheSubscriber(redisClient *redis.Client, logger *zap.Logger) *CacheSub
 
 // Start subscribes to tenant.subscription.updated on the provided NATS connection.
 func (s *CacheSubscriber) Start(conn *nats.Conn) error {
-	sub, err := conn.Subscribe("tenant.subscription.updated", s.handle)
+	sub, err := eventslib.QueueSubscribe(s.logger, conn, "tenant.subscription.updated", "marketflow-subcache", s.handle)
 	if err != nil {
 		return err
 	}

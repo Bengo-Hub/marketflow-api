@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	eventslib "github.com/Bengo-Hub/shared-events"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
@@ -30,7 +31,8 @@ func NewTenantConsumer(conn *nats.Conn, syncer *tenant.Syncer, logger *zap.Logge
 func (c *TenantConsumer) Start() error {
 	subjects := []string{"auth.tenant.created", "auth.tenant.updated"}
 	for _, subject := range subjects {
-		sub, err := c.conn.Subscribe(subject, c.handleTenantEvent)
+		// QueueSubscribe: one replica handles each tenant-sync event (no DB upsert races).
+		sub, err := eventslib.QueueSubscribe(c.logger, c.conn, subject, "marketflow-tenant-sync", c.handleTenantEvent)
 		if err != nil {
 			return err
 		}

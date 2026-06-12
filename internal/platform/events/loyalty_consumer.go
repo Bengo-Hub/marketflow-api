@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	eventslib "github.com/Bengo-Hub/shared-events"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/google/uuid"
@@ -30,7 +31,7 @@ func NewLoyaltyConsumer(db *ent.Client, logger *zap.Logger) *LoyaltyConsumer {
 
 // Start subscribes to the loyalty tier upgrade event.
 func (c *LoyaltyConsumer) Start(conn *nats.Conn) error {
-	sub, err := conn.Subscribe("pos.loyalty.tier_upgraded", c.handle)
+	sub, err := eventslib.QueueSubscribe(c.logger, conn, "pos.loyalty.tier_upgraded", "marketflow-loyalty", c.handle)
 	if err != nil {
 		return err
 	}
