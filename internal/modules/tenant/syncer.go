@@ -219,6 +219,11 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 	// their own tenant's CRM (by ordering/pos on transaction). Best-effort; never fails the sync.
 	s.upsertPlatformCustomer(ctx, remote)
 
+	// Seed the tenant's shared "Walk-in" customer so over-the-counter sales without a named customer
+	// (e.g. pos on-account) can be attributed to it. Idempotent; best-effort. pos-api/treasury also
+	// upsert/lookup this same contact by walkInPhone on demand, so existing tenants self-heal too.
+	s.createWalkInContactIfMissing(ctx, realID)
+
 	return realID, nil
 }
 
@@ -285,6 +290,47 @@ func (s *Syncer) upsertPlatformCustomer(ctx context.Context, remote *authTenant)
 	}
 	s.logger.Info("platform CRM: tenant owner recorded as platform customer",
 		zap.String("tenant_slug", remote.Slug))
+}
+
+// walkInPhone is the well-known sentinel identifier for the shared per-tenant "Walk-in" customer.
+// pos-api/treasury upsert and look this contact up by this exact phone, so it must stay in sync.
+const walkInPhone = "+000000000000"
+
+// createWalkInContactIfMissing seeds a shared "Walk-in Customer" contact for a tenant (idempotent by
+// phone) so transactions that need a customer but have none can be attributed to it. Best-effort.
+func (s *Syncer) createWalkInContactIfMissing(ctx context.Context, tenantID uuid.UUID) {
+	if _, e := s.client.Contact.Query().
+		Where(contact.TenantID(tenantID), contact.PhoneEQ(walkInPhone)).First(ctx); e == nil {
+		return // already exists
+	}
+	if _, err := s.client.Contact.Create().
+		SetTenantID(tenantID).
+		SetContactType("customer").
+		SetFirstName("Walk-in").
+		SetLastName("Customer").
+		SetPhone(walkInPhone).
+		SetMetadata(map[string]any{"is_default_walkin": true}).
+		Save(ctx); err != nil {
+		s.logger.Warn("CRM: seed walk-in customer failed",
+			zap.String("tenant_id", tenantID.String()), zap.Error(err))
+		return
+	}
+	s.logger.Info("CRM: seeded walk-in customer", zap.String("tenant_id", tenantID.String()))
+}
+
+// EnsureWalkInForAllTenants backfills the shared Walk-in customer for every existing tenant. Run once
+// at boot so tenants synced BEFORE walk-in seeding existed (e.g. the demo tenant) also get one, rather
+// than relying on lazy on-demand creation. Idempotent and best-effort.
+func (s *Syncer) EnsureWalkInForAllTenants(ctx context.Context) {
+	tenants, err := s.client.Tenant.Query().All(ctx)
+	if err != nil {
+		s.logger.Warn("CRM: walk-in backfill — list tenants failed", zap.Error(err))
+		return
+	}
+	for _, t := range tenants {
+		s.createWalkInContactIfMissing(ctx, t.ID)
+	}
+	s.logger.Info("CRM: walk-in backfill complete", zap.Int("tenants", len(tenants)))
 }
 
 // resolveName picks the best display name: owner full name > tenant name.

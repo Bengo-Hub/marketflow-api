@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"time"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	eventslib "github.com/Bengo-Hub/shared-events"
@@ -123,6 +124,12 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 
 	// ── Tenant Syncer ─────────────────────────────────────────────────────
 	tenantSyncer := tenant.NewSyncer(entClient, logger)
+	// Backfill the default Walk-in customer for all existing tenants (idempotent, one-shot at boot).
+	go func() {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		tenantSyncer.EnsureWalkInForAllTenants(bgCtx)
+	}()
 
 	// ── RBAC ──────────────────────────────────────────────────────────────
 	rbacRepo := rbac.NewEntRepository(entClient)
