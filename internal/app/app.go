@@ -22,6 +22,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/admin"
 	"github.com/bengobox/marketflow-api/internal/modules/analytics"
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
+	backupmod "github.com/bengobox/marketflow-api/internal/modules/backup"
 	"github.com/bengobox/marketflow-api/internal/modules/campaigns"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	custom_agents "github.com/bengobox/marketflow-api/internal/modules/custom_agents"
@@ -285,6 +286,15 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// Public handlers
 	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, leadService, testimonialHandler, tenantSyncer, logger)
 
+	// Tenant-scoped backups + daily 02:00 auto-backup scheduler + retention churn.
+	backupSvc := backupmod.NewService(sqlDB, entClient, cfg.Backup.Dir, logger)
+	backupHandler := backupmod.NewHandler(backupSvc, cfg.Backup.RetentionDays, logger)
+	backupmod.NewScheduler(backupSvc, backupmod.SchedulerConfig{
+		Enabled:       cfg.Backup.ScheduleEnabled,
+		Hour:          cfg.Backup.ScheduleHour,
+		RetentionDays: cfg.Backup.RetentionDays,
+	}, logger).Start(ctx)
+
 	// ── Router ────────────────────────────────────────────────────────────
 	var requireAuth func(http.Handler) http.Handler
 	if authMiddleware != nil {
@@ -295,6 +305,13 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		Log:            logger,
 		HealthHandler:  handlers.Health,
 		MetricsHandler: promhttp.Handler(),
+		BackupHandlers: httpapi.BackupHandlers{
+			List:     backupHandler.List,
+			Create:   backupHandler.Create,
+			Churn:    backupHandler.Churn,
+			Download: backupHandler.Download,
+			Delete:   backupHandler.Delete,
+		},
 		LeadHandlers: httpapi.LeadHandlers{
 			Create: leadHandler.Create,
 			List:   leadHandler.List,

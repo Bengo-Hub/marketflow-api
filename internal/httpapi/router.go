@@ -82,6 +82,9 @@ type RouterDeps struct {
 	// Tenant team member management
 	TenantMemberHandlers TenantMemberHandlers
 
+	// Tenant-scoped backups (this tenant's data only)
+	BackupHandlers BackupHandlers
+
 	// Auth middleware
 	RequireAuthHandler      func(http.Handler) http.Handler
 	RequirePlatformOwner    func(http.Handler) http.Handler
@@ -274,6 +277,15 @@ type TenantMemberHandlers struct {
 	Invite       http.HandlerFunc
 	UpdateRole   http.HandlerFunc
 	Remove       http.HandlerFunc
+}
+
+// BackupHandlers groups tenant-scoped backup endpoints (this tenant's data only).
+type BackupHandlers struct {
+	List     http.HandlerFunc
+	Create   http.HandlerFunc
+	Churn    http.HandlerFunc
+	Download http.HandlerFunc
+	Delete   http.HandlerFunc
 }
 
 // TestimonialHandlers groups authenticated testimonial CRUD endpoints.
@@ -491,6 +503,17 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Put("/{id}", deps.LeadHandlers.Update)
 				r.Delete("/{id}", deps.LeadHandlers.Delete)
 			})
+
+			// Tenant-scoped backups (this tenant's data only) — authenticated tenant context.
+			if deps.BackupHandlers.List != nil {
+				r.Route("/backups", func(r chi.Router) {
+					r.Get("/", deps.BackupHandlers.List)
+					r.Post("/", deps.BackupHandlers.Create)
+					r.Post("/churn", deps.BackupHandlers.Churn)
+					r.Get("/{name}/download", deps.BackupHandlers.Download)
+					r.Delete("/{name}", deps.BackupHandlers.Delete)
+				})
+			}
 
 			// Contact management
 			r.Route("/contacts", func(r chi.Router) {

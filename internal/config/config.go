@@ -21,6 +21,16 @@ type Config struct {
 	AI            AIConfig            `envPrefix:"MF_AI_"`
 	Subscriptions SubscriptionsConfig `envPrefix:"MF_SUBSCRIPTIONS_"`
 	CrossService  CrossServiceConfig  `envPrefix:"MF_CROSS_"`
+	Backup        BackupConfig        `envPrefix:"BACKUP_"`
+}
+
+// BackupConfig controls the tenant-scoped backup scheduler + retention churn. Artifacts are
+// written to a local directory (Dir) — typically a PVC.
+type BackupConfig struct {
+	Dir             string `env:"DIR" envDefault:"/app/backups/marketflow"`
+	ScheduleEnabled bool   `env:"SCHEDULE_ENABLED" envDefault:"true"`
+	ScheduleHour    int    `env:"SCHEDULE_HOUR" envDefault:"2"`
+	RetentionDays   int    `env:"RETENTION_DAYS" envDefault:"4"`
 }
 
 type SubscriptionsConfig struct {
