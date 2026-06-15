@@ -29,7 +29,11 @@ import (
 func main() {
 	_ = godotenv.Load()
 
-	dbURL := os.Getenv("POSTGRES_URL")
+	// Prefer the direct PostgreSQL URL (POSTGRES_MIGRATE_URL) to bypass PgBouncer for seed DDL/DML.
+	dbURL := os.Getenv("POSTGRES_MIGRATE_URL")
+	if dbURL == "" {
+		dbURL = os.Getenv("POSTGRES_URL")
+	}
 	if dbURL == "" {
 		log.Fatal("POSTGRES_URL is required")
 	}
