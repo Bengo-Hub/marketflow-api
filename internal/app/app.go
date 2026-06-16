@@ -306,11 +306,13 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		HealthHandler:  handlers.Health,
 		MetricsHandler: promhttp.Handler(),
 		BackupHandlers: httpapi.BackupHandlers{
-			List:     backupHandler.List,
-			Create:   backupHandler.Create,
-			Churn:    backupHandler.Churn,
-			Download: backupHandler.Download,
-			Delete:   backupHandler.Delete,
+			List:           backupHandler.List,
+			Create:         backupHandler.Create,
+			GetSettings:    backupHandler.GetSettings,
+			UpdateSettings: backupHandler.UpdateSettings,
+			Churn:          backupHandler.Churn,
+			Download:       backupHandler.Download,
+			Delete:         backupHandler.Delete,
 		},
 		LeadHandlers: httpapi.LeadHandlers{
 			Create: leadHandler.Create,

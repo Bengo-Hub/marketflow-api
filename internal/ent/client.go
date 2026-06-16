@@ -22,6 +22,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/agentrun"
 	"github.com/bengobox/marketflow-api/internal/ent/auditlog"
 	"github.com/bengobox/marketflow-api/internal/ent/backup"
+	"github.com/bengobox/marketflow-api/internal/ent/backupsetting"
 	"github.com/bengobox/marketflow-api/internal/ent/behavioraltrigger"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
@@ -73,6 +74,8 @@ type Client struct {
 	AuditLog *AuditLogClient
 	// Backup is the client for interacting with the Backup builders.
 	Backup *BackupClient
+	// BackupSetting is the client for interacting with the BackupSetting builders.
+	BackupSetting *BackupSettingClient
 	// BehavioralTrigger is the client for interacting with the BehavioralTrigger builders.
 	BehavioralTrigger *BehavioralTriggerClient
 	// Campaign is the client for interacting with the Campaign builders.
@@ -154,6 +157,7 @@ func (c *Client) init() {
 	c.AgentRun = NewAgentRunClient(c.config)
 	c.AuditLog = NewAuditLogClient(c.config)
 	c.Backup = NewBackupClient(c.config)
+	c.BackupSetting = NewBackupSettingClient(c.config)
 	c.BehavioralTrigger = NewBehavioralTriggerClient(c.config)
 	c.Campaign = NewCampaignClient(c.config)
 	c.ChatSession = NewChatSessionClient(c.config)
@@ -284,6 +288,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		AgentRun:             NewAgentRunClient(cfg),
 		AuditLog:             NewAuditLogClient(cfg),
 		Backup:               NewBackupClient(cfg),
+		BackupSetting:        NewBackupSettingClient(cfg),
 		BehavioralTrigger:    NewBehavioralTriggerClient(cfg),
 		Campaign:             NewCampaignClient(cfg),
 		ChatSession:          NewChatSessionClient(cfg),
@@ -341,6 +346,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		AgentRun:             NewAgentRunClient(cfg),
 		AuditLog:             NewAuditLogClient(cfg),
 		Backup:               NewBackupClient(cfg),
+		BackupSetting:        NewBackupSettingClient(cfg),
 		BehavioralTrigger:    NewBehavioralTriggerClient(cfg),
 		Campaign:             NewCampaignClient(cfg),
 		ChatSession:          NewChatSessionClient(cfg),
@@ -403,14 +409,14 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Account, c.Activity, c.AdMetrics, c.AgentRun, c.AuditLog, c.Backup,
-		c.BehavioralTrigger, c.Campaign, c.ChatSession, c.Contact, c.CustomAgent,
-		c.CustomFieldDef, c.CustomFieldValue, c.Deal, c.Funnel, c.KnowledgeBaseEntry,
-		c.Lead, c.LeadScoringRule, c.MarketflowPermission, c.MarketflowRole,
-		c.MarketflowUser, c.NurtureDeliveryEvent, c.NurtureEnrollment,
-		c.NurtureSequence, c.OutboxEvent, c.Pipeline, c.PipelineStage, c.ProfileEvent,
-		c.ProviderSetting, c.RolePermission, c.ScheduledMeeting, c.Segment,
-		c.ServiceConfig, c.ShortLink, c.Task, c.Tenant, c.Testimonial,
-		c.UserRoleAssignment,
+		c.BackupSetting, c.BehavioralTrigger, c.Campaign, c.ChatSession, c.Contact,
+		c.CustomAgent, c.CustomFieldDef, c.CustomFieldValue, c.Deal, c.Funnel,
+		c.KnowledgeBaseEntry, c.Lead, c.LeadScoringRule, c.MarketflowPermission,
+		c.MarketflowRole, c.MarketflowUser, c.NurtureDeliveryEvent,
+		c.NurtureEnrollment, c.NurtureSequence, c.OutboxEvent, c.Pipeline,
+		c.PipelineStage, c.ProfileEvent, c.ProviderSetting, c.RolePermission,
+		c.ScheduledMeeting, c.Segment, c.ServiceConfig, c.ShortLink, c.Task, c.Tenant,
+		c.Testimonial, c.UserRoleAssignment,
 	} {
 		n.Use(hooks...)
 	}
@@ -421,14 +427,14 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Account, c.Activity, c.AdMetrics, c.AgentRun, c.AuditLog, c.Backup,
-		c.BehavioralTrigger, c.Campaign, c.ChatSession, c.Contact, c.CustomAgent,
-		c.CustomFieldDef, c.CustomFieldValue, c.Deal, c.Funnel, c.KnowledgeBaseEntry,
-		c.Lead, c.LeadScoringRule, c.MarketflowPermission, c.MarketflowRole,
-		c.MarketflowUser, c.NurtureDeliveryEvent, c.NurtureEnrollment,
-		c.NurtureSequence, c.OutboxEvent, c.Pipeline, c.PipelineStage, c.ProfileEvent,
-		c.ProviderSetting, c.RolePermission, c.ScheduledMeeting, c.Segment,
-		c.ServiceConfig, c.ShortLink, c.Task, c.Tenant, c.Testimonial,
-		c.UserRoleAssignment,
+		c.BackupSetting, c.BehavioralTrigger, c.Campaign, c.ChatSession, c.Contact,
+		c.CustomAgent, c.CustomFieldDef, c.CustomFieldValue, c.Deal, c.Funnel,
+		c.KnowledgeBaseEntry, c.Lead, c.LeadScoringRule, c.MarketflowPermission,
+		c.MarketflowRole, c.MarketflowUser, c.NurtureDeliveryEvent,
+		c.NurtureEnrollment, c.NurtureSequence, c.OutboxEvent, c.Pipeline,
+		c.PipelineStage, c.ProfileEvent, c.ProviderSetting, c.RolePermission,
+		c.ScheduledMeeting, c.Segment, c.ServiceConfig, c.ShortLink, c.Task, c.Tenant,
+		c.Testimonial, c.UserRoleAssignment,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -449,6 +455,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AuditLog.mutate(ctx, m)
 	case *BackupMutation:
 		return c.Backup.mutate(ctx, m)
+	case *BackupSettingMutation:
+		return c.BackupSetting.mutate(ctx, m)
 	case *BehavioralTriggerMutation:
 		return c.BehavioralTrigger.mutate(ctx, m)
 	case *CampaignMutation:
@@ -1441,6 +1449,139 @@ func (c *BackupClient) mutate(ctx context.Context, m *BackupMutation) (Value, er
 		return (&BackupDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Backup mutation op: %q", m.Op())
+	}
+}
+
+// BackupSettingClient is a client for the BackupSetting schema.
+type BackupSettingClient struct {
+	config
+}
+
+// NewBackupSettingClient returns a client for the BackupSetting from the given config.
+func NewBackupSettingClient(c config) *BackupSettingClient {
+	return &BackupSettingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `backupsetting.Hooks(f(g(h())))`.
+func (c *BackupSettingClient) Use(hooks ...Hook) {
+	c.hooks.BackupSetting = append(c.hooks.BackupSetting, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `backupsetting.Intercept(f(g(h())))`.
+func (c *BackupSettingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BackupSetting = append(c.inters.BackupSetting, interceptors...)
+}
+
+// Create returns a builder for creating a BackupSetting entity.
+func (c *BackupSettingClient) Create() *BackupSettingCreate {
+	mutation := newBackupSettingMutation(c.config, OpCreate)
+	return &BackupSettingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BackupSetting entities.
+func (c *BackupSettingClient) CreateBulk(builders ...*BackupSettingCreate) *BackupSettingCreateBulk {
+	return &BackupSettingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BackupSettingClient) MapCreateBulk(slice any, setFunc func(*BackupSettingCreate, int)) *BackupSettingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BackupSettingCreateBulk{err: fmt.Errorf("calling to BackupSettingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BackupSettingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BackupSettingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BackupSetting.
+func (c *BackupSettingClient) Update() *BackupSettingUpdate {
+	mutation := newBackupSettingMutation(c.config, OpUpdate)
+	return &BackupSettingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BackupSettingClient) UpdateOne(_m *BackupSetting) *BackupSettingUpdateOne {
+	mutation := newBackupSettingMutation(c.config, OpUpdateOne, withBackupSetting(_m))
+	return &BackupSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BackupSettingClient) UpdateOneID(id uuid.UUID) *BackupSettingUpdateOne {
+	mutation := newBackupSettingMutation(c.config, OpUpdateOne, withBackupSettingID(id))
+	return &BackupSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BackupSetting.
+func (c *BackupSettingClient) Delete() *BackupSettingDelete {
+	mutation := newBackupSettingMutation(c.config, OpDelete)
+	return &BackupSettingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BackupSettingClient) DeleteOne(_m *BackupSetting) *BackupSettingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BackupSettingClient) DeleteOneID(id uuid.UUID) *BackupSettingDeleteOne {
+	builder := c.Delete().Where(backupsetting.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BackupSettingDeleteOne{builder}
+}
+
+// Query returns a query builder for BackupSetting.
+func (c *BackupSettingClient) Query() *BackupSettingQuery {
+	return &BackupSettingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBackupSetting},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BackupSetting entity by its id.
+func (c *BackupSettingClient) Get(ctx context.Context, id uuid.UUID) (*BackupSetting, error) {
+	return c.Query().Where(backupsetting.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BackupSettingClient) GetX(ctx context.Context, id uuid.UUID) *BackupSetting {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *BackupSettingClient) Hooks() []Hook {
+	return c.hooks.BackupSetting
+}
+
+// Interceptors returns the client interceptors.
+func (c *BackupSettingClient) Interceptors() []Interceptor {
+	return c.inters.BackupSetting
+}
+
+func (c *BackupSettingClient) mutate(ctx context.Context, m *BackupSettingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BackupSettingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BackupSettingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BackupSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BackupSettingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BackupSetting mutation op: %q", m.Op())
 	}
 }
 
@@ -6999,21 +7140,23 @@ func (c *UserRoleAssignmentClient) mutate(ctx context.Context, m *UserRoleAssign
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Account, Activity, AdMetrics, AgentRun, AuditLog, Backup, BehavioralTrigger,
-		Campaign, ChatSession, Contact, CustomAgent, CustomFieldDef, CustomFieldValue,
-		Deal, Funnel, KnowledgeBaseEntry, Lead, LeadScoringRule, MarketflowPermission,
-		MarketflowRole, MarketflowUser, NurtureDeliveryEvent, NurtureEnrollment,
-		NurtureSequence, OutboxEvent, Pipeline, PipelineStage, ProfileEvent,
-		ProviderSetting, RolePermission, ScheduledMeeting, Segment, ServiceConfig,
-		ShortLink, Task, Tenant, Testimonial, UserRoleAssignment []ent.Hook
+		Account, Activity, AdMetrics, AgentRun, AuditLog, Backup, BackupSetting,
+		BehavioralTrigger, Campaign, ChatSession, Contact, CustomAgent, CustomFieldDef,
+		CustomFieldValue, Deal, Funnel, KnowledgeBaseEntry, Lead, LeadScoringRule,
+		MarketflowPermission, MarketflowRole, MarketflowUser, NurtureDeliveryEvent,
+		NurtureEnrollment, NurtureSequence, OutboxEvent, Pipeline, PipelineStage,
+		ProfileEvent, ProviderSetting, RolePermission, ScheduledMeeting, Segment,
+		ServiceConfig, ShortLink, Task, Tenant, Testimonial,
+		UserRoleAssignment []ent.Hook
 	}
 	inters struct {
-		Account, Activity, AdMetrics, AgentRun, AuditLog, Backup, BehavioralTrigger,
-		Campaign, ChatSession, Contact, CustomAgent, CustomFieldDef, CustomFieldValue,
-		Deal, Funnel, KnowledgeBaseEntry, Lead, LeadScoringRule, MarketflowPermission,
-		MarketflowRole, MarketflowUser, NurtureDeliveryEvent, NurtureEnrollment,
-		NurtureSequence, OutboxEvent, Pipeline, PipelineStage, ProfileEvent,
-		ProviderSetting, RolePermission, ScheduledMeeting, Segment, ServiceConfig,
-		ShortLink, Task, Tenant, Testimonial, UserRoleAssignment []ent.Interceptor
+		Account, Activity, AdMetrics, AgentRun, AuditLog, Backup, BackupSetting,
+		BehavioralTrigger, Campaign, ChatSession, Contact, CustomAgent, CustomFieldDef,
+		CustomFieldValue, Deal, Funnel, KnowledgeBaseEntry, Lead, LeadScoringRule,
+		MarketflowPermission, MarketflowRole, MarketflowUser, NurtureDeliveryEvent,
+		NurtureEnrollment, NurtureSequence, OutboxEvent, Pipeline, PipelineStage,
+		ProfileEvent, ProviderSetting, RolePermission, ScheduledMeeting, Segment,
+		ServiceConfig, ShortLink, Task, Tenant, Testimonial,
+		UserRoleAssignment []ent.Interceptor
 	}
 )

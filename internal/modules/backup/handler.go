@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -51,6 +52,50 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpapi.JSON(w, http.StatusOK, map[string]any{"backups": items})
+}
+
+// GetSettings handles GET /api/v1/backups/settings — auto_enabled defaults to false.
+func (h *Handler) GetSettings(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := tenantFromRequest(r)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing or invalid X-Tenant-ID header", nil)
+		return
+	}
+	settings, err := h.svc.GetSettings(r.Context(), tenantID)
+	if err != nil {
+		httpapi.Error(w, http.StatusInternalServerError, "internal_error", "failed to load backup settings", nil)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, settings)
+}
+
+type backupSettingsBody struct {
+	AutoEnabled   bool `json:"auto_enabled"`
+	ScheduleHour  int  `json:"schedule_hour"`
+	RetentionDays int  `json:"retention_days"`
+}
+
+// UpdateSettings handles PUT /api/v1/backups/settings — activates/deactivates auto-backup
+// + sets schedule hour + retention.
+func (h *Handler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := tenantFromRequest(r)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing or invalid X-Tenant-ID header", nil)
+		return
+	}
+	var b backupSettingsBody
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "bad_request", "invalid JSON body", nil)
+		return
+	}
+	settings, err := h.svc.UpsertSettings(r.Context(), tenantID, Settings{
+		AutoEnabled: b.AutoEnabled, ScheduleHour: b.ScheduleHour, RetentionDays: b.RetentionDays,
+	})
+	if err != nil {
+		httpapi.Error(w, http.StatusInternalServerError, "save_failed", "failed to save backup settings", nil)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, settings)
 }
 
 // Create handles POST /api/v1/backups.

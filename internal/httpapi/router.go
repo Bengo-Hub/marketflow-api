@@ -281,11 +281,13 @@ type TenantMemberHandlers struct {
 
 // BackupHandlers groups tenant-scoped backup endpoints (this tenant's data only).
 type BackupHandlers struct {
-	List     http.HandlerFunc
-	Create   http.HandlerFunc
-	Churn    http.HandlerFunc
-	Download http.HandlerFunc
-	Delete   http.HandlerFunc
+	List           http.HandlerFunc
+	Create         http.HandlerFunc
+	GetSettings    http.HandlerFunc
+	UpdateSettings http.HandlerFunc
+	Churn          http.HandlerFunc
+	Download       http.HandlerFunc
+	Delete         http.HandlerFunc
 }
 
 // TestimonialHandlers groups authenticated testimonial CRUD endpoints.
@@ -509,6 +511,8 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Route("/backups", func(r chi.Router) {
 					r.Get("/", deps.BackupHandlers.List)
 					r.Post("/", deps.BackupHandlers.Create)
+					r.Get("/settings", deps.BackupHandlers.GetSettings)
+					r.Put("/settings", deps.BackupHandlers.UpdateSettings)
 					r.Post("/churn", deps.BackupHandlers.Churn)
 					r.Get("/{name}/download", deps.BackupHandlers.Download)
 					r.Delete("/{name}", deps.BackupHandlers.Delete)
