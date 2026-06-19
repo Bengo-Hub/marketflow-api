@@ -17,17 +17,17 @@ const platformTenantID = "platform"
 
 // PlatformProviderHandler handles platform-level provider configuration.
 type PlatformProviderHandler struct {
-	client        *ent.Client
-	logger        *zap.Logger
-	encryptionKey []byte
+	client *ent.Client
+	logger *zap.Logger
+	keys   *encryption.KeyProvider
 }
 
 // NewPlatformProviderHandler creates a new handler.
-func NewPlatformProviderHandler(client *ent.Client, encryptionKey []byte, logger *zap.Logger) *PlatformProviderHandler {
+func NewPlatformProviderHandler(client *ent.Client, keys *encryption.KeyProvider, logger *zap.Logger) *PlatformProviderHandler {
 	return &PlatformProviderHandler{
-		client:        client,
-		logger:        logger.Named("admin.providers"),
-		encryptionKey: encryptionKey,
+		client: client,
+		logger: logger.Named("admin.providers"),
+		keys:   keys,
 	}
 }
 
@@ -114,9 +114,11 @@ func (h *PlatformProviderHandler) ConfigureProvider(w http.ResponseWriter, r *ht
 		isSecret := secretSet[key] || encryption.IsSecret(key)
 		isEncrypted := false
 
-		// Encrypt secret values
-		if isSecret && len(h.encryptionKey) == 32 && value != "" {
-			encrypted, err := encryption.Encrypt(value, h.encryptionKey)
+		// Encrypt secret values with the resolved PRIMARY key (DB-first, env
+		// fallback). When no key is configured Encrypt returns an error and we
+		// store the value as-is, preserving the pre-existing no-key behaviour.
+		if isSecret && value != "" {
+			encrypted, err := h.keys.Encrypt(ctx, value)
 			if err != nil {
 				h.logger.Warn("failed to encrypt setting", zap.String("key", key), zap.Error(err))
 			} else {
@@ -165,20 +167,20 @@ func (h *PlatformProviderHandler) ConfigureProvider(w http.ResponseWriter, r *ht
 		SetActor(actor).
 		SetSubjectType("provider_setting").
 		SetPayload(map[string]any{
-			"provider_type": req.ProviderType,
-			"provider_name": req.ProviderName,
-			"environment":   req.Environment,
-			"keys":          auditKeys,
-			"secret_keys":   req.SecretKeys,
+			"provider_type":  req.ProviderType,
+			"provider_name":  req.ProviderName,
+			"environment":    req.Environment,
+			"keys":           auditKeys,
+			"secret_keys":    req.SecretKeys,
 			"settings_count": created,
 		}).
 		Save(r.Context())
 
 	httpapi.JSON(w, http.StatusOK, map[string]any{
-		"status":        "configured",
-		"provider_type": req.ProviderType,
-		"provider_name": req.ProviderName,
-		"environment":   req.Environment,
+		"status":         "configured",
+		"provider_type":  req.ProviderType,
+		"provider_name":  req.ProviderName,
+		"environment":    req.Environment,
 		"settings_count": created,
 	})
 }
@@ -322,8 +324,8 @@ func (h *PlatformProviderHandler) ResolveProvider(w http.ResponseWriter, r *http
 	out := make(map[string]string, len(rows))
 	for _, s := range rows {
 		value := s.Value
-		if s.IsEncrypted && len(h.encryptionKey) > 0 {
-			if dec, err := encryption.Decrypt(value, h.encryptionKey); err == nil {
+		if s.IsEncrypted {
+			if dec, err := h.keys.Decrypt(r.Context(), value); err == nil {
 				value = dec
 			} else {
 				h.logger.Warn("decrypt failed",

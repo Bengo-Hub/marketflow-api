@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/Bengo-Hub/httpware"
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -66,6 +66,7 @@ type RouterDeps struct {
 
 	// Admin service config CRUD (platform owner only)
 	AdminServiceConfigHandlers AdminServiceConfigHandlers
+	AdminEncryptionKeyHandlers AdminEncryptionKeyHandlers
 
 	// Analytics handlers (tenant dashboard aggregates)
 	AnalyticsHandlers AnalyticsHandlers
@@ -86,15 +87,15 @@ type RouterDeps struct {
 	BackupHandlers BackupHandlers
 
 	// Auth middleware
-	RequireAuthHandler      func(http.Handler) http.Handler
-	RequirePlatformOwner    func(http.Handler) http.Handler
+	RequireAuthHandler   func(http.Handler) http.Handler
+	RequirePlatformOwner func(http.Handler) http.Handler
 
 	// Feature gate middleware (subscription tier enforcement)
 	RequireAICredits    func(http.Handler) http.Handler
 	RequireCampaignSlot func(http.Handler) http.Handler
 
 	// Usage tracking middleware (fire-and-forget to subscriptions-api)
-	TrackLeadCreated    func(http.Handler) http.Handler
+	TrackLeadCreated     func(http.Handler) http.Handler
 	TrackCampaignCreated func(http.Handler) http.Handler
 
 	// Internal S2S handlers — X-API-Key auth only, no JWT
@@ -102,15 +103,15 @@ type RouterDeps struct {
 	InternalServiceKey   string
 
 	// CRM Sprint 9 handlers
-	DealHandlers         DealHandlers
-	PipelineHandlers     PipelineHandlers
-	AccountHandlers      AccountHandlers
-	ActivityHandlers     ActivityHandlers
-	TaskHandlers         TaskHandlers
-	CustomFieldHandlers  CustomFieldHandlers
-	CustomAgentHandlers  CustomAgentHandlers
-	SuggestionHandlers   SuggestionHandlers
-	SegmentHandlers      SegmentHandlers
+	DealHandlers        DealHandlers
+	PipelineHandlers    PipelineHandlers
+	AccountHandlers     AccountHandlers
+	ActivityHandlers    ActivityHandlers
+	TaskHandlers        TaskHandlers
+	CustomFieldHandlers CustomFieldHandlers
+	CustomAgentHandlers CustomAgentHandlers
+	SuggestionHandlers  SuggestionHandlers
+	SegmentHandlers     SegmentHandlers
 
 	// Allowed origins for CORS
 	AllowedOrigins string
@@ -140,6 +141,13 @@ type AdminServiceConfigHandlers struct {
 	UpsertTenant   http.HandlerFunc
 }
 
+// AdminEncryptionKeyHandlers groups the platform provider-secret encryption-key
+// management HTTP handlers (view status + rotate). Platform owner only.
+type AdminEncryptionKeyHandlers struct {
+	Get http.HandlerFunc
+	Set http.HandlerFunc
+}
+
 // LeadHandlers groups lead management HTTP handlers.
 type LeadHandlers struct {
 	Create http.HandlerFunc
@@ -158,12 +166,12 @@ type InternalLeadHandlers struct {
 
 // ContactHandlers groups contact management HTTP handlers.
 type ContactHandlers struct {
-	Create     http.HandlerFunc
-	List       http.HandlerFunc
-	Get        http.HandlerFunc
-	Update     http.HandlerFunc
-	Delete     http.HandlerFunc
-	Get360     http.HandlerFunc // GET /contacts/{id}/360 — full 360° profile
+	Create        http.HandlerFunc
+	List          http.HandlerFunc
+	Get           http.HandlerFunc
+	Update        http.HandlerFunc
+	Delete        http.HandlerFunc
+	Get360        http.HandlerFunc // GET /contacts/{id}/360 — full 360° profile
 	GetByEmail    http.HandlerFunc // GET /internal/contacts/by-email — S2S email lookup
 	GetByPhone    http.HandlerFunc // GET /internal/contacts/by-phone — S2S phone lookup
 	UpsertByPhone http.HandlerFunc // POST /internal/contacts/upsert — S2S create-or-get by phone
@@ -181,11 +189,11 @@ type KnowledgeHandlers struct {
 
 // CampaignHandlers groups campaign management HTTP handlers.
 type CampaignHandlers struct {
-	Create http.HandlerFunc
-	List   http.HandlerFunc
-	Get    http.HandlerFunc
-	Update http.HandlerFunc
-	Delete http.HandlerFunc
+	Create  http.HandlerFunc
+	List    http.HandlerFunc
+	Get     http.HandlerFunc
+	Update  http.HandlerFunc
+	Delete  http.HandlerFunc
 	Pause   http.HandlerFunc
 	Resume  http.HandlerFunc
 	SendSMS http.HandlerFunc
@@ -222,13 +230,13 @@ type MeetingHandlers struct {
 
 // AnalyticsHandlers groups dashboard/aggregate HTTP handlers.
 type AnalyticsHandlers struct {
-	Dashboard        http.HandlerFunc
-	TenantAudit      http.HandlerFunc
-	PlatformUsage    http.HandlerFunc
-	PlatformAudit    http.HandlerFunc
-	CampaignMetrics  http.HandlerFunc
-	SequenceMetrics  http.HandlerFunc
-	ProfileMetrics   http.HandlerFunc
+	Dashboard       http.HandlerFunc
+	TenantAudit     http.HandlerFunc
+	PlatformUsage   http.HandlerFunc
+	PlatformAudit   http.HandlerFunc
+	CampaignMetrics http.HandlerFunc
+	SequenceMetrics http.HandlerFunc
+	ProfileMetrics  http.HandlerFunc
 }
 
 // IntegrationsHandlers groups OAuth authorize + callback endpoints
@@ -247,22 +255,22 @@ type IntegrationsHandlers struct {
 
 // WebhookHandlers groups webhook HTTP handlers (public, no auth).
 type WebhookHandlers struct {
-	MetaVerify           http.HandlerFunc
-	MetaLeadgen          http.HandlerFunc
-	CalcomBooking        http.HandlerFunc
+	MetaVerify            http.HandlerFunc
+	MetaLeadgen           http.HandlerFunc
+	CalcomBooking         http.HandlerFunc
 	NotificationsDelivery http.HandlerFunc
-	TikTokLeads          http.HandlerFunc
+	TikTokLeads           http.HandlerFunc
 }
 
 // PublicHandlers groups public HTTP handlers (no auth).
 type PublicHandlers struct {
-	GetProfile          http.HandlerFunc
-	GetFunnel           http.HandlerFunc
-	RenderFunnel        http.HandlerFunc
-	CreateLead          http.HandlerFunc
-	RecordProfileEvent  http.HandlerFunc
-	ListTestimonials    http.HandlerFunc
-	FunnelStepView      http.HandlerFunc
+	GetProfile         http.HandlerFunc
+	GetFunnel          http.HandlerFunc
+	RenderFunnel       http.HandlerFunc
+	CreateLead         http.HandlerFunc
+	RecordProfileEvent http.HandlerFunc
+	ListTestimonials   http.HandlerFunc
+	FunnelStepView     http.HandlerFunc
 }
 
 // TenantProfileHandlers groups tenant profile settings endpoints.
@@ -273,10 +281,10 @@ type TenantProfileHandlers struct {
 
 // TenantMemberHandlers groups team member management endpoints.
 type TenantMemberHandlers struct {
-	List         http.HandlerFunc
-	Invite       http.HandlerFunc
-	UpdateRole   http.HandlerFunc
-	Remove       http.HandlerFunc
+	List       http.HandlerFunc
+	Invite     http.HandlerFunc
+	UpdateRole http.HandlerFunc
+	Remove     http.HandlerFunc
 }
 
 // BackupHandlers groups tenant-scoped backup endpoints (this tenant's data only).
@@ -789,6 +797,15 @@ func NewRouter(deps RouterDeps) http.Handler {
 						r.Put("/{key}", deps.AdminServiceConfigHandlers.UpsertPlatform)
 						r.Get("/tenant/{tenantId}", deps.AdminServiceConfigHandlers.ListTenant)
 						r.Put("/tenant/{tenantId}/{key}", deps.AdminServiceConfigHandlers.UpsertTenant)
+					})
+				}
+
+				// Provider-secret encryption key (view status + rotate).
+				// Raw key is never returned. Platform owner only (same gate).
+				if deps.AdminEncryptionKeyHandlers.Get != nil {
+					r.Route("/encryption-key", func(r chi.Router) {
+						r.Get("/", deps.AdminEncryptionKeyHandlers.Get)
+						r.Put("/", deps.AdminEncryptionKeyHandlers.Set)
 					})
 				}
 			})

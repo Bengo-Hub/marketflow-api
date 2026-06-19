@@ -16,6 +16,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/httpapi/handlers"
+	"github.com/bengobox/marketflow-api/internal/integrations/gcal"
 	mfmiddleware "github.com/bengobox/marketflow-api/internal/middleware"
 	"github.com/bengobox/marketflow-api/internal/modules/accounts"
 	"github.com/bengobox/marketflow-api/internal/modules/activities"
@@ -26,17 +27,16 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/campaigns"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	custom_agents "github.com/bengobox/marketflow-api/internal/modules/custom_agents"
-	"github.com/bengobox/marketflow-api/internal/modules/segments"
 	custom_fields "github.com/bengobox/marketflow-api/internal/modules/custom_fields"
 	"github.com/bengobox/marketflow-api/internal/modules/deals"
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
+	"github.com/bengobox/marketflow-api/internal/modules/integrations"
 	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
-	"github.com/bengobox/marketflow-api/internal/integrations/gcal"
-	"github.com/bengobox/marketflow-api/internal/modules/integrations"
 	"github.com/bengobox/marketflow-api/internal/modules/meetings"
 	"github.com/bengobox/marketflow-api/internal/modules/pipelines"
 	"github.com/bengobox/marketflow-api/internal/modules/rbac"
+	"github.com/bengobox/marketflow-api/internal/modules/segments"
 	"github.com/bengobox/marketflow-api/internal/modules/sequences"
 	"github.com/bengobox/marketflow-api/internal/modules/shortlinks"
 	"github.com/bengobox/marketflow-api/internal/modules/tasks"
@@ -54,19 +54,19 @@ import (
 
 // App wires core dependencies and exposes server lifecycle controls.
 type App struct {
-	cfg             *config.Config
-	logger          *zap.Logger
-	entClient       *ent.Client
-	db              *sql.DB
-	redis           *redis.Client
-	natsConn        *nats.Conn
-	outboxPublisher *eventslib.OutboxPoller
-	tenantConsumer        *platformevents.TenantConsumer
-	subscriptionConsumer  *platformevents.SubscriptionConsumer
-	providerManager *providers.Manager
-	rbacService     *rbac.Service
-	usagePublisher  *mfmiddleware.UsagePublisher
-	httpServer      *http.Server
+	cfg                  *config.Config
+	logger               *zap.Logger
+	entClient            *ent.Client
+	db                   *sql.DB
+	redis                *redis.Client
+	natsConn             *nats.Conn
+	outboxPublisher      *eventslib.OutboxPoller
+	tenantConsumer       *platformevents.TenantConsumer
+	subscriptionConsumer *platformevents.SubscriptionConsumer
+	providerManager      *providers.Manager
+	rbacService          *rbac.Service
+	usagePublisher       *mfmiddleware.UsagePublisher
+	httpServer           *http.Server
 }
 
 // New constructs the application.
@@ -119,9 +119,13 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		outboxPub.Start(ctx)
 	}
 
+	// ── Provider-secret Encryption Key Provider ───────────────────────────
+	// DB-first (platform ServiceConfig encryption_key), env fallback
+	// (MF_SECURITY_ENCRYPTION_KEY). Empty candidate list ⇒ encryption disabled.
+	keyProvider := encryption.NewKeyProvider(entClient, cfg.Security.EncryptionKey)
+
 	// ── Provider Config Manager ───────────────────────────────────────────
-	encKey := encryption.KeyFromEnv(cfg.Security.EncryptionKey)
-	providerMgr := providers.NewManager(entClient, encKey, cfg.App.Environment, cfg.Security.PlatformTenant, logger)
+	providerMgr := providers.NewManager(entClient, keyProvider, cfg.App.Environment, cfg.Security.PlatformTenant, logger)
 
 	// ── Tenant Syncer ─────────────────────────────────────────────────────
 	tenantSyncer := tenant.NewSyncer(entClient, logger)
@@ -162,7 +166,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	}
 
 	// ── Platform Provider Admin Handler ────────────────────────────────────
-	platformProviderHandler := admin.NewPlatformProviderHandler(entClient, encKey, logger)
+	platformProviderHandler := admin.NewPlatformProviderHandler(entClient, keyProvider, logger)
+	encryptionKeyHandler := admin.NewEncryptionKeyHandler(entClient, keyProvider, logger)
 	adminTenantsHandler := admin.NewTenantsHandler(entClient, logger)
 	serviceConfigHandler := admin.NewServiceConfigHandler(entClient, logger)
 
@@ -261,9 +266,11 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	usagePub := mfmiddleware.NewUsagePublisher(cfg.Subscriptions.URL, cfg.Subscriptions.APIKey, logger)
 	featureGate := mfmiddleware.NewFeatureGate(cfg.Subscriptions.URL, cfg.Subscriptions.APIKey, logger)
 
-	// Integrations OAuth flow handler. Uses the encryption key as the HMAC
-	// key for signing `state`; no separate secret needed.
-	integrationsHandler := integrations.NewHandler(entClient, encKey, logger)
+	// Integrations OAuth flow handler. Uses the env encryption key as the HMAC
+	// key for signing `state`; no separate secret needed. This is the OAuth
+	// state-signing key (must stay stable across the redirect round-trip) and is
+	// deliberately kept on the env value rather than the rotatable DB key.
+	integrationsHandler := integrations.NewHandler(entClient, encryption.KeyFromEnv(cfg.Security.EncryptionKey), logger)
 
 	// Webhook handlers — Meta app credentials are platform-level (MF_META_*),
 	// shared across all tenants; per-tenant link is Tenant.meta_page_id.
@@ -323,12 +330,12 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Export: leadHandler.Export,
 		},
 		ContactHandlers: httpapi.ContactHandlers{
-			Create:     contactHandler.Create,
-			List:       contactHandler.List,
-			Get:        contactHandler.Get,
-			Update:     contactHandler.Update,
-			Delete:     contactHandler.Delete,
-			Get360:     contactHandler.Get360,
+			Create:        contactHandler.Create,
+			List:          contactHandler.List,
+			Get:           contactHandler.Get,
+			Update:        contactHandler.Update,
+			Delete:        contactHandler.Delete,
+			Get360:        contactHandler.Get360,
 			GetByEmail:    contactHandler.GetByEmail,
 			GetByPhone:    contactHandler.GetByPhone,
 			UpsertByPhone: contactHandler.UpsertByPhone,
@@ -342,11 +349,11 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			ImportCSV:   kbHandler.ImportCSV,
 		},
 		CampaignHandlers: httpapi.CampaignHandlers{
-			Create: campaignHandler.Create,
-			List:   campaignHandler.List,
-			Get:    campaignHandler.Get,
-			Update: campaignHandler.Update,
-			Delete: campaignHandler.Delete,
+			Create:  campaignHandler.Create,
+			List:    campaignHandler.List,
+			Get:     campaignHandler.Get,
+			Update:  campaignHandler.Update,
+			Delete:  campaignHandler.Delete,
 			Pause:   campaignHandler.Pause,
 			Resume:  campaignHandler.Resume,
 			SendSMS: campaignHandler.SendSMS,
@@ -379,7 +386,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			MetaLeadgen:           metaWebhookHandler.HandleLeadgen,
 			CalcomBooking:         calcomWebhookHandler.HandleBooking,
 			NotificationsDelivery: publicHandler.NotificationsDelivery,
-			TikTokLeads:          tiktokWebhookHandler.HandleLeads,
+			TikTokLeads:           tiktokWebhookHandler.HandleLeads,
 		},
 		PublicHandlers: httpapi.PublicHandlers{
 			GetProfile:         publicHandler.GetProfile,
@@ -449,6 +456,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			UpsertPlatform: serviceConfigHandler.UpsertPlatformSetting,
 			ListTenant:     serviceConfigHandler.ListTenantSettings,
 			UpsertTenant:   serviceConfigHandler.UpsertTenantSetting,
+		},
+		AdminEncryptionKeyHandlers: httpapi.AdminEncryptionKeyHandlers{
+			Get: encryptionKeyHandler.GetEncryptionKey,
+			Set: encryptionKeyHandler.SetEncryptionKey,
 		},
 		InternalLeadHandlers: httpapi.InternalLeadHandlers{
 			IngestFromService: leadHandler.IngestFromService,
@@ -530,13 +541,13 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Delete:   segmentHandler.Delete,
 			Evaluate: segmentHandler.Evaluate,
 		},
-		RequireAuthHandler: requireAuth,
+		RequireAuthHandler:   requireAuth,
 		RequirePlatformOwner: requirePlatformOwner(authMiddleware),
 		RequireAICredits:     featureGate.RequireFeature("ai_chat_messages", "AI credits exhausted — purchase more at /settings/billing"),
 		RequireCampaignSlot:  featureGate.RequireFeature("campaigns_active", "Campaign limit reached — upgrade your plan at /settings/billing"),
 		TrackLeadCreated:     usagePub.TrackUsage("leads_captured"),
 		TrackCampaignCreated: usagePub.TrackUsage("campaigns_active"),
-		AllowedOrigins:     cfg.HTTP.AllowedOrigins,
+		AllowedOrigins:       cfg.HTTP.AllowedOrigins,
 	})
 
 	// ── HTTP Server ───────────────────────────────────────────────────────

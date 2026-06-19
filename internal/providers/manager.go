@@ -18,21 +18,22 @@ type Settings map[string]string
 // Tenant-specific non-secret data (FBO distrib ID, WhatsApp number, ad account ID)
 // lives on the Tenant schema directly, not in ProviderSetting.
 type Manager struct {
-	client        *ent.Client
-	decryptionKey []byte
-	env           string
-	platformID    string
-	logger        *zap.Logger
+	client     *ent.Client
+	keys       *encryption.KeyProvider
+	env        string
+	platformID string
+	logger     *zap.Logger
 }
 
-// NewManager creates a new provider config manager.
-func NewManager(client *ent.Client, decryptionKey []byte, env string, platformID string, logger *zap.Logger) *Manager {
+// NewManager creates a new provider config manager. Decryption uses the shared
+// KeyProvider (DB-first key with env fallback + legacy-plaintext passthrough).
+func NewManager(client *ent.Client, keys *encryption.KeyProvider, env string, platformID string, logger *zap.Logger) *Manager {
 	return &Manager{
-		client:        client,
-		decryptionKey: decryptionKey,
-		env:           env,
-		platformID:    platformID,
-		logger:        logger.Named("providers"),
+		client:     client,
+		keys:       keys,
+		env:        env,
+		platformID: platformID,
+		logger:     logger.Named("providers"),
 	}
 }
 
@@ -69,9 +70,10 @@ func (m *Manager) LoadSettings(ctx context.Context, tenantID, providerType, prov
 			val = r.Value
 		}
 
-		// Decrypt if needed
-		if r.IsEncrypted && len(m.decryptionKey) == 32 && val != "" {
-			decrypted, err := encryption.Decrypt(val, m.decryptionKey)
+		// Decrypt if needed (tries every candidate key, falls back to legacy
+		// plaintext for values stored before a key was configured).
+		if r.IsEncrypted && val != "" {
+			decrypted, err := m.keys.Decrypt(ctx, val)
 			if err != nil {
 				m.logger.Warn("failed to decrypt setting",
 					zap.String("key", r.Key),

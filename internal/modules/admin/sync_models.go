@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"go.uber.org/zap"
@@ -72,8 +71,8 @@ func (h *PlatformProviderHandler) SyncModels(w http.ResponseWriter, r *http.Requ
 	settings := make(map[string]string, len(rows))
 	for _, s := range rows {
 		v := s.Value
-		if s.IsEncrypted && len(h.encryptionKey) > 0 {
-			if dec, err := encryption.Decrypt(v, h.encryptionKey); err == nil {
+		if s.IsEncrypted {
+			if dec, err := h.keys.Decrypt(r.Context(), v); err == nil {
 				v = dec
 			}
 		}
