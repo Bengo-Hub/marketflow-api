@@ -115,9 +115,10 @@ func main() {
 	bizSeeded := seedBusinessOpportunity(ctx, client, tid, scope)
 	complianceSeeded := seedCompliance(ctx, client, tid, scope)
 	codevertexSeeded := seedCodevertexKB(ctx, client, tid, scope)
+	kenyaTaxSeeded := seedKenyaTaxKB(ctx, client, tid, scope)
 
-	log.Printf("KB: %d products, %d FAQ, %d business, %d compliance, %d codevertex entries",
-		productsSeeded, faqSeeded, bizSeeded, complianceSeeded, codevertexSeeded)
+	log.Printf("KB: %d products, %d FAQ, %d business, %d compliance, %d codevertex, %d kenya-tax entries",
+		productsSeeded, faqSeeded, bizSeeded, complianceSeeded, codevertexSeeded, kenyaTaxSeeded)
 
 	// Phase 3: Default nurture sequence templates (platform scope only).
 	// Every tenant auto-enrols leads into these on lead.created; tenants can
