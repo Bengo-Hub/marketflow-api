@@ -19,6 +19,10 @@ type LoyaltyConsumer struct {
 	db     *ent.Client
 	logger *zap.Logger
 	sub    *nats.Subscription
+	// hasFeature gates this OPTIONAL CRM projection (loyalty enrichment onto an existing
+	// contact) by subscription entitlement. Nil → fail open. The underlying contact
+	// identity is owned/synced separately and is never gated here.
+	hasFeature func(ctx context.Context, tenantID, feature string) bool
 }
 
 // NewLoyaltyConsumer creates a new consumer.
@@ -27,6 +31,20 @@ func NewLoyaltyConsumer(db *ent.Client, logger *zap.Logger) *LoyaltyConsumer {
 		db:     db,
 		logger: logger.Named("loyalty.consumer"),
 	}
+}
+
+// SetFeatureGate wires the subscription entitlement check used to gate loyalty enrichment.
+func (c *LoyaltyConsumer) SetFeatureGate(fn func(ctx context.Context, tenantID, feature string) bool) {
+	c.hasFeature = fn
+}
+
+// entitled reports whether the tenant may receive this projection. Fails open when no
+// gate is wired or tenantID is empty.
+func (c *LoyaltyConsumer) entitled(ctx context.Context, tenantID, feature string) bool {
+	if c.hasFeature == nil || tenantID == "" {
+		return true
+	}
+	return c.hasFeature(ctx, tenantID, feature)
 }
 
 // Start subscribes to the loyalty tier upgrade event.
@@ -82,6 +100,14 @@ func (c *LoyaltyConsumer) handle(msg *nats.Msg) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	// Gate this optional CRM enrichment by entitlement. Core contact identity sync is
+	// unaffected (this only annotates an existing contact's metadata). Fails open.
+	if !c.entitled(ctx, wrapper.TenantID, "contact_management") {
+		c.logger.Debug("loyalty.tier_upgraded: tenant lacks contact_management — skipping CRM enrichment",
+			zap.String("tenant_id", wrapper.TenantID))
+		return
+	}
 
 	// If the event carries a direct CRM contact ID, use it; otherwise look up by phone.
 	var contactID uuid.UUID

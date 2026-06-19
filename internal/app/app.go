@@ -140,6 +140,19 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	rbacRepo := rbac.NewEntRepository(entClient)
 	rbacService := rbac.NewService(rbacRepo, logger)
 
+	// ── Subscriptions S2S client (consumer entitlement gating) ─────────────
+	// Used by NATS event consumers (tenant_id, no JWT) to gate OPTIONAL feature-
+	// specific CRM projections. consumerFeatureGate mirrors the HTTP-layer gating
+	// contract; cached per tenant; fails open on subscriptions-api outage. Core
+	// customer/contact/tenant identity sync (which MarketFlow owns) is never gated.
+	subsClient := subscriptions.NewClient(subscriptions.Config{
+		ServiceURL: cfg.Subscriptions.URL,
+		APIKey:     cfg.Subscriptions.APIKey,
+	})
+	consumerFeatureGate := func(ctx context.Context, tenantID, feature string) bool {
+		return subsClient.ConsumerHasFeature(ctx, tenantID, feature)
+	}
+
 	// ── NATS Tenant Consumer ──────────────────────────────────────────────
 	var tenantConsumer *platformevents.TenantConsumer
 	var subscriptionConsumer *platformevents.SubscriptionConsumer
@@ -155,6 +168,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		}
 
 		loyaltyConsumer := platformevents.NewLoyaltyConsumer(entClient, logger)
+		loyaltyConsumer.SetFeatureGate(consumerFeatureGate)
 		if err := loyaltyConsumer.Start(natsConn); err != nil {
 			logger.Warn("app: failed to start loyalty tier consumer", zap.Error(err))
 		}
