@@ -63,6 +63,7 @@ type App struct {
 	outboxPublisher      *eventslib.OutboxPoller
 	tenantConsumer       *platformevents.TenantConsumer
 	subscriptionConsumer *platformevents.SubscriptionConsumer
+	tenantPurgeConsumer  *platformevents.TenantPurgeConsumer
 	providerManager      *providers.Manager
 	rbacService          *rbac.Service
 	usagePublisher       *mfmiddleware.UsagePublisher
@@ -156,6 +157,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// ── NATS Tenant Consumer ──────────────────────────────────────────────
 	var tenantConsumer *platformevents.TenantConsumer
 	var subscriptionConsumer *platformevents.SubscriptionConsumer
+	var tenantPurgeConsumer *platformevents.TenantPurgeConsumer
 	if natsConn != nil {
 		tenantConsumer = platformevents.NewTenantConsumer(natsConn, tenantSyncer, logger)
 		if err := tenantConsumer.Start(); err != nil {
@@ -176,6 +178,14 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		subscriptionConsumer = platformevents.NewSubscriptionConsumer(natsConn, entClient, logger)
 		if err := subscriptionConsumer.Start(); err != nil {
 			logger.Warn("app: failed to start subscription consumer", zap.Error(err))
+		}
+
+		// Tenant purge consumer: irreversibly deletes ALL of a tenant's MarketFlow
+		// data on a platform-owner-confirmed dormancy purge (tenant.purge). Uses the
+		// raw *sql.DB for ordered, transactional, FK-safe deletes.
+		tenantPurgeConsumer = platformevents.NewTenantPurgeConsumer(sqlDB, logger)
+		if err := tenantPurgeConsumer.Start(natsConn); err != nil {
+			logger.Warn("app: failed to start tenant purge consumer", zap.Error(err))
 		}
 	}
 
@@ -584,6 +594,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		outboxPublisher:      outboxPub,
 		tenantConsumer:       tenantConsumer,
 		subscriptionConsumer: subscriptionConsumer,
+		tenantPurgeConsumer:  tenantPurgeConsumer,
 		providerManager:      providerMgr,
 		rbacService:          rbacService,
 		usagePublisher:       usagePub,
@@ -638,6 +649,10 @@ func (a *App) Shutdown(ctx context.Context) error {
 
 	if a.subscriptionConsumer != nil {
 		a.subscriptionConsumer.Stop()
+	}
+
+	if a.tenantPurgeConsumer != nil {
+		a.tenantPurgeConsumer.Stop()
 	}
 
 	if a.outboxPublisher != nil {
