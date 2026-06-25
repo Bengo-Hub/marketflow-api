@@ -602,7 +602,14 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	}, nil
 }
 
-// requirePlatformOwner creates middleware that restricts access to platform owners (superuser role).
+// requirePlatformOwner creates middleware that restricts access to platform owners.
+//
+// SEC-3 (auth-client v0.10.0): a tenant superuser/admin is NOT a platform owner and must
+// not reach platform-default provider config / decrypted-secret resolve / platform usage.
+// Interactive (JWT) principals must therefore be claims.IsPlatformOwner. Service-to-service
+// callers authenticated via the platform X-API-Key (claims.IsService — e.g. marketflow-ai
+// and the worker bootstrapping their provider clients via /admin/providers/resolve) remain
+// allowed, since the platform key is itself a trusted platform credential.
 func requirePlatformOwner(authMw *authclient.AuthMiddleware) func(http.Handler) http.Handler {
 	if authMw == nil {
 		return nil
@@ -615,15 +622,7 @@ func requirePlatformOwner(authMw *authclient.AuthMiddleware) func(http.Handler) 
 				return
 			}
 
-			// Check for superuser or platform owner
-			isSuperuser := false
-			for _, role := range claims.Roles {
-				if role == "superuser" || role == "admin" {
-					isSuperuser = true
-					break
-				}
-			}
-			if !isSuperuser && !claims.IsPlatformOwner {
+			if !claims.IsPlatformOwner && !claims.IsService {
 				httpapi.Error(w, http.StatusForbidden, "forbidden", "platform owner access required", nil)
 				return
 			}
