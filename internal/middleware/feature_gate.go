@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"go.uber.org/zap"
 )
 
@@ -75,6 +76,13 @@ func (fg *FeatureGate) Check(tenantID, featureCode string) (bool, *FeatureCheckR
 func (fg *FeatureGate) RequireFeature(featureCode, upgradeMsg string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Gating-exempt tenants (platform owner / demo / service-charge / sub-exempt)
+			// bypass usage gating entirely — uniform with the rest of the fleet's
+			// claims.IsGatingExempt() funnel — and we skip the S2S round-trip for them.
+			if claims, ok := authclient.ClaimsFromContext(r.Context()); ok && claims != nil && claims.IsGatingExempt() {
+				next.ServeHTTP(w, r)
+				return
+			}
 			tenantID := r.Header.Get("X-Tenant-ID")
 			allowed, result := fg.Check(tenantID, featureCode)
 			if !allowed {
