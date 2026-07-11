@@ -105,8 +105,10 @@ func (c *SubscriptionConsumer) handleTenantActivated(msg *nats.Msg) {
 func (c *SubscriptionConsumer) upsertTenantAdminContact(tenantID uuid.UUID, p subscriptionTenantActivatedPayload) error {
 	ctx := context.Background()
 
+	// Scope the dedupe by tenant: the same admin email under two different tenants must
+	// be two distinct contacts, otherwise one tenant's activation overwrites the other's.
 	existing, err := c.orm.Contact.Query().
-		Where(contact.EmailEQ(p.AdminEmail)).
+		Where(contact.EmailEQ(p.AdminEmail), contact.TenantIDEQ(tenantID)).
 		Only(ctx)
 	if err != nil && !ent.IsNotFound(err) {
 		return err
@@ -117,6 +119,10 @@ func (c *SubscriptionConsumer) upsertTenantAdminContact(tenantID uuid.UUID, p su
 		"tenant_slug":       p.TenantSlug,
 		"subscription_plan": p.PlanCode,
 		"source":            "subscription_activation",
+	}
+	// Persist the admin's auth user id so the contact can be linked back to the SSO account.
+	if p.AdminUserID != "" {
+		enrichment["admin_user_id"] = p.AdminUserID
 	}
 
 	if ent.IsNotFound(err) {
