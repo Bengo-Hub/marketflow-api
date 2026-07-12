@@ -92,11 +92,14 @@ func (fg *FeatureGate) RequireFeature(featureCode, upgradeMsg string) func(http.
 				if result != nil {
 					msg = fmt.Sprintf("%s (current: %.0f, limit: %.0f)", upgradeMsg, result.CurrentUse, result.LimitValue)
 				}
+				// This gate is a metered usage-limit check (S2S current-vs-limit), so it uses the
+				// canonical usage code the frontends' isSubscriptionError() recognizes — was the
+				// non-standard "feature_limit_exceeded", which no frontend matched.
 				_ = json.NewEncoder(w).Encode(map[string]any{
-					"code":    "feature_limit_exceeded",
+					"code":    "usage_limit_exceeded",
 					"error":   msg,
 					"feature": featureCode,
-					"upgrade": "Upgrade your plan at /settings/billing",
+					"upgrade": true,
 				})
 				return
 			}
