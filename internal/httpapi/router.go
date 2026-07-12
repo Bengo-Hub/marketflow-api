@@ -474,8 +474,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 			if deps.RequireAuthHandler != nil {
 				r.Use(deps.RequireAuthHandler)
 			}
-			// Subscription enforcement — mutations only (GET/HEAD/OPTIONS pass through)
-			r.Use(authclient.RequireActiveSubscriptionForMutations())
+			// Subscription enforcement — mutations only (GET/HEAD/OPTIONS pass through).
+			// Uniform 7-day grace for EXPIRED tenants.
+			r.Use(authclient.RequireActiveSubscriptionForMutationsWithGrace(7))
 
 			if deps.TenantSyncer != nil {
 				r.Use(func(next http.Handler) http.Handler {
