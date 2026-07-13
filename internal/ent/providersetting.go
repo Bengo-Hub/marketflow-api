@@ -22,7 +22,7 @@ type ProviderSetting struct {
 	TenantID string `json:"tenant_id,omitempty"`
 	// ai_llm | ai_embedding | meta_ads | whatsapp | email | scheduling
 	ProviderType string `json:"provider_type,omitempty"`
-	// groq | ollama | anthropic | meta | calcom | sendgrid | etc.
+	// groq | ollama | anthropic | meta | google_calendar | sendgrid | etc.
 	ProviderName string `json:"provider_name,omitempty"`
 	// sandbox | production
 	Environment string `json:"environment,omitempty"`

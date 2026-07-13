@@ -253,6 +253,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 
 	meetingService := meetings.NewService(entClient, gcal.NewSyncer(entClient, logger), logger)
 	meetingHandler := meetings.NewHandler(meetingService, logger)
+	availabilitySvc := gcal.NewAvailabilityService(entClient, logger)
 
 	analyticsHandler := analytics.NewHandler(entClient, logger)
 	auditHandler := audit.NewHandler(entClient, logger)
@@ -303,7 +304,6 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		AppSecret:   cfg.Meta.AppSecret,
 		VerifyToken: cfg.Meta.VerifyToken,
 	}, logger)
-	calcomWebhookHandler := webhooks.NewCalcomHandler(meetingService, leadService, logger)
 	tiktokWebhookHandler := webhooks.NewTikTokHandler(leadService, webhooks.TikTokConfig{
 		DB:           sqlDB,
 		SharedSecret: cfg.TikTok.WebhookSecret,
@@ -315,7 +315,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	tenantMembersHandler := tenant.NewMembersHandler(rbacService, cfg.Security.AuthServiceURL, cfg.CrossService.InternalServiceKey, logger)
 
 	// Public handlers
-	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, leadService, testimonialHandler, tenantSyncer, logger)
+	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, leadService, meetingService, availabilitySvc, testimonialHandler, tenantSyncer, logger)
 
 	// Tenant-scoped backups + daily 02:00 auto-backup scheduler + retention churn.
 	backupSvc := backupmod.NewService(sqlDB, entClient, cfg.Backup.Dir, logger)
@@ -363,6 +363,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			GetByEmail:    contactHandler.GetByEmail,
 			GetByPhone:    contactHandler.GetByPhone,
 			UpsertByPhone: contactHandler.UpsertByPhone,
+			BulkImport:    contactHandler.BulkImport,
 		},
 		KnowledgeHandlers: httpapi.KnowledgeHandlers{
 			CreateEntry: kbHandler.CreateEntry,
@@ -408,7 +409,6 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		WebhookHandlers: httpapi.WebhookHandlers{
 			MetaVerify:            metaWebhookHandler.Verify,
 			MetaLeadgen:           metaWebhookHandler.HandleLeadgen,
-			CalcomBooking:         calcomWebhookHandler.HandleBooking,
 			NotificationsDelivery: publicHandler.NotificationsDelivery,
 			TikTokLeads:           tiktokWebhookHandler.HandleLeads,
 		},
@@ -420,6 +420,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			RecordProfileEvent: publicHandler.RecordProfileEvent,
 			ListTestimonials:   publicHandler.ListTestimonials,
 			FunnelStepView:     funnelAnalyticsHandler.RecordStepView,
+			GetAvailability:    publicHandler.GetAvailability,
+			CreateBooking:      publicHandler.CreateBooking,
 		},
 		TenantSyncer: tenantSyncer,
 		TenantProfileHandlers: httpapi.TenantProfileHandlers{
@@ -453,15 +455,16 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			ProfileMetrics:  analyticsHandler.ProfileMetrics,
 		},
 		IntegrationsHandlers: httpapi.IntegrationsHandlers{
-			AvailableIntegrations: integrationsHandler.AvailableIntegrations,
-			GoogleAuthorize:       integrationsHandler.GoogleAuthorize,
-			GoogleCallback:        integrationsHandler.GoogleCallback,
-			MetaAuthorize:         integrationsHandler.MetaAuthorize,
-			MetaCallback:          integrationsHandler.MetaCallback,
-			TikTokAuthorize:       integrationsHandler.TikTokAuthorize,
-			TikTokCallback:        integrationsHandler.TikTokCallback,
-			ListTenant:            integrationsHandler.ListTenant,
-			DisconnectTenant:      integrationsHandler.DisconnectTenant,
+			AvailableIntegrations:             integrationsHandler.AvailableIntegrations,
+			GoogleAuthorize:                   integrationsHandler.GoogleAuthorize,
+			GoogleCallback:                    integrationsHandler.GoogleCallback,
+			UpdateGoogleCalendarBusinessHours: integrationsHandler.UpdateGoogleCalendarBusinessHours,
+			MetaAuthorize:                     integrationsHandler.MetaAuthorize,
+			MetaCallback:                      integrationsHandler.MetaCallback,
+			TikTokAuthorize:                   integrationsHandler.TikTokAuthorize,
+			TikTokCallback:                    integrationsHandler.TikTokCallback,
+			ListTenant:                        integrationsHandler.ListTenant,
+			DisconnectTenant:                  integrationsHandler.DisconnectTenant,
 		},
 		AdminTenantsHandlers: httpapi.AdminTenantsHandlers{
 			List: adminTenantsHandler.List,
@@ -571,6 +574,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		RequireCampaignSlot:  featureGate.RequireFeature("campaigns_active", "Campaign limit reached — upgrade your plan at /settings/billing"),
 		TrackLeadCreated:     usagePub.TrackUsage("leads_captured"),
 		TrackCampaignCreated: usagePub.TrackUsage("campaigns_active"),
+		TrackMeetingBooked:   usagePub.TrackUsage("meetings_booked"),
 		AllowedOrigins:       cfg.HTTP.AllowedOrigins,
 	})
 

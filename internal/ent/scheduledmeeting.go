@@ -27,8 +27,8 @@ type ScheduledMeeting struct {
 	LeadID *uuid.UUID `json:"lead_id,omitempty"`
 	// ContactID holds the value of the "contact_id" field.
 	ContactID *uuid.UUID `json:"contact_id,omitempty"`
-	// Cal.com booking ID
-	CalBookingID *string `json:"cal_booking_id,omitempty"`
+	// Booking ID from an external scheduling system, if any
+	ExternalBookingID *string `json:"external_booking_id,omitempty"`
 	// Google Meet / Zoom URL
 	MeetingURL *string `json:"meeting_url,omitempty"`
 	// Google Calendar event ID for upsert/delete
@@ -109,7 +109,7 @@ func (*ScheduledMeeting) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case scheduledmeeting.FieldDurationMinutes:
 			values[i] = new(sql.NullInt64)
-		case scheduledmeeting.FieldCalBookingID, scheduledmeeting.FieldMeetingURL, scheduledmeeting.FieldGoogleEventID, scheduledmeeting.FieldGoogleCalendarID, scheduledmeeting.FieldGoogleEventLink, scheduledmeeting.FieldAttendeeEmail, scheduledmeeting.FieldAttendeeName, scheduledmeeting.FieldOrganizerEmail, scheduledmeeting.FieldMeetingType, scheduledmeeting.FieldStatus, scheduledmeeting.FieldNotes:
+		case scheduledmeeting.FieldExternalBookingID, scheduledmeeting.FieldMeetingURL, scheduledmeeting.FieldGoogleEventID, scheduledmeeting.FieldGoogleCalendarID, scheduledmeeting.FieldGoogleEventLink, scheduledmeeting.FieldAttendeeEmail, scheduledmeeting.FieldAttendeeName, scheduledmeeting.FieldOrganizerEmail, scheduledmeeting.FieldMeetingType, scheduledmeeting.FieldStatus, scheduledmeeting.FieldNotes:
 			values[i] = new(sql.NullString)
 		case scheduledmeeting.FieldScheduledAt, scheduledmeeting.FieldCreatedAt, scheduledmeeting.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -156,12 +156,12 @@ func (_m *ScheduledMeeting) assignValues(columns []string, values []any) error {
 				_m.ContactID = new(uuid.UUID)
 				*_m.ContactID = *value.S.(*uuid.UUID)
 			}
-		case scheduledmeeting.FieldCalBookingID:
+		case scheduledmeeting.FieldExternalBookingID:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field cal_booking_id", values[i])
+				return fmt.Errorf("unexpected type %T for field external_booking_id", values[i])
 			} else if value.Valid {
-				_m.CalBookingID = new(string)
-				*_m.CalBookingID = value.String
+				_m.ExternalBookingID = new(string)
+				*_m.ExternalBookingID = value.String
 			}
 		case scheduledmeeting.FieldMeetingURL:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -322,8 +322,8 @@ func (_m *ScheduledMeeting) String() string {
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
-	if v := _m.CalBookingID; v != nil {
-		builder.WriteString("cal_booking_id=")
+	if v := _m.ExternalBookingID; v != nil {
+		builder.WriteString("external_booking_id=")
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")

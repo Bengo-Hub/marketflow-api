@@ -1506,7 +1506,7 @@ var (
 	ScheduledMeetingsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "tenant_id", Type: field.TypeUUID},
-		{Name: "cal_booking_id", Type: field.TypeString, Nullable: true},
+		{Name: "external_booking_id", Type: field.TypeString, Nullable: true},
 		{Name: "meeting_url", Type: field.TypeString, Nullable: true},
 		{Name: "google_event_id", Type: field.TypeString, Nullable: true},
 		{Name: "google_calendar_id", Type: field.TypeString, Nullable: true},
@@ -1561,7 +1561,7 @@ var (
 				Columns: []*schema.Column{ScheduledMeetingsColumns[1], ScheduledMeetingsColumns[12]},
 			},
 			{
-				Name:    "scheduledmeeting_cal_booking_id",
+				Name:    "scheduledmeeting_external_booking_id",
 				Unique:  false,
 				Columns: []*schema.Column{ScheduledMeetingsColumns[2]},
 			},

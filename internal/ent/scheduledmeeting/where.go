@@ -71,9 +71,9 @@ func ContactID(v uuid.UUID) predicate.ScheduledMeeting {
 	return predicate.ScheduledMeeting(sql.FieldEQ(FieldContactID, v))
 }
 
-// CalBookingID applies equality check predicate on the "cal_booking_id" field. It's identical to CalBookingIDEQ.
-func CalBookingID(v string) predicate.ScheduledMeeting {
-	return predicate.ScheduledMeeting(sql.FieldEQ(FieldCalBookingID, v))
+// ExternalBookingID applies equality check predicate on the "external_booking_id" field. It's identical to ExternalBookingIDEQ.
+func ExternalBookingID(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEQ(FieldExternalBookingID, v))
 }
 
 // MeetingURL applies equality check predicate on the "meeting_url" field. It's identical to MeetingURLEQ.
@@ -246,79 +246,79 @@ func ContactIDNotNil() predicate.ScheduledMeeting {
 	return predicate.ScheduledMeeting(sql.FieldNotNull(FieldContactID))
 }
 
-// CalBookingIDEQ applies the EQ predicate on the "cal_booking_id" field.
-func CalBookingIDEQ(v string) predicate.ScheduledMeeting {
-	return predicate.ScheduledMeeting(sql.FieldEQ(FieldCalBookingID, v))
+// ExternalBookingIDEQ applies the EQ predicate on the "external_booking_id" field.
+func ExternalBookingIDEQ(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEQ(FieldExternalBookingID, v))
 }
 
-// CalBookingIDNEQ applies the NEQ predicate on the "cal_booking_id" field.
-func CalBookingIDNEQ(v string) predicate.ScheduledMeeting {
-	return predicate.ScheduledMeeting(sql.FieldNEQ(FieldCalBookingID, v))
+// ExternalBookingIDNEQ applies the NEQ predicate on the "external_booking_id" field.
+func ExternalBookingIDNEQ(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNEQ(FieldExternalBookingID, v))
 }
 
-// CalBookingIDIn applies the In predicate on the "cal_booking_id" field.
-func CalBookingIDIn(vs ...string) predicate.ScheduledMeeting {
-	return predicate.ScheduledMeeting(sql.FieldIn(FieldCalBookingID, vs...))
+// ExternalBookingIDIn applies the In predicate on the "external_booking_id" field.
+func ExternalBookingIDIn(vs ...string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldIn(FieldExternalBookingID, vs...))
 }
 
-// CalBookingIDNotIn applies the NotIn predicate on the "cal_booking_id" field.
-func CalBookingIDNotIn(vs ...string) predicate.ScheduledMeeting {
-	return predicate.ScheduledMeeting(sql.FieldNotIn(FieldCalBookingID, vs...))
+// ExternalBookingIDNotIn applies the NotIn predicate on the "external_booking_id" field.
+func ExternalBookingIDNotIn(vs ...string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNotIn(FieldExternalBookingID, vs...))
 }
 
-// CalBookingIDGT applies the GT predicate on the "cal_booking_id" field.
-func CalBookingIDGT(v string) predicate.ScheduledMeeting {
-	return predicate.ScheduledMeeting(sql.FieldGT(FieldCalBookingID, v))
+// ExternalBookingIDGT applies the GT predicate on the "external_booking_id" field.
+func ExternalBookingIDGT(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldGT(FieldExternalBookingID, v))
 }
 
-// CalBookingIDGTE applies the GTE predicate on the "cal_booking_id" field.
-func CalBookingIDGTE(v string) predicate.ScheduledMeeting {
-	return predicate.ScheduledMeeting(sql.FieldGTE(FieldCalBookingID, v))
+// ExternalBookingIDGTE applies the GTE predicate on the "external_booking_id" field.
+func ExternalBookingIDGTE(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldGTE(FieldExternalBookingID, v))
 }
 
-// CalBookingIDLT applies the LT predicate on the "cal_booking_id" field.
-func CalBookingIDLT(v string) predicate.ScheduledMeeting {
-	return predicate.ScheduledMeeting(sql.FieldLT(FieldCalBookingID, v))
+// ExternalBookingIDLT applies the LT predicate on the "external_booking_id" field.
+func ExternalBookingIDLT(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldLT(FieldExternalBookingID, v))
 }
 
-// CalBookingIDLTE applies the LTE predicate on the "cal_booking_id" field.
-func CalBookingIDLTE(v string) predicate.ScheduledMeeting {
-	return predicate.ScheduledMeeting(sql.FieldLTE(FieldCalBookingID, v))
+// ExternalBookingIDLTE applies the LTE predicate on the "external_booking_id" field.
+func ExternalBookingIDLTE(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldLTE(FieldExternalBookingID, v))
 }
 
-// CalBookingIDContains applies the Contains predicate on the "cal_booking_id" field.
-func CalBookingIDContains(v string) predicate.ScheduledMeeting {
-	return predicate.ScheduledMeeting(sql.FieldContains(FieldCalBookingID, v))
+// ExternalBookingIDContains applies the Contains predicate on the "external_booking_id" field.
+func ExternalBookingIDContains(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldContains(FieldExternalBookingID, v))
 }
 
-// CalBookingIDHasPrefix applies the HasPrefix predicate on the "cal_booking_id" field.
-func CalBookingIDHasPrefix(v string) predicate.ScheduledMeeting {
-	return predicate.ScheduledMeeting(sql.FieldHasPrefix(FieldCalBookingID, v))
+// ExternalBookingIDHasPrefix applies the HasPrefix predicate on the "external_booking_id" field.
+func ExternalBookingIDHasPrefix(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldHasPrefix(FieldExternalBookingID, v))
 }
 
-// CalBookingIDHasSuffix applies the HasSuffix predicate on the "cal_booking_id" field.
-func CalBookingIDHasSuffix(v string) predicate.ScheduledMeeting {
-	return predicate.ScheduledMeeting(sql.FieldHasSuffix(FieldCalBookingID, v))
+// ExternalBookingIDHasSuffix applies the HasSuffix predicate on the "external_booking_id" field.
+func ExternalBookingIDHasSuffix(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldHasSuffix(FieldExternalBookingID, v))
 }
 
-// CalBookingIDIsNil applies the IsNil predicate on the "cal_booking_id" field.
-func CalBookingIDIsNil() predicate.ScheduledMeeting {
-	return predicate.ScheduledMeeting(sql.FieldIsNull(FieldCalBookingID))
+// ExternalBookingIDIsNil applies the IsNil predicate on the "external_booking_id" field.
+func ExternalBookingIDIsNil() predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldIsNull(FieldExternalBookingID))
 }
 
-// CalBookingIDNotNil applies the NotNil predicate on the "cal_booking_id" field.
-func CalBookingIDNotNil() predicate.ScheduledMeeting {
-	return predicate.ScheduledMeeting(sql.FieldNotNull(FieldCalBookingID))
+// ExternalBookingIDNotNil applies the NotNil predicate on the "external_booking_id" field.
+func ExternalBookingIDNotNil() predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldNotNull(FieldExternalBookingID))
 }
 
-// CalBookingIDEqualFold applies the EqualFold predicate on the "cal_booking_id" field.
-func CalBookingIDEqualFold(v string) predicate.ScheduledMeeting {
-	return predicate.ScheduledMeeting(sql.FieldEqualFold(FieldCalBookingID, v))
+// ExternalBookingIDEqualFold applies the EqualFold predicate on the "external_booking_id" field.
+func ExternalBookingIDEqualFold(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldEqualFold(FieldExternalBookingID, v))
 }
 
-// CalBookingIDContainsFold applies the ContainsFold predicate on the "cal_booking_id" field.
-func CalBookingIDContainsFold(v string) predicate.ScheduledMeeting {
-	return predicate.ScheduledMeeting(sql.FieldContainsFold(FieldCalBookingID, v))
+// ExternalBookingIDContainsFold applies the ContainsFold predicate on the "external_booking_id" field.
+func ExternalBookingIDContainsFold(v string) predicate.ScheduledMeeting {
+	return predicate.ScheduledMeeting(sql.FieldContainsFold(FieldExternalBookingID, v))
 }
 
 // MeetingURLEQ applies the EQ predicate on the "meeting_url" field.

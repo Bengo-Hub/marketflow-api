@@ -1,16 +1,56 @@
 basePath: /api/v1
 definitions:
-  github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse:
+  accounts.createAccountRequest:
     properties:
-      code:
-        type: string
-      details:
+      address:
         additionalProperties: {}
         type: object
-      error:
+      annual_revenue:
+        type: number
+      employee_count:
+        type: integer
+      industry:
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      name:
+        type: string
+      owner_user_id:
+        type: string
+      phone:
+        type: string
+      website:
         type: string
     type: object
-  internal_modules_admin.SyncModelsRequest:
+  activities.logActivityRequest:
+    properties:
+      activity_type:
+        type: string
+      body:
+        type: string
+      direction:
+        type: string
+      duration_minutes:
+        type: integer
+      entity_id:
+        type: string
+      entity_type:
+        type: string
+      external_ref:
+        type: string
+      outcome:
+        type: string
+      performed_at:
+        type: string
+      performed_by:
+        type: string
+      source:
+        type: string
+      subject:
+        type: string
+    type: object
+  admin.SyncModelsRequest:
     properties:
       environment:
         type: string
@@ -19,7 +59,7 @@ definitions:
       provider_type:
         type: string
     type: object
-  internal_modules_admin.TestProviderRequest:
+  admin.TestProviderRequest:
     properties:
       environment:
         type: string
@@ -28,7 +68,7 @@ definitions:
       provider_type:
         type: string
     type: object
-  internal_modules_admin.TestProviderResponse:
+  admin.TestProviderResponse:
     properties:
       latency_ms:
         type: integer
@@ -37,7 +77,7 @@ definitions:
       ok:
         type: boolean
     type: object
-  internal_modules_admin.configureProviderRequest:
+  admin.configureProviderRequest:
     properties:
       environment:
         type: string
@@ -58,7 +98,7 @@ definitions:
           type: string
         type: object
     type: object
-  internal_modules_campaigns.createCampaignRequest:
+  campaigns.createCampaignRequest:
     properties:
       budget_daily:
         type: number
@@ -94,7 +134,14 @@ definitions:
         additionalProperties: {}
         type: object
     type: object
-  internal_modules_campaigns.updateCampaignRequest:
+  campaigns.sendSMSRequest:
+    properties:
+      message:
+        type: string
+      segment_id:
+        type: string
+    type: object
+  campaigns.updateCampaignRequest:
     properties:
       budget_daily:
         type: number
@@ -132,7 +179,7 @@ definitions:
         additionalProperties: {}
         type: object
     type: object
-  internal_modules_contacts.createContactRequest:
+  contacts.createContactRequest:
     properties:
       contact_type:
         type: string
@@ -156,7 +203,7 @@ definitions:
           type: string
         type: array
     type: object
-  internal_modules_contacts.updateContactRequest:
+  contacts.updateContactRequest:
     properties:
       contact_type:
         type: string
@@ -186,7 +233,108 @@ definitions:
       total_orders:
         type: integer
     type: object
-  internal_modules_funnels.createFunnelRequest:
+  custom_agents.createAgentRequest:
+    properties:
+      allowed_tools:
+        items:
+          type: string
+        type: array
+      description:
+        type: string
+      max_iterations:
+        type: integer
+      name:
+        type: string
+      system_prompt:
+        type: string
+      trigger_config:
+        additionalProperties: {}
+        type: object
+      trigger_type:
+        type: string
+    type: object
+  custom_fields.createDefRequest:
+    properties:
+      entity_type:
+        type: string
+      field_key:
+        type: string
+      field_label:
+        type: string
+      field_type:
+        type: string
+      is_required:
+        type: boolean
+      options:
+        items:
+          type: string
+        type: array
+      sort_order:
+        type: integer
+    type: object
+  deals.createDealRequest:
+    properties:
+      account_id:
+        type: string
+      contact_id:
+        type: string
+      currency:
+        type: string
+      expected_close_date:
+        type: string
+      lead_id:
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      owner_user_id:
+        type: string
+      pipeline_id:
+        type: string
+      probability:
+        type: number
+      stage_id:
+        type: string
+      title:
+        type: string
+      value:
+        type: number
+    type: object
+  deals.markLostRequest:
+    properties:
+      reason:
+        type: string
+    type: object
+  deals.moveStageRequest:
+    properties:
+      stage_id:
+        type: string
+    type: object
+  deals.updateDealRequest:
+    properties:
+      account_id:
+        type: string
+      contact_id:
+        type: string
+      currency:
+        type: string
+      expected_close_date:
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      owner_user_id:
+        type: string
+      probability:
+        type: number
+      stage_id:
+        type: string
+      title:
+        type: string
+      value:
+        type: number
+    type: object
+  funnels.createFunnelRequest:
     properties:
       funnel_type:
         type: string
@@ -208,7 +356,12 @@ definitions:
           type: object
         type: array
     type: object
-  internal_modules_funnels.updateFunnelRequest:
+  funnels.stepViewRequest:
+    properties:
+      step_index:
+        type: integer
+    type: object
+  funnels.updateFunnelRequest:
     properties:
       funnel_type:
         type: string
@@ -232,7 +385,29 @@ definitions:
           type: object
         type: array
     type: object
-  internal_modules_knowledge.createEntryRequest:
+  httpapi.ErrorResponse:
+    properties:
+      code:
+        type: string
+      details:
+        additionalProperties: {}
+        type: object
+      error:
+        type: string
+    type: object
+  integrations.businessHoursInput:
+    properties:
+      days:
+        description: comma-separated weekday numbers, 0=Sunday..6=Saturday
+        type: string
+      end_hour:
+        type: integer
+      slot_minutes:
+        type: integer
+      start_hour:
+        type: integer
+    type: object
+  knowledge.createEntryRequest:
     properties:
       category:
         type: string
@@ -256,7 +431,7 @@ definitions:
       title:
         type: string
     type: object
-  internal_modules_knowledge.updateEntryRequest:
+  knowledge.updateEntryRequest:
     properties:
       category:
         type: string
@@ -280,7 +455,7 @@ definitions:
       title:
         type: string
     type: object
-  internal_modules_leads.createLeadRequest:
+  leads.createLeadRequest:
     properties:
       campaign_id:
         type: string
@@ -313,7 +488,7 @@ definitions:
       utm_source:
         type: string
     type: object
-  internal_modules_leads.updateLeadRequest:
+  leads.updateLeadRequest:
     properties:
       email:
         type: string
@@ -336,18 +511,18 @@ definitions:
       status:
         type: string
     type: object
-  internal_modules_meetings.createMeetingRequest:
+  meetings.createMeetingRequest:
     properties:
       attendee_email:
         type: string
       attendee_name:
         type: string
-      cal_booking_id:
-        type: string
       contact_id:
         type: string
       duration_minutes:
         type: integer
+      external_booking_id:
+        type: string
       lead_id:
         type: string
       meeting_type:
@@ -364,14 +539,14 @@ definitions:
       scheduled_at:
         type: string
     type: object
-  internal_modules_meetings.updateMeetingRequest:
+  meetings.updateMeetingRequest:
     properties:
-      cal_booking_id:
-        type: string
       contact_id:
         type: string
       duration_minutes:
         type: integer
+      external_booking_id:
+        type: string
       lead_id:
         type: string
       meeting_type:
@@ -388,7 +563,14 @@ definitions:
       status:
         type: string
     type: object
-  internal_modules_sequences.createSequenceRequest:
+  pipelines.createPipelineRequest:
+    properties:
+      is_default:
+        type: boolean
+      name:
+        type: string
+    type: object
+  sequences.createSequenceRequest:
     properties:
       active:
         type: boolean
@@ -407,7 +589,7 @@ definitions:
       trigger_event:
         type: string
     type: object
-  internal_modules_sequences.updateSequenceRequest:
+  sequences.updateSequenceRequest:
     properties:
       active:
         type: boolean
@@ -426,7 +608,7 @@ definitions:
       trigger_event:
         type: string
     type: object
-  internal_modules_shortlinks.createShortLinkRequest:
+  shortlinks.createShortLinkRequest:
     properties:
       campaign_id:
         type: string
@@ -437,7 +619,24 @@ definitions:
       title:
         type: string
     type: object
-  internal_modules_tenant.profileUpdateRequest:
+  tasks.createTaskRequest:
+    properties:
+      assigned_to_user_id:
+        type: string
+      description:
+        type: string
+      due_at:
+        type: string
+      entity_id:
+        type: string
+      entity_type:
+        type: string
+      priority:
+        type: string
+      title:
+        type: string
+    type: object
+  tenant.profileUpdateRequest:
     properties:
       business_type:
         type: string
@@ -457,7 +656,7 @@ definitions:
       whatsapp_number:
         type: string
     type: object
-  internal_modules_testimonials.upsertRequest:
+  testimonials.upsertRequest:
     properties:
       author_name:
         type: string
@@ -474,7 +673,7 @@ definitions:
       rating:
         type: integer
     type: object
-  internal_modules_webhooks.NotificationsDeliveryRequest:
+  webhooks.NotificationsDeliveryRequest:
     properties:
       channel:
         type: string
@@ -494,7 +693,7 @@ definitions:
       tenant_id:
         type: string
     type: object
-  internal_modules_webhooks.ProfileEventRequest:
+  webhooks.ProfileEventRequest:
     properties:
       event_type:
         type: string
@@ -506,53 +705,24 @@ definitions:
       slug:
         type: string
     type: object
-  internal_modules_webhooks.calcomAttendee:
+  webhooks.publicBookingInput:
     properties:
       email:
-        type: string
-      name:
-        type: string
-      timeZone:
-        type: string
-    type: object
-  internal_modules_webhooks.calcomBookingData:
-    properties:
-      attendees:
-        items:
-          $ref: '#/definitions/internal_modules_webhooks.calcomAttendee'
-        type: array
-      contact_id:
-        type: string
-      description:
-        type: string
-      endTime:
         type: string
       lead_id:
         type: string
       meeting_type:
         type: string
-      meetingUrl:
+      name:
         type: string
-      metadata:
-        additionalProperties: {}
-        type: object
-      startTime:
+      notes:
         type: string
-      tenant_id:
+      phone:
         type: string
-      title:
-        type: string
-      uid:
+      slot_start:
         type: string
     type: object
-  internal_modules_webhooks.calcomBookingPayload:
-    properties:
-      payload:
-        $ref: '#/definitions/internal_modules_webhooks.calcomBookingData'
-      triggerEvent:
-        type: string
-    type: object
-  internal_modules_webhooks.publicLeadInput:
+  webhooks.publicLeadInput:
     properties:
       answers:
         additionalProperties: {}
@@ -589,6 +759,295 @@ info:
   title: MarketFlow API
   version: 1.0.0
 paths:
+  /{tenantID}/campaigns/{campaignID}/send-sms:
+    post:
+      consumes:
+      - application/json
+      description: Resolves the target CRM contacts and queues one SMS event per contact
+        via the outbox; notifications-api delivers them.
+      parameters:
+      - description: Tenant UUID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Campaign UUID
+        in: path
+        name: campaignID
+        required: true
+        type: string
+      - description: Bulk SMS request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/campaigns.sendSMSRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Send a bulk SMS for a campaign
+      tags:
+      - Campaigns
+  /accounts:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Filter by industry
+        in: query
+        name: industry
+        type: string
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List accounts
+      tags:
+      - Accounts
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Account data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/accounts.createAccountRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Create an account (company)
+      tags:
+      - Accounts
+  /accounts/{id}:
+    delete:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Account UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Delete an account
+      tags:
+      - Accounts
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Account UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Get an account by ID
+      tags:
+      - Accounts
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Account UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Update an account
+      tags:
+      - Accounts
+  /accounts/{id}/contacts:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Account UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List contacts linked to an account
+      tags:
+      - Accounts
+  /activities:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: lead | contact | deal
+        in: query
+        name: entity_type
+        required: true
+        type: string
+      - description: Entity UUID
+        in: query
+        name: entity_id
+        required: true
+        type: string
+      - description: Filter by type
+        in: query
+        name: activity_type
+        type: string
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List activities for an entity
+      tags:
+      - Activities
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Activity data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/activities.logActivityRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Log an activity for any CRM entity
+      tags:
+      - Activities
   /admin/audit:
     get:
       parameters:
@@ -662,7 +1121,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_admin.configureProviderRequest'
+          $ref: '#/definitions/admin.configureProviderRequest'
       produces:
       - application/json
       responses:
@@ -764,7 +1223,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_admin.SyncModelsRequest'
+          $ref: '#/definitions/admin.SyncModelsRequest'
       produces:
       - application/json
       responses:
@@ -803,14 +1262,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_admin.TestProviderRequest'
+          $ref: '#/definitions/admin.TestProviderRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_modules_admin.TestProviderResponse'
+            $ref: '#/definitions/admin.TestProviderResponse'
         "400":
           description: Bad Request
           schema:
@@ -863,6 +1322,202 @@ paths:
       summary: Platform-wide usage rollup
       tags:
       - Admin - Analytics
+  /agents/custom:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List custom agents
+      tags:
+      - Custom Agents
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Agent definition
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/custom_agents.createAgentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Create a custom agent
+      tags:
+      - Custom Agents
+  /agents/custom/{id}:
+    delete:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Agent UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Delete a custom agent
+      tags:
+      - Custom Agents
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Agent UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Get a custom agent by ID
+      tags:
+      - Custom Agents
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Agent UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Update a custom agent
+      tags:
+      - Custom Agents
+  /agents/custom/{id}/run:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Agent UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Optional trigger payload
+        in: body
+        name: request
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Manually trigger a custom agent run
+      tags:
+      - Custom Agents
+  /agents/custom/{id}/runs:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Agent UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Get run history for a custom agent
+      tags:
+      - Custom Agents
   /analytics/audit:
     get:
       parameters:
@@ -926,7 +1581,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Per-campaign ad metrics time series
@@ -1067,7 +1722,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_campaigns.createCampaignRequest'
+          $ref: '#/definitions/campaigns.createCampaignRequest'
       produces:
       - application/json
       responses:
@@ -1079,11 +1734,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Create a new campaign
@@ -1139,7 +1794,7 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Get a campaign by ID
@@ -1164,7 +1819,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_campaigns.updateCampaignRequest'
+          $ref: '#/definitions/campaigns.updateCampaignRequest'
       produces:
       - application/json
       responses:
@@ -1176,7 +1831,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Update a campaign
@@ -1207,7 +1862,7 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Pause a campaign
@@ -1238,7 +1893,7 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Resume a campaign
@@ -1292,7 +1947,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_contacts.createContactRequest'
+          $ref: '#/definitions/contacts.createContactRequest'
       produces:
       - application/json
       responses:
@@ -1377,7 +2032,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_contacts.updateContactRequest'
+          $ref: '#/definitions/contacts.updateContactRequest'
       produces:
       - application/json
       responses:
@@ -1391,6 +2046,372 @@ paths:
       summary: Update a contact
       tags:
       - Contacts
+  /custom-fields/defs:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Filter by entity type
+        in: query
+        name: entity_type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List custom field definitions
+      tags:
+      - Custom Fields
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Field definition
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/custom_fields.createDefRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Create a custom field definition
+      tags:
+      - Custom Fields
+  /custom-fields/defs/{id}:
+    delete:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Definition UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Delete a custom field definition
+      tags:
+      - Custom Fields
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Definition UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Update a custom field definition
+      tags:
+      - Custom Fields
+  /deals:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: open | won | lost
+        in: query
+        name: status
+        type: string
+      - description: Filter by pipeline UUID
+        in: query
+        name: pipeline_id
+        type: string
+      - description: Filter by stage UUID
+        in: query
+        name: stage_id
+        type: string
+      - description: Filter by contact UUID
+        in: query
+        name: contact_id
+        type: string
+      - description: Page size (default 20)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List deals
+      tags:
+      - Deals
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Deal data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/deals.createDealRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Create a deal
+      tags:
+      - Deals
+  /deals/{id}:
+    delete:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Deal UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Delete a deal
+      tags:
+      - Deals
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Deal UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Get a deal by ID
+      tags:
+      - Deals
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Deal UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/deals.updateDealRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Update a deal
+      tags:
+      - Deals
+  /deals/{id}/lost:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Deal UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Optional reason
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/deals.markLostRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Mark a deal as lost
+      tags:
+      - Deals
+  /deals/{id}/move:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Deal UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Target stage
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/deals.moveStageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Move a deal to a new pipeline stage
+      tags:
+      - Deals
+  /deals/{id}/won:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Deal UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Mark a deal as won
+      tags:
+      - Deals
   /f/{slug}:
     get:
       parameters:
@@ -1463,7 +2484,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_funnels.createFunnelRequest'
+          $ref: '#/definitions/funnels.createFunnelRequest'
       produces:
       - application/json
       responses:
@@ -1475,11 +2496,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Create a new funnel
@@ -1535,7 +2556,7 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Get a funnel by ID
@@ -1560,7 +2581,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_funnels.updateFunnelRequest'
+          $ref: '#/definitions/funnels.updateFunnelRequest'
       produces:
       - application/json
       responses:
@@ -1572,10 +2593,45 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Update a funnel
+      tags:
+      - Funnels
+  /funnels/{id}/analytics:
+    get:
+      description: Returns view counts per step and drop-off between steps
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Funnel UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Funnel step drop-off analytics
       tags:
       - Funnels
   /funnels/{id}/publish:
@@ -1603,7 +2659,7 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Publish a funnel
@@ -1657,6 +2713,21 @@ paths:
       summary: Disconnect a tenant integration
       tags:
       - Integrations
+  /integrations/available:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List available platform integrations
+      tags:
+      - Integrations
   /integrations/google/authorize:
     get:
       parameters:
@@ -1677,6 +2748,38 @@ paths:
       security:
       - bearerAuth: []
       summary: Start Google Calendar OAuth for a tenant
+      tags:
+      - Integrations
+  /integrations/google/business-hours:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Business hours
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/integrations.businessHoursInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      summary: Configure booking widget business hours
       tags:
       - Integrations
   /integrations/google/callback:
@@ -1739,6 +2842,41 @@ paths:
       summary: Meta OAuth callback
       tags:
       - Integrations
+  /integrations/tiktok/authorize:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Start TikTok OAuth flow
+      tags:
+      - Integrations
+  /integrations/tiktok/callback:
+    get:
+      parameters:
+      - description: Authorization code
+        in: query
+        name: auth_code
+        required: true
+        type: string
+      - description: Signed state
+        in: query
+        name: state
+        required: true
+        type: string
+      responses: {}
+      summary: TikTok OAuth callback
+      tags:
+      - Integrations
   /knowledge/entries:
     get:
       parameters:
@@ -1788,7 +2926,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_knowledge.createEntryRequest'
+          $ref: '#/definitions/knowledge.createEntryRequest'
       produces:
       - application/json
       responses:
@@ -1874,7 +3012,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_knowledge.updateEntryRequest'
+          $ref: '#/definitions/knowledge.updateEntryRequest'
       produces:
       - application/json
       responses:
@@ -1886,6 +3024,41 @@ paths:
       security:
       - bearerAuth: []
       summary: Update a knowledge base entry
+      tags:
+      - KnowledgeBase
+  /knowledge/entries/import:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 'Accepts multipart/form-data with a ''file'' field (CSV). Columns:
+        category, title, content, product_code, product_price, product_cc, product_image_url,
+        tags (pipe-separated)'
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: CSV file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Bulk-import knowledge base entries from a CSV file
       tags:
       - KnowledgeBase
   /leads:
@@ -1946,7 +3119,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_leads.createLeadRequest'
+          $ref: '#/definitions/leads.createLeadRequest'
       produces:
       - application/json
       responses:
@@ -1958,11 +3131,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Create a new lead
@@ -2018,7 +3191,7 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Get a lead by ID
@@ -2043,7 +3216,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_leads.updateLeadRequest'
+          $ref: '#/definitions/leads.updateLeadRequest'
       produces:
       - application/json
       responses:
@@ -2055,10 +3228,48 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Update a lead
+      tags:
+      - Leads
+  /leads/export:
+    get:
+      description: Returns leads matching the given filters as a downloadable CSV
+        file
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Filter by source
+        in: query
+        name: source
+        type: string
+      - description: Filter by type
+        in: query
+        name: lead_type
+        type: string
+      - description: Start date (RFC3339 or YYYY-MM-DD)
+        in: query
+        name: from
+        type: string
+      - description: End date (RFC3339 or YYYY-MM-DD)
+        in: query
+        name: to
+        type: string
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: CSV file
+          schema:
+            type: file
+      security:
+      - bearerAuth: []
+      summary: Export leads as CSV
       tags:
       - Leads
   /meetings:
@@ -2112,7 +3323,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creates a virtual meeting booking (Cal.com or manual)
+      description: Creates a virtual meeting booking (public booking widget or manual)
       parameters:
       - description: Tenant UUID
         in: header
@@ -2124,7 +3335,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_meetings.createMeetingRequest'
+          $ref: '#/definitions/meetings.createMeetingRequest'
       produces:
       - application/json
       responses:
@@ -2136,11 +3347,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Create a new scheduled meeting
@@ -2170,7 +3381,7 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Get a scheduled meeting by ID
@@ -2195,7 +3406,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_meetings.updateMeetingRequest'
+          $ref: '#/definitions/meetings.updateMeetingRequest'
       produces:
       - application/json
       responses:
@@ -2207,12 +3418,308 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Update a scheduled meeting
       tags:
       - Meetings
+  /pipelines:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List pipelines for tenant
+      tags:
+      - Pipelines
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Pipeline data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/pipelines.createPipelineRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Create a pipeline
+      tags:
+      - Pipelines
+  /pipelines/{id}:
+    delete:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Pipeline UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Delete a pipeline
+      tags:
+      - Pipelines
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Pipeline UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Get a pipeline with its stages
+      tags:
+      - Pipelines
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Pipeline UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Update a pipeline
+      tags:
+      - Pipelines
+  /pipelines/{id}/stages:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Pipeline UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Add a stage to a pipeline
+      tags:
+      - Pipelines
+  /pipelines/{id}/stages/{stageId}:
+    delete:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Pipeline UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Stage UUID
+        in: path
+        name: stageId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Delete a pipeline stage
+      tags:
+      - Pipelines
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Pipeline UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Stage UUID
+        in: path
+        name: stageId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Update a pipeline stage
+      tags:
+      - Pipelines
+  /public/availability/{slug}:
+    get:
+      description: 'Returns open time slots for the tenant''s linked Google Calendar
+        on the given date. `connected: false` means the tenant hasn''t linked a calendar
+        yet.'
+      parameters:
+      - description: Tenant URL slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Date to check, YYYY-MM-DD
+        in: query
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      summary: Public booking availability
+      tags:
+      - Public
+  /public/book/{slug}:
+    post:
+      consumes:
+      - application/json
+      description: Books a meeting slot on the tenant's linked Google Calendar. Re-validates
+        the slot is still open immediately before creating it.
+      parameters:
+      - description: Tenant URL slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Booking data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/webhooks.publicBookingInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      summary: Public booking creation
+      tags:
+      - Public
   /public/funnels/{slug}:
     get:
       parameters:
@@ -2232,8 +3739,38 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       summary: Get published funnel by slug (JSON)
+      tags:
+      - Public
+  /public/funnels/{slug}/step-view:
+    post:
+      consumes:
+      - application/json
+      description: Increments the view counter for a specific funnel step (public,
+        no auth)
+      parameters:
+      - description: Funnel slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Step view data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/funnels.stepViewRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      summary: Record a funnel step view
       tags:
       - Public
   /public/leads/{slug}:
@@ -2254,7 +3791,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_webhooks.publicLeadInput'
+          $ref: '#/definitions/webhooks.publicLeadInput'
       produces:
       - application/json
       responses:
@@ -2266,11 +3803,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       summary: Public lead capture
       tags:
       - Public
@@ -2287,7 +3824,7 @@ paths:
         name: event
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_webhooks.ProfileEventRequest'
+          $ref: '#/definitions/webhooks.ProfileEventRequest'
       produces:
       - application/json
       responses:
@@ -2296,7 +3833,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       summary: Record a visitor interaction on /p/{slug}
       tags:
       - Public
@@ -2320,7 +3857,7 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       summary: Get tenant profile by slug (public)
       tags:
       - Public
@@ -2347,10 +3884,157 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       summary: Public testimonials for a tenant slug
       tags:
       - Public
+  /segments:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List segments for the current tenant
+      tags:
+      - CRM - Segments
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Create a segment
+      tags:
+      - CRM - Segments
+  /segments/{id}:
+    delete:
+      parameters:
+      - description: Segment UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Delete a segment
+      tags:
+      - CRM - Segments
+    get:
+      parameters:
+      - description: Segment UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Get a segment
+      tags:
+      - CRM - Segments
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Segment UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Update a segment
+      tags:
+      - CRM - Segments
+  /segments/{id}/evaluate:
+    post:
+      parameters:
+      - description: Segment UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Re-evaluate segment rules and update member count
+      tags:
+      - CRM - Segments
   /sequences:
     get:
       description: Returns paginated nurture sequences with optional filters
@@ -2405,7 +4089,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_sequences.createSequenceRequest'
+          $ref: '#/definitions/sequences.createSequenceRequest'
       produces:
       - application/json
       responses:
@@ -2417,11 +4101,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Create a new nurture sequence
@@ -2477,7 +4161,7 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Get a nurture sequence by ID
@@ -2502,7 +4186,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_sequences.updateSequenceRequest'
+          $ref: '#/definitions/sequences.updateSequenceRequest'
       produces:
       - application/json
       responses:
@@ -2514,10 +4198,46 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Update a nurture sequence
+      tags:
+      - NurtureSequences
+  /sequences/{id}/analytics:
+    get:
+      description: Returns enrollment counts grouped by status and a completion rate
+        for the given sequence
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Sequence UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Sequence enrollment analytics
       tags:
       - NurtureSequences
   /short-links:
@@ -2570,7 +4290,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_shortlinks.createShortLinkRequest'
+          $ref: '#/definitions/shortlinks.createShortLinkRequest'
       produces:
       - application/json
       responses:
@@ -2584,6 +4304,332 @@ paths:
       summary: Create a short link
       tags:
       - ShortLinks
+  /suggestions:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Max results (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List unread proactive agent suggestions
+      tags:
+      - Suggestions
+  /suggestions/{id}/dismiss:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Activity UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Dismiss a proactive suggestion
+      tags:
+      - Suggestions
+  /tasks:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: lead | contact | deal
+        in: query
+        name: entity_type
+        type: string
+      - description: Entity UUID
+        in: query
+        name: entity_id
+        type: string
+      - description: open | in_progress | done
+        in: query
+        name: status
+        type: string
+      - description: Only overdue tasks
+        in: query
+        name: overdue
+        type: boolean
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List tasks
+      tags:
+      - Tasks
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Task data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/tasks.createTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Create a task
+      tags:
+      - Tasks
+  /tasks/{id}:
+    delete:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Task UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Delete a task
+      tags:
+      - Tasks
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Task UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Get a task by ID
+      tags:
+      - Tasks
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Task UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Update a task
+      tags:
+      - Tasks
+  /tasks/{id}/complete:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Task UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Mark a task as done
+      tags:
+      - Tasks
+  /tenant/members:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List team members for the current tenant
+      tags:
+      - Tenant
+  /tenant/members/{userId}:
+    delete:
+      parameters:
+      - description: Member UUID
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Remove a team member from the tenant
+      tags:
+      - Tenant
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Member UUID
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Update a team member's role
+      tags:
+      - Tenant
+  /tenant/members/invite:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Invite a new team member
+      tags:
+      - Tenant
   /tenant/profile:
     get:
       parameters:
@@ -2619,7 +4665,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_tenant.profileUpdateRequest'
+          $ref: '#/definitions/tenant.profileUpdateRequest'
       produces:
       - application/json
       responses:
@@ -2631,7 +4677,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Update tenant profile
@@ -2672,7 +4718,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_testimonials.upsertRequest'
+          $ref: '#/definitions/testimonials.upsertRequest'
       produces:
       - application/json
       responses:
@@ -2726,7 +4772,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_testimonials.upsertRequest'
+          $ref: '#/definitions/testimonials.upsertRequest'
       produces:
       - application/json
       responses:
@@ -2740,34 +4786,6 @@ paths:
       summary: Update a testimonial
       tags:
       - Testimonials
-  /webhooks/calcom/booking:
-    post:
-      consumes:
-      - application/json
-      description: Receives booking events from Cal.com (booking_created)
-      parameters:
-      - description: Cal.com booking webhook payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/internal_modules_webhooks.calcomBookingPayload'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
-      summary: Handle Cal.com booking webhook
-      tags:
-      - Webhooks
   /webhooks/meta/leadgen:
     get:
       parameters:
@@ -2817,7 +4835,7 @@ paths:
         "401":
           description: Invalid signature
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       summary: Meta lead generation webhook
       tags:
       - Webhooks
@@ -2831,7 +4849,7 @@ paths:
         name: event
         required: true
         schema:
-          $ref: '#/definitions/internal_modules_webhooks.NotificationsDeliveryRequest'
+          $ref: '#/definitions/webhooks.NotificationsDeliveryRequest'
       produces:
       - application/json
       responses:
@@ -2840,8 +4858,30 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_bengobox_marketflow-api_internal_httpapi.ErrorResponse'
+            $ref: '#/definitions/httpapi.ErrorResponse'
       summary: Receive delivery telemetry from notifications-api
+      tags:
+      - Webhooks
+  /webhooks/tiktok/leads:
+    post:
+      consumes:
+      - application/json
+      description: Receives lead form submissions from TikTok ads. Upserts leads with
+        source=tiktok.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      summary: TikTok lead form webhook
       tags:
       - Webhooks
 schemes:

@@ -11,8 +11,10 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/integrations/gcal"
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
+	"github.com/bengobox/marketflow-api/internal/modules/meetings"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -29,6 +31,8 @@ type PublicHandler struct {
 	entClient          *ent.Client
 	funnelService      *funnels.Service
 	leadService        *leads.Service
+	meetingService     *meetings.Service
+	availabilitySvc    *gcal.AvailabilityService
 	testimonialService TestimonialReader
 	tenantSyncer       TenantSyncer
 	logger             *zap.Logger
@@ -41,11 +45,13 @@ type TestimonialReader interface {
 }
 
 // NewPublicHandler creates a new public handler.
-func NewPublicHandler(entClient *ent.Client, funnelService *funnels.Service, leadService *leads.Service, testimonialReader TestimonialReader, tenantSyncer TenantSyncer, logger *zap.Logger) *PublicHandler {
+func NewPublicHandler(entClient *ent.Client, funnelService *funnels.Service, leadService *leads.Service, meetingService *meetings.Service, availabilitySvc *gcal.AvailabilityService, testimonialReader TestimonialReader, tenantSyncer TenantSyncer, logger *zap.Logger) *PublicHandler {
 	return &PublicHandler{
 		entClient:          entClient,
 		funnelService:      funnelService,
 		leadService:        leadService,
+		meetingService:     meetingService,
+		availabilitySvc:    availabilitySvc,
 		testimonialService: testimonialReader,
 		tenantSyncer:       tenantSyncer,
 		logger:             logger.Named("public"),
@@ -399,13 +405,13 @@ func (h *PublicHandler) PublicCreateLead(w http.ResponseWriter, r *http.Request)
 		LeadType:             leadType,
 		QualificationAnswers: in.Answers,
 		Metadata: map[string]any{
-			"captured_via":    "public_endpoint",
-			"captured_at":     time.Now().UTC().Format(time.RFC3339),
-			"remote_addr":     r.RemoteAddr,
-			"user_agent":      r.UserAgent(),
-			"referer":         r.Referer(),
-			"tenant_slug":     slug,
-			"funnel_slug":     in.FunnelSlug,
+			"captured_via": "public_endpoint",
+			"captured_at":  time.Now().UTC().Format(time.RFC3339),
+			"remote_addr":  r.RemoteAddr,
+			"user_agent":   r.UserAgent(),
+			"referer":      r.Referer(),
+			"tenant_slug":  slug,
+			"funnel_slug":  in.FunnelSlug,
 		},
 	}
 	if in.Email != "" {

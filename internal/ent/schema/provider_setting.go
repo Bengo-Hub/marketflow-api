@@ -39,7 +39,7 @@ func (ProviderSetting) Fields() []ent.Field {
 			Comment("ai_llm | ai_embedding | meta_ads | whatsapp | email | scheduling"),
 		field.String("provider_name").
 			NotEmpty().
-			Comment("groq | ollama | anthropic | meta | calcom | sendgrid | etc."),
+			Comment("groq | ollama | anthropic | meta | google_calendar | sendgrid | etc."),
 		field.String("environment").
 			Default("production").
 			Comment("sandbox | production"),

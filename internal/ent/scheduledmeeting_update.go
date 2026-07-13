@@ -86,23 +86,23 @@ func (_u *ScheduledMeetingUpdate) ClearContactID() *ScheduledMeetingUpdate {
 	return _u
 }
 
-// SetCalBookingID sets the "cal_booking_id" field.
-func (_u *ScheduledMeetingUpdate) SetCalBookingID(v string) *ScheduledMeetingUpdate {
-	_u.mutation.SetCalBookingID(v)
+// SetExternalBookingID sets the "external_booking_id" field.
+func (_u *ScheduledMeetingUpdate) SetExternalBookingID(v string) *ScheduledMeetingUpdate {
+	_u.mutation.SetExternalBookingID(v)
 	return _u
 }
 
-// SetNillableCalBookingID sets the "cal_booking_id" field if the given value is not nil.
-func (_u *ScheduledMeetingUpdate) SetNillableCalBookingID(v *string) *ScheduledMeetingUpdate {
+// SetNillableExternalBookingID sets the "external_booking_id" field if the given value is not nil.
+func (_u *ScheduledMeetingUpdate) SetNillableExternalBookingID(v *string) *ScheduledMeetingUpdate {
 	if v != nil {
-		_u.SetCalBookingID(*v)
+		_u.SetExternalBookingID(*v)
 	}
 	return _u
 }
 
-// ClearCalBookingID clears the value of the "cal_booking_id" field.
-func (_u *ScheduledMeetingUpdate) ClearCalBookingID() *ScheduledMeetingUpdate {
-	_u.mutation.ClearCalBookingID()
+// ClearExternalBookingID clears the value of the "external_booking_id" field.
+func (_u *ScheduledMeetingUpdate) ClearExternalBookingID() *ScheduledMeetingUpdate {
+	_u.mutation.ClearExternalBookingID()
 	return _u
 }
 
@@ -428,11 +428,11 @@ func (_u *ScheduledMeetingUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(scheduledmeeting.FieldTenantID, field.TypeUUID, value)
 	}
-	if value, ok := _u.mutation.CalBookingID(); ok {
-		_spec.SetField(scheduledmeeting.FieldCalBookingID, field.TypeString, value)
+	if value, ok := _u.mutation.ExternalBookingID(); ok {
+		_spec.SetField(scheduledmeeting.FieldExternalBookingID, field.TypeString, value)
 	}
-	if _u.mutation.CalBookingIDCleared() {
-		_spec.ClearField(scheduledmeeting.FieldCalBookingID, field.TypeString)
+	if _u.mutation.ExternalBookingIDCleared() {
+		_spec.ClearField(scheduledmeeting.FieldExternalBookingID, field.TypeString)
 	}
 	if value, ok := _u.mutation.MeetingURL(); ok {
 		_spec.SetField(scheduledmeeting.FieldMeetingURL, field.TypeString, value)
@@ -640,23 +640,23 @@ func (_u *ScheduledMeetingUpdateOne) ClearContactID() *ScheduledMeetingUpdateOne
 	return _u
 }
 
-// SetCalBookingID sets the "cal_booking_id" field.
-func (_u *ScheduledMeetingUpdateOne) SetCalBookingID(v string) *ScheduledMeetingUpdateOne {
-	_u.mutation.SetCalBookingID(v)
+// SetExternalBookingID sets the "external_booking_id" field.
+func (_u *ScheduledMeetingUpdateOne) SetExternalBookingID(v string) *ScheduledMeetingUpdateOne {
+	_u.mutation.SetExternalBookingID(v)
 	return _u
 }
 
-// SetNillableCalBookingID sets the "cal_booking_id" field if the given value is not nil.
-func (_u *ScheduledMeetingUpdateOne) SetNillableCalBookingID(v *string) *ScheduledMeetingUpdateOne {
+// SetNillableExternalBookingID sets the "external_booking_id" field if the given value is not nil.
+func (_u *ScheduledMeetingUpdateOne) SetNillableExternalBookingID(v *string) *ScheduledMeetingUpdateOne {
 	if v != nil {
-		_u.SetCalBookingID(*v)
+		_u.SetExternalBookingID(*v)
 	}
 	return _u
 }
 
-// ClearCalBookingID clears the value of the "cal_booking_id" field.
-func (_u *ScheduledMeetingUpdateOne) ClearCalBookingID() *ScheduledMeetingUpdateOne {
-	_u.mutation.ClearCalBookingID()
+// ClearExternalBookingID clears the value of the "external_booking_id" field.
+func (_u *ScheduledMeetingUpdateOne) ClearExternalBookingID() *ScheduledMeetingUpdateOne {
+	_u.mutation.ClearExternalBookingID()
 	return _u
 }
 
@@ -1012,11 +1012,11 @@ func (_u *ScheduledMeetingUpdateOne) sqlSave(ctx context.Context) (_node *Schedu
 	if value, ok := _u.mutation.TenantID(); ok {
 		_spec.SetField(scheduledmeeting.FieldTenantID, field.TypeUUID, value)
 	}
-	if value, ok := _u.mutation.CalBookingID(); ok {
-		_spec.SetField(scheduledmeeting.FieldCalBookingID, field.TypeString, value)
+	if value, ok := _u.mutation.ExternalBookingID(); ok {
+		_spec.SetField(scheduledmeeting.FieldExternalBookingID, field.TypeString, value)
 	}
-	if _u.mutation.CalBookingIDCleared() {
-		_spec.ClearField(scheduledmeeting.FieldCalBookingID, field.TypeString)
+	if _u.mutation.ExternalBookingIDCleared() {
+		_spec.ClearField(scheduledmeeting.FieldExternalBookingID, field.TypeString)
 	}
 	if value, ok := _u.mutation.MeetingURL(); ok {
 		_spec.SetField(scheduledmeeting.FieldMeetingURL, field.TypeString, value)

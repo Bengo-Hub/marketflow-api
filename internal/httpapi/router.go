@@ -97,6 +97,7 @@ type RouterDeps struct {
 	// Usage tracking middleware (fire-and-forget to subscriptions-api)
 	TrackLeadCreated     func(http.Handler) http.Handler
 	TrackCampaignCreated func(http.Handler) http.Handler
+	TrackMeetingBooked   func(http.Handler) http.Handler
 
 	// Internal S2S handlers — X-API-Key auth only, no JWT
 	InternalLeadHandlers InternalLeadHandlers
@@ -175,6 +176,7 @@ type ContactHandlers struct {
 	GetByEmail    http.HandlerFunc // GET /internal/contacts/by-email — S2S email lookup
 	GetByPhone    http.HandlerFunc // GET /internal/contacts/by-phone — S2S phone lookup
 	UpsertByPhone http.HandlerFunc // POST /internal/contacts/upsert — S2S create-or-get by phone
+	BulkImport    http.HandlerFunc // POST /contacts/bulk-import — batch upsert (migrations)
 }
 
 // KnowledgeHandlers groups knowledge base HTTP handlers.
@@ -242,22 +244,22 @@ type AnalyticsHandlers struct {
 // IntegrationsHandlers groups OAuth authorize + callback endpoints
 // (Google Calendar, Meta) and any related per-tenant integration management.
 type IntegrationsHandlers struct {
-	AvailableIntegrations http.HandlerFunc
-	GoogleAuthorize       http.HandlerFunc
-	GoogleCallback        http.HandlerFunc
-	MetaAuthorize         http.HandlerFunc
-	MetaCallback          http.HandlerFunc
-	TikTokAuthorize       http.HandlerFunc
-	TikTokCallback        http.HandlerFunc
-	ListTenant            http.HandlerFunc
-	DisconnectTenant      http.HandlerFunc
+	AvailableIntegrations             http.HandlerFunc
+	GoogleAuthorize                   http.HandlerFunc
+	GoogleCallback                    http.HandlerFunc
+	UpdateGoogleCalendarBusinessHours http.HandlerFunc
+	MetaAuthorize                     http.HandlerFunc
+	MetaCallback                      http.HandlerFunc
+	TikTokAuthorize                   http.HandlerFunc
+	TikTokCallback                    http.HandlerFunc
+	ListTenant                        http.HandlerFunc
+	DisconnectTenant                  http.HandlerFunc
 }
 
 // WebhookHandlers groups webhook HTTP handlers (public, no auth).
 type WebhookHandlers struct {
 	MetaVerify            http.HandlerFunc
 	MetaLeadgen           http.HandlerFunc
-	CalcomBooking         http.HandlerFunc
 	NotificationsDelivery http.HandlerFunc
 	TikTokLeads           http.HandlerFunc
 }
@@ -271,6 +273,8 @@ type PublicHandlers struct {
 	RecordProfileEvent http.HandlerFunc
 	ListTestimonials   http.HandlerFunc
 	FunnelStepView     http.HandlerFunc
+	GetAvailability    http.HandlerFunc
+	CreateBooking      http.HandlerFunc
 }
 
 // TenantProfileHandlers groups tenant profile settings endpoints.
@@ -532,6 +536,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 			r.Route("/contacts", func(r chi.Router) {
 				r.Post("/", deps.ContactHandlers.Create)
 				r.Get("/", deps.ContactHandlers.List)
+				if deps.ContactHandlers.BulkImport != nil {
+					r.Post("/bulk-import", deps.ContactHandlers.BulkImport)
+				}
 				r.Get("/{id}", deps.ContactHandlers.Get)
 				r.Put("/{id}", deps.ContactHandlers.Update)
 				r.Delete("/{id}", deps.ContactHandlers.Delete)
@@ -635,6 +642,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Get("/available", deps.IntegrationsHandlers.AvailableIntegrations)
 				r.Get("/google/authorize", deps.IntegrationsHandlers.GoogleAuthorize)
 				r.Get("/google/callback", deps.IntegrationsHandlers.GoogleCallback)
+				r.Put("/google/business-hours", deps.IntegrationsHandlers.UpdateGoogleCalendarBusinessHours)
 				r.Get("/meta/authorize", deps.IntegrationsHandlers.MetaAuthorize)
 				r.Get("/meta/callback", deps.IntegrationsHandlers.MetaCallback)
 				r.Get("/tiktok/authorize", deps.IntegrationsHandlers.TikTokAuthorize)
@@ -846,7 +854,6 @@ func NewRouter(deps RouterDeps) http.Handler {
 		r.Route("/webhooks", func(r chi.Router) {
 			r.Get("/meta/leadgen", deps.WebhookHandlers.MetaVerify)
 			r.Post("/meta/leadgen", deps.WebhookHandlers.MetaLeadgen)
-			r.Post("/calcom/booking", deps.WebhookHandlers.CalcomBooking)
 			r.Post("/notifications/delivery", deps.WebhookHandlers.NotificationsDelivery)
 			r.Post("/tiktok/leads", deps.WebhookHandlers.TikTokLeads)
 		})
@@ -860,6 +867,8 @@ func NewRouter(deps RouterDeps) http.Handler {
 			r.With(deps.TrackLeadCreated).Post("/leads/{slug}", deps.PublicHandlers.CreateLead)
 			r.Post("/profile-events", deps.PublicHandlers.RecordProfileEvent)
 			r.Post("/funnels/{slug}/step-view", deps.PublicHandlers.FunnelStepView)
+			r.Get("/availability/{slug}", deps.PublicHandlers.GetAvailability)
+			r.With(deps.TrackMeetingBooked).Post("/book/{slug}", deps.PublicHandlers.CreateBooking)
 		})
 	})
 

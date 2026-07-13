@@ -60,16 +60,16 @@ func (_c *ScheduledMeetingCreate) SetNillableContactID(v *uuid.UUID) *ScheduledM
 	return _c
 }
 
-// SetCalBookingID sets the "cal_booking_id" field.
-func (_c *ScheduledMeetingCreate) SetCalBookingID(v string) *ScheduledMeetingCreate {
-	_c.mutation.SetCalBookingID(v)
+// SetExternalBookingID sets the "external_booking_id" field.
+func (_c *ScheduledMeetingCreate) SetExternalBookingID(v string) *ScheduledMeetingCreate {
+	_c.mutation.SetExternalBookingID(v)
 	return _c
 }
 
-// SetNillableCalBookingID sets the "cal_booking_id" field if the given value is not nil.
-func (_c *ScheduledMeetingCreate) SetNillableCalBookingID(v *string) *ScheduledMeetingCreate {
+// SetNillableExternalBookingID sets the "external_booking_id" field if the given value is not nil.
+func (_c *ScheduledMeetingCreate) SetNillableExternalBookingID(v *string) *ScheduledMeetingCreate {
 	if v != nil {
-		_c.SetCalBookingID(*v)
+		_c.SetExternalBookingID(*v)
 	}
 	return _c
 }
@@ -416,9 +416,9 @@ func (_c *ScheduledMeetingCreate) createSpec() (*ScheduledMeeting, *sqlgraph.Cre
 		_spec.SetField(scheduledmeeting.FieldTenantID, field.TypeUUID, value)
 		_node.TenantID = value
 	}
-	if value, ok := _c.mutation.CalBookingID(); ok {
-		_spec.SetField(scheduledmeeting.FieldCalBookingID, field.TypeString, value)
-		_node.CalBookingID = &value
+	if value, ok := _c.mutation.ExternalBookingID(); ok {
+		_spec.SetField(scheduledmeeting.FieldExternalBookingID, field.TypeString, value)
+		_node.ExternalBookingID = &value
 	}
 	if value, ok := _c.mutation.MeetingURL(); ok {
 		_spec.SetField(scheduledmeeting.FieldMeetingURL, field.TypeString, value)
@@ -614,21 +614,21 @@ func (u *ScheduledMeetingUpsert) ClearContactID() *ScheduledMeetingUpsert {
 	return u
 }
 
-// SetCalBookingID sets the "cal_booking_id" field.
-func (u *ScheduledMeetingUpsert) SetCalBookingID(v string) *ScheduledMeetingUpsert {
-	u.Set(scheduledmeeting.FieldCalBookingID, v)
+// SetExternalBookingID sets the "external_booking_id" field.
+func (u *ScheduledMeetingUpsert) SetExternalBookingID(v string) *ScheduledMeetingUpsert {
+	u.Set(scheduledmeeting.FieldExternalBookingID, v)
 	return u
 }
 
-// UpdateCalBookingID sets the "cal_booking_id" field to the value that was provided on create.
-func (u *ScheduledMeetingUpsert) UpdateCalBookingID() *ScheduledMeetingUpsert {
-	u.SetExcluded(scheduledmeeting.FieldCalBookingID)
+// UpdateExternalBookingID sets the "external_booking_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsert) UpdateExternalBookingID() *ScheduledMeetingUpsert {
+	u.SetExcluded(scheduledmeeting.FieldExternalBookingID)
 	return u
 }
 
-// ClearCalBookingID clears the value of the "cal_booking_id" field.
-func (u *ScheduledMeetingUpsert) ClearCalBookingID() *ScheduledMeetingUpsert {
-	u.SetNull(scheduledmeeting.FieldCalBookingID)
+// ClearExternalBookingID clears the value of the "external_booking_id" field.
+func (u *ScheduledMeetingUpsert) ClearExternalBookingID() *ScheduledMeetingUpsert {
+	u.SetNull(scheduledmeeting.FieldExternalBookingID)
 	return u
 }
 
@@ -967,24 +967,24 @@ func (u *ScheduledMeetingUpsertOne) ClearContactID() *ScheduledMeetingUpsertOne 
 	})
 }
 
-// SetCalBookingID sets the "cal_booking_id" field.
-func (u *ScheduledMeetingUpsertOne) SetCalBookingID(v string) *ScheduledMeetingUpsertOne {
+// SetExternalBookingID sets the "external_booking_id" field.
+func (u *ScheduledMeetingUpsertOne) SetExternalBookingID(v string) *ScheduledMeetingUpsertOne {
 	return u.Update(func(s *ScheduledMeetingUpsert) {
-		s.SetCalBookingID(v)
+		s.SetExternalBookingID(v)
 	})
 }
 
-// UpdateCalBookingID sets the "cal_booking_id" field to the value that was provided on create.
-func (u *ScheduledMeetingUpsertOne) UpdateCalBookingID() *ScheduledMeetingUpsertOne {
+// UpdateExternalBookingID sets the "external_booking_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertOne) UpdateExternalBookingID() *ScheduledMeetingUpsertOne {
 	return u.Update(func(s *ScheduledMeetingUpsert) {
-		s.UpdateCalBookingID()
+		s.UpdateExternalBookingID()
 	})
 }
 
-// ClearCalBookingID clears the value of the "cal_booking_id" field.
-func (u *ScheduledMeetingUpsertOne) ClearCalBookingID() *ScheduledMeetingUpsertOne {
+// ClearExternalBookingID clears the value of the "external_booking_id" field.
+func (u *ScheduledMeetingUpsertOne) ClearExternalBookingID() *ScheduledMeetingUpsertOne {
 	return u.Update(func(s *ScheduledMeetingUpsert) {
-		s.ClearCalBookingID()
+		s.ClearExternalBookingID()
 	})
 }
 
@@ -1528,24 +1528,24 @@ func (u *ScheduledMeetingUpsertBulk) ClearContactID() *ScheduledMeetingUpsertBul
 	})
 }
 
-// SetCalBookingID sets the "cal_booking_id" field.
-func (u *ScheduledMeetingUpsertBulk) SetCalBookingID(v string) *ScheduledMeetingUpsertBulk {
+// SetExternalBookingID sets the "external_booking_id" field.
+func (u *ScheduledMeetingUpsertBulk) SetExternalBookingID(v string) *ScheduledMeetingUpsertBulk {
 	return u.Update(func(s *ScheduledMeetingUpsert) {
-		s.SetCalBookingID(v)
+		s.SetExternalBookingID(v)
 	})
 }
 
-// UpdateCalBookingID sets the "cal_booking_id" field to the value that was provided on create.
-func (u *ScheduledMeetingUpsertBulk) UpdateCalBookingID() *ScheduledMeetingUpsertBulk {
+// UpdateExternalBookingID sets the "external_booking_id" field to the value that was provided on create.
+func (u *ScheduledMeetingUpsertBulk) UpdateExternalBookingID() *ScheduledMeetingUpsertBulk {
 	return u.Update(func(s *ScheduledMeetingUpsert) {
-		s.UpdateCalBookingID()
+		s.UpdateExternalBookingID()
 	})
 }
 
-// ClearCalBookingID clears the value of the "cal_booking_id" field.
-func (u *ScheduledMeetingUpsertBulk) ClearCalBookingID() *ScheduledMeetingUpsertBulk {
+// ClearExternalBookingID clears the value of the "external_booking_id" field.
+func (u *ScheduledMeetingUpsertBulk) ClearExternalBookingID() *ScheduledMeetingUpsertBulk {
 	return u.Update(func(s *ScheduledMeetingUpsert) {
-		s.ClearCalBookingID()
+		s.ClearExternalBookingID()
 	})
 }
 

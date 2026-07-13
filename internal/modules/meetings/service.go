@@ -28,9 +28,9 @@ type SyncResult struct {
 
 // Service handles scheduled meeting business logic.
 type Service struct {
-	client   *ent.Client
-	calSync  CalendarSyncer
-	logger   *zap.Logger
+	client  *ent.Client
+	calSync CalendarSyncer
+	logger  *zap.Logger
 }
 
 // NewService creates a new scheduled meeting service. calSync may be nil; when
@@ -45,39 +45,39 @@ func NewService(client *ent.Client, calSync CalendarSyncer, logger *zap.Logger) 
 
 // CreateInput contains the data needed to create a scheduled meeting.
 type CreateInput struct {
-	TenantID        uuid.UUID
-	LeadID          *uuid.UUID
-	ContactID       *uuid.UUID
-	CalBookingID    *string
-	MeetingURL      *string
-	ScheduledAt     time.Time
-	DurationMinutes *int
-	MeetingType     *string
-	Notes           *string
-	Metadata        map[string]any
+	TenantID          uuid.UUID
+	LeadID            *uuid.UUID
+	ContactID         *uuid.UUID
+	ExternalBookingID *string
+	MeetingURL        *string
+	ScheduledAt       time.Time
+	DurationMinutes   *int
+	MeetingType       *string
+	Notes             *string
+	Metadata          map[string]any
 	// Attendee + organiser for calendar sync. When AttendeeEmail is set and
 	// the tenant has a linked Google Calendar, the meeting is pushed to gcal
 	// and the returned event details are persisted on the row.
 	AttendeeEmail  *string
 	AttendeeName   *string
 	OrganizerEmail *string
-	// SkipCalendarSync forces a local-only record (used by Cal.com webhook
-	// which has its own provider already).
+	// SkipCalendarSync forces a local-only record, for callers whose booking
+	// already originated on the external calendar being synced to.
 	SkipCalendarSync bool
 }
 
 // UpdateInput contains the data to update a scheduled meeting.
 type UpdateInput struct {
-	LeadID          *uuid.UUID
-	ContactID       *uuid.UUID
-	CalBookingID    *string
-	MeetingURL      *string
-	ScheduledAt     *time.Time
-	DurationMinutes *int
-	MeetingType     *string
-	Status          *string
-	Notes           *string
-	Metadata        map[string]any
+	LeadID            *uuid.UUID
+	ContactID         *uuid.UUID
+	ExternalBookingID *string
+	MeetingURL        *string
+	ScheduledAt       *time.Time
+	DurationMinutes   *int
+	MeetingType       *string
+	Status            *string
+	Notes             *string
+	Metadata          map[string]any
 }
 
 // ListInput contains filtering/pagination for listing meetings.
@@ -103,8 +103,8 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.ScheduledMee
 	if in.ContactID != nil {
 		builder.SetNillableContactID(in.ContactID)
 	}
-	if in.CalBookingID != nil {
-		builder.SetNillableCalBookingID(in.CalBookingID)
+	if in.ExternalBookingID != nil {
+		builder.SetNillableExternalBookingID(in.ExternalBookingID)
 	}
 	if in.MeetingURL != nil {
 		builder.SetNillableMeetingURL(in.MeetingURL)
@@ -242,8 +242,8 @@ func (s *Service) Update(ctx context.Context, tenantID, meetingID uuid.UUID, in 
 	if in.ContactID != nil {
 		builder.SetNillableContactID(in.ContactID)
 	}
-	if in.CalBookingID != nil {
-		builder.SetNillableCalBookingID(in.CalBookingID)
+	if in.ExternalBookingID != nil {
+		builder.SetNillableExternalBookingID(in.ExternalBookingID)
 	}
 	if in.MeetingURL != nil {
 		builder.SetNillableMeetingURL(in.MeetingURL)

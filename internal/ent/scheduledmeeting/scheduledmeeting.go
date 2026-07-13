@@ -21,8 +21,8 @@ const (
 	FieldLeadID = "lead_id"
 	// FieldContactID holds the string denoting the contact_id field in the database.
 	FieldContactID = "contact_id"
-	// FieldCalBookingID holds the string denoting the cal_booking_id field in the database.
-	FieldCalBookingID = "cal_booking_id"
+	// FieldExternalBookingID holds the string denoting the external_booking_id field in the database.
+	FieldExternalBookingID = "external_booking_id"
 	// FieldMeetingURL holds the string denoting the meeting_url field in the database.
 	FieldMeetingURL = "meeting_url"
 	// FieldGoogleEventID holds the string denoting the google_event_id field in the database.
@@ -81,7 +81,7 @@ var Columns = []string{
 	FieldTenantID,
 	FieldLeadID,
 	FieldContactID,
-	FieldCalBookingID,
+	FieldExternalBookingID,
 	FieldMeetingURL,
 	FieldGoogleEventID,
 	FieldGoogleCalendarID,
@@ -149,9 +149,9 @@ func ByContactID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldContactID, opts...).ToFunc()
 }
 
-// ByCalBookingID orders the results by the cal_booking_id field.
-func ByCalBookingID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCalBookingID, opts...).ToFunc()
+// ByExternalBookingID orders the results by the external_booking_id field.
+func ByExternalBookingID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExternalBookingID, opts...).ToFunc()
 }
 
 // ByMeetingURL orders the results by the meeting_url field.

@@ -27,36 +27,36 @@ func NewHandler(service *Service, logger *zap.Logger) *Handler {
 }
 
 type createMeetingRequest struct {
-	LeadID          *uuid.UUID     `json:"lead_id"`
-	ContactID       *uuid.UUID     `json:"contact_id"`
-	CalBookingID    *string        `json:"cal_booking_id"`
-	MeetingURL      *string        `json:"meeting_url"`
-	ScheduledAt     time.Time      `json:"scheduled_at"`
-	DurationMinutes *int           `json:"duration_minutes"`
-	MeetingType     *string        `json:"meeting_type"`
-	Notes           *string        `json:"notes"`
-	Metadata        map[string]any `json:"metadata"`
-	AttendeeEmail   *string        `json:"attendee_email"`
-	AttendeeName    *string        `json:"attendee_name"`
-	OrganizerEmail  *string        `json:"organizer_email"`
+	LeadID            *uuid.UUID     `json:"lead_id"`
+	ContactID         *uuid.UUID     `json:"contact_id"`
+	ExternalBookingID *string        `json:"external_booking_id"`
+	MeetingURL        *string        `json:"meeting_url"`
+	ScheduledAt       time.Time      `json:"scheduled_at"`
+	DurationMinutes   *int           `json:"duration_minutes"`
+	MeetingType       *string        `json:"meeting_type"`
+	Notes             *string        `json:"notes"`
+	Metadata          map[string]any `json:"metadata"`
+	AttendeeEmail     *string        `json:"attendee_email"`
+	AttendeeName      *string        `json:"attendee_name"`
+	OrganizerEmail    *string        `json:"organizer_email"`
 }
 
 type updateMeetingRequest struct {
-	LeadID          *uuid.UUID     `json:"lead_id"`
-	ContactID       *uuid.UUID     `json:"contact_id"`
-	CalBookingID    *string        `json:"cal_booking_id"`
-	MeetingURL      *string        `json:"meeting_url"`
-	ScheduledAt     *time.Time     `json:"scheduled_at"`
-	DurationMinutes *int           `json:"duration_minutes"`
-	MeetingType     *string        `json:"meeting_type"`
-	Status          *string        `json:"status"`
-	Notes           *string        `json:"notes"`
-	Metadata        map[string]any `json:"metadata"`
+	LeadID            *uuid.UUID     `json:"lead_id"`
+	ContactID         *uuid.UUID     `json:"contact_id"`
+	ExternalBookingID *string        `json:"external_booking_id"`
+	MeetingURL        *string        `json:"meeting_url"`
+	ScheduledAt       *time.Time     `json:"scheduled_at"`
+	DurationMinutes   *int           `json:"duration_minutes"`
+	MeetingType       *string        `json:"meeting_type"`
+	Status            *string        `json:"status"`
+	Notes             *string        `json:"notes"`
+	Metadata          map[string]any `json:"metadata"`
 }
 
 // Create handles POST /api/v1/meetings
 // @Summary Create a new scheduled meeting
-// @Description Creates a virtual meeting booking (Cal.com or manual)
+// @Description Creates a virtual meeting booking (public booking widget or manual)
 // @Tags Meetings
 // @Accept json
 // @Produce json
@@ -86,19 +86,19 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.service.Create(r.Context(), CreateInput{
-		TenantID:        tenantID,
-		LeadID:          req.LeadID,
-		ContactID:       req.ContactID,
-		CalBookingID:    req.CalBookingID,
-		MeetingURL:      req.MeetingURL,
-		ScheduledAt:     req.ScheduledAt,
-		DurationMinutes: req.DurationMinutes,
-		MeetingType:     req.MeetingType,
-		Notes:           req.Notes,
-		Metadata:        req.Metadata,
-		AttendeeEmail:   req.AttendeeEmail,
-		AttendeeName:    req.AttendeeName,
-		OrganizerEmail:  req.OrganizerEmail,
+		TenantID:          tenantID,
+		LeadID:            req.LeadID,
+		ContactID:         req.ContactID,
+		ExternalBookingID: req.ExternalBookingID,
+		MeetingURL:        req.MeetingURL,
+		ScheduledAt:       req.ScheduledAt,
+		DurationMinutes:   req.DurationMinutes,
+		MeetingType:       req.MeetingType,
+		Notes:             req.Notes,
+		Metadata:          req.Metadata,
+		AttendeeEmail:     req.AttendeeEmail,
+		AttendeeName:      req.AttendeeName,
+		OrganizerEmail:    req.OrganizerEmail,
 	})
 	if err != nil {
 		h.logger.Error("failed to create meeting", zap.Error(err))
@@ -233,16 +233,16 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.service.Update(r.Context(), tenantID, meetingID, UpdateInput{
-		LeadID:          req.LeadID,
-		ContactID:       req.ContactID,
-		CalBookingID:    req.CalBookingID,
-		MeetingURL:      req.MeetingURL,
-		ScheduledAt:     req.ScheduledAt,
-		DurationMinutes: req.DurationMinutes,
-		MeetingType:     req.MeetingType,
-		Status:          req.Status,
-		Notes:           req.Notes,
-		Metadata:        req.Metadata,
+		LeadID:            req.LeadID,
+		ContactID:         req.ContactID,
+		ExternalBookingID: req.ExternalBookingID,
+		MeetingURL:        req.MeetingURL,
+		ScheduledAt:       req.ScheduledAt,
+		DurationMinutes:   req.DurationMinutes,
+		MeetingType:       req.MeetingType,
+		Status:            req.Status,
+		Notes:             req.Notes,
+		Metadata:          req.Metadata,
 	})
 	if err != nil {
 		h.logger.Error("failed to update meeting", zap.Error(err))
@@ -261,4 +261,3 @@ func extractTenantID(r *http.Request) (uuid.UUID, error) {
 	}
 	return uuid.Parse(header)
 }
-

@@ -129,10 +129,6 @@ func runProbe(ctx context.Context, ptype, pname string, s map[string]string) (st
 		return probeTavily(ctx, c, firstNonEmpty(s["base_url"], "https://api.tavily.com"), s["api_key"])
 	case "custom_search":
 		return probeGoogleCSE(ctx, c, s["api_key"], s["cse_id"])
-	case "default": // cal.com
-		if ptype == "calcom" {
-			return probeCalcom(ctx, c, firstNonEmpty(s["base_url"], "https://api.cal.com/v2"), s["api_key"])
-		}
 	}
 	// Ad / OAuth-first providers: we can only validate the static app-level bits.
 	switch ptype {
@@ -261,25 +257,6 @@ func probeGoogleCSE(ctx context.Context, c *http.Client, key, cseID string) (str
 		return fmt.Sprintf("%s: %s", resp.Status, truncate(string(b), 160)), false
 	}
 	return "Search probe succeeded", true
-}
-
-func probeCalcom(ctx context.Context, c *http.Client, baseURL, key string) (string, bool) {
-	if key == "" {
-		return "api_key missing", false
-	}
-	req, _ := http.NewRequestWithContext(ctx, "GET", strings.TrimSuffix(baseURL, "/")+"/me", nil)
-	req.Header.Set("Authorization", "Bearer "+key)
-	req.Header.Set("cal-api-version", "2024-08-13")
-	resp, err := c.Do(req)
-	if err != nil {
-		return err.Error(), false
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		b, _ := io.ReadAll(resp.Body)
-		return fmt.Sprintf("%s: %s", resp.Status, truncate(string(b), 160)), false
-	}
-	return "/me probe succeeded", true
 }
 
 // probeMetaApp validates app_id + app_secret by requesting an app access token.

@@ -73,8 +73,9 @@ func New(platform PlatformCreds, tenant TenantCreds) *Client {
 	return &Client{platform: platform, tenant: tenant}
 }
 
-// CreateEvent pushes an event to the tenant's Google Calendar.
-func (c *Client) CreateEvent(ctx context.Context, in EventInput) (*EventResult, error) {
+// service builds the tenant-scoped Calendar API client from the configured
+// platform OAuth client + tenant refresh token.
+func (c *Client) service(ctx context.Context) (*calendar.Service, error) {
 	if c.platform.ClientID == "" || c.platform.ClientSecret == "" {
 		return nil, fmt.Errorf("gcal: platform OAuth client not configured")
 	}
@@ -86,7 +87,7 @@ func (c *Client) CreateEvent(ctx context.Context, in EventInput) (*EventResult, 
 		ClientID:     c.platform.ClientID,
 		ClientSecret: c.platform.ClientSecret,
 		RedirectURL:  c.platform.RedirectURL,
-		Scopes:       []string{calendar.CalendarEventsScope},
+		Scopes:       []string{calendar.CalendarEventsScope, calendar.CalendarFreebusyScope},
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  "https://accounts.google.com/o/oauth2/auth",
 			TokenURL: "https://oauth2.googleapis.com/token",
@@ -98,6 +99,57 @@ func (c *Client) CreateEvent(ctx context.Context, in EventInput) (*EventResult, 
 	svc, err := calendar.NewService(ctx, option.WithHTTPClient(httpClient))
 	if err != nil {
 		return nil, fmt.Errorf("gcal service: %w", err)
+	}
+	return svc, nil
+}
+
+// BusyInterval is a single busy block returned by a FreeBusy query.
+type BusyInterval struct {
+	Start time.Time
+	End   time.Time
+}
+
+// FreeBusy returns the tenant calendar's busy intervals in [timeMin, timeMax).
+func (c *Client) FreeBusy(ctx context.Context, timeMin, timeMax time.Time) ([]BusyInterval, error) {
+	svc, err := c.service(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := svc.Freebusy.Query(&calendar.FreeBusyRequest{
+		TimeMin: timeMin.Format(time.RFC3339),
+		TimeMax: timeMax.Format(time.RFC3339),
+		Items:   []*calendar.FreeBusyRequestItem{{Id: c.tenant.CalendarID}},
+	}).Do()
+	if err != nil {
+		return nil, fmt.Errorf("gcal freebusy: %w", err)
+	}
+	cal, ok := resp.Calendars[c.tenant.CalendarID]
+	if !ok {
+		return nil, fmt.Errorf("gcal freebusy: no data for calendar %q", c.tenant.CalendarID)
+	}
+	if len(cal.Errors) > 0 {
+		return nil, fmt.Errorf("gcal freebusy: %s", cal.Errors[0].Reason)
+	}
+	out := make([]BusyInterval, 0, len(cal.Busy))
+	for _, b := range cal.Busy {
+		start, err := time.Parse(time.RFC3339, b.Start)
+		if err != nil {
+			continue
+		}
+		end, err := time.Parse(time.RFC3339, b.End)
+		if err != nil {
+			continue
+		}
+		out = append(out, BusyInterval{Start: start, End: end})
+	}
+	return out, nil
+}
+
+// CreateEvent pushes an event to the tenant's Google Calendar.
+func (c *Client) CreateEvent(ctx context.Context, in EventInput) (*EventResult, error) {
+	svc, err := c.service(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	end := in.StartsAt.Add(time.Duration(in.DurationMins) * time.Minute)

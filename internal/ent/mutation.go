@@ -36059,7 +36059,7 @@ type ScheduledMeetingMutation struct {
 	typ                 string
 	id                  *uuid.UUID
 	tenant_id           *uuid.UUID
-	cal_booking_id      *string
+	external_booking_id *string
 	meeting_url         *string
 	google_event_id     *string
 	google_calendar_id  *string
@@ -36324,53 +36324,53 @@ func (m *ScheduledMeetingMutation) ResetContactID() {
 	delete(m.clearedFields, scheduledmeeting.FieldContactID)
 }
 
-// SetCalBookingID sets the "cal_booking_id" field.
-func (m *ScheduledMeetingMutation) SetCalBookingID(s string) {
-	m.cal_booking_id = &s
+// SetExternalBookingID sets the "external_booking_id" field.
+func (m *ScheduledMeetingMutation) SetExternalBookingID(s string) {
+	m.external_booking_id = &s
 }
 
-// CalBookingID returns the value of the "cal_booking_id" field in the mutation.
-func (m *ScheduledMeetingMutation) CalBookingID() (r string, exists bool) {
-	v := m.cal_booking_id
+// ExternalBookingID returns the value of the "external_booking_id" field in the mutation.
+func (m *ScheduledMeetingMutation) ExternalBookingID() (r string, exists bool) {
+	v := m.external_booking_id
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldCalBookingID returns the old "cal_booking_id" field's value of the ScheduledMeeting entity.
+// OldExternalBookingID returns the old "external_booking_id" field's value of the ScheduledMeeting entity.
 // If the ScheduledMeeting object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ScheduledMeetingMutation) OldCalBookingID(ctx context.Context) (v *string, err error) {
+func (m *ScheduledMeetingMutation) OldExternalBookingID(ctx context.Context) (v *string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldCalBookingID is only allowed on UpdateOne operations")
+		return v, errors.New("OldExternalBookingID is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldCalBookingID requires an ID field in the mutation")
+		return v, errors.New("OldExternalBookingID requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldCalBookingID: %w", err)
+		return v, fmt.Errorf("querying old value for OldExternalBookingID: %w", err)
 	}
-	return oldValue.CalBookingID, nil
+	return oldValue.ExternalBookingID, nil
 }
 
-// ClearCalBookingID clears the value of the "cal_booking_id" field.
-func (m *ScheduledMeetingMutation) ClearCalBookingID() {
-	m.cal_booking_id = nil
-	m.clearedFields[scheduledmeeting.FieldCalBookingID] = struct{}{}
+// ClearExternalBookingID clears the value of the "external_booking_id" field.
+func (m *ScheduledMeetingMutation) ClearExternalBookingID() {
+	m.external_booking_id = nil
+	m.clearedFields[scheduledmeeting.FieldExternalBookingID] = struct{}{}
 }
 
-// CalBookingIDCleared returns if the "cal_booking_id" field was cleared in this mutation.
-func (m *ScheduledMeetingMutation) CalBookingIDCleared() bool {
-	_, ok := m.clearedFields[scheduledmeeting.FieldCalBookingID]
+// ExternalBookingIDCleared returns if the "external_booking_id" field was cleared in this mutation.
+func (m *ScheduledMeetingMutation) ExternalBookingIDCleared() bool {
+	_, ok := m.clearedFields[scheduledmeeting.FieldExternalBookingID]
 	return ok
 }
 
-// ResetCalBookingID resets all changes to the "cal_booking_id" field.
-func (m *ScheduledMeetingMutation) ResetCalBookingID() {
-	m.cal_booking_id = nil
-	delete(m.clearedFields, scheduledmeeting.FieldCalBookingID)
+// ResetExternalBookingID resets all changes to the "external_booking_id" field.
+func (m *ScheduledMeetingMutation) ResetExternalBookingID() {
+	m.external_booking_id = nil
+	delete(m.clearedFields, scheduledmeeting.FieldExternalBookingID)
 }
 
 // SetMeetingURL sets the "meeting_url" field.
@@ -37148,8 +37148,8 @@ func (m *ScheduledMeetingMutation) Fields() []string {
 	if m.contact != nil {
 		fields = append(fields, scheduledmeeting.FieldContactID)
 	}
-	if m.cal_booking_id != nil {
-		fields = append(fields, scheduledmeeting.FieldCalBookingID)
+	if m.external_booking_id != nil {
+		fields = append(fields, scheduledmeeting.FieldExternalBookingID)
 	}
 	if m.meeting_url != nil {
 		fields = append(fields, scheduledmeeting.FieldMeetingURL)
@@ -37210,8 +37210,8 @@ func (m *ScheduledMeetingMutation) Field(name string) (ent.Value, bool) {
 		return m.LeadID()
 	case scheduledmeeting.FieldContactID:
 		return m.ContactID()
-	case scheduledmeeting.FieldCalBookingID:
-		return m.CalBookingID()
+	case scheduledmeeting.FieldExternalBookingID:
+		return m.ExternalBookingID()
 	case scheduledmeeting.FieldMeetingURL:
 		return m.MeetingURL()
 	case scheduledmeeting.FieldGoogleEventID:
@@ -37257,8 +37257,8 @@ func (m *ScheduledMeetingMutation) OldField(ctx context.Context, name string) (e
 		return m.OldLeadID(ctx)
 	case scheduledmeeting.FieldContactID:
 		return m.OldContactID(ctx)
-	case scheduledmeeting.FieldCalBookingID:
-		return m.OldCalBookingID(ctx)
+	case scheduledmeeting.FieldExternalBookingID:
+		return m.OldExternalBookingID(ctx)
 	case scheduledmeeting.FieldMeetingURL:
 		return m.OldMeetingURL(ctx)
 	case scheduledmeeting.FieldGoogleEventID:
@@ -37319,12 +37319,12 @@ func (m *ScheduledMeetingMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetContactID(v)
 		return nil
-	case scheduledmeeting.FieldCalBookingID:
+	case scheduledmeeting.FieldExternalBookingID:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetCalBookingID(v)
+		m.SetExternalBookingID(v)
 		return nil
 	case scheduledmeeting.FieldMeetingURL:
 		v, ok := value.(string)
@@ -37482,8 +37482,8 @@ func (m *ScheduledMeetingMutation) ClearedFields() []string {
 	if m.FieldCleared(scheduledmeeting.FieldContactID) {
 		fields = append(fields, scheduledmeeting.FieldContactID)
 	}
-	if m.FieldCleared(scheduledmeeting.FieldCalBookingID) {
-		fields = append(fields, scheduledmeeting.FieldCalBookingID)
+	if m.FieldCleared(scheduledmeeting.FieldExternalBookingID) {
+		fields = append(fields, scheduledmeeting.FieldExternalBookingID)
 	}
 	if m.FieldCleared(scheduledmeeting.FieldMeetingURL) {
 		fields = append(fields, scheduledmeeting.FieldMeetingURL)
@@ -37532,8 +37532,8 @@ func (m *ScheduledMeetingMutation) ClearField(name string) error {
 	case scheduledmeeting.FieldContactID:
 		m.ClearContactID()
 		return nil
-	case scheduledmeeting.FieldCalBookingID:
-		m.ClearCalBookingID()
+	case scheduledmeeting.FieldExternalBookingID:
+		m.ClearExternalBookingID()
 		return nil
 	case scheduledmeeting.FieldMeetingURL:
 		m.ClearMeetingURL()
@@ -37579,8 +37579,8 @@ func (m *ScheduledMeetingMutation) ResetField(name string) error {
 	case scheduledmeeting.FieldContactID:
 		m.ResetContactID()
 		return nil
-	case scheduledmeeting.FieldCalBookingID:
-		m.ResetCalBookingID()
+	case scheduledmeeting.FieldExternalBookingID:
+		m.ResetExternalBookingID()
 		return nil
 	case scheduledmeeting.FieldMeetingURL:
 		m.ResetMeetingURL()

@@ -36,9 +36,9 @@ import (
 
 // Handler owns the OAuth endpoints.
 type Handler struct {
-	db        *ent.Client
-	stateKey  []byte // signs the `state` round-trip; reuses encryption key
-	logger    *zap.Logger
+	db       *ent.Client
+	stateKey []byte // signs the `state` round-trip; reuses encryption key
+	logger   *zap.Logger
 }
 
 // NewHandler constructs a Handler.
@@ -79,7 +79,7 @@ func (h *Handler) resolveTenantID(r *http.Request) (string, bool) {
 const (
 	googleAuthURL  = "https://accounts.google.com/o/oauth2/v2/auth"
 	googleTokenURL = "https://oauth2.googleapis.com/token"
-	googleScope    = "https://www.googleapis.com/auth/calendar.events"
+	googleScope    = "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.freebusy"
 )
 
 // GoogleAuthorize returns the consent URL for the tenant to visit.
@@ -330,10 +330,10 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	p := pagesResult.Data[0]
 	if err := h.upsertTenantKV(r.Context(), tenantID, "meta_ads", "page", map[string]string{
-		"page_id":     p.ID,
-		"page_name":   p.Name,
-		"page_token":  p.AccessToken,
-		"user_token":  userToken,
+		"page_id":    p.ID,
+		"page_name":  p.Name,
+		"page_token": p.AccessToken,
+		"user_token": userToken,
 	}, []string{"page_token", "user_token"}); err != nil {
 		httpapi.Error(w, http.StatusInternalServerError, "persist_failed", err.Error(), nil)
 		return
@@ -402,9 +402,9 @@ func (h *Handler) TikTokCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	// Exchange auth_code for access_token
 	payload, _ := json.Marshal(map[string]string{
-		"app_id":     creds["app_id"],
-		"secret":     creds["app_secret"],
-		"auth_code":  code,
+		"app_id":    creds["app_id"],
+		"secret":    creds["app_secret"],
+		"auth_code": code,
 	})
 	resp, err := http.Post(tiktokTokenURL, "application/json", strings.NewReader(string(payload)))
 	if err != nil {
@@ -568,6 +568,75 @@ func (h *Handler) DisconnectTenant(w http.ResponseWriter, r *http.Request) {
 	httpapi.JSON(w, http.StatusOK, map[string]any{"disconnected": provider, "rows": n})
 }
 
+type businessHoursInput struct {
+	StartHour   *int   `json:"start_hour"`
+	EndHour     *int   `json:"end_hour"`
+	SlotMinutes *int   `json:"slot_minutes"`
+	Days        string `json:"days"` // comma-separated weekday numbers, 0=Sunday..6=Saturday
+}
+
+// UpdateGoogleCalendarBusinessHours overrides the public booking widget's
+// bookable hours for this tenant. Unset fields keep their existing value;
+// omitted entirely, the widget falls back to gcal.DefaultBusinessHours().
+// @Summary Configure booking widget business hours
+// @Tags Integrations
+// @Accept json
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param request body businessHoursInput true "Business hours"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} httpapi.ErrorResponse
+// @Router /integrations/google/business-hours [put]
+func (h *Handler) UpdateGoogleCalendarBusinessHours(w http.ResponseWriter, r *http.Request) {
+	tenantID, _ := h.resolveTenantID(r)
+	if tenantID == "" {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant",
+			"no tenant context; pass X-Tenant-ID or X-Tenant-Slug", nil)
+		return
+	}
+	var in businessHoursInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid JSON body", nil)
+		return
+	}
+
+	kv := map[string]string{}
+	if in.StartHour != nil {
+		if *in.StartHour < 0 || *in.StartHour > 23 {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_start_hour", "start_hour must be 0-23", nil)
+			return
+		}
+		kv["business_hours_start"] = fmt.Sprintf("%d", *in.StartHour)
+	}
+	if in.EndHour != nil {
+		if *in.EndHour < 0 || *in.EndHour > 23 {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_end_hour", "end_hour must be 0-23", nil)
+			return
+		}
+		kv["business_hours_end"] = fmt.Sprintf("%d", *in.EndHour)
+	}
+	if in.SlotMinutes != nil {
+		if *in.SlotMinutes <= 0 {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_slot_minutes", "slot_minutes must be positive", nil)
+			return
+		}
+		kv["slot_minutes"] = fmt.Sprintf("%d", *in.SlotMinutes)
+	}
+	if in.Days != "" {
+		kv["business_days"] = in.Days
+	}
+	if len(kv) == 0 {
+		httpapi.Error(w, http.StatusBadRequest, "no_fields", "at least one field is required", nil)
+		return
+	}
+
+	if err := h.upsertTenantKV(r.Context(), tenantID, "google_calendar", "oauth", kv, nil); err != nil {
+		httpapi.Error(w, http.StatusInternalServerError, "update_failed", err.Error(), nil)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, map[string]string{"status": "updated"})
+}
+
 // ── helpers ─────────────────────────────────────────────────────────────────
 
 func (h *Handler) loadPlatform(ctx context.Context, provType, provName string) (map[string]string, error) {
@@ -686,4 +755,3 @@ func parseInt64(s string) int64 {
 	}
 	return n
 }
-

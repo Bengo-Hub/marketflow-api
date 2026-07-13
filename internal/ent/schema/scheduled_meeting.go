@@ -11,7 +11,8 @@ import (
 )
 
 // ScheduledMeeting holds the schema definition for the ScheduledMeeting entity.
-// Represents a virtual meeting booked via Cal.com or manual scheduling.
+// Represents a virtual meeting booked via the public booking widget, the AI
+// agent, or manual scheduling.
 type ScheduledMeeting struct {
 	ent.Schema
 }
@@ -32,10 +33,10 @@ func (ScheduledMeeting) Fields() []ent.Field {
 			Optional().
 			Nillable(),
 
-		field.String("cal_booking_id").
+		field.String("external_booking_id").
 			Optional().
 			Nillable().
-			Comment("Cal.com booking ID"),
+			Comment("Booking ID from an external scheduling system, if any"),
 		field.String("meeting_url").
 			Optional().
 			Nillable().
@@ -116,7 +117,7 @@ func (ScheduledMeeting) Indexes() []ent.Index {
 		index.Fields("tenant_id", "status"),
 		index.Fields("tenant_id", "scheduled_at"),
 		index.Fields("tenant_id", "meeting_type"),
-		index.Fields("cal_booking_id"),
+		index.Fields("external_booking_id"),
 		index.Fields("google_event_id"),
 	}
 }

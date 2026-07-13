@@ -132,11 +132,6 @@ func (m *Manager) GetMetaAdsSettings(ctx context.Context) (Settings, error) {
 	return m.LoadSettings(ctx, "platform", "meta_ads", "meta")
 }
 
-// GetSchedulingSettings loads Cal.com scheduling settings (platform-level).
-func (m *Manager) GetSchedulingSettings(ctx context.Context) (Settings, error) {
-	return m.LoadSettings(ctx, "platform", "scheduling", "calcom")
-}
-
 // getPreferred returns the tenant's preferred provider for a given type.
 func (m *Manager) getPreferred(ctx context.Context, tenantID, providerType string) (string, error) {
 	row, err := m.client.ProviderSetting.Query().
