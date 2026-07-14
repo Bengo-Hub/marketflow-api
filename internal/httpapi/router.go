@@ -167,16 +167,17 @@ type InternalLeadHandlers struct {
 
 // ContactHandlers groups contact management HTTP handlers.
 type ContactHandlers struct {
-	Create        http.HandlerFunc
-	List          http.HandlerFunc
-	Get           http.HandlerFunc
-	Update        http.HandlerFunc
-	Delete        http.HandlerFunc
-	Get360        http.HandlerFunc // GET /contacts/{id}/360 — full 360° profile
-	GetByEmail    http.HandlerFunc // GET /internal/contacts/by-email — S2S email lookup
-	GetByPhone    http.HandlerFunc // GET /internal/contacts/by-phone — S2S phone lookup
-	UpsertByPhone http.HandlerFunc // POST /internal/contacts/upsert — S2S create-or-get by phone
-	BulkImport    http.HandlerFunc // POST /contacts/bulk-import — batch upsert (migrations)
+	Create         http.HandlerFunc
+	List           http.HandlerFunc
+	Get            http.HandlerFunc
+	Update         http.HandlerFunc
+	Delete         http.HandlerFunc
+	Get360         http.HandlerFunc // GET /contacts/{id}/360 — full 360° profile
+	GetByEmail     http.HandlerFunc // GET /internal/contacts/by-email — S2S email lookup
+	GetByPhone     http.HandlerFunc // GET /internal/contacts/by-phone — S2S phone lookup
+	UpsertByPhone  http.HandlerFunc // POST /internal/contacts/upsert — S2S create-or-get by phone
+	SearchInternal http.HandlerFunc // GET /internal/contacts/search — S2S name/email/phone search
+	BulkImport     http.HandlerFunc // POST /contacts/bulk-import — batch upsert (migrations)
 }
 
 // KnowledgeHandlers groups knowledge base HTTP handlers.
@@ -845,6 +846,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					}
 					if deps.ContactHandlers.UpsertByPhone != nil {
 						r.Post("/contacts/upsert", deps.ContactHandlers.UpsertByPhone)
+					}
+					if deps.ContactHandlers.SearchInternal != nil {
+						r.Get("/contacts/search", deps.ContactHandlers.SearchInternal)
 					}
 				})
 			})
