@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
@@ -127,10 +128,28 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, logger *zap.Logger)
 	}
 }
 
-// RegisterAll binds each handler to its JetStream consumer.
+// streamFor maps a handler's subject to the JetStream stream that OWNS it. Cross-service
+// subjects (ordering./pos./treasury.) live in those services' streams — NATS forbids
+// subject overlap between streams, so binding them to the marketflow stream can never
+// work. Marketflow-internal work signals (nurture./crm./embedding./chat./lead.) live in
+// the marketflow stream (ensured by cmd/worker with those extra subject bindings).
+func (r *Registry) streamFor(subject string) string {
+	switch {
+	case strings.HasPrefix(subject, "ordering."):
+		return "ordering"
+	case strings.HasPrefix(subject, "pos."):
+		return "pos"
+	case strings.HasPrefix(subject, "treasury."):
+		return "treasury"
+	default:
+		return r.cfg.NATS.Stream
+	}
+}
+
+// RegisterAll binds each handler to its JetStream consumer on the subject's owning stream.
 func (r *Registry) RegisterAll(ctx context.Context, js jetstream.JetStream) error {
 	for _, h := range r.handlers {
-		cons, err := js.CreateOrUpdateConsumer(ctx, r.cfg.NATS.Stream, jetstream.ConsumerConfig{
+		cons, err := js.CreateOrUpdateConsumer(ctx, r.streamFor(h.Subject()), jetstream.ConsumerConfig{
 			Durable:       h.Durable(),
 			FilterSubject: h.Subject(),
 			AckPolicy:     jetstream.AckExplicitPolicy,

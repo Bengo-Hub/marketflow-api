@@ -17,6 +17,7 @@ import (
 type Scheduler struct {
 	db     *ent.Client
 	nc     *nats.Conn
+	js     nats.JetStreamContext
 	cfg    SchedulerConfig
 	logger *zap.Logger
 }
@@ -29,7 +30,16 @@ func NewScheduler(db *ent.Client, nc *nats.Conn, cfg SchedulerConfig, logger *za
 	if cfg.BatchSize <= 0 {
 		cfg.BatchSize = 50
 	}
-	return &Scheduler{db: db, nc: nc, cfg: cfg, logger: logger.Named("scheduler")}
+	// JetStream (acked) publish: the NurtureStepHandler is a durable JS consumer, so
+	// the signal must land in the stream — a core publish is unacked and silently
+	// droppable. Core nc kept as fallback when JS init fails.
+	var js nats.JetStreamContext
+	if nc != nil {
+		if j, err := nc.JetStream(); err == nil {
+			js = j
+		}
+	}
+	return &Scheduler{db: db, nc: nc, js: js, cfg: cfg, logger: logger.Named("scheduler")}
 }
 
 // Run blocks until ctx is cancelled, ticking every IntervalSeconds.
@@ -85,7 +95,7 @@ func (s *Scheduler) tick(ctx context.Context) {
 		// the sequence definition + lead row after decoding; we include enrollment
 		// minimal context here and let the handler enrich.
 		body, _ := json.Marshal(payload)
-		if err := s.nc.Publish("nurture.step.due", body); err != nil {
+		if err := s.publish("nurture.step.due", body); err != nil {
 			s.logger.Error("publish nurture.step.due", zap.String("enrollment", e.ID.String()), zap.Error(err))
 			continue
 		}
@@ -99,5 +109,15 @@ func (s *Scheduler) tick(ctx context.Context) {
 			s.logger.Warn("update enrollment pre-dispatch", zap.Error(err))
 		}
 	}
+}
+
+// publish sends the work signal via JetStream (acked into the worker stream) with a
+// core-NATS fallback when JS is unavailable.
+func (s *Scheduler) publish(subject string, body []byte) error {
+	if s.js != nil {
+		_, err := s.js.Publish(subject, body)
+		return err
+	}
+	return s.nc.Publish(subject, body)
 }
 

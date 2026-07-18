@@ -38,6 +38,51 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+// workerSignalSubjects are the marketflow-internal work-signal subjects the worker
+// stream must bind IN ADDITION to the outbox-published marketflow.> events. No other
+// stream binds these prefixes, so extending this stream is conflict-free.
+var workerSignalSubjects = []string{
+	"marketflow.>",
+	"nurture.>",
+	"crm.>",
+	"embedding.>",
+	"chat.>",
+	"lead.>",
+}
+
+// ensureWorkerStream creates the worker stream when missing, or reconciles an existing
+// stream's subject set by MERGING the required bindings into it (never rewriting the
+// rest of the config — prod streams carry retention/replica settings that must survive).
+func ensureWorkerStream(ctx context.Context, js jetstream.JetStream, name string) error {
+	s, err := js.Stream(ctx, name)
+	if err != nil {
+		_, cErr := js.CreateStream(ctx, jetstream.StreamConfig{
+			Name:     name,
+			Subjects: workerSignalSubjects,
+			Storage:  jetstream.FileStorage,
+			MaxAge:   72 * time.Hour,
+		})
+		return cErr
+	}
+	cfg := s.CachedInfo().Config
+	have := make(map[string]bool, len(cfg.Subjects))
+	for _, subj := range cfg.Subjects {
+		have[subj] = true
+	}
+	missing := false
+	for _, subj := range workerSignalSubjects {
+		if !have[subj] {
+			cfg.Subjects = append(cfg.Subjects, subj)
+			missing = true
+		}
+	}
+	if !missing {
+		return nil
+	}
+	_, err = js.UpdateStream(ctx, cfg)
+	return err
+}
+
 func main() {
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
@@ -80,6 +125,16 @@ func main() {
 	js, err := jetstream.New(nc)
 	if err != nil {
 		log.Fatalf("jetstream: %v", err)
+	}
+
+	// Ensure the worker's own stream captures the marketflow-internal work-signal
+	// subjects (nurture.>/crm.>/embedding.>/chat.>/lead.>) in addition to the
+	// outbox-published marketflow.> events — no other stream binds them, so without
+	// this every JS publish of a work signal fails and durable consumers have
+	// nothing to bind to. Cross-service subjects (ordering./pos./treasury.) are NOT
+	// bound here; the registry binds those consumers to their owning streams.
+	if err := ensureWorkerStream(ctx, js, cfg.NATS.Stream); err != nil {
+		log.Fatalf("ensure %s stream: %v", cfg.NATS.Stream, err)
 	}
 
 	var rawDB *sql.DB

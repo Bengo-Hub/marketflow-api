@@ -34,8 +34,12 @@ type SchedulerConfig struct {
 }
 
 type NATSConfig struct {
-	URL    string `env:"URL" envDefault:"nats://nats.messaging.svc.cluster.local:4222"`
-	Stream string `env:"STREAM" envDefault:"MARKETFLOW"`
+	URL string `env:"URL" envDefault:"nats://nats.messaging.svc.cluster.local:4222"`
+	// Stream is the worker's OWN stream (marketflow-internal work signals). Stream
+	// names are case-sensitive and prod's stream is lowercase "marketflow" — the old
+	// "MARKETFLOW" default named a stream that never existed, so consumer
+	// registration could never succeed.
+	Stream string `env:"STREAM" envDefault:"marketflow"`
 }
 
 type HTTPConfig struct {

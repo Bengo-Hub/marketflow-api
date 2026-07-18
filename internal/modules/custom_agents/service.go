@@ -210,8 +210,24 @@ func (s *Service) TriggerRun(ctx context.Context, tenantID, agentID uuid.UUID, t
 			"payload":   payload,
 		}
 		b, _ := json.Marshal(event)
-		if err := s.natsConn.Publish("crm.agent.run_requested", b); err != nil {
-			s.logger.Warn("failed to publish crm.agent.run_requested", zap.Error(err))
+		// JetStream (acked) publish: the worker's CustomAgentExecutionConsumer is a
+		// durable JS consumer — a core publish is unacked, and a lost signal strands
+		// this AgentRun in "pending" forever. On publish failure the run is marked
+		// failed so it never hangs.
+		var pubErr error
+		if js, jsErr := s.natsConn.JetStream(); jsErr == nil {
+			_, pubErr = js.Publish("crm.agent.run_requested", b)
+		} else {
+			pubErr = s.natsConn.Publish("crm.agent.run_requested", b)
+		}
+		if pubErr != nil {
+			s.logger.Warn("failed to publish crm.agent.run_requested", zap.Error(pubErr))
+			if failed, uErr := run.Update().
+				SetStatus("failed").
+				SetErrorMessage("dispatch failed: " + pubErr.Error()).
+				Save(ctx); uErr == nil {
+				return failed, nil
+			}
 		}
 	}
 	return run, nil
