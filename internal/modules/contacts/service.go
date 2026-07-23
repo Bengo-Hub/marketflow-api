@@ -3,12 +3,32 @@ package contacts
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
+
+// nationalSubscriberDigits strips non-digits and returns the last 9 digits — the Kenyan national
+// subscriber number, format-agnostic ("0712345678", "254712345678" and "+254 712 345 678" all
+// reduce to "712345678"). Mirrors the exact convention pos-api already uses for loyalty phone
+// matching (internal/http/handlers/loyalty.go) — reused here rather than reinvented so "the same
+// phone" means the same thing fleet-wide.
+func nationalSubscriberDigits(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r >= '0' && r <= '9' {
+			b.WriteByte(byte(r))
+		}
+	}
+	d := b.String()
+	if len(d) > 9 {
+		return d[len(d)-9:]
+	}
+	return d
+}
 
 // Service handles contact business logic.
 type Service struct {
@@ -63,33 +83,47 @@ type ListInput struct {
 	Offset      int
 }
 
-// Create creates a new contact with deduplication by email/phone.
+// Create creates a new contact with deduplication by email/phone. Dedup is format-agnostic: email
+// compares case-insensitively (trimmed+lowercased) and phone compares by national subscriber
+// digits (last 9) — a customer entered once as "0712345678" and again as "+254 712 345 678" or
+// "254712345678" is the SAME contact, not three. Previously this compared raw, unnormalized
+// strings, so any formatting difference across callers (POS till entry vs. checkout autofill vs.
+// treasury's Add-Client modal) silently created a new Contact row per format — which then split
+// that customer's downstream AR/loyalty history across multiple linked ledgers (see
+// arpa.ReconcileSplitCustomerBalances, which explicitly cannot heal a split caused upstream here:
+// it refuses to merge across >1 distinct crm_contact_id). The ORIGINAL stored value's format is
+// left untouched (never rewritten) — only the comparison is normalized — so this never disturbs
+// whatever dialable/display format a phone was first saved in.
 func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Contact, error) {
 	// Dedup: check if a contact with the same email or phone already exists for this tenant
 	if in.Email != nil {
-		existing, err := s.client.Contact.Query().
-			Where(
-				contact.TenantID(in.TenantID),
-				contact.EmailEQ(*in.Email),
-			).
-			First(ctx)
-		if err == nil {
-			s.logger.Info("contact already exists (by email), returning existing",
-				zap.String("id", existing.ID.String()))
-			return existing, nil
+		if email := strings.ToLower(strings.TrimSpace(*in.Email)); email != "" {
+			existing, err := s.client.Contact.Query().
+				Where(
+					contact.TenantID(in.TenantID),
+					contact.EmailEqualFold(email),
+				).
+				First(ctx)
+			if err == nil {
+				s.logger.Info("contact already exists (by email), returning existing",
+					zap.String("id", existing.ID.String()))
+				return existing, nil
+			}
 		}
 	}
 	if in.Phone != nil {
-		existing, err := s.client.Contact.Query().
-			Where(
-				contact.TenantID(in.TenantID),
-				contact.PhoneEQ(*in.Phone),
-			).
-			First(ctx)
-		if err == nil {
-			s.logger.Info("contact already exists (by phone), returning existing",
-				zap.String("id", existing.ID.String()))
-			return existing, nil
+		if digits := nationalSubscriberDigits(*in.Phone); digits != "" {
+			existing, err := s.client.Contact.Query().
+				Where(
+					contact.TenantID(in.TenantID),
+					contact.PhoneHasSuffix(digits),
+				).
+				First(ctx)
+			if err == nil {
+				s.logger.Info("contact already exists (by phone), returning existing",
+					zap.String("id", existing.ID.String()))
+				return existing, nil
+			}
 		}
 	}
 
