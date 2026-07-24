@@ -178,6 +178,7 @@ type ContactHandlers struct {
 	UpsertByPhone  http.HandlerFunc // POST /internal/contacts/upsert — S2S create-or-get by phone
 	SearchInternal http.HandlerFunc // GET /internal/contacts/search — S2S name/email/phone search
 	BulkImport     http.HandlerFunc // POST /contacts/bulk-import — batch upsert (migrations)
+	Merge          http.HandlerFunc // POST /contacts/merge — fold duplicate contacts into one survivor
 }
 
 // KnowledgeHandlers groups knowledge base HTTP handlers.
@@ -539,6 +540,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Get("/", deps.ContactHandlers.List)
 				if deps.ContactHandlers.BulkImport != nil {
 					r.Post("/bulk-import", deps.ContactHandlers.BulkImport)
+				}
+				if deps.ContactHandlers.Merge != nil {
+					r.Post("/merge", deps.ContactHandlers.Merge)
 				}
 				r.Get("/{id}", deps.ContactHandlers.Get)
 				r.Put("/{id}", deps.ContactHandlers.Update)

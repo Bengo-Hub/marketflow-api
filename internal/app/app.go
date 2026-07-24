@@ -365,6 +365,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			UpsertByPhone:  contactHandler.UpsertByPhone,
 			SearchInternal: contactHandler.SearchInternal,
 			BulkImport:     contactHandler.BulkImport,
+			Merge:          contactHandler.Merge,
 		},
 		KnowledgeHandlers: httpapi.KnowledgeHandlers{
 			CreateEntry: kbHandler.CreateEntry,

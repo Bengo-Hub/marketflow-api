@@ -238,6 +238,50 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	httpapi.JSON(w, http.StatusOK, result)
 }
 
+type mergeContactsRequest struct {
+	SurvivorID   uuid.UUID   `json:"survivor_id"`
+	DuplicateIDs []uuid.UUID `json:"duplicate_ids"`
+}
+
+// Merge handles POST /api/v1/contacts/merge — folds one or more duplicate contacts (created by
+// the phone/email dedup gap that Create's normalization now closes going forward) into a single
+// survivor. See Service.Merge for what actually moves.
+// @Summary Merge duplicate contacts into one survivor
+// @Tags Contacts
+// @Accept json
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param body body mergeContactsRequest true "Survivor + duplicate contact IDs"
+// @Success 200 {object} MergeResult
+// @Security bearerAuth
+// @Router /contacts/merge [post]
+func (h *Handler) Merge(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := extractTenantID(r)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing or invalid X-Tenant-ID header", nil)
+		return
+	}
+
+	var req mergeContactsRequest
+	if err := httpapi.DecodeJSON(r, &req); err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid request body", nil)
+		return
+	}
+	if req.SurvivorID == uuid.Nil || len(req.DuplicateIDs) == 0 {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_request", "survivor_id and at least one duplicate_id are required", nil)
+		return
+	}
+
+	result, err := h.service.Merge(r.Context(), tenantID, req.SurvivorID, req.DuplicateIDs)
+	if err != nil {
+		h.logger.Error("failed to merge contacts", zap.Error(err))
+		httpapi.Error(w, http.StatusBadRequest, "merge_failed", err.Error(), nil)
+		return
+	}
+
+	httpapi.JSON(w, http.StatusOK, result)
+}
+
 // Delete handles DELETE /api/v1/contacts/{id}
 // @Summary Delete a contact
 // @Tags Contacts
