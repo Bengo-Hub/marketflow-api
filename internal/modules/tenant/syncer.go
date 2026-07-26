@@ -22,7 +22,7 @@ const (
 	DefaultFBOStory        = "Forever Living Products was founded in 1978 by Rex Maughan in Scottsdale, Arizona. We are the world's largest grower, manufacturer and distributor of aloe vera and bee products. Millions of people in over 160 countries have discovered the benefits of Forever’s aloe vera products to help them and their families look better and feel better. We own our own aloe fields, manufacturing and distribution facilities, and we utilize stabilized aloe vera gel because we control every step from plant to product to you."
 	DefaultFBOVideoURL     = "https://www.youtube.com/embed/YRvN_JkHSzQ"
 	DefaultFBOPrimaryColor = "#f59e0b"
-	DefaultFBOLogo         = "https://accounts.codevertexitsolutions.com/images/logo/codevertex.png"
+	DefaultFBOLogo         = "https://accounts.codevertexafrica.com/images/logo/codevertex.png"
 	DefaultFBOOpportunity  = "Forever Business Owners are everyday people who choose to share products they enjoy. Some may earn supplemental income by building a customer base or team, but participation and effort vary from person to person. Our business model rewards individuals for product sales and for supporting others who choose to do the same.\n\nForever’s reward structure, known as the Marketing Plan, outlines the various roles, incentives, and bonuses available. It is a roadmap that explains how the business works and the requirements associated with each level. It offers tools and resources designed to support your activity, allowing you to work at your own pace."
 )
 
@@ -42,7 +42,7 @@ type Syncer struct {
 func NewSyncer(client *ent.Client, logger *zap.Logger) *Syncer {
 	authAPIURL := os.Getenv("AUTH_API_URL")
 	if authAPIURL == "" {
-		authAPIURL = "https://sso.codevertexitsolutions.com"
+		authAPIURL = "https://sso.codevertexafrica.com"
 	}
 	platformSlug := os.Getenv("PLATFORM_TENANT")
 	if platformSlug == "" {

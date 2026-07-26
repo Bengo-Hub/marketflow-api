@@ -7548,7 +7548,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0.0",
-	Host:             "marketflowapi.codevertexitsolutions.com",
+	Host:             "marketflowapi.codevertexafrica.com",
 	BasePath:         "/api/v1",
 	Schemes:          []string{"https", "http"},
 	Title:            "MarketFlow API",

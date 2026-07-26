@@ -432,8 +432,8 @@ func NewRouter(deps RouterDeps) http.Handler {
 				strings.HasPrefix(origin, "https://localhost") {
 				return true
 			}
-			// Allow any subdomain of codevertexitsolutions.com
-			const suffix = ".codevertexitsolutions.com"
+			// Allow any subdomain of codevertexafrica.com
+			const suffix = ".codevertexafrica.com"
 			const httpsPrefix = "https://"
 			if len(origin) > len(httpsPrefix)+len(suffix) &&
 				origin[:len(httpsPrefix)] == httpsPrefix &&

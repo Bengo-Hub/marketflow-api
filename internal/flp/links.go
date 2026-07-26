@@ -18,7 +18,7 @@ const (
 	shopBaseURL    = "https://shop.foreverliving.com/retail/entry/Shop.do"
 	recruitBaseURL = "https://join.foreverliving.com/marketing/joinnow/applicationForm.do"
 	// MarketFlow hosts FBO profile pages — not redirecting to FLP's basic profile
-	profileBaseURL = "https://marketflow.codevertexitsolutions.com/p/%s"
+	profileBaseURL = "https://marketflow.codevertexafrica.com/p/%s"
 )
 
 // ShopURL returns the FBO's personalized store landing page.
@@ -67,7 +67,7 @@ func (b *LinkBuilder) RecruitURL() string {
 
 // ProfileURL returns the FBO's MarketFlow-hosted profile page.
 // For FBO tenants, slug = distribID, so profile URL uses the distribID directly.
-// Example: https://marketflow.codevertexitsolutions.com/p/254200047984
+// Example: https://marketflow.codevertexafrica.com/p/254200047984
 func (b *LinkBuilder) ProfileURL() string {
 	slug := b.TenantSlug
 	if slug == "" {

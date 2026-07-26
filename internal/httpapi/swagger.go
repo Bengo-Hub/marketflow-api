@@ -48,7 +48,7 @@ func convertSwagger2ToOpenAPI3(swagger2Spec map[string]interface{}) map[string]i
 
 	openAPI3["servers"] = []map[string]interface{}{
 		{"url": "http://localhost:4000", "description": "Local development"},
-		{"url": "https://marketflowapi.codevertexitsolutions.com", "description": "Production"},
+		{"url": "https://marketflowapi.codevertexafrica.com", "description": "Production"},
 	}
 
 	components := make(map[string]interface{})

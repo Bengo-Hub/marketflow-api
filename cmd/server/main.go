@@ -19,7 +19,7 @@ import (
 // @description AI-powered marketing automation platform API. Manages leads, contacts, campaigns, funnels, knowledge base, and AI chat sessions for FLP FBOs and generic businesses.
 // @BasePath /api/v1
 // @schemes https http
-// @host marketflowapi.codevertexitsolutions.com
+// @host marketflowapi.codevertexafrica.com
 // @securityDefinitions.apikey bearerAuth
 // @in header
 // @name Authorization

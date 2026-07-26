@@ -72,7 +72,7 @@ func resolveNurtureVariables(
 	if err == nil {
 		putIfEmpty(vars, "fbo_name", tn.Name)
 		putIfEmpty(vars, "tenant_slug", tn.Slug)
-		profileURL := "https://marketflow.codevertexitsolutions.com/p/" + tn.Slug
+		profileURL := "https://marketflow.codevertexafrica.com/p/" + tn.Slug
 		putIfEmpty(vars, "profile_link", profileURL)
 		if tn.WhatsappNumber != nil && *tn.WhatsappNumber != "" {
 			waNumber := onlyDigits(*tn.WhatsappNumber)

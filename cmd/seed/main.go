@@ -409,9 +409,9 @@ func seedCodevertexKB(ctx context.Context, client *ent.Client, tenantID uuid.UUI
 Contact:
 - HQ: Pioneer House, Oginga-Odinga Road, Kisumu CBD, Kisumu East District, Kenya
 - Phone: +254 742 201 368 | +254 743 793 901 | +254 792 548 766
-- Email: info@codevertexitsolutions.com
-- Website: https://codevertexitsolutions.com
-- Client Portal (SSO): https://accounts.codevertexitsolutions.com
+- Email: info@codevertexafrica.com
+- Website: https://codevertexafrica.com
+- Client Portal (SSO): https://accounts.codevertexafrica.com
 
 Services:
 1. Enterprise Software — full-stack platforms, mobile apps, ERP, CRM, workflow automation
@@ -421,7 +421,7 @@ Services:
 5. Digitika Academy — ICDL, CCNA v7, AI/ML courses, Software Engineering, Data Analytics
 
 Pricing Plans (KES/month): Starter 4,999 | Growth 14,999 | Enterprise: Custom
-Payments: M-Pesa and card via Treasury Gateway at https://books.codevertexitsolutions.com`,
+Payments: M-Pesa and card via Treasury Gateway at https://books.codevertexafrica.com`,
 			tags: []string{"company", "contact", "about", "overview"},
 		},
 		{
@@ -429,9 +429,9 @@ Payments: M-Pesa and card via Treasury Gateway at https://books.codevertexitsolu
 			title:    "Power Suite — ERP",
 			content: `Codevertex ERP is a full-featured enterprise resource planning platform for inventory, procurement, HR, payroll, and financial management.
 
-URL: https://erp.codevertexitsolutions.com
+URL: https://erp.codevertexafrica.com
 Best for: Medium to large businesses needing integrated back-office operations.
-Pricing: Growth or Enterprise plan. Contact info@codevertexitsolutions.com for a demo.`,
+Pricing: Growth or Enterprise plan. Contact info@codevertexafrica.com for a demo.`,
 			tags: []string{"erp", "enterprise", "power-suite", "inventory", "payroll"},
 		},
 		{
@@ -439,7 +439,7 @@ Pricing: Growth or Enterprise plan. Contact info@codevertexitsolutions.com for a
 			title:    "Power Suite — POS (Point of Sale)",
 			content: `Codevertex POS is a cloud-based point-of-sale system supporting M-Pesa, card payments, inventory sync, and multi-branch management.
 
-URL: https://pos.codevertexitsolutions.com
+URL: https://pos.codevertexafrica.com
 Best for: Retail shops, restaurants, supermarkets.
 Payments: M-Pesa Lipa Na, Visa/Mastercard via Treasury Gateway.`,
 			tags: []string{"pos", "point-of-sale", "retail", "mpesa", "power-suite"},
@@ -449,7 +449,7 @@ Payments: M-Pesa Lipa Na, Visa/Mastercard via Treasury Gateway.`,
 			title:    "Power Suite — Books (Treasury / Accounting)",
 			content: `Codevertex Books is the platform's treasury and accounting module — invoicing, payment collection, ledger management, and M-Pesa/card gateway.
 
-URL: https://books.codevertexitsolutions.com
+URL: https://books.codevertexafrica.com
 Also used for: Digitika enrollment payments, Power Suite subscription billing.
 Supports: M-Pesa STK Push, Visa/Mastercard, payment plans, PDF invoices.`,
 			tags: []string{"books", "treasury", "accounting", "invoicing", "mpesa", "power-suite"},
@@ -459,7 +459,7 @@ Supports: M-Pesa STK Push, Visa/Mastercard, payment plans, PDF invoices.`,
 			title:    "Power Suite — Analytics (Apache Superset)",
 			content: `Codevertex Analytics is a business intelligence dashboard powered by Apache Superset. Connect any database, build charts, and share reports.
 
-URL: https://superset.codevertexitsolutions.com
+URL: https://superset.codevertexafrica.com
 Best for: Data-driven businesses wanting live KPIs, sales trends, and custom reports.`,
 			tags: []string{"analytics", "superset", "bi", "dashboard", "power-suite"},
 		},
@@ -468,7 +468,7 @@ Best for: Data-driven businesses wanting live KPIs, sales trends, and custom rep
 			title:    "Power Suite — MarketFlow CRM",
 			content: `MarketFlow is Codevertex's AI-powered CRM and marketing automation platform. Manage leads, campaigns, funnels, WhatsApp/email nurture sequences, and ad integrations (Meta, TikTok, Google Ads, LinkedIn).
 
-URL: https://marketflow.codevertexitsolutions.com
+URL: https://marketflow.codevertexafrica.com
 Best for: Sales teams, FBOs, agencies, and any business that needs automated lead management.`,
 			tags: []string{"marketflow", "crm", "marketing", "leads", "campaigns", "power-suite"},
 		},
@@ -477,7 +477,7 @@ Best for: Sales teams, FBOs, agencies, and any business that needs automated lea
 			title:    "Power Suite — ISP Billing",
 			content: `Codevertex ISP Billing is an internet service provider billing and management system — subscriber management, bandwidth policies, M-Pesa auto-payments, and Mikrotik/RouterOS integration.
 
-URL: https://ispbilling.codevertexitsolutions.com
+URL: https://ispbilling.codevertexafrica.com
 Best for: ISPs, WISPs, and SOHO network operators in Kenya and East Africa.`,
 			tags: []string{"isp", "billing", "internet", "mikrotik", "power-suite"},
 		},
@@ -486,7 +486,7 @@ Best for: ISPs, WISPs, and SOHO network operators in Kenya and East Africa.`,
 			title:    "Power Suite — TruLoad (IoT Axle-Load Compliance)",
 			content: `TruLoad is Codevertex's IoT-based axle-load monitoring and compliance platform for transport companies. Real-time weighbridge data, alerts, and regulatory reporting.
 
-URL: https://truload.codevertexitsolutions.com
+URL: https://truload.codevertexafrica.com
 Best for: Logistics companies, truck operators, and compliance officers needing KENHA/NTSA axle-load data.`,
 			tags: []string{"truload", "iot", "logistics", "compliance", "transport", "power-suite"},
 		},
@@ -495,7 +495,7 @@ Best for: Logistics companies, truck operators, and compliance officers needing 
 			title:    "Power Suite — Notifications Service",
 			content: `Codevertex Notifications is a multi-channel notification delivery platform — email, SMS, WhatsApp, and push. Used by all Power Suite apps for transactional and marketing messages.
 
-URL: https://notifications.codevertexitsolutions.com`,
+URL: https://notifications.codevertexafrica.com`,
 			tags: []string{"notifications", "sms", "email", "whatsapp", "power-suite"},
 		},
 		{
@@ -503,8 +503,8 @@ URL: https://notifications.codevertexitsolutions.com`,
 			title:    "Digitika Academy — Overview",
 			content: `Digitika Academy is Codevertex's technology training wing, offering professional IT certification courses, bootcamps, and specialist training in Kisumu and online via Zoom.
 
-All courses are taught by certified instructors. Payments via M-Pesa or card at https://books.codevertexitsolutions.com.
-Contact: info@codevertexitsolutions.com | +254 743 793 901`,
+All courses are taught by certified instructors. Payments via M-Pesa or card at https://books.codevertexafrica.com.
+Contact: info@codevertexafrica.com | +254 743 793 901`,
 			tags: []string{"digitika", "academy", "training", "courses", "kisumu"},
 		},
 		{

@@ -49,8 +49,8 @@ func (Tenant) Fields() []ent.Field {
 		// Product link: ...&itemCode={code}&distribID={distribID}
 		// Category link: ...&categoryName={cat}&distribID={distribID}
 		// Recruit link: https://join.foreverliving.com/marketing/joinnow/applicationForm.do?action=display&store={store}&distribID={distribID}&menuoff=n&langID={lang}
-		// Profile link: https://marketflow.codevertexitsolutions.com/p/{tenant_slug}
-		// Short links: https://marketflow.codevertexitsolutions.com/s/{code}
+		// Profile link: https://marketflow.codevertexafrica.com/p/{tenant_slug}
+		// Short links: https://marketflow.codevertexafrica.com/s/{code}
 		field.String("flp_store_code").
 			Optional().
 			Nillable().

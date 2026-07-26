@@ -72,13 +72,13 @@ type RedisConfig struct {
 }
 
 type SecurityConfig struct {
-	JWKSUrl        string `env:"JWKS_URL" envDefault:"https://sso.codevertexitsolutions.com/api/v1/.well-known/jwks.json"`
-	JWTIssuer      string `env:"JWT_ISSUER" envDefault:"https://sso.codevertexitsolutions.com"`
+	JWKSUrl        string `env:"JWKS_URL" envDefault:"https://sso.codevertexafrica.com/api/v1/.well-known/jwks.json"`
+	JWTIssuer      string `env:"JWT_ISSUER" envDefault:"https://sso.codevertexafrica.com"`
 	JWTAudience    string `env:"JWT_AUDIENCE" envDefault:"codevertex"`
 	RequireJWT     bool   `env:"REQUIRE_JWT" envDefault:"true"`
 	EncryptionKey  string `env:"ENCRYPTION_KEY" comment:"32-byte base64-encoded key for AES-256-GCM encryption of provider secrets"`
 	PlatformTenant string `env:"PLATFORM_TENANT" envDefault:"codevertex" comment:"Platform owner tenant slug for provider config hierarchy"`
-	AuthServiceURL string `env:"AUTH_SERVICE_URL" envDefault:"https://sso.codevertexitsolutions.com" comment:"Used by shared-auth-client APIKeyValidator"`
+	AuthServiceURL string `env:"AUTH_SERVICE_URL" envDefault:"https://sso.codevertexafrica.com" comment:"Used by shared-auth-client APIKeyValidator"`
 }
 
 type EventsConfig struct {

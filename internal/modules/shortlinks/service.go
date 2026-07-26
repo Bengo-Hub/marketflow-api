@@ -29,7 +29,7 @@ type Service struct {
 // NewService creates a new short link service.
 func NewService(client *ent.Client, logger *zap.Logger, baseURL string) *Service {
 	if baseURL == "" {
-		baseURL = "https://marketflow.codevertexitsolutions.com"
+		baseURL = "https://marketflow.codevertexafrica.com"
 	}
 	return &Service{
 		client:  client,
