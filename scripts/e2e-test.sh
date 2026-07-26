@@ -3,9 +3,9 @@
 # Usage: MF_API_KEY=<key> MF_TENANT_ID=<uuid> ./scripts/e2e-test.sh
 set -euo pipefail
 
-API="${MF_API_URL:-https://marketflowapi.codevertexitsolutions.com}"
-AI="${MF_AI_URL:-https://marketflowai.codevertexitsolutions.com}"
-UI="${MF_UI_URL:-https://marketflow.codevertexitsolutions.com}"
+API="${MF_API_URL:-https://marketflowapi.codevertexafrica.com}"
+AI="${MF_AI_URL:-https://marketflowai.codevertexafrica.com}"
+UI="${MF_UI_URL:-https://marketflow.codevertexafrica.com}"
 KEY="${MF_API_KEY:?MF_API_KEY required}"
 TID="${MF_TENANT_ID:?MF_TENANT_ID required}"
 

@@ -750,7 +750,7 @@ definitions:
       utm_source:
         type: string
     type: object
-host: marketflowapi.codevertexitsolutions.com
+host: marketflowapi.codevertexafrica.com
 info:
   contact: {}
   description: AI-powered marketing automation platform API. Manages leads, contacts,
