@@ -90,6 +90,46 @@ func (_u *ContactUpdate) ClearPhone() *ContactUpdate {
 	return _u
 }
 
+// SetEmailNormalized sets the "email_normalized" field.
+func (_u *ContactUpdate) SetEmailNormalized(v string) *ContactUpdate {
+	_u.mutation.SetEmailNormalized(v)
+	return _u
+}
+
+// SetNillableEmailNormalized sets the "email_normalized" field if the given value is not nil.
+func (_u *ContactUpdate) SetNillableEmailNormalized(v *string) *ContactUpdate {
+	if v != nil {
+		_u.SetEmailNormalized(*v)
+	}
+	return _u
+}
+
+// ClearEmailNormalized clears the value of the "email_normalized" field.
+func (_u *ContactUpdate) ClearEmailNormalized() *ContactUpdate {
+	_u.mutation.ClearEmailNormalized()
+	return _u
+}
+
+// SetPhoneSubscriberDigits sets the "phone_subscriber_digits" field.
+func (_u *ContactUpdate) SetPhoneSubscriberDigits(v string) *ContactUpdate {
+	_u.mutation.SetPhoneSubscriberDigits(v)
+	return _u
+}
+
+// SetNillablePhoneSubscriberDigits sets the "phone_subscriber_digits" field if the given value is not nil.
+func (_u *ContactUpdate) SetNillablePhoneSubscriberDigits(v *string) *ContactUpdate {
+	if v != nil {
+		_u.SetPhoneSubscriberDigits(*v)
+	}
+	return _u
+}
+
+// ClearPhoneSubscriberDigits clears the value of the "phone_subscriber_digits" field.
+func (_u *ContactUpdate) ClearPhoneSubscriberDigits() *ContactUpdate {
+	_u.mutation.ClearPhoneSubscriberDigits()
+	return _u
+}
+
 // SetFirstName sets the "first_name" field.
 func (_u *ContactUpdate) SetFirstName(v string) *ContactUpdate {
 	_u.mutation.SetFirstName(v)
@@ -585,6 +625,18 @@ func (_u *ContactUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.PhoneCleared() {
 		_spec.ClearField(contact.FieldPhone, field.TypeString)
 	}
+	if value, ok := _u.mutation.EmailNormalized(); ok {
+		_spec.SetField(contact.FieldEmailNormalized, field.TypeString, value)
+	}
+	if _u.mutation.EmailNormalizedCleared() {
+		_spec.ClearField(contact.FieldEmailNormalized, field.TypeString)
+	}
+	if value, ok := _u.mutation.PhoneSubscriberDigits(); ok {
+		_spec.SetField(contact.FieldPhoneSubscriberDigits, field.TypeString, value)
+	}
+	if _u.mutation.PhoneSubscriberDigitsCleared() {
+		_spec.ClearField(contact.FieldPhoneSubscriberDigits, field.TypeString)
+	}
 	if value, ok := _u.mutation.FirstName(); ok {
 		_spec.SetField(contact.FieldFirstName, field.TypeString, value)
 	}
@@ -937,6 +989,46 @@ func (_u *ContactUpdateOne) SetNillablePhone(v *string) *ContactUpdateOne {
 // ClearPhone clears the value of the "phone" field.
 func (_u *ContactUpdateOne) ClearPhone() *ContactUpdateOne {
 	_u.mutation.ClearPhone()
+	return _u
+}
+
+// SetEmailNormalized sets the "email_normalized" field.
+func (_u *ContactUpdateOne) SetEmailNormalized(v string) *ContactUpdateOne {
+	_u.mutation.SetEmailNormalized(v)
+	return _u
+}
+
+// SetNillableEmailNormalized sets the "email_normalized" field if the given value is not nil.
+func (_u *ContactUpdateOne) SetNillableEmailNormalized(v *string) *ContactUpdateOne {
+	if v != nil {
+		_u.SetEmailNormalized(*v)
+	}
+	return _u
+}
+
+// ClearEmailNormalized clears the value of the "email_normalized" field.
+func (_u *ContactUpdateOne) ClearEmailNormalized() *ContactUpdateOne {
+	_u.mutation.ClearEmailNormalized()
+	return _u
+}
+
+// SetPhoneSubscriberDigits sets the "phone_subscriber_digits" field.
+func (_u *ContactUpdateOne) SetPhoneSubscriberDigits(v string) *ContactUpdateOne {
+	_u.mutation.SetPhoneSubscriberDigits(v)
+	return _u
+}
+
+// SetNillablePhoneSubscriberDigits sets the "phone_subscriber_digits" field if the given value is not nil.
+func (_u *ContactUpdateOne) SetNillablePhoneSubscriberDigits(v *string) *ContactUpdateOne {
+	if v != nil {
+		_u.SetPhoneSubscriberDigits(*v)
+	}
+	return _u
+}
+
+// ClearPhoneSubscriberDigits clears the value of the "phone_subscriber_digits" field.
+func (_u *ContactUpdateOne) ClearPhoneSubscriberDigits() *ContactUpdateOne {
+	_u.mutation.ClearPhoneSubscriberDigits()
 	return _u
 }
 
@@ -1464,6 +1556,18 @@ func (_u *ContactUpdateOne) sqlSave(ctx context.Context) (_node *Contact, err er
 	}
 	if _u.mutation.PhoneCleared() {
 		_spec.ClearField(contact.FieldPhone, field.TypeString)
+	}
+	if value, ok := _u.mutation.EmailNormalized(); ok {
+		_spec.SetField(contact.FieldEmailNormalized, field.TypeString, value)
+	}
+	if _u.mutation.EmailNormalizedCleared() {
+		_spec.ClearField(contact.FieldEmailNormalized, field.TypeString)
+	}
+	if value, ok := _u.mutation.PhoneSubscriberDigits(); ok {
+		_spec.SetField(contact.FieldPhoneSubscriberDigits, field.TypeString, value)
+	}
+	if _u.mutation.PhoneSubscriberDigitsCleared() {
+		_spec.ClearField(contact.FieldPhoneSubscriberDigits, field.TypeString)
 	}
 	if value, ok := _u.mutation.FirstName(); ok {
 		_spec.SetField(contact.FieldFirstName, field.TypeString, value)

@@ -27,6 +27,10 @@ type Contact struct {
 	Email *string `json:"email,omitempty"`
 	// E.164 format
 	Phone *string `json:"phone,omitempty"`
+	// lower(trim(email)) — dedup/uniqueness key; email itself is never rewritten
+	EmailNormalized *string `json:"email_normalized,omitempty"`
+	// last 9 digits of phone (Kenyan national subscriber number, format-agnostic) — dedup/uniqueness key; phone itself is never rewritten
+	PhoneSubscriberDigits *string `json:"phone_subscriber_digits,omitempty"`
 	// FirstName holds the value of the "first_name" field.
 	FirstName *string `json:"first_name,omitempty"`
 	// LastName holds the value of the "last_name" field.
@@ -150,7 +154,7 @@ func (*Contact) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case contact.FieldTotalOrders:
 			values[i] = new(sql.NullInt64)
-		case contact.FieldEmail, contact.FieldPhone, contact.FieldFirstName, contact.FieldLastName, contact.FieldContactType, contact.FieldFlpCustomerID, contact.FieldLifecycleStage:
+		case contact.FieldEmail, contact.FieldPhone, contact.FieldEmailNormalized, contact.FieldPhoneSubscriberDigits, contact.FieldFirstName, contact.FieldLastName, contact.FieldContactType, contact.FieldFlpCustomerID, contact.FieldLifecycleStage:
 			values[i] = new(sql.NullString)
 		case contact.FieldLastOrderAt, contact.FieldCreatedAt, contact.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -196,6 +200,20 @@ func (_m *Contact) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Phone = new(string)
 				*_m.Phone = value.String
+			}
+		case contact.FieldEmailNormalized:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field email_normalized", values[i])
+			} else if value.Valid {
+				_m.EmailNormalized = new(string)
+				*_m.EmailNormalized = value.String
+			}
+		case contact.FieldPhoneSubscriberDigits:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field phone_subscriber_digits", values[i])
+			} else if value.Valid {
+				_m.PhoneSubscriberDigits = new(string)
+				*_m.PhoneSubscriberDigits = value.String
 			}
 		case contact.FieldFirstName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -389,6 +407,16 @@ func (_m *Contact) String() string {
 	builder.WriteString(", ")
 	if v := _m.Phone; v != nil {
 		builder.WriteString("phone=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.EmailNormalized; v != nil {
+		builder.WriteString("email_normalized=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.PhoneSubscriberDigits; v != nil {
+		builder.WriteString("phone_subscriber_digits=")
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")

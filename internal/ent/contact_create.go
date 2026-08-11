@@ -63,6 +63,34 @@ func (_c *ContactCreate) SetNillablePhone(v *string) *ContactCreate {
 	return _c
 }
 
+// SetEmailNormalized sets the "email_normalized" field.
+func (_c *ContactCreate) SetEmailNormalized(v string) *ContactCreate {
+	_c.mutation.SetEmailNormalized(v)
+	return _c
+}
+
+// SetNillableEmailNormalized sets the "email_normalized" field if the given value is not nil.
+func (_c *ContactCreate) SetNillableEmailNormalized(v *string) *ContactCreate {
+	if v != nil {
+		_c.SetEmailNormalized(*v)
+	}
+	return _c
+}
+
+// SetPhoneSubscriberDigits sets the "phone_subscriber_digits" field.
+func (_c *ContactCreate) SetPhoneSubscriberDigits(v string) *ContactCreate {
+	_c.mutation.SetPhoneSubscriberDigits(v)
+	return _c
+}
+
+// SetNillablePhoneSubscriberDigits sets the "phone_subscriber_digits" field if the given value is not nil.
+func (_c *ContactCreate) SetNillablePhoneSubscriberDigits(v *string) *ContactCreate {
+	if v != nil {
+		_c.SetPhoneSubscriberDigits(*v)
+	}
+	return _c
+}
+
 // SetFirstName sets the "first_name" field.
 func (_c *ContactCreate) SetFirstName(v string) *ContactCreate {
 	_c.mutation.SetFirstName(v)
@@ -509,6 +537,14 @@ func (_c *ContactCreate) createSpec() (*Contact, *sqlgraph.CreateSpec) {
 		_spec.SetField(contact.FieldPhone, field.TypeString, value)
 		_node.Phone = &value
 	}
+	if value, ok := _c.mutation.EmailNormalized(); ok {
+		_spec.SetField(contact.FieldEmailNormalized, field.TypeString, value)
+		_node.EmailNormalized = &value
+	}
+	if value, ok := _c.mutation.PhoneSubscriberDigits(); ok {
+		_spec.SetField(contact.FieldPhoneSubscriberDigits, field.TypeString, value)
+		_node.PhoneSubscriberDigits = &value
+	}
 	if value, ok := _c.mutation.FirstName(); ok {
 		_spec.SetField(contact.FieldFirstName, field.TypeString, value)
 		_node.FirstName = &value
@@ -756,6 +792,42 @@ func (u *ContactUpsert) UpdatePhone() *ContactUpsert {
 // ClearPhone clears the value of the "phone" field.
 func (u *ContactUpsert) ClearPhone() *ContactUpsert {
 	u.SetNull(contact.FieldPhone)
+	return u
+}
+
+// SetEmailNormalized sets the "email_normalized" field.
+func (u *ContactUpsert) SetEmailNormalized(v string) *ContactUpsert {
+	u.Set(contact.FieldEmailNormalized, v)
+	return u
+}
+
+// UpdateEmailNormalized sets the "email_normalized" field to the value that was provided on create.
+func (u *ContactUpsert) UpdateEmailNormalized() *ContactUpsert {
+	u.SetExcluded(contact.FieldEmailNormalized)
+	return u
+}
+
+// ClearEmailNormalized clears the value of the "email_normalized" field.
+func (u *ContactUpsert) ClearEmailNormalized() *ContactUpsert {
+	u.SetNull(contact.FieldEmailNormalized)
+	return u
+}
+
+// SetPhoneSubscriberDigits sets the "phone_subscriber_digits" field.
+func (u *ContactUpsert) SetPhoneSubscriberDigits(v string) *ContactUpsert {
+	u.Set(contact.FieldPhoneSubscriberDigits, v)
+	return u
+}
+
+// UpdatePhoneSubscriberDigits sets the "phone_subscriber_digits" field to the value that was provided on create.
+func (u *ContactUpsert) UpdatePhoneSubscriberDigits() *ContactUpsert {
+	u.SetExcluded(contact.FieldPhoneSubscriberDigits)
+	return u
+}
+
+// ClearPhoneSubscriberDigits clears the value of the "phone_subscriber_digits" field.
+func (u *ContactUpsert) ClearPhoneSubscriberDigits() *ContactUpsert {
+	u.SetNull(contact.FieldPhoneSubscriberDigits)
 	return u
 }
 
@@ -1139,6 +1211,48 @@ func (u *ContactUpsertOne) UpdatePhone() *ContactUpsertOne {
 func (u *ContactUpsertOne) ClearPhone() *ContactUpsertOne {
 	return u.Update(func(s *ContactUpsert) {
 		s.ClearPhone()
+	})
+}
+
+// SetEmailNormalized sets the "email_normalized" field.
+func (u *ContactUpsertOne) SetEmailNormalized(v string) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetEmailNormalized(v)
+	})
+}
+
+// UpdateEmailNormalized sets the "email_normalized" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdateEmailNormalized() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateEmailNormalized()
+	})
+}
+
+// ClearEmailNormalized clears the value of the "email_normalized" field.
+func (u *ContactUpsertOne) ClearEmailNormalized() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearEmailNormalized()
+	})
+}
+
+// SetPhoneSubscriberDigits sets the "phone_subscriber_digits" field.
+func (u *ContactUpsertOne) SetPhoneSubscriberDigits(v string) *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetPhoneSubscriberDigits(v)
+	})
+}
+
+// UpdatePhoneSubscriberDigits sets the "phone_subscriber_digits" field to the value that was provided on create.
+func (u *ContactUpsertOne) UpdatePhoneSubscriberDigits() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdatePhoneSubscriberDigits()
+	})
+}
+
+// ClearPhoneSubscriberDigits clears the value of the "phone_subscriber_digits" field.
+func (u *ContactUpsertOne) ClearPhoneSubscriberDigits() *ContactUpsertOne {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearPhoneSubscriberDigits()
 	})
 }
 
@@ -1735,6 +1849,48 @@ func (u *ContactUpsertBulk) UpdatePhone() *ContactUpsertBulk {
 func (u *ContactUpsertBulk) ClearPhone() *ContactUpsertBulk {
 	return u.Update(func(s *ContactUpsert) {
 		s.ClearPhone()
+	})
+}
+
+// SetEmailNormalized sets the "email_normalized" field.
+func (u *ContactUpsertBulk) SetEmailNormalized(v string) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetEmailNormalized(v)
+	})
+}
+
+// UpdateEmailNormalized sets the "email_normalized" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdateEmailNormalized() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdateEmailNormalized()
+	})
+}
+
+// ClearEmailNormalized clears the value of the "email_normalized" field.
+func (u *ContactUpsertBulk) ClearEmailNormalized() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearEmailNormalized()
+	})
+}
+
+// SetPhoneSubscriberDigits sets the "phone_subscriber_digits" field.
+func (u *ContactUpsertBulk) SetPhoneSubscriberDigits(v string) *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.SetPhoneSubscriberDigits(v)
+	})
+}
+
+// UpdatePhoneSubscriberDigits sets the "phone_subscriber_digits" field to the value that was provided on create.
+func (u *ContactUpsertBulk) UpdatePhoneSubscriberDigits() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.UpdatePhoneSubscriberDigits()
+	})
+}
+
+// ClearPhoneSubscriberDigits clears the value of the "phone_subscriber_digits" field.
+func (u *ContactUpsertBulk) ClearPhoneSubscriberDigits() *ContactUpsertBulk {
+	return u.Update(func(s *ContactUpsert) {
+		s.ClearPhoneSubscriberDigits()
 	})
 }
 

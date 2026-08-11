@@ -11817,6 +11817,8 @@ type ContactMutation struct {
 	id                        *uuid.UUID
 	email                     *string
 	phone                     *string
+	email_normalized          *string
+	phone_subscriber_digits   *string
 	first_name                *string
 	last_name                 *string
 	contact_type              *string
@@ -12092,6 +12094,104 @@ func (m *ContactMutation) PhoneCleared() bool {
 func (m *ContactMutation) ResetPhone() {
 	m.phone = nil
 	delete(m.clearedFields, contact.FieldPhone)
+}
+
+// SetEmailNormalized sets the "email_normalized" field.
+func (m *ContactMutation) SetEmailNormalized(s string) {
+	m.email_normalized = &s
+}
+
+// EmailNormalized returns the value of the "email_normalized" field in the mutation.
+func (m *ContactMutation) EmailNormalized() (r string, exists bool) {
+	v := m.email_normalized
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEmailNormalized returns the old "email_normalized" field's value of the Contact entity.
+// If the Contact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ContactMutation) OldEmailNormalized(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEmailNormalized is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEmailNormalized requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEmailNormalized: %w", err)
+	}
+	return oldValue.EmailNormalized, nil
+}
+
+// ClearEmailNormalized clears the value of the "email_normalized" field.
+func (m *ContactMutation) ClearEmailNormalized() {
+	m.email_normalized = nil
+	m.clearedFields[contact.FieldEmailNormalized] = struct{}{}
+}
+
+// EmailNormalizedCleared returns if the "email_normalized" field was cleared in this mutation.
+func (m *ContactMutation) EmailNormalizedCleared() bool {
+	_, ok := m.clearedFields[contact.FieldEmailNormalized]
+	return ok
+}
+
+// ResetEmailNormalized resets all changes to the "email_normalized" field.
+func (m *ContactMutation) ResetEmailNormalized() {
+	m.email_normalized = nil
+	delete(m.clearedFields, contact.FieldEmailNormalized)
+}
+
+// SetPhoneSubscriberDigits sets the "phone_subscriber_digits" field.
+func (m *ContactMutation) SetPhoneSubscriberDigits(s string) {
+	m.phone_subscriber_digits = &s
+}
+
+// PhoneSubscriberDigits returns the value of the "phone_subscriber_digits" field in the mutation.
+func (m *ContactMutation) PhoneSubscriberDigits() (r string, exists bool) {
+	v := m.phone_subscriber_digits
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPhoneSubscriberDigits returns the old "phone_subscriber_digits" field's value of the Contact entity.
+// If the Contact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ContactMutation) OldPhoneSubscriberDigits(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPhoneSubscriberDigits is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPhoneSubscriberDigits requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPhoneSubscriberDigits: %w", err)
+	}
+	return oldValue.PhoneSubscriberDigits, nil
+}
+
+// ClearPhoneSubscriberDigits clears the value of the "phone_subscriber_digits" field.
+func (m *ContactMutation) ClearPhoneSubscriberDigits() {
+	m.phone_subscriber_digits = nil
+	m.clearedFields[contact.FieldPhoneSubscriberDigits] = struct{}{}
+}
+
+// PhoneSubscriberDigitsCleared returns if the "phone_subscriber_digits" field was cleared in this mutation.
+func (m *ContactMutation) PhoneSubscriberDigitsCleared() bool {
+	_, ok := m.clearedFields[contact.FieldPhoneSubscriberDigits]
+	return ok
+}
+
+// ResetPhoneSubscriberDigits resets all changes to the "phone_subscriber_digits" field.
+func (m *ContactMutation) ResetPhoneSubscriberDigits() {
+	m.phone_subscriber_digits = nil
+	delete(m.clearedFields, contact.FieldPhoneSubscriberDigits)
 }
 
 // SetFirstName sets the "first_name" field.
@@ -13178,7 +13278,7 @@ func (m *ContactMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ContactMutation) Fields() []string {
-	fields := make([]string, 0, 21)
+	fields := make([]string, 0, 23)
 	if m.tenant != nil {
 		fields = append(fields, contact.FieldTenantID)
 	}
@@ -13187,6 +13287,12 @@ func (m *ContactMutation) Fields() []string {
 	}
 	if m.phone != nil {
 		fields = append(fields, contact.FieldPhone)
+	}
+	if m.email_normalized != nil {
+		fields = append(fields, contact.FieldEmailNormalized)
+	}
+	if m.phone_subscriber_digits != nil {
+		fields = append(fields, contact.FieldPhoneSubscriberDigits)
 	}
 	if m.first_name != nil {
 		fields = append(fields, contact.FieldFirstName)
@@ -13256,6 +13362,10 @@ func (m *ContactMutation) Field(name string) (ent.Value, bool) {
 		return m.Email()
 	case contact.FieldPhone:
 		return m.Phone()
+	case contact.FieldEmailNormalized:
+		return m.EmailNormalized()
+	case contact.FieldPhoneSubscriberDigits:
+		return m.PhoneSubscriberDigits()
 	case contact.FieldFirstName:
 		return m.FirstName()
 	case contact.FieldLastName:
@@ -13307,6 +13417,10 @@ func (m *ContactMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldEmail(ctx)
 	case contact.FieldPhone:
 		return m.OldPhone(ctx)
+	case contact.FieldEmailNormalized:
+		return m.OldEmailNormalized(ctx)
+	case contact.FieldPhoneSubscriberDigits:
+		return m.OldPhoneSubscriberDigits(ctx)
 	case contact.FieldFirstName:
 		return m.OldFirstName(ctx)
 	case contact.FieldLastName:
@@ -13372,6 +13486,20 @@ func (m *ContactMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPhone(v)
+		return nil
+	case contact.FieldEmailNormalized:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEmailNormalized(v)
+		return nil
+	case contact.FieldPhoneSubscriberDigits:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPhoneSubscriberDigits(v)
 		return nil
 	case contact.FieldFirstName:
 		v, ok := value.(string)
@@ -13562,6 +13690,12 @@ func (m *ContactMutation) ClearedFields() []string {
 	if m.FieldCleared(contact.FieldPhone) {
 		fields = append(fields, contact.FieldPhone)
 	}
+	if m.FieldCleared(contact.FieldEmailNormalized) {
+		fields = append(fields, contact.FieldEmailNormalized)
+	}
+	if m.FieldCleared(contact.FieldPhoneSubscriberDigits) {
+		fields = append(fields, contact.FieldPhoneSubscriberDigits)
+	}
 	if m.FieldCleared(contact.FieldFirstName) {
 		fields = append(fields, contact.FieldFirstName)
 	}
@@ -13612,6 +13746,12 @@ func (m *ContactMutation) ClearField(name string) error {
 	case contact.FieldPhone:
 		m.ClearPhone()
 		return nil
+	case contact.FieldEmailNormalized:
+		m.ClearEmailNormalized()
+		return nil
+	case contact.FieldPhoneSubscriberDigits:
+		m.ClearPhoneSubscriberDigits()
+		return nil
 	case contact.FieldFirstName:
 		m.ClearFirstName()
 		return nil
@@ -13658,6 +13798,12 @@ func (m *ContactMutation) ResetField(name string) error {
 		return nil
 	case contact.FieldPhone:
 		m.ResetPhone()
+		return nil
+	case contact.FieldEmailNormalized:
+		m.ResetEmailNormalized()
+		return nil
+	case contact.FieldPhoneSubscriberDigits:
+		m.ResetPhoneSubscriberDigits()
 		return nil
 	case contact.FieldFirstName:
 		m.ResetFirstName()

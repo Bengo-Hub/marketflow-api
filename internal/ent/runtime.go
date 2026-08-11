@@ -362,35 +362,35 @@ func init() {
 	contactFields := schema.Contact{}.Fields()
 	_ = contactFields
 	// contactDescContactType is the schema descriptor for contact_type field.
-	contactDescContactType := contactFields[6].Descriptor()
+	contactDescContactType := contactFields[8].Descriptor()
 	// contact.DefaultContactType holds the default value on creation for the contact_type field.
 	contact.DefaultContactType = contactDescContactType.Default.(string)
 	// contactDescTotalCc is the schema descriptor for total_cc field.
-	contactDescTotalCc := contactFields[9].Descriptor()
+	contactDescTotalCc := contactFields[11].Descriptor()
 	// contact.DefaultTotalCc holds the default value on creation for the total_cc field.
 	contact.DefaultTotalCc = contactDescTotalCc.Default.(float64)
 	// contactDescTotalOrders is the schema descriptor for total_orders field.
-	contactDescTotalOrders := contactFields[10].Descriptor()
+	contactDescTotalOrders := contactFields[12].Descriptor()
 	// contact.DefaultTotalOrders holds the default value on creation for the total_orders field.
 	contact.DefaultTotalOrders = contactDescTotalOrders.Default.(int)
 	// contactDescLifecycleStage is the schema descriptor for lifecycle_stage field.
-	contactDescLifecycleStage := contactFields[14].Descriptor()
+	contactDescLifecycleStage := contactFields[16].Descriptor()
 	// contact.DefaultLifecycleStage holds the default value on creation for the lifecycle_stage field.
 	contact.DefaultLifecycleStage = contactDescLifecycleStage.Default.(string)
 	// contactDescSubscribedEmail is the schema descriptor for subscribed_email field.
-	contactDescSubscribedEmail := contactFields[17].Descriptor()
+	contactDescSubscribedEmail := contactFields[19].Descriptor()
 	// contact.DefaultSubscribedEmail holds the default value on creation for the subscribed_email field.
 	contact.DefaultSubscribedEmail = contactDescSubscribedEmail.Default.(bool)
 	// contactDescSubscribedSms is the schema descriptor for subscribed_sms field.
-	contactDescSubscribedSms := contactFields[18].Descriptor()
+	contactDescSubscribedSms := contactFields[20].Descriptor()
 	// contact.DefaultSubscribedSms holds the default value on creation for the subscribed_sms field.
 	contact.DefaultSubscribedSms = contactDescSubscribedSms.Default.(bool)
 	// contactDescCreatedAt is the schema descriptor for created_at field.
-	contactDescCreatedAt := contactFields[20].Descriptor()
+	contactDescCreatedAt := contactFields[22].Descriptor()
 	// contact.DefaultCreatedAt holds the default value on creation for the created_at field.
 	contact.DefaultCreatedAt = contactDescCreatedAt.Default.(func() time.Time)
 	// contactDescUpdatedAt is the schema descriptor for updated_at field.
-	contactDescUpdatedAt := contactFields[21].Descriptor()
+	contactDescUpdatedAt := contactFields[23].Descriptor()
 	// contact.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	contact.DefaultUpdatedAt = contactDescUpdatedAt.Default.(func() time.Time)
 	// contact.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

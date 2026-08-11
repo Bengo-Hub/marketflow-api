@@ -21,6 +21,10 @@ const (
 	FieldEmail = "email"
 	// FieldPhone holds the string denoting the phone field in the database.
 	FieldPhone = "phone"
+	// FieldEmailNormalized holds the string denoting the email_normalized field in the database.
+	FieldEmailNormalized = "email_normalized"
+	// FieldPhoneSubscriberDigits holds the string denoting the phone_subscriber_digits field in the database.
+	FieldPhoneSubscriberDigits = "phone_subscriber_digits"
 	// FieldFirstName holds the string denoting the first_name field in the database.
 	FieldFirstName = "first_name"
 	// FieldLastName holds the string denoting the last_name field in the database.
@@ -112,6 +116,8 @@ var Columns = []string{
 	FieldTenantID,
 	FieldEmail,
 	FieldPhone,
+	FieldEmailNormalized,
+	FieldPhoneSubscriberDigits,
 	FieldFirstName,
 	FieldLastName,
 	FieldContactType,
@@ -186,6 +192,16 @@ func ByEmail(opts ...sql.OrderTermOption) OrderOption {
 // ByPhone orders the results by the phone field.
 func ByPhone(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPhone, opts...).ToFunc()
+}
+
+// ByEmailNormalized orders the results by the email_normalized field.
+func ByEmailNormalized(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEmailNormalized, opts...).ToFunc()
+}
+
+// ByPhoneSubscriberDigits orders the results by the phone_subscriber_digits field.
+func ByPhoneSubscriberDigits(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPhoneSubscriberDigits, opts...).ToFunc()
 }
 
 // ByFirstName orders the results by the first_name field.

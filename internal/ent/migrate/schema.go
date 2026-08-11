@@ -475,6 +475,8 @@ var (
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "email", Type: field.TypeString, Nullable: true},
 		{Name: "phone", Type: field.TypeString, Nullable: true},
+		{Name: "email_normalized", Type: field.TypeString, Nullable: true},
+		{Name: "phone_subscriber_digits", Type: field.TypeString, Nullable: true},
 		{Name: "first_name", Type: field.TypeString, Nullable: true},
 		{Name: "last_name", Type: field.TypeString, Nullable: true},
 		{Name: "contact_type", Type: field.TypeString, Default: "customer"},
@@ -503,13 +505,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "contacts_accounts_contacts",
-				Columns:    []*schema.Column{ContactsColumns[20]},
+				Columns:    []*schema.Column{ContactsColumns[22]},
 				RefColumns: []*schema.Column{AccountsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "contacts_tenants_contacts",
-				Columns:    []*schema.Column{ContactsColumns[21]},
+				Columns:    []*schema.Column{ContactsColumns[23]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -518,37 +520,53 @@ var (
 			{
 				Name:    "contact_tenant_id_email",
 				Unique:  false,
-				Columns: []*schema.Column{ContactsColumns[21], ContactsColumns[1]},
+				Columns: []*schema.Column{ContactsColumns[23], ContactsColumns[1]},
 			},
 			{
 				Name:    "contact_tenant_id_phone",
 				Unique:  false,
-				Columns: []*schema.Column{ContactsColumns[21], ContactsColumns[2]},
+				Columns: []*schema.Column{ContactsColumns[23], ContactsColumns[2]},
 			},
 			{
 				Name:    "contact_tenant_id_contact_type",
 				Unique:  false,
-				Columns: []*schema.Column{ContactsColumns[21], ContactsColumns[5]},
+				Columns: []*schema.Column{ContactsColumns[23], ContactsColumns[7]},
 			},
 			{
 				Name:    "contact_tenant_id_last_order_at",
 				Unique:  false,
-				Columns: []*schema.Column{ContactsColumns[21], ContactsColumns[10]},
+				Columns: []*schema.Column{ContactsColumns[23], ContactsColumns[12]},
 			},
 			{
 				Name:    "contact_tenant_id_lifecycle_stage",
 				Unique:  false,
-				Columns: []*schema.Column{ContactsColumns[21], ContactsColumns[12]},
+				Columns: []*schema.Column{ContactsColumns[23], ContactsColumns[14]},
 			},
 			{
 				Name:    "contact_tenant_id_owner_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{ContactsColumns[21], ContactsColumns[11]},
+				Columns: []*schema.Column{ContactsColumns[23], ContactsColumns[13]},
 			},
 			{
 				Name:    "contact_account_id",
 				Unique:  false,
-				Columns: []*schema.Column{ContactsColumns[20]},
+				Columns: []*schema.Column{ContactsColumns[22]},
+			},
+			{
+				Name:    "contact_tenant_id_email_normalized",
+				Unique:  true,
+				Columns: []*schema.Column{ContactsColumns[23], ContactsColumns[3]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "email_normalized <> ''",
+				},
+			},
+			{
+				Name:    "contact_tenant_id_phone_subscriber_digits",
+				Unique:  true,
+				Columns: []*schema.Column{ContactsColumns[23], ContactsColumns[4]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "phone_subscriber_digits <> ''",
+				},
 			},
 		},
 	}

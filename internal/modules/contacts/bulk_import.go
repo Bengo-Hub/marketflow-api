@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
-	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -74,22 +73,20 @@ func (s *Service) BulkImport(ctx context.Context, tenantID uuid.UUID, rows []Bul
 	return res, nil
 }
 
-// upsertOne applies the same phone-then-email dedup rule as Create, returning the id of the
-// contact that now represents this row (existing or newly created) and which of the two happened.
+// upsertOne applies the same normalized phone-then-email dedup rule as Create (findExistingContact
+// — format-agnostic, not the raw exact-match this used to do), returning the id of the contact
+// that now represents this row (existing or newly created) and which of the two happened.
 func (s *Service) upsertOne(ctx context.Context, tenantID uuid.UUID, row BulkImportRow) (uuid.UUID, string, error) {
-	if row.Phone != nil {
-		if existing, err := s.client.Contact.Query().
-			Where(contact.TenantID(tenantID), contact.PhoneEQ(*row.Phone)).
-			First(ctx); err == nil {
-			return existing.ID, "existing", nil
-		}
-	}
+	emailNorm := ""
 	if row.Email != nil {
-		if existing, err := s.client.Contact.Query().
-			Where(contact.TenantID(tenantID), contact.EmailEQ(*row.Email)).
-			First(ctx); err == nil {
-			return existing.ID, "existing", nil
-		}
+		emailNorm = normalizeEmail(*row.Email)
+	}
+	phoneDigits := ""
+	if row.Phone != nil {
+		phoneDigits = nationalSubscriberDigits(*row.Phone)
+	}
+	if existing, _ := s.findExistingContact(ctx, tenantID, emailNorm, phoneDigits); existing != nil {
+		return existing.ID, "existing", nil
 	}
 
 	contactType := row.ContactType
@@ -111,6 +108,12 @@ func (s *Service) upsertOne(ctx context.Context, tenantID uuid.UUID, row BulkImp
 		SetNillablePhone(row.Phone).
 		SetNillableFirstName(row.FirstName).
 		SetNillableLastName(row.LastName)
+	if emailNorm != "" {
+		builder = builder.SetEmailNormalized(emailNorm)
+	}
+	if phoneDigits != "" {
+		builder = builder.SetPhoneSubscriberDigits(phoneDigits)
+	}
 	if row.Metadata != nil {
 		builder = builder.SetMetadata(row.Metadata)
 	}
@@ -118,8 +121,13 @@ func (s *Service) upsertOne(ctx context.Context, tenantID uuid.UUID, row BulkImp
 	created, err := builder.Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {
-			// Race/duplicate id: if it's our own requested id colliding, surface a clear error
-			// rather than the raw constraint message.
+			// Lost a race against a concurrent import/upsert of the same phone/email — the row IS
+			// represented, just by the winner's contact, not a failure to report.
+			if existing, ferr := s.findExistingContact(ctx, tenantID, emailNorm, phoneDigits); ferr == nil && existing != nil {
+				return existing.ID, "existing", nil
+			}
+			// Otherwise it's our own requested id colliding — surface a clear error rather than
+			// the raw constraint message.
 			return uuid.Nil, "failed", fmt.Errorf("create contact: id or unique field conflict: %w", err)
 		}
 		return uuid.Nil, "failed", fmt.Errorf("create contact: %w", err)

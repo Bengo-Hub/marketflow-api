@@ -86,6 +86,32 @@ type ListInput struct {
 	Offset      int
 }
 
+// normalizeEmail lowercases+trims an email for dedup comparison — mirrors EmailEqualFold's
+// semantics but as a value we can also persist for a DB-enforced unique index.
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+// findExistingContact runs Create's dedup lookup (email first, then phone) — extracted so the
+// initial optimistic check and the post-constraint-error re-resolve use the exact same logic.
+func (s *Service) findExistingContact(ctx context.Context, tenantID uuid.UUID, emailNorm, phoneDigits string) (*ent.Contact, error) {
+	if emailNorm != "" {
+		if existing, err := s.client.Contact.Query().
+			Where(contact.TenantID(tenantID), contact.EmailNormalizedEQ(emailNorm)).
+			First(ctx); err == nil {
+			return existing, nil
+		}
+	}
+	if phoneDigits != "" {
+		if existing, err := s.client.Contact.Query().
+			Where(contact.TenantID(tenantID), contact.PhoneSubscriberDigitsEQ(phoneDigits)).
+			First(ctx); err == nil {
+			return existing, nil
+		}
+	}
+	return nil, nil
+}
+
 // Create creates a new contact with deduplication by email/phone. Dedup is format-agnostic: email
 // compares case-insensitively (trimmed+lowercased) and phone compares by national subscriber
 // digits (last 9) — a customer entered once as "0712345678" and again as "+254 712 345 678" or
@@ -97,37 +123,26 @@ type ListInput struct {
 // it refuses to merge across >1 distinct crm_contact_id). The ORIGINAL stored value's format is
 // left untouched (never rewritten) — only the comparison is normalized — so this never disturbs
 // whatever dialable/display format a phone was first saved in.
+//
+// Atomicity: the dedup check above is a plain read, not a lock — two concurrent Create calls for
+// the SAME phone/email (a POS double-submit, an S2S retry, a loyalty registration racing a
+// checkout) can both pass it and both attempt an insert. email_normalized/phone_subscriber_digits
+// carry partial unique DB indexes for exactly this reason: the loser's insert is rejected with a
+// constraint error, which is caught below and turned into a re-resolve of the winner's row instead
+// of an error — making this genuinely atomic create-or-get, not just "usually correct".
 func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Contact, error) {
-	// Dedup: check if a contact with the same email or phone already exists for this tenant
+	emailNorm := ""
 	if in.Email != nil {
-		if email := strings.ToLower(strings.TrimSpace(*in.Email)); email != "" {
-			existing, err := s.client.Contact.Query().
-				Where(
-					contact.TenantID(in.TenantID),
-					contact.EmailEqualFold(email),
-				).
-				First(ctx)
-			if err == nil {
-				s.logger.Info("contact already exists (by email), returning existing",
-					zap.String("id", existing.ID.String()))
-				return existing, nil
-			}
-		}
+		emailNorm = normalizeEmail(*in.Email)
 	}
+	phoneDigits := ""
 	if in.Phone != nil {
-		if digits := nationalSubscriberDigits(*in.Phone); digits != "" {
-			existing, err := s.client.Contact.Query().
-				Where(
-					contact.TenantID(in.TenantID),
-					contact.PhoneHasSuffix(digits),
-				).
-				First(ctx)
-			if err == nil {
-				s.logger.Info("contact already exists (by phone), returning existing",
-					zap.String("id", existing.ID.String()))
-				return existing, nil
-			}
-		}
+		phoneDigits = nationalSubscriberDigits(*in.Phone)
+	}
+
+	if existing, _ := s.findExistingContact(ctx, in.TenantID, emailNorm, phoneDigits); existing != nil {
+		s.logger.Info("contact already exists, returning existing", zap.String("id", existing.ID.String()))
+		return existing, nil
 	}
 
 	builder := s.client.Contact.Create().
@@ -137,8 +152,14 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Contact, err
 	if in.Email != nil {
 		builder.SetNillableEmail(in.Email)
 	}
+	if emailNorm != "" {
+		builder.SetEmailNormalized(emailNorm)
+	}
 	if in.Phone != nil {
 		builder.SetNillablePhone(in.Phone)
+	}
+	if phoneDigits != "" {
+		builder.SetPhoneSubscriberDigits(phoneDigits)
 	}
 	if in.FirstName != nil {
 		builder.SetNillableFirstName(in.FirstName)
@@ -161,6 +182,13 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Contact, err
 
 	result, err := builder.Save(ctx)
 	if err != nil {
+		if ent.IsConstraintError(err) {
+			if existing, ferr := s.findExistingContact(ctx, in.TenantID, emailNorm, phoneDigits); ferr == nil && existing != nil {
+				s.logger.Info("contact create lost a race, returning the winner",
+					zap.String("id", existing.ID.String()))
+				return existing, nil
+			}
+		}
 		return nil, fmt.Errorf("create contact: %w", err)
 	}
 
@@ -236,11 +264,24 @@ func (s *Service) Update(ctx context.Context, tenantID, contactID uuid.UUID, in 
 
 	builder := existing.Update()
 
+	// Recompute the normalized dedup columns whenever email/phone changes — otherwise a manual
+	// edit could silently leave email_normalized/phone_subscriber_digits stale, letting a future
+	// Create's dedup check (or the unique index) miss or wrongly block on the OLD value.
 	if in.Email != nil {
 		builder.SetNillableEmail(in.Email)
+		if norm := normalizeEmail(*in.Email); norm != "" {
+			builder.SetEmailNormalized(norm)
+		} else {
+			builder.ClearEmailNormalized()
+		}
 	}
 	if in.Phone != nil {
 		builder.SetNillablePhone(in.Phone)
+		if digits := nationalSubscriberDigits(*in.Phone); digits != "" {
+			builder.SetPhoneSubscriberDigits(digits)
+		} else {
+			builder.ClearPhoneSubscriberDigits()
+		}
 	}
 	if in.FirstName != nil {
 		builder.SetNillableFirstName(in.FirstName)
@@ -275,6 +316,9 @@ func (s *Service) Update(ctx context.Context, tenantID, contactID uuid.UUID, in 
 
 	result, err := builder.Save(ctx)
 	if err != nil {
+		if ent.IsConstraintError(err) {
+			return nil, fmt.Errorf("update contact: email or phone already belongs to another contact for this tenant: %w", err)
+		}
 		return nil, fmt.Errorf("update contact: %w", err)
 	}
 

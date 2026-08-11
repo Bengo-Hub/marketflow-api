@@ -71,6 +71,16 @@ func Phone(v string) predicate.Contact {
 	return predicate.Contact(sql.FieldEQ(FieldPhone, v))
 }
 
+// EmailNormalized applies equality check predicate on the "email_normalized" field. It's identical to EmailNormalizedEQ.
+func EmailNormalized(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldEQ(FieldEmailNormalized, v))
+}
+
+// PhoneSubscriberDigits applies equality check predicate on the "phone_subscriber_digits" field. It's identical to PhoneSubscriberDigitsEQ.
+func PhoneSubscriberDigits(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldEQ(FieldPhoneSubscriberDigits, v))
+}
+
 // FirstName applies equality check predicate on the "first_name" field. It's identical to FirstNameEQ.
 func FirstName(v string) predicate.Contact {
 	return predicate.Contact(sql.FieldEQ(FieldFirstName, v))
@@ -314,6 +324,156 @@ func PhoneEqualFold(v string) predicate.Contact {
 // PhoneContainsFold applies the ContainsFold predicate on the "phone" field.
 func PhoneContainsFold(v string) predicate.Contact {
 	return predicate.Contact(sql.FieldContainsFold(FieldPhone, v))
+}
+
+// EmailNormalizedEQ applies the EQ predicate on the "email_normalized" field.
+func EmailNormalizedEQ(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldEQ(FieldEmailNormalized, v))
+}
+
+// EmailNormalizedNEQ applies the NEQ predicate on the "email_normalized" field.
+func EmailNormalizedNEQ(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldNEQ(FieldEmailNormalized, v))
+}
+
+// EmailNormalizedIn applies the In predicate on the "email_normalized" field.
+func EmailNormalizedIn(vs ...string) predicate.Contact {
+	return predicate.Contact(sql.FieldIn(FieldEmailNormalized, vs...))
+}
+
+// EmailNormalizedNotIn applies the NotIn predicate on the "email_normalized" field.
+func EmailNormalizedNotIn(vs ...string) predicate.Contact {
+	return predicate.Contact(sql.FieldNotIn(FieldEmailNormalized, vs...))
+}
+
+// EmailNormalizedGT applies the GT predicate on the "email_normalized" field.
+func EmailNormalizedGT(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldGT(FieldEmailNormalized, v))
+}
+
+// EmailNormalizedGTE applies the GTE predicate on the "email_normalized" field.
+func EmailNormalizedGTE(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldGTE(FieldEmailNormalized, v))
+}
+
+// EmailNormalizedLT applies the LT predicate on the "email_normalized" field.
+func EmailNormalizedLT(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldLT(FieldEmailNormalized, v))
+}
+
+// EmailNormalizedLTE applies the LTE predicate on the "email_normalized" field.
+func EmailNormalizedLTE(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldLTE(FieldEmailNormalized, v))
+}
+
+// EmailNormalizedContains applies the Contains predicate on the "email_normalized" field.
+func EmailNormalizedContains(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldContains(FieldEmailNormalized, v))
+}
+
+// EmailNormalizedHasPrefix applies the HasPrefix predicate on the "email_normalized" field.
+func EmailNormalizedHasPrefix(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldHasPrefix(FieldEmailNormalized, v))
+}
+
+// EmailNormalizedHasSuffix applies the HasSuffix predicate on the "email_normalized" field.
+func EmailNormalizedHasSuffix(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldHasSuffix(FieldEmailNormalized, v))
+}
+
+// EmailNormalizedIsNil applies the IsNil predicate on the "email_normalized" field.
+func EmailNormalizedIsNil() predicate.Contact {
+	return predicate.Contact(sql.FieldIsNull(FieldEmailNormalized))
+}
+
+// EmailNormalizedNotNil applies the NotNil predicate on the "email_normalized" field.
+func EmailNormalizedNotNil() predicate.Contact {
+	return predicate.Contact(sql.FieldNotNull(FieldEmailNormalized))
+}
+
+// EmailNormalizedEqualFold applies the EqualFold predicate on the "email_normalized" field.
+func EmailNormalizedEqualFold(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldEqualFold(FieldEmailNormalized, v))
+}
+
+// EmailNormalizedContainsFold applies the ContainsFold predicate on the "email_normalized" field.
+func EmailNormalizedContainsFold(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldContainsFold(FieldEmailNormalized, v))
+}
+
+// PhoneSubscriberDigitsEQ applies the EQ predicate on the "phone_subscriber_digits" field.
+func PhoneSubscriberDigitsEQ(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldEQ(FieldPhoneSubscriberDigits, v))
+}
+
+// PhoneSubscriberDigitsNEQ applies the NEQ predicate on the "phone_subscriber_digits" field.
+func PhoneSubscriberDigitsNEQ(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldNEQ(FieldPhoneSubscriberDigits, v))
+}
+
+// PhoneSubscriberDigitsIn applies the In predicate on the "phone_subscriber_digits" field.
+func PhoneSubscriberDigitsIn(vs ...string) predicate.Contact {
+	return predicate.Contact(sql.FieldIn(FieldPhoneSubscriberDigits, vs...))
+}
+
+// PhoneSubscriberDigitsNotIn applies the NotIn predicate on the "phone_subscriber_digits" field.
+func PhoneSubscriberDigitsNotIn(vs ...string) predicate.Contact {
+	return predicate.Contact(sql.FieldNotIn(FieldPhoneSubscriberDigits, vs...))
+}
+
+// PhoneSubscriberDigitsGT applies the GT predicate on the "phone_subscriber_digits" field.
+func PhoneSubscriberDigitsGT(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldGT(FieldPhoneSubscriberDigits, v))
+}
+
+// PhoneSubscriberDigitsGTE applies the GTE predicate on the "phone_subscriber_digits" field.
+func PhoneSubscriberDigitsGTE(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldGTE(FieldPhoneSubscriberDigits, v))
+}
+
+// PhoneSubscriberDigitsLT applies the LT predicate on the "phone_subscriber_digits" field.
+func PhoneSubscriberDigitsLT(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldLT(FieldPhoneSubscriberDigits, v))
+}
+
+// PhoneSubscriberDigitsLTE applies the LTE predicate on the "phone_subscriber_digits" field.
+func PhoneSubscriberDigitsLTE(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldLTE(FieldPhoneSubscriberDigits, v))
+}
+
+// PhoneSubscriberDigitsContains applies the Contains predicate on the "phone_subscriber_digits" field.
+func PhoneSubscriberDigitsContains(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldContains(FieldPhoneSubscriberDigits, v))
+}
+
+// PhoneSubscriberDigitsHasPrefix applies the HasPrefix predicate on the "phone_subscriber_digits" field.
+func PhoneSubscriberDigitsHasPrefix(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldHasPrefix(FieldPhoneSubscriberDigits, v))
+}
+
+// PhoneSubscriberDigitsHasSuffix applies the HasSuffix predicate on the "phone_subscriber_digits" field.
+func PhoneSubscriberDigitsHasSuffix(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldHasSuffix(FieldPhoneSubscriberDigits, v))
+}
+
+// PhoneSubscriberDigitsIsNil applies the IsNil predicate on the "phone_subscriber_digits" field.
+func PhoneSubscriberDigitsIsNil() predicate.Contact {
+	return predicate.Contact(sql.FieldIsNull(FieldPhoneSubscriberDigits))
+}
+
+// PhoneSubscriberDigitsNotNil applies the NotNil predicate on the "phone_subscriber_digits" field.
+func PhoneSubscriberDigitsNotNil() predicate.Contact {
+	return predicate.Contact(sql.FieldNotNull(FieldPhoneSubscriberDigits))
+}
+
+// PhoneSubscriberDigitsEqualFold applies the EqualFold predicate on the "phone_subscriber_digits" field.
+func PhoneSubscriberDigitsEqualFold(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldEqualFold(FieldPhoneSubscriberDigits, v))
+}
+
+// PhoneSubscriberDigitsContainsFold applies the ContainsFold predicate on the "phone_subscriber_digits" field.
+func PhoneSubscriberDigitsContainsFold(v string) predicate.Contact {
+	return predicate.Contact(sql.FieldContainsFold(FieldPhoneSubscriberDigits, v))
 }
 
 // FirstNameEQ applies the EQ predicate on the "first_name" field.

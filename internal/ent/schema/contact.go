@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
@@ -33,6 +34,14 @@ func (Contact) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			Comment("E.164 format"),
+		field.String("email_normalized").
+			Optional().
+			Nillable().
+			Comment("lower(trim(email)) — dedup/uniqueness key; email itself is never rewritten"),
+		field.String("phone_subscriber_digits").
+			Optional().
+			Nillable().
+			Comment("last 9 digits of phone (Kenyan national subscriber number, format-agnostic) — dedup/uniqueness key; phone itself is never rewritten"),
 		field.String("first_name").
 			Optional().
 			Nillable(),
@@ -133,5 +142,16 @@ func (Contact) Indexes() []ent.Index {
 		index.Fields("tenant_id", "lifecycle_stage"),
 		index.Fields("tenant_id", "owner_user_id"),
 		index.Fields("account_id"),
+		// Service.Create's dedup was historically a check-then-act (Query then Create, no DB
+		// constraint) — two concurrent upserts for the same phone/email (a POS double-submit, an
+		// S2S retry, a loyalty registration racing a checkout) could both pass the read and both
+		// insert. These partial unique indexes make that impossible at the DB level; Service.Create
+		// catches the resulting constraint violation and re-resolves the winner instead of erroring.
+		index.Fields("tenant_id", "email_normalized").
+			Unique().
+			Annotations(entsql.IndexWhere("email_normalized <> ''")),
+		index.Fields("tenant_id", "phone_subscriber_digits").
+			Unique().
+			Annotations(entsql.IndexWhere("phone_subscriber_digits <> ''")),
 	}
 }
