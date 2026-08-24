@@ -12,14 +12,18 @@ echo "==> Waiting for database and running migrations..."
 MAX_RETRIES=60
 RETRY_COUNT=0
 
-until POSTGRES_URL="$MIGRATE_URL" /usr/local/bin/marketflow-migrate > /dev/null 2>&1 || [ $RETRY_COUNT -eq $MAX_RETRIES ]; do
+# Captured (not swallowed) so a real migration failure is visible on every attempt -- the
+# liveness probe usually kills this container long before MAX_RETRIES is ever reached.
+until MIGRATE_OUTPUT=$(POSTGRES_URL="$MIGRATE_URL" /usr/local/bin/marketflow-migrate 2>&1) || [ $RETRY_COUNT -eq $MAX_RETRIES ]; do
   RETRY_COUNT=$((RETRY_COUNT+1))
-  echo "    DB not ready... (attempt $RETRY_COUNT/$MAX_RETRIES)"
+  echo "    Migration attempt $RETRY_COUNT/$MAX_RETRIES failed:"
+  echo "$MIGRATE_OUTPUT"
   sleep 5
 done
 
 if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-  echo "    ERROR: DB not ready after $MAX_RETRIES attempts"
+  echo "    ERROR: migration failed after $MAX_RETRIES attempts. Last error:"
+  echo "$MIGRATE_OUTPUT"
   exit 1
 fi
 
