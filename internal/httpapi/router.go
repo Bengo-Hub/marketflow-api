@@ -483,6 +483,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 			// Subscription enforcement — mutations only (GET/HEAD/OPTIONS pass through).
 			// Uniform 7-day grace for EXPIRED tenants.
 			r.Use(authclient.RequireActiveSubscriptionForMutationsWithGrace(7))
+			// Module gate: block the WHOLE marketflow module (reads and writes alike) for a
+			// tenant whose plan never included it. Safe at this top level — marketflow-ui has no
+			// service-level /auth/me, it uses SSO's own /api/v1/auth/me directly for bootstrap.
+			r.Use(authclient.RequireServiceAccess("marketflow"))
 
 			if deps.TenantSyncer != nil {
 				r.Use(func(next http.Handler) http.Handler {
