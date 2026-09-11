@@ -487,6 +487,12 @@ func NewRouter(deps RouterDeps) http.Handler {
 			// tenant whose plan never included it. Safe at this top level — marketflow-ui has no
 			// service-level /auth/me, it uses SSO's own /api/v1/auth/me directly for bootstrap.
 			r.Use(authclient.RequireServiceAccess("marketflow"))
+			// Mutations-only annual support-fee gate for a perpetual/one-time-license tenant
+			// (e.g. boi-enterprises on POWERSUITE_DUKA_GOLD_ONE_TIME, which already includes
+			// marketflow from Tier 1) whose support fee has gone unpaid past its 7-day grace
+			// window — independent axis from the subscription gate above. No-ops for every
+			// tenant without a support-fee obligation at all.
+			r.Use(authclient.RequireSupportFeeCurrentForMutations(7))
 
 			if deps.TenantSyncer != nil {
 				r.Use(func(next http.Handler) http.Handler {

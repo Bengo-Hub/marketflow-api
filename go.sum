@@ -8,8 +8,8 @@ cloud.google.com/go/compute/metadata v0.9.0 h1:pDUj4QMoPejqq20dK0Pg2N4yG9zIkYGdB
 cloud.google.com/go/compute/metadata v0.9.0/go.mod h1:E0bWwX5wTnLPedCKqk3pJmVgCBSM6qQI1yTBdEb3C10=
 entgo.io/ent v0.14.5 h1:Rj2WOYJtCkWyFo6a+5wB3EfBRP0rnx1fMk6gGA0UUe4=
 entgo.io/ent v0.14.5/go.mod h1:zTzLmWtPvGpmSwtkaayM2cm5m819NdM7z7tYPq3vN0U=
-github.com/Bengo-Hub/auth-client v0.14.2 h1:gnLyfscFrNGam46T/06ybHZSGCApVlaGIaZnYfU0pKs=
-github.com/Bengo-Hub/auth-client v0.14.2/go.mod h1:mdQYYsCgNpXdeNBMRiKoWUAYgSmMFEG0g3pyM2Mxogo=
+github.com/Bengo-Hub/auth-client v0.14.3 h1:KXWutt8RHNQPfqN9G2nIDWy6emUEH1CbwFEI6b0pNv8=
+github.com/Bengo-Hub/auth-client v0.14.3/go.mod h1:mdQYYsCgNpXdeNBMRiKoWUAYgSmMFEG0g3pyM2Mxogo=
 github.com/Bengo-Hub/httpware v0.5.0 h1:VHyPDJeJgkPH0hpdKyZnvgiVJzWYyp/+okLSjthHi6c=
 github.com/Bengo-Hub/httpware v0.5.0/go.mod h1:TZYP+f/fbbqw3xXGpcvVNZL5Ah1WGCasTcbQynJtI4o=
 github.com/Bengo-Hub/pagination v0.3.0 h1:cvFHj+A5fMD5B+L89Epw/SfVxIPAzL82JViXAYlxjEM=
