@@ -179,6 +179,8 @@ type ContactHandlers struct {
 	SearchInternal http.HandlerFunc // GET /internal/contacts/search — S2S name/email/phone search
 	BulkImport     http.HandlerFunc // POST /contacts/bulk-import — batch upsert (migrations)
 	Merge          http.HandlerFunc // POST /contacts/merge — fold duplicate contacts into one survivor
+	UpdateInternal http.HandlerFunc // PUT /internal/contacts/{id} — S2S edit (treasury/pos "edit customer")
+	DeleteInternal http.HandlerFunc // DELETE /internal/contacts/{id} — S2S delete (treasury "delete customer")
 }
 
 // KnowledgeHandlers groups knowledge base HTTP handlers.
@@ -863,6 +865,12 @@ func NewRouter(deps RouterDeps) http.Handler {
 					}
 					if deps.ContactHandlers.SearchInternal != nil {
 						r.Get("/contacts/search", deps.ContactHandlers.SearchInternal)
+					}
+					if deps.ContactHandlers.UpdateInternal != nil {
+						r.Put("/contacts/{id}", deps.ContactHandlers.UpdateInternal)
+					}
+					if deps.ContactHandlers.DeleteInternal != nil {
+						r.Delete("/contacts/{id}", deps.ContactHandlers.DeleteInternal)
 					}
 				})
 			})

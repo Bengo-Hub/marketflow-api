@@ -438,6 +438,68 @@ func (h *Handler) UpsertByPhone(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// UpdateInternal handles PUT /api/v1/internal/contacts/{id} — S2S only (requires X-API-Key, no
+// JWT). Lets an owning service (treasury-api's Clients page, pos-api's Customers page) edit a
+// contact's identity fields on the customer's behalf — no service has its own local copy of
+// name/email/phone (the CRM is the single source of truth), so an "edit customer" action anywhere
+// on the platform must land here. Same field set/semantics as the tenant-facing Update; the only
+// difference is how the caller authenticates and supplies tenant_id (body, not JWT/header).
+func (h *Handler) UpdateInternal(w http.ResponseWriter, r *http.Request) {
+	contactID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_id", "invalid contact ID", nil)
+		return
+	}
+	var req struct {
+		TenantID string `json:"tenant_id"`
+		updateContactRequest
+	}
+	if err := httpapi.DecodeJSON(r, &req); err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid request body", nil)
+		return
+	}
+	tenantID, err := uuid.Parse(req.TenantID)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "missing_tenant", "valid tenant_id is required", nil)
+		return
+	}
+
+	result, err := h.service.Update(r.Context(), tenantID, contactID, UpdateInput{
+		Email: req.Email, Phone: req.Phone, FirstName: req.FirstName, LastName: req.LastName,
+		ContactType: req.ContactType, Metadata: req.Metadata,
+	})
+	if err != nil {
+		h.logger.Error("internal update contact failed", zap.Error(err))
+		httpapi.Error(w, http.StatusBadRequest, "update_failed", err.Error(), nil)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, result)
+}
+
+// DeleteInternal handles DELETE /api/v1/internal/contacts/{id}?tenant_id= — S2S only (requires
+// X-API-Key, no JWT). See Service.Delete's own doc comment for what this does and does not
+// cascade — callers (treasury-api's customer-delete orchestration) are responsible for verifying
+// it's safe to delete (e.g. zero AR balance) BEFORE calling this; the CRM itself has no visibility
+// into another service's financial state to check that on its own.
+func (h *Handler) DeleteInternal(w http.ResponseWriter, r *http.Request) {
+	contactID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_id", "invalid contact ID", nil)
+		return
+	}
+	tenantID, err := uuid.Parse(r.URL.Query().Get("tenant_id"))
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "missing_tenant", "tenant_id query parameter required", nil)
+		return
+	}
+	if err := h.service.Delete(r.Context(), tenantID, contactID); err != nil {
+		h.logger.Error("internal delete contact failed", zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "delete_failed", "failed to delete contact", nil)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, map[string]any{"status": "deleted"})
+}
+
 // GetByPhone handles GET /api/v1/internal/contacts/by-phone?phone=&tenant_id=
 // S2S only — requires X-API-Key, no JWT.
 func (h *Handler) GetByPhone(w http.ResponseWriter, r *http.Request) {

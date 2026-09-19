@@ -438,6 +438,12 @@ func uuidsToStrings(ids []uuid.UUID) []string {
 }
 
 // Delete removes a contact.
+// Delete permanently removes a contact row. Plain and uncascaded by design — this package owns
+// contact IDENTITY only, never financial/order history, so it has nothing else of its own to
+// clean up. A caller that owns downstream records keyed on this contact (treasury's
+// customer_balances/AR ledger, pos-api's LoyaltyAccount/CustomerBalanceCache) is responsible for
+// its OWN pre-checks and cleanup before calling this — see treasury-api's customer-delete
+// orchestration, which is the only caller expected to invoke DeleteInternal directly.
 func (s *Service) Delete(ctx context.Context, tenantID, contactID uuid.UUID) error {
 	_, err := s.client.Contact.Delete().
 		Where(
