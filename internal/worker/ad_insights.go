@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"database/sql"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
@@ -63,6 +64,10 @@ func (a *AdInsights) Run(ctx context.Context) {
 }
 
 func (a *AdInsights) tick(ctx context.Context) {
+	// Runs on every replica's ticker; only the first replica in each period does the work.
+	if !sharedcache.ClaimPeriod(ctx, "marketflow:ad-insights", a.interval) {
+		return
+	}
 	// Only look at campaigns the tenant has actually wired up to Meta —
 	// identified by a non-empty meta_campaign_id.
 	rows, err := a.db.Campaign.Query().

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"io"
 	"net/http"
 	"time"
@@ -50,6 +51,10 @@ func (c *SLABreachCron) Run(ctx context.Context) {
 }
 
 func (c *SLABreachCron) runOnce(ctx context.Context) {
+	// Runs on every replica's ticker; only the first replica in each period does the work.
+	if !sharedcache.ClaimPeriod(ctx, "marketflow:sla-breach", c.interval) {
+		return
+	}
 	// Query ticketing-api for response SLA breaches.
 	c.checkBreaches(ctx, "response")
 	// Query ticketing-api for resolution SLA breaches.
@@ -57,10 +62,10 @@ func (c *SLABreachCron) runOnce(ctx context.Context) {
 }
 
 type slaBreachedTicket struct {
-	ID             string `json:"id"`
-	TenantID       string `json:"tenant_id"`
-	TicketNumber   string `json:"ticket_number"`
-	Subject        string `json:"subject"`
+	ID              string  `json:"id"`
+	TenantID        string  `json:"tenant_id"`
+	TicketNumber    string  `json:"ticket_number"`
+	Subject         string  `json:"subject"`
 	AssignedAgentID *string `json:"assigned_agent_id"`
 }
 

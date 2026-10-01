@@ -13,6 +13,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"io"
 	"net/http"
 	"strings"
@@ -450,6 +451,10 @@ func (a *MeetingPrepAgent) Run(ctx context.Context) {
 }
 
 func (a *MeetingPrepAgent) run(ctx context.Context) {
+	// Runs on every replica's ticker; only the first replica in each period does the work.
+	if !sharedcache.ClaimPeriod(ctx, "marketflow:meeting-prep", 15*time.Minute) {
+		return
+	}
 	now := time.Now().UTC()
 	low := now.Add(25 * time.Minute)
 	high := now.Add(35 * time.Minute)
@@ -528,12 +533,12 @@ func (c *CustomAgentExecutionConsumer) Handle(ctx context.Context, msg jetstream
 
 	// Call marketflow-ai /api/v1/agent/run with agent definition + payload.
 	payload := map[string]any{
-		"run_id":        runID.String(),
-		"system_prompt": agent.SystemPrompt,
-		"allowed_tools": agent.AllowedTools,
+		"run_id":         runID.String(),
+		"system_prompt":  agent.SystemPrompt,
+		"allowed_tools":  agent.AllowedTools,
 		"max_iterations": agent.MaxIterations,
-		"tenant_id":     ev.TenantID,
-		"context":       ev.Payload,
+		"tenant_id":      ev.TenantID,
+		"context":        ev.Payload,
 	}
 	callCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
@@ -568,14 +573,14 @@ func (c *CustomAgentExecutionConsumer) Handle(ctx context.Context, msg jetstream
 
 // CronAgentRunnerConfig configures the cron-based background agent runner.
 type CronAgentRunnerConfig struct {
-	DB              *ent.Client
-	APIBaseURL      string
-	ServiceKey      string
-	FollowUpDays    int
-	StaleDealDays   int
-	FollowUpEvery   time.Duration // default 1 hour
-	StaleDealEvery  time.Duration // default 24 hours
-	Logger          *zap.Logger
+	DB             *ent.Client
+	APIBaseURL     string
+	ServiceKey     string
+	FollowUpDays   int
+	StaleDealDays  int
+	FollowUpEvery  time.Duration // default 1 hour
+	StaleDealEvery time.Duration // default 24 hours
+	Logger         *zap.Logger
 }
 
 // CronAgentRunner runs ProactiveFollowUpAgent and DealStaleDetector on cron ticks.
@@ -634,16 +639,20 @@ func (r *CronAgentRunner) Run(ctx context.Context) {
 			r.cfg.Logger.Info("cron agent runner stopped")
 			return
 		case <-followupTick.C:
-			r.runPerTenant(ctx, followupAgent.Handle, r.cfg.FollowUpDays, "followup")
+			r.runPerTenant(ctx, followupAgent.Handle, r.cfg.FollowUpDays, "followup", r.cfg.FollowUpEvery)
 		case <-staleTick.C:
-			r.runPerTenant(ctx, staleAgent.Handle, r.cfg.StaleDealDays, "stale-deal")
+			r.runPerTenant(ctx, staleAgent.Handle, r.cfg.StaleDealDays, "stale-deal", r.cfg.StaleDealEvery)
 		}
 	}
 }
 
 // runPerTenant enumerates distinct tenant_ids from the leads table and fires the agent per tenant.
-func (r *CronAgentRunner) runPerTenant(ctx context.Context, handle func(context.Context, jetstream.Msg) error, days int, name string) {
+func (r *CronAgentRunner) runPerTenant(ctx context.Context, handle func(context.Context, jetstream.Msg) error, days int, name string, every time.Duration) {
 	if r.cfg.DB == nil {
+		return
+	}
+	// The worker runs in every pod; one pod per period fires each agent.
+	if !sharedcache.ClaimPeriod(ctx, "marketflow:cron-agent:"+name, every) {
 		return
 	}
 	// Get distinct tenant IDs from leads (proxy for active tenants using CRM)
@@ -662,9 +671,9 @@ func (r *CronAgentRunner) runPerTenant(ctx context.Context, handle func(context.
 	}
 	for _, t := range tenants {
 		payload, _ := json.Marshal(map[string]any{
-			"tenant_id":    t.TenantID.String(),
+			"tenant_id":      t.TenantID.String(),
 			"follow_up_days": days,
-			"stale_days":   days,
+			"stale_days":     days,
 		})
 		msg := &syntheticMsg{data: payload}
 		if err := handle(ctx, msg); err != nil {
@@ -680,15 +689,15 @@ func (r *CronAgentRunner) runPerTenant(ctx context.Context, handle func(context.
 // syntheticMsg is a minimal jetstream.Msg implementation for cron-triggered agents.
 type syntheticMsg struct{ data []byte }
 
-func (m *syntheticMsg) Data() []byte                  { return m.data }
-func (m *syntheticMsg) Ack() error                    { return nil }
-func (m *syntheticMsg) Nak() error                    { return nil }
-func (m *syntheticMsg) NakWithDelay(d time.Duration) error { return nil }
-func (m *syntheticMsg) InProgress() error             { return nil }
-func (m *syntheticMsg) Term() error                   { return nil }
-func (m *syntheticMsg) TermWithReason(reason string) error { return nil }
-func (m *syntheticMsg) Subject() string               { return "" }
-func (m *syntheticMsg) Headers() nats.Header                       { return nil }
-func (m *syntheticMsg) Reply() string                              { return "" }
-func (m *syntheticMsg) DoubleAck(ctx context.Context) error        { return nil }
+func (m *syntheticMsg) Data() []byte                              { return m.data }
+func (m *syntheticMsg) Ack() error                                { return nil }
+func (m *syntheticMsg) Nak() error                                { return nil }
+func (m *syntheticMsg) NakWithDelay(d time.Duration) error        { return nil }
+func (m *syntheticMsg) InProgress() error                         { return nil }
+func (m *syntheticMsg) Term() error                               { return nil }
+func (m *syntheticMsg) TermWithReason(reason string) error        { return nil }
+func (m *syntheticMsg) Subject() string                           { return "" }
+func (m *syntheticMsg) Headers() nats.Header                      { return nil }
+func (m *syntheticMsg) Reply() string                             { return "" }
+func (m *syntheticMsg) DoubleAck(ctx context.Context) error       { return nil }
 func (m *syntheticMsg) Metadata() (*jetstream.MsgMetadata, error) { return nil, nil }

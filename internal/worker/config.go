@@ -5,6 +5,7 @@ package worker
 
 import (
 	"fmt"
+	"github.com/bengobox/marketflow-api/internal/config"
 
 	"github.com/caarlos0/env/v11"
 )
@@ -19,6 +20,9 @@ type Config struct {
 	Notifications NotificationsConfig `envPrefix:"NOTIFICATIONS_"`
 	Database      DatabaseConfig      `envPrefix:""`
 	Scheduler     SchedulerConfig     `envPrefix:"SCHEDULER_"`
+	// Redis (same REDIS_* env as the API; both run in one container) backs the
+	// once-per-period claims that stop every pod's worker repeating scheduled work.
+	Redis config.RedisConfig `envPrefix:"REDIS_"`
 }
 
 type DatabaseConfig struct {

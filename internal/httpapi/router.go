@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	ratelimit "github.com/Bengo-Hub/shared-ratelimit"
 	"net/http"
 	"strings"
 	"time"
@@ -22,6 +23,8 @@ type TenantSyncer interface {
 
 // RouterDeps defines router construction dependencies.
 type RouterDeps struct {
+	// Limiter is the shared per-IP request limiter (nil disables it, e.g. in tests).
+	Limiter        *ratelimit.Limiter
 	Log            *zap.Logger
 	HealthHandler  http.HandlerFunc
 	MetricsHandler http.Handler
@@ -419,10 +422,11 @@ type SegmentHandlers struct {
 func NewRouter(deps RouterDeps) http.Handler {
 	r := chi.NewRouter()
 	r.Use(httpware.RequestID)
-	r.Use(chimiddleware.RealIP)
+	// Never chi RealIP: it trusts client-sent True-Client-IP/X-Forwarded-For.
+	r.Use(ratelimit.TrustedRealIP)
 	r.Use(httpware.Recover(deps.Log))
 	r.Use(httpware.Logging(deps.Log))
-	r.Use(chimiddleware.Timeout(60 * time.Second))
+	r.Use(httpware.BypassForStreaming(chimiddleware.Timeout(60 * time.Second)))
 	r.Use(cors.Handler(cors.Options{
 		AllowOriginFunc: func(r *http.Request, origin string) bool {
 			if origin == "" {
@@ -458,6 +462,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+	// Per-IP abuse limit (marketflow-api had none); after CORS so 429s carry CORS headers.
+	if deps.Limiter != nil {
+		r.Use(deps.Limiter.Middleware(ratelimit.IPKey, 300, time.Minute))
+	}
 
 	// Base URL redirects to Swagger docs
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {

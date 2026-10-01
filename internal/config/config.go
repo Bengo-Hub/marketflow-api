@@ -60,7 +60,6 @@ type DatabaseConfig struct {
 	MaxOpenConns    int           `env:"POSTGRES_MAX_OPEN_CONNS" envDefault:"8"`
 	MaxIdleConns    int           `env:"POSTGRES_MAX_IDLE_CONNS" envDefault:"3"`
 	ConnMaxLifetime time.Duration `env:"POSTGRES_CONN_MAX_LIFETIME" envDefault:"15m"`
-	RunMigrations   bool          `env:"POSTGRES_RUN_MIGRATIONS" envDefault:"true"`
 }
 
 type RedisConfig struct {
@@ -114,12 +113,12 @@ type CrossServiceConfig struct {
 
 // AIConfig holds AI/LLM integration settings.
 type AIConfig struct {
-	OllamaURL       string `env:"OLLAMA_URL" envDefault:"http://ollama.marketflow.svc.cluster.local:11434"`
-	OllamaModel     string `env:"OLLAMA_MODEL" envDefault:"llama3.1:8b"`
-	ClaudeAPIKey    string `env:"CLAUDE_API_KEY"`
-	ClaudeModel     string `env:"CLAUDE_MODEL" envDefault:"claude-haiku-4-5-20251001"`
-	EmbeddingModel  string `env:"EMBEDDING_MODEL" envDefault:"nomic-embed-text"`
-	EmbeddingDim    int    `env:"EMBEDDING_DIM" envDefault:"768"`
+	OllamaURL      string `env:"OLLAMA_URL" envDefault:"http://ollama.marketflow.svc.cluster.local:11434"`
+	OllamaModel    string `env:"OLLAMA_MODEL" envDefault:"llama3.1:8b"`
+	ClaudeAPIKey   string `env:"CLAUDE_API_KEY"`
+	ClaudeModel    string `env:"CLAUDE_MODEL" envDefault:"claude-haiku-4-5-20251001"`
+	EmbeddingModel string `env:"EMBEDDING_MODEL" envDefault:"nomic-embed-text"`
+	EmbeddingDim   int    `env:"EMBEDDING_DIM" envDefault:"768"`
 }
 
 // Load parses environment variables into Config and performs validation.

@@ -4,12 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	sharedcache "github.com/Bengo-Hub/cache"
+	ratelimit "github.com/Bengo-Hub/shared-ratelimit"
 	"net/http"
 	"time"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	eventslib "github.com/Bengo-Hub/shared-events"
-	"github.com/bengobox/marketflow-api/internal/cache"
 	"github.com/bengobox/marketflow-api/internal/config"
 	"github.com/bengobox/marketflow-api/internal/database"
 	"github.com/bengobox/marketflow-api/internal/encryption"
@@ -77,29 +78,19 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	if err != nil {
 		return nil, err
 	}
-	if cfg.Database.RunMigrations {
-		// Use direct PostgreSQL connection for migrations to bypass PgBouncer
-		// transaction mode (which blocks Atlas advisory locks and DDL transactions).
-		migCfg := cfg.Database
-		if migCfg.MigrateURL != "" {
-			migCfg.URL = migCfg.MigrateURL
-		}
-		migClient, migDB, err := database.NewClient(ctx, migCfg)
-		if err != nil {
-			return nil, fmt.Errorf("migration client: %w", err)
-		}
-		defer migDB.Close()
-		defer migClient.Close()
-		if err := database.RunMigrations(ctx, migClient); err != nil {
-			return nil, err
-		}
-	}
+	// Schema migrations run once per rollout in marketflow-migrate (entrypoint, advisory-locked,
+	// direct DSN). The in-app copy (POSTGRES_RUN_MIGRATIONS, default true) is gone: any pod
+	// started without that variable would have migrated unlocked from every replica.
 
 	// ── Redis ─────────────────────────────────────────────────────────────
-	redisClient, err := cache.New(cfg.Redis)
+	redisClient, err := sharedcache.NewRedis(ctx, sharedcache.RedisConfig{
+		Addr: cfg.Redis.Addr, Password: cfg.Redis.Password, DB: cfg.Redis.DB, TLS: cfg.Redis.EnableTLS,
+	})
 	if err != nil {
 		return nil, err
 	}
+	// Scheduled work runs once per period fleet-wide (sharedcache.ClaimPeriod).
+	sharedcache.SetLeaseClient(redisClient)
 
 	// ── NATS Event Publishing (optional) ──────────────────────────────────
 	var natsConn *nats.Conn
@@ -110,6 +101,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			return nil, fmt.Errorf("connect to NATS: %w", err)
 		}
 		logger.Info("NATS connection established", zap.String("url", cfg.Events.NATSURL))
+		// Drop revoked/rotated API keys from every validator on this pod at once.
+		_ = eventslib.NewBroadcaster(logger, natsConn, "auth").Subscribe("apikey.changed", func(m eventslib.BroadcastMessage) {
+			authclient.InvalidateAPIKeyHash(string(m.Data))
+		})
 
 		outboxRepo := eventslib.NewSQLOutboxRepository(sqlDB)
 		outboxNatsPublisher := eventslib.NewNATSAdapter(natsConn, logger)
@@ -324,7 +319,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		Enabled:       cfg.Backup.ScheduleEnabled,
 		Hour:          cfg.Backup.ScheduleHour,
 		RetentionDays: cfg.Backup.RetentionDays,
-	}, logger).Start(ctx)
+	}, logger).WithRedis(redisClient).Start(ctx)
 
 	// ── Router ────────────────────────────────────────────────────────────
 	var requireAuth func(http.Handler) http.Handler
@@ -333,6 +328,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	}
 
 	router := httpapi.NewRouter(httpapi.RouterDeps{
+		Limiter:        ratelimit.NewLimiter(redisClient, logger, "marketflow"),
 		Log:            logger,
 		HealthHandler:  handlers.Health,
 		MetricsHandler: promhttp.Handler(),

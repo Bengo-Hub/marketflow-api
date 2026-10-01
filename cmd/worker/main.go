@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"log"
 	"net/http"
 	"os"
@@ -94,6 +95,15 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	// Lease client for once-per-period scheduled work (this worker runs in every pod).
+	rdb, rerr := sharedcache.NewRedis(ctx, sharedcache.RedisConfig{
+		Addr: cfg.Redis.Addr, Password: cfg.Redis.Password, DB: cfg.Redis.DB, TLS: cfg.Redis.EnableTLS,
+	})
+	if rerr != nil {
+		logger.Warn("worker: redis not reachable at startup; scheduled jobs skip until it is", zap.Error(rerr))
+	}
+	sharedcache.SetLeaseClient(rdb)
 
 	// ── DB (optional — enables auto-enrol + scheduler) ────────────────────
 	var entClient *ent.Client

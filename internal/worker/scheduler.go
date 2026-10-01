@@ -94,19 +94,33 @@ func (s *Scheduler) tick(ctx context.Context) {
 		// The NurtureStepHandler reads recipient/channel/template/variables from
 		// the sequence definition + lead row after decoding; we include enrollment
 		// minimal context here and let the handler enrich.
+		// Claim the enrollment BEFORE publishing: one conditional UPDATE (still active and
+		// still due) that only one replica can win. Publishing first and clearing next_step_at
+		// afterwards let two replicas ticking together both send the same nurture step.
+		claimed, err := s.db.NurtureEnrollment.Update().
+			Where(
+				nurtureenrollment.IDEQ(e.ID),
+				nurtureenrollment.StatusEQ("active"),
+				nurtureenrollment.NextStepAtLTE(now),
+			).
+			SetLastStepAt(now).
+			ClearNextStepAt().
+			Save(ctx)
+		if err != nil {
+			s.logger.Warn("claim enrollment", zap.String("enrollment", e.ID.String()), zap.Error(err))
+			continue
+		}
+		if claimed == 0 {
+			continue // another replica took it
+		}
 		body, _ := json.Marshal(payload)
 		if err := s.publish("nurture.step.due", body); err != nil {
 			s.logger.Error("publish nurture.step.due", zap.String("enrollment", e.ID.String()), zap.Error(err))
+			// Give it back so the next tick retries; the handler sets next_step_at on success.
+			if e.NextStepAt != nil {
+				_, _ = s.db.NurtureEnrollment.UpdateOneID(e.ID).SetNextStepAt(*e.NextStepAt).Save(ctx)
+			}
 			continue
-		}
-		// Optimistically bump last_step_at so a slow handler doesn't cause
-		// re-fires. The handler is responsible for setting next_step_at after
-		// successful dispatch.
-		if _, err := s.db.NurtureEnrollment.UpdateOneID(e.ID).
-			SetLastStepAt(now).
-			ClearNextStepAt().
-			Save(ctx); err != nil {
-			s.logger.Warn("update enrollment pre-dispatch", zap.Error(err))
 		}
 	}
 }
@@ -120,4 +134,3 @@ func (s *Scheduler) publish(subject string, body []byte) error {
 	}
 	return s.nc.Publish(subject, body)
 }
-

@@ -14,6 +14,11 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// migrationLockKey serializes migrations across pods: every replica's entrypoint runs this
+// binary and concurrent schema runs can race on the same DDL. Stable and unique per service
+// ("MKFM", marketflow migrate).
+const migrationLockKey int64 = 0x4D4B_464D
+
 func main() {
 	_ = godotenv.Load()
 
@@ -29,6 +34,9 @@ func main() {
 	if dbCfg.MigrateURL != "" {
 		dbCfg.URL = dbCfg.MigrateURL
 	}
+	// One connection: the advisory lock and every migration statement share one session.
+	dbCfg.MaxOpenConns = 1
+	dbCfg.MaxIdleConns = 1
 
 	ctx := context.Background()
 	client, sqlDB, err := database.NewClient(ctx, dbCfg)
@@ -38,8 +46,15 @@ func main() {
 	defer sqlDB.Close()
 	defer client.Close()
 
-	if err := database.RunMigrations(ctx, client); err != nil {
-		log.Fatalf("migrate: run migrations: %v", err)
+	if _, err := sqlDB.ExecContext(ctx, "SELECT pg_advisory_lock($1)", migrationLockKey); err != nil {
+		log.Fatalf("migrate: acquire migration lock: %v", err)
+	}
+	migrateErr := database.RunMigrations(ctx, client)
+	if _, err := sqlDB.ExecContext(context.Background(), "SELECT pg_advisory_unlock($1)", migrationLockKey); err != nil {
+		log.Printf("migrate: release migration lock: %v", err)
+	}
+	if migrateErr != nil {
+		log.Fatalf("migrate: run migrations: %v", migrateErr)
 	}
 	log.Println("migrate: migrations applied successfully")
 }

@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	sharedcache "github.com/Bengo-Hub/cache"
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
@@ -62,6 +63,10 @@ func (r *ReEngagement) Run(ctx context.Context) {
 }
 
 func (r *ReEngagement) tick(ctx context.Context) {
+	// Runs on every replica's ticker; only the first replica in each period does the work.
+	if !sharedcache.ClaimPeriod(ctx, "marketflow:reengagement", r.interval) {
+		return
+	}
 	cutoff := time.Now().UTC().Add(-r.dormant)
 
 	// Eligible leads: created before cutoff, no activity since, not converted/lost.
