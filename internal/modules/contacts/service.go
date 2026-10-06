@@ -10,6 +10,8 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/deal"
+	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
+	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -333,15 +335,18 @@ type MergeResult struct {
 	ChatsMoved int         `json:"chats_moved"`
 }
 
-// Merge folds one or more duplicate contacts into a single survivor — the fix for contacts that
-// were already split by the exact-string phone/email dedup bug (see Create's normalization
-// above): repoints marketflow's own FKs (deals, chat_sessions), tags each duplicate's metadata so
-// it's never mistaken for a live contact again (soft-marked, not hard-deleted — same audit-trail
-// pattern used elsewhere in this codebase for merged ingredient/customer records), then publishes
-// crm.contact.merged so treasury/pos (which each keep their OWN crm_contact_id-bearing rows, per
-// feedback_service_data_ownership) can repoint and fold their own split records — e.g. treasury's
-// customer_balances, which otherwise stays split forever (its own reconcile tool explicitly
-// refuses to merge across >1 distinct crm_contact_id, by design).
+// Merge folds one or more duplicate contacts into a single survivor, the fix for contacts split
+// by the old exact-string phone/email dedup (see Create's normalization above). In one
+// transaction it:
+//   - carries onto the survivor whatever it lacks from the duplicates (email, phone, names, FLP
+//     id, lead, account, metadata keys such as the imported customer code legacy_contact_id) and
+//     adds up their order totals;
+//   - repoints marketflow's own references (deals, chat sessions, scheduled meetings, nurture
+//     enrollments);
+//   - hard deletes the duplicates (2026-10-06: soft-marked duplicates stayed in every list, and
+//     their customer code never reached the survivor);
+//   - queues crm.contact.merged, so treasury and pos (which own their crm_contact_id rows) repoint
+//     and fold their records, e.g. treasury's customer_balances.
 func (s *Service) Merge(ctx context.Context, tenantID, survivorID uuid.UUID, duplicateIDs []uuid.UUID) (*MergeResult, error) {
 	merged := make([]uuid.UUID, 0, len(duplicateIDs))
 	for _, id := range duplicateIDs {
@@ -372,40 +377,49 @@ func (s *Service) Merge(ctx context.Context, tenantID, survivorID uuid.UUID, dup
 		return nil, fmt.Errorf("one or more duplicate contact ids do not belong to this tenant")
 	}
 
-	dealsMoved, err := s.client.Deal.Update().
-		Where(deal.ContactIDIn(merged...)).
-		SetContactID(survivorID).
-		Save(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("repoint deals: %w", err)
-	}
-	chatsMoved, err := s.client.ChatSession.Update().
-		Where(chatsession.ContactIDIn(merged...)).
-		SetContactID(survivorID).
-		Save(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("repoint chat sessions: %w", err)
-	}
-
-	for _, d := range dups {
-		meta := d.Metadata
-		if meta == nil {
-			meta = map[string]any{}
-		}
-		meta["merged_into"] = survivorID.String()
-		if _, err := s.client.Contact.UpdateOneID(d.ID).SetMetadata(meta).Save(ctx); err != nil {
-			s.logger.Warn("contact merge: failed to tag merged-into metadata", zap.String("contact_id", d.ID.String()), zap.Error(err))
-		}
-	}
-
 	event := eventslib.NewEvent("contact.merged", "crm", survivorID, tenantID, map[string]any{
 		"survivor_id": survivorID.String(),
 		"merged_ids":  uuidsToStrings(merged),
 	})
-	payload, jerr := event.ToJSON()
-	if jerr != nil {
-		s.logger.Warn("contact merge: failed to marshal crm.contact.merged event", zap.Error(jerr))
-	} else if _, cerr := s.client.OutboxEvent.Create().
+	payload, err := event.ToJSON()
+	if err != nil {
+		return nil, fmt.Errorf("marshal crm.contact.merged: %w", err)
+	}
+
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("contact merge: begin tx: %w", err)
+	}
+	rollback := func(e error) (*MergeResult, error) {
+		_ = tx.Rollback()
+		return nil, e
+	}
+
+	dealsMoved, err := tx.Deal.Update().Where(deal.ContactIDIn(merged...)).SetContactID(survivorID).Save(ctx)
+	if err != nil {
+		return rollback(fmt.Errorf("repoint deals: %w", err))
+	}
+	chatsMoved, err := tx.ChatSession.Update().Where(chatsession.ContactIDIn(merged...)).SetContactID(survivorID).Save(ctx)
+	if err != nil {
+		return rollback(fmt.Errorf("repoint chat sessions: %w", err))
+	}
+	if _, err := tx.ScheduledMeeting.Update().Where(scheduledmeeting.ContactIDIn(merged...)).SetContactID(survivorID).Save(ctx); err != nil {
+		return rollback(fmt.Errorf("repoint scheduled meetings: %w", err))
+	}
+	if _, err := tx.NurtureEnrollment.Update().Where(nurtureenrollment.ContactIDIn(merged...)).SetContactID(survivorID).Save(ctx); err != nil {
+		return rollback(fmt.Errorf("repoint nurture enrollments: %w", err))
+	}
+
+	// Delete before carrying identity over: the duplicates still hold the email/phone unique keys
+	// the survivor may take from them.
+	if _, err := tx.Contact.Delete().Where(contact.IDIn(merged...), contact.TenantID(tenantID)).Exec(ctx); err != nil {
+		return rollback(fmt.Errorf("delete merged contacts: %w", err))
+	}
+	if err := applyMergedIdentity(tx.Contact.UpdateOneID(survivorID), survivor, dups).Exec(ctx); err != nil {
+		return rollback(fmt.Errorf("carry merged identity onto survivor: %w", err))
+	}
+
+	if _, err := tx.OutboxEvent.Create().
 		SetID(event.ID).
 		SetTenantID(tenantID).
 		SetAggregateType(event.AggregateType).
@@ -413,11 +427,13 @@ func (s *Service) Merge(ctx context.Context, tenantID, survivorID uuid.UUID, dup
 		SetEventType(event.EventType).
 		SetPayload(payload).
 		SetStatus("PENDING").
-		Save(ctx); cerr != nil {
-		// Non-fatal: the FK repoint + metadata tagging above already succeeded (the marketflow
-		// side of the merge is complete); a failed event just means treasury/pos won't
-		// auto-repoint their own split records until this is retried.
-		s.logger.Error("contact merge: failed to enqueue crm.contact.merged outbox event", zap.Error(cerr))
+		Save(ctx); err != nil {
+		// In the transaction: a merge treasury and pos never hear about leaves their rows pointing
+		// at a contact that no longer exists.
+		return rollback(fmt.Errorf("enqueue crm.contact.merged: %w", err))
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("contact merge: commit: %w", err)
 	}
 
 	s.logger.Info("contacts merged",
