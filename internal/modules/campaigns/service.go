@@ -13,8 +13,9 @@ import (
 
 // Service handles campaign business logic.
 type Service struct {
-	client *ent.Client
-	logger *zap.Logger
+	client      *ent.Client
+	logger      *zap.Logger
+	broadcaster Broadcaster
 }
 
 // NewService creates a new campaign service.

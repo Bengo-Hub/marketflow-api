@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	eventslib "github.com/Bengo-Hub/shared-events"
 	"github.com/bengobox/marketflow-api/internal/ent"
@@ -15,6 +16,11 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
+
+// turnedOn is true when an update switches a consent flag from off to on.
+func turnedOn(next *bool, current bool) bool {
+	return next != nil && *next && !current
+}
 
 // nationalSubscriberDigits strips non-digits and returns the last 9 digits — the Kenyan national
 // subscriber number, format-agnostic ("0712345678", "254712345678" and "+254 712 345 678" all
@@ -312,8 +318,23 @@ func (s *Service) Update(ctx context.Context, tenantID, contactID uuid.UUID, in 
 	if in.SubscribedSMS != nil {
 		builder.SetSubscribedSms(*in.SubscribedSMS)
 	}
-	if in.Metadata != nil {
-		builder.SetMetadata(in.Metadata)
+	meta := in.Metadata
+	// Ticking "subscribed" is the business recording that this person agreed to marketing: keep
+	// when and how, which the broadcast engine needs (KDPA s.37) to treat the consent as recorded.
+	if turnedOn(in.SubscribedEmail, existing.SubscribedEmail) || turnedOn(in.SubscribedSMS, existing.SubscribedSms) {
+		if meta == nil {
+			meta = map[string]any{}
+			for k, v := range existing.Metadata {
+				meta[k] = v
+			}
+		}
+		if src, _ := meta["consent_source"].(string); src == "" || src == "legacy_unverified" {
+			meta["consent_source"] = "recorded_by_staff"
+			meta["consent_at"] = time.Now().UTC().Format(time.RFC3339)
+		}
+	}
+	if meta != nil {
+		builder.SetMetadata(meta)
 	}
 
 	result, err := builder.Save(ctx)

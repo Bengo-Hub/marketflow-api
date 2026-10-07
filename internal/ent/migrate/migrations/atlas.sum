@@ -1,4 +1,4 @@
-h1:92gLf4mPIhziTxlXrRTSadL1aDIHfWSDDrzv/Ln6ijE=
+h1:Sn+zsIC38mGaduXQDHaty81n1yMNBq0iN5jHoo3Nq1U=
 20260409124338_initial_schema.sql h1:iNv9wYlWyj89NJ9fwXRtTK7/piL1QJoDgZ8I/Jez73Y=
 20260409172839_add_short_links.sql h1:ZFVlyvbHvjwvCGxYF3aDKiEX/cCCIimxV9xHWL9K9kc=
 20260409183000_add_kb_embeddings.sql h1:izCf/H3H6y+AUYzhE6pL63cFkvRhFIn7ae24uewYRL4=
@@ -17,3 +17,4 @@ h1:92gLf4mPIhziTxlXrRTSadL1aDIHfWSDDrzv/Ln6ijE=
 20260616084541_add_backup_setting.sql h1:FCKKbiowz27aLv3DTQZWgkOz/95R/qP0uCkVbpv+gEM=
 20260712224542_rename_cal_booking_id_to_external_booking_id.sql h1:x+f5UmVpYk9pg5ojBHnerRCkFR7p4pZP0Un0OSvd9Ag=
 20260811081229_add_contact_normalized_email_phone_unique_index.sql h1:BoK2ox52zCbpSOPxNajcb2kIVHrDeipL23pBILJhnYQ=
+20261007223851_contact_consent_defaults_off.sql h1:ZJHbB7z/1CPFnqLupq+5wCVKoIKO+XouMYk8Ccb6VV8=

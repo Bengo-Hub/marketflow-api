@@ -106,6 +106,61 @@ func (c *Client) Send(ctx context.Context, tenantID string, msg Message) error {
 	return nil
 }
 
+// BroadcastRequest hands a bulk send to notifications-api's broadcast engine, which pages the
+// audience, applies consent and opt-outs, paces the sends and waits for the tenant's approval.
+type BroadcastRequest struct {
+	TenantID    string         `json:"tenant_id"`
+	RequestedBy string         `json:"requested_by,omitempty"`
+	Source      string         `json:"source"`
+	SourceRef   string         `json:"source_ref,omitempty"`
+	Submit      bool           `json:"submit"`
+	Broadcast   map[string]any `json:"broadcast"`
+}
+
+// BroadcastResult is the created broadcast's id and status.
+type BroadcastResult struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+}
+
+// CreateBroadcast calls POST /api/v1/s2s/broadcasts (internal key).
+func (c *Client) CreateBroadcast(ctx context.Context, req BroadcastRequest) (*BroadcastResult, error) {
+	if c.baseURL == "" || c.apiKey == "" {
+		return nil, fmt.Errorf("notifications: base URL or service key not configured")
+	}
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+	hr, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v1/s2s/broadcasts", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	hr.Header.Set("Content-Type", "application/json")
+	hr.Header.Set("User-Agent", c.userAgent)
+	hr.Header.Set("X-API-Key", c.apiKey)
+	resp, err := c.http.Do(hr)
+	if err != nil {
+		return nil, fmt.Errorf("notifications broadcast: %w", err)
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 300 {
+		var e struct {
+			Error string `json:"error"`
+		}
+		if json.Unmarshal(raw, &e) == nil && e.Error != "" {
+			return nil, fmt.Errorf("%s", e.Error)
+		}
+		return nil, fmt.Errorf("notifications %d: %s", resp.StatusCode, truncate(string(raw), 200))
+	}
+	var out BroadcastResult
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s

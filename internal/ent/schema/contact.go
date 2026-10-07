@@ -95,11 +95,11 @@ func (Contact) Fields() []ent.Field {
 			Optional().
 			Comment("Product categories of interest"),
 		field.Bool("subscribed_email").
-			Default(true).
-			Comment("Opted in for email marketing"),
+			Default(false).
+			Comment("Opted in for email marketing. Off until the person agrees (KDPA s.37); consent_source/consent_at in metadata record how"),
 		field.Bool("subscribed_sms").
-			Default(true).
-			Comment("Opted in for SMS marketing"),
+			Default(false).
+			Comment("Opted in for SMS and WhatsApp marketing. Off until the person agrees; see subscribed_email"),
 
 		field.JSON("metadata", map[string]any{}).
 			Optional(),

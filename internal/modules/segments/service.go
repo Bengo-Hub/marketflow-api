@@ -8,6 +8,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	entcontact "github.com/bengobox/marketflow-api/internal/ent/contact"
 	entlead "github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/ent/predicate"
 	entsegment "github.com/bengobox/marketflow-api/internal/ent/segment"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -101,6 +102,19 @@ func (s *Service) Update(ctx context.Context, tenantID, id uuid.UUID, in UpdateI
 	return s.Get(ctx, tenantID, id)
 }
 
+// MemberPredicates returns the SQL predicates selecting a contact segment's members, for callers
+// that page through them (broadcast audiences). It errors for a segment that is not of contacts.
+func (s *Service) MemberPredicates(ctx context.Context, tenantID, id uuid.UUID) ([]predicate.Contact, error) {
+	seg, err := s.Get(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if seg.EntityType != "contact" {
+		return nil, fmt.Errorf("segment %s is a %s segment, not contacts", id, seg.EntityType)
+	}
+	return ContactPredicates(seg.FilterRules, time.Now())
+}
+
 // Delete hard-deletes a segment.
 func (s *Service) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
 	n, err := s.client.Segment.Delete().
@@ -140,12 +154,16 @@ func (s *Service) Evaluate(ctx context.Context, tenantID, id uuid.UUID) (*ent.Se
 	return updated, nil
 }
 
-// evaluateRules counts matching entities based on filter_rules.
-// rules format: {"conditions": [{"field":"lifecycle_stage","op":"eq","value":"customer"}]}
+// evaluateRules counts matching entities based on filter_rules (see ContactPredicates). Before
+// 2026-10-07 the conditions were ignored and every contact was counted.
 func (s *Service) evaluateRules(ctx context.Context, tenantID uuid.UUID, entityType string, rules map[string]any) (int, error) {
 	switch entityType {
 	case "contact":
-		q := s.client.Contact.Query().Where(entcontact.TenantID(tenantID))
+		preds, err := ContactPredicates(rules, time.Now())
+		if err != nil {
+			return 0, err
+		}
+		q := s.client.Contact.Query().Where(entcontact.TenantID(tenantID)).Where(preds...)
 		return q.Count(ctx)
 	case "lead":
 		q := s.client.Lead.Query().Where(entlead.TenantID(tenantID))

@@ -26,6 +26,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
 	backupmod "github.com/bengobox/marketflow-api/internal/modules/backup"
 	"github.com/bengobox/marketflow-api/internal/modules/campaigns"
+	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	custom_agents "github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	custom_fields "github.com/bengobox/marketflow-api/internal/modules/custom_fields"
@@ -178,6 +179,12 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		// Tenant purge consumer: irreversibly deletes ALL of a tenant's MarketFlow
 		// data on a platform-owner-confirmed dormancy purge (tenant.purge). Uses the
 		// raw *sql.DB for ordered, transactional, FK-safe deletes.
+		// Opt-outs handled by notifications-api (unsubscribe link, STOP reply, quick reply) clear the
+		// contact's consent flag here so MarketFlow's own campaigns honour them too.
+		if err := platformevents.NewUnsubscribeConsumer(entClient, logger).Start(natsConn); err != nil {
+			logger.Warn("app: failed to start unsubscribe consumer", zap.Error(err))
+		}
+
 		tenantPurgeConsumer = platformevents.NewTenantPurgeConsumer(sqlDB, logger)
 		if err := tenantPurgeConsumer.Start(natsConn); err != nil {
 			logger.Warn("app: failed to start tenant purge consumer", zap.Error(err))
@@ -221,7 +228,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	leadHandler := leads.NewHandler(leadService, logger)
 
 	contactService := contacts.NewService(entClient, logger)
+	segmentService := segments.NewService(entClient, logger)
 	contactHandler := contacts.NewHandler(contactService, logger,
+		contacts.WithSegmentFilter(segmentService.MemberPredicates),
 		contacts.WithView360Config(contacts.View360Config{
 			OrderingURL: cfg.CrossService.OrderingURL,
 			POSURL:      cfg.CrossService.POSURL,
@@ -236,7 +245,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	kbService := knowledge.NewService(entClient, logger)
 	kbHandler := knowledge.NewHandler(kbService, logger)
 
-	campaignService := campaigns.NewService(entClient, logger)
+	campaignService := campaigns.NewService(entClient, logger).WithBroadcaster(notifications.New(notifications.Config{BaseURL: cfg.CrossService.NotificationsURL, APIKey: cfg.CrossService.InternalServiceKey}))
 	campaignHandler := campaigns.NewHandler(campaignService, logger)
 
 	funnelService := funnels.NewService(entClient, logger)
@@ -279,7 +288,6 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	customAgentService := custom_agents.NewService(entClient, logger, customAgentServiceOpts...)
 	customAgentHandler := custom_agents.NewHandler(customAgentService, logger)
 
-	segmentService := segments.NewService(entClient, logger)
 	segmentHandler := segments.NewHandler(segmentService, logger)
 
 	// ── Subscription usage + feature gate ─────────────────────────────
@@ -360,6 +368,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			GetByPhone:     contactHandler.GetByPhone,
 			UpsertByPhone:  contactHandler.UpsertByPhone,
 			SearchInternal: contactHandler.SearchInternal,
+			ReachInternal:  contactHandler.ReachInternal,
 			BulkImport:     contactHandler.BulkImport,
 			Merge:          contactHandler.Merge,
 			UpdateInternal: contactHandler.UpdateInternal,

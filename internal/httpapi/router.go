@@ -180,6 +180,7 @@ type ContactHandlers struct {
 	GetByPhone     http.HandlerFunc // GET /internal/contacts/by-phone — S2S phone lookup
 	UpsertByPhone  http.HandlerFunc // POST /internal/contacts/upsert — S2S create-or-get by phone
 	SearchInternal http.HandlerFunc // GET /internal/contacts/search — S2S name/email/phone search
+	ReachInternal  http.HandlerFunc // GET /internal/contacts/reach: S2S keyset list with consent flags (broadcast audiences)
 	BulkImport     http.HandlerFunc // POST /contacts/bulk-import — batch upsert (migrations)
 	Merge          http.HandlerFunc // POST /contacts/merge — fold duplicate contacts into one survivor
 	UpdateInternal http.HandlerFunc // PUT /internal/contacts/{id} — S2S edit (treasury/pos "edit customer")
@@ -873,6 +874,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 					}
 					if deps.ContactHandlers.SearchInternal != nil {
 						r.Get("/contacts/search", deps.ContactHandlers.SearchInternal)
+					}
+					// Registered before /contacts/{id} so "reach" is never read as a contact id.
+					if deps.ContactHandlers.ReachInternal != nil {
+						r.Get("/contacts/reach", deps.ContactHandlers.ReachInternal)
 					}
 					if deps.ContactHandlers.UpdateInternal != nil {
 						r.Put("/contacts/{id}", deps.ContactHandlers.UpdateInternal)

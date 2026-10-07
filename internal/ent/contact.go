@@ -57,9 +57,9 @@ type Contact struct {
 	EnrichmentData map[string]interface{} `json:"enrichment_data,omitempty"`
 	// Product categories of interest
 	ProductInterests []string `json:"product_interests,omitempty"`
-	// Opted in for email marketing
+	// Opted in for email marketing. Off until the person agrees (KDPA s.37); consent_source/consent_at in metadata record how
 	SubscribedEmail bool `json:"subscribed_email,omitempty"`
-	// Opted in for SMS marketing
+	// Opted in for SMS and WhatsApp marketing. Off until the person agrees; see subscribed_email
 	SubscribedSms bool `json:"subscribed_sms,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`

@@ -16,6 +16,8 @@ type Handler struct {
 	service    *Service
 	logger     *zap.Logger
 	view360Cfg View360Config
+	// segmentFilter narrows the S2S reach list to a segment (segments' rule engine).
+	segmentFilter SegmentFilter
 }
 
 // NewHandler creates a new contact handler.

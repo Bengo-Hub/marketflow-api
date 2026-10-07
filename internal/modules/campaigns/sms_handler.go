@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -17,7 +18,7 @@ type sendSMSRequest struct {
 
 // SendSMS handles POST /api/v1/{tenantID}/campaigns/{campaignID}/send-sms
 // @Summary Send a bulk SMS for a campaign
-// @Description Resolves the target CRM contacts and queues one SMS event per contact via the outbox; notifications-api delivers them.
+// @Description Hands the send to notifications-api's broadcast engine (consent, opt-outs, pacing); it waits for approval in Broadcasts.
 // @Tags Campaigns
 // @Accept json
 // @Produce json
@@ -69,15 +70,19 @@ func (h *Handler) SendSMS(w http.ResponseWriter, r *http.Request) {
 		in.SegmentID = &segmentID
 	}
 
-	queued, err := h.service.SendSMS(r.Context(), in)
+	if claims, ok := authclient.ClaimsFromContext(r.Context()); ok && claims != nil {
+		in.RequestedBy = claims.Email
+	}
+	res, err := h.service.SendSMS(r.Context(), in)
 	if err != nil {
-		h.logger.Error("failed to queue bulk sms", zap.Error(err))
-		httpapi.Error(w, http.StatusInternalServerError, "send_sms_failed", "failed to queue bulk SMS", nil)
+		h.logger.Error("failed to hand bulk sms to the broadcast engine", zap.Error(err))
+		httpapi.Error(w, http.StatusBadGateway, "send_sms_failed", err.Error(), nil)
 		return
 	}
 
 	httpapi.JSON(w, http.StatusOK, map[string]any{
-		"queued":      queued,
-		"campaign_id": campaignID.String(),
+		"campaign_id":  campaignID.String(),
+		"broadcast_id": res.BroadcastID,
+		"status":       res.Status, // pending_approval: approve it in notifications-ui Broadcasts
 	})
 }

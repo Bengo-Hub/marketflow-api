@@ -109,6 +109,8 @@ type CrossServiceConfig struct {
 	OrderingURL        string `env:"ORDERING_URL" envDefault:"http://ordering-backend.ordering.svc.cluster.local:4000"`
 	POSURL             string `env:"POS_URL" envDefault:"http://pos-api.pos.svc.cluster.local:4000"`
 	TreasuryURL        string `env:"TREASURY_URL" envDefault:"http://treasury-api.finance.svc.cluster.local:4000"`
+	// NotificationsURL: campaign sends are handed to notifications-api's broadcast engine.
+	NotificationsURL string `env:"NOTIFICATIONS_URL" envDefault:"http://notifications-api.notifications.svc.cluster.local:4000"`
 }
 
 // AIConfig holds AI/LLM integration settings.
