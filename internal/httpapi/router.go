@@ -28,6 +28,9 @@ type RouterDeps struct {
 	Log            *zap.Logger
 	HealthHandler  http.HandlerFunc
 	MetricsHandler http.Handler
+	// TenantExport streams one tenant's rows for auth-api's SSO tenant backups; it checks
+	// INTERNAL_SERVICE_KEY itself (nil when no key is set).
+	TenantExport http.Handler
 
 	TenantSyncer TenantSyncer
 
@@ -479,6 +482,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 	}
 	if deps.MetricsHandler != nil {
 		r.Method("GET", "/metrics", deps.MetricsHandler)
+	}
+	if deps.TenantExport != nil {
+		r.Get("/api/v1/s2s/tenant-export", deps.TenantExport.ServeHTTP)
 	}
 
 	// Swagger UI and OpenAPI spec

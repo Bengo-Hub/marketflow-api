@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	sharedcache "github.com/Bengo-Hub/cache"
+	"github.com/Bengo-Hub/httpware/tenantexport"
 	ratelimit "github.com/Bengo-Hub/shared-ratelimit"
 	"net/http"
 	"time"
@@ -73,6 +74,15 @@ type App struct {
 }
 
 // New constructs the application.
+// tenantExportHandler serves auth-api's SSO tenant backups (httpware/tenantexport). Nil without an
+// INTERNAL_SERVICE_KEY, so the export is never reachable unauthenticated.
+func tenantExportHandler(db *sql.DB, internalKey string) http.Handler {
+	if internalKey == "" {
+		return nil
+	}
+	return tenantexport.Handler(db, tenantexport.Options{Service: "marketflow", InternalKey: internalKey})
+}
+
 func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, error) {
 	// ── Database ──────────────────────────────────────────────────────────
 	entClient, sqlDB, err := database.NewClient(ctx, cfg.Database)
@@ -340,6 +350,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		Log:            logger,
 		HealthHandler:  handlers.Health,
 		MetricsHandler: promhttp.Handler(),
+		TenantExport:   tenantExportHandler(sqlDB, cfg.CrossService.InternalServiceKey),
 		BackupHandlers: httpapi.BackupHandlers{
 			List:           backupHandler.List,
 			Create:         backupHandler.Create,
