@@ -25,7 +25,6 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/admin"
 	"github.com/bengobox/marketflow-api/internal/modules/analytics"
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
-	backupmod "github.com/bengobox/marketflow-api/internal/modules/backup"
 	"github.com/bengobox/marketflow-api/internal/modules/campaigns"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
@@ -330,14 +329,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// Public handlers
 	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, leadService, meetingService, availabilitySvc, testimonialHandler, tenantSyncer, logger)
 
-	// Tenant-scoped backups + daily 02:00 auto-backup scheduler + retention churn.
-	backupSvc := backupmod.NewService(sqlDB, entClient, cfg.Backup.Dir, logger)
-	backupHandler := backupmod.NewHandler(backupSvc, cfg.Backup.RetentionDays, logger)
-	backupmod.NewScheduler(backupSvc, backupmod.SchedulerConfig{
-		Enabled:       cfg.Backup.ScheduleEnabled,
-		Hour:          cfg.Backup.ScheduleHour,
-		RetentionDays: cfg.Backup.RetentionDays,
-	}, logger).WithRedis(redisClient).Start(ctx)
+	// Tenant backups are made from the SSO client area (auth-api collects this service's
+	// /api/v1/s2s/tenant-export); the platform pg_dumpall covers disaster recovery.
 
 	// ── Router ────────────────────────────────────────────────────────────
 	var requireAuth func(http.Handler) http.Handler
@@ -351,15 +344,6 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		HealthHandler:  handlers.Health,
 		MetricsHandler: promhttp.Handler(),
 		TenantExport:   tenantExportHandler(sqlDB, cfg.CrossService.InternalServiceKey),
-		BackupHandlers: httpapi.BackupHandlers{
-			List:           backupHandler.List,
-			Create:         backupHandler.Create,
-			GetSettings:    backupHandler.GetSettings,
-			UpdateSettings: backupHandler.UpdateSettings,
-			Churn:          backupHandler.Churn,
-			Download:       backupHandler.Download,
-			Delete:         backupHandler.Delete,
-		},
 		LeadHandlers: httpapi.LeadHandlers{
 			Create: leadHandler.Create,
 			List:   leadHandler.List,
