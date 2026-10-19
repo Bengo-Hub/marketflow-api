@@ -195,8 +195,6 @@ var purgeOrder = []string{
 	"pipelines",
 	"accounts",
 	"marketflow_users",
-	"backups",
-	"backup_settings",
 	"service_configs",
 	"outbox_events",
 }

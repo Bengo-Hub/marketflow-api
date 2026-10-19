@@ -17,8 +17,6 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/admetrics"
 	"github.com/bengobox/marketflow-api/internal/ent/agentrun"
 	"github.com/bengobox/marketflow-api/internal/ent/auditlog"
-	"github.com/bengobox/marketflow-api/internal/ent/backup"
-	"github.com/bengobox/marketflow-api/internal/ent/backupsetting"
 	"github.com/bengobox/marketflow-api/internal/ent/behavioraltrigger"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
@@ -116,8 +114,6 @@ func checkColumn(t, c string) error {
 			admetrics.Table:            admetrics.ValidColumn,
 			agentrun.Table:             agentrun.ValidColumn,
 			auditlog.Table:             auditlog.ValidColumn,
-			backup.Table:               backup.ValidColumn,
-			backupsetting.Table:        backupsetting.ValidColumn,
 			behavioraltrigger.Table:    behavioraltrigger.ValidColumn,
 			campaign.Table:             campaign.ValidColumn,
 			chatsession.Table:          chatsession.ValidColumn,

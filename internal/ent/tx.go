@@ -22,10 +22,6 @@ type Tx struct {
 	AgentRun *AgentRunClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
-	// Backup is the client for interacting with the Backup builders.
-	Backup *BackupClient
-	// BackupSetting is the client for interacting with the BackupSetting builders.
-	BackupSetting *BackupSettingClient
 	// BehavioralTrigger is the client for interacting with the BehavioralTrigger builders.
 	BehavioralTrigger *BehavioralTriggerClient
 	// Campaign is the client for interacting with the Campaign builders.
@@ -226,8 +222,6 @@ func (tx *Tx) init() {
 	tx.AdMetrics = NewAdMetricsClient(tx.config)
 	tx.AgentRun = NewAgentRunClient(tx.config)
 	tx.AuditLog = NewAuditLogClient(tx.config)
-	tx.Backup = NewBackupClient(tx.config)
-	tx.BackupSetting = NewBackupSettingClient(tx.config)
 	tx.BehavioralTrigger = NewBehavioralTriggerClient(tx.config)
 	tx.Campaign = NewCampaignClient(tx.config)
 	tx.ChatSession = NewChatSessionClient(tx.config)
