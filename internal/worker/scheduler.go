@@ -70,6 +70,9 @@ func (s *Scheduler) tick(ctx context.Context) {
 			nurtureenrollment.StatusEQ("active"),
 			nurtureenrollment.NextStepAtLTE(now),
 		).
+		// Oldest due first, so a backlog larger than one batch drains in order instead of
+		// starving early steps; served by the (status, next_step_at) index.
+		Order(ent.Asc(nurtureenrollment.FieldNextStepAt)).
 		Limit(s.cfg.BatchSize).
 		All(ctx)
 	if err != nil {
