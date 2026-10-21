@@ -11,7 +11,6 @@ import (
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -417,41 +416,17 @@ func NewRouter(deps RouterDeps) http.Handler {
 	r.Use(httpware.Recover(deps.Log))
 	r.Use(httpware.Logging(deps.Log))
 	r.Use(httpware.BypassForStreaming(chimiddleware.Timeout(60 * time.Second)))
-	r.Use(cors.Handler(cors.Options{
-		AllowOriginFunc: func(r *http.Request, origin string) bool {
-			if origin == "" {
-				return true
-			}
-			// Allow localhost for development
-			if strings.HasPrefix(origin, "http://localhost") ||
-				strings.HasPrefix(origin, "http://127.0.0.1") ||
-				strings.HasPrefix(origin, "https://localhost") {
-				return true
-			}
-			// Allow any subdomain of codevertexafrica.com
-			const suffix = ".codevertexafrica.com"
-			const httpsPrefix = "https://"
-			if len(origin) > len(httpsPrefix)+len(suffix) &&
-				origin[:len(httpsPrefix)] == httpsPrefix &&
-				origin[len(origin)-len(suffix):] == suffix {
-				return true
-			}
-			// Check explicit allowed origins from config
-			if deps.AllowedOrigins != "" {
-				for _, allowed := range strings.Split(deps.AllowedOrigins, ",") {
-					if strings.TrimSpace(allowed) == origin {
-						return true
-					}
-				}
-			}
-			return false
-		},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID", "X-Tenant-Slug", "X-Tenant-ID", "X-Outlet-ID"},
-		ExposedHeaders:   []string{"Set-Cookie"},
-		AllowCredentials: true,
-		MaxAge:           300,
-	}))
+	// Local dev on any port, every platform subdomain, plus the ALLOWED_ORIGINS list.
+	corsOrigins := []string{
+		"http://localhost", "http://localhost:*", "https://localhost:*", "http://127.0.0.1:*",
+		"https://*.codevertexafrica.com",
+	}
+	for _, o := range strings.Split(deps.AllowedOrigins, ",") {
+		if o = strings.TrimSpace(o); o != "" {
+			corsOrigins = append(corsOrigins, o)
+		}
+	}
+	r.Use(httpware.CORS(httpware.StandardCORS(corsOrigins)))
 	// Per-IP abuse limit (marketflow-api had none); after CORS so 429s carry CORS headers.
 	if deps.Limiter != nil {
 		r.Use(deps.Limiter.Middleware(ratelimit.IPKey, 300, time.Minute))
@@ -833,7 +808,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 				svcKey := deps.InternalServiceKey
 				r.Use(func(next http.Handler) http.Handler {
 					return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-						if r.Header.Get("X-API-Key") != svcKey {
+						if !httpware.ValidServiceKey(r, svcKey) {
 							Error(w, http.StatusUnauthorized, "unauthorized", "invalid service key", nil)
 							return
 						}
