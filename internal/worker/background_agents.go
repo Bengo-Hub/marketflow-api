@@ -23,6 +23,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
+	"github.com/bengobox/marketflow-api/internal/modules/leads"
 	"github.com/google/uuid"
 	nats "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -62,7 +63,8 @@ func truncateStr(s string, n int) string {
 
 // ── LeadScorerAgent ─────────────────────────────────────────────────────────
 
-// LeadScorerAgent listens to crm.lead.created and crm.activity.logged.
+// LeadScorerAgent listens to lead.created (published by the leads service outbox) and
+// crm.activity.logged.
 // It calls the lead rescore endpoint and, if the score crosses 70, publishes
 // crm.lead.qualified back to NATS.
 type LeadScorerAgent struct {
@@ -74,21 +76,20 @@ type LeadScorerAgent struct {
 	hc         *http.Client
 }
 
-func (a *LeadScorerAgent) Subject() string { return "crm.lead.created" }
+// Subject was "crm.lead.created", which nothing ever published, so the scorer never ran for new
+// leads. It now follows the subject the leads outbox actually emits.
+func (a *LeadScorerAgent) Subject() string { return leads.LeadCreatedTopic }
 func (a *LeadScorerAgent) Durable() string { return "marketflow-worker-agent-lead-scorer" }
 
 func (a *LeadScorerAgent) Handle(ctx context.Context, msg jetstream.Msg) error {
-	var ev struct {
-		TenantID string `json:"tenant_id"`
-		LeadID   string `json:"lead_id"`
+	ev, err := decodeLeadCreated(msg.Data())
+	if err != nil {
+		return dropPoison(a.logger, msg, "decode lead.created", err)
 	}
-	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
-		return dropPoison(a.logger, msg, "decode crm.lead.created", err)
-	}
-	if ev.LeadID == "" || a.apiBaseURL == "" {
+	if a.apiBaseURL == "" {
 		return nil
 	}
-	return a.rescore(ctx, ev.TenantID, ev.LeadID)
+	return a.rescore(ctx, ev.TenantID.String(), ev.LeadID.String())
 }
 
 func (a *LeadScorerAgent) rescore(ctx context.Context, tenantID, leadID string) error {

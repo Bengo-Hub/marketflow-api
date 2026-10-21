@@ -69,9 +69,20 @@ type ListInput struct {
 	Offset   int
 }
 
-// Create creates a new lead.
+// Create creates a new lead and, in the same transaction, the outbox row for its lead.created
+// event. Every lead source (public funnel, availability booking, Meta and TikTok webhooks, API)
+// goes through here, so nurture auto-enrolment and lead scoring see every lead exactly once.
 func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Lead, error) {
-	builder := s.client.Lead.Create().
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("create lead: begin tx: %w", err)
+	}
+	rollback := func(cause error) (*ent.Lead, error) {
+		_ = tx.Rollback()
+		return nil, cause
+	}
+
+	builder := tx.Lead.Create().
 		SetTenantID(in.TenantID).
 		SetSource(in.Source).
 		SetLeadType(in.LeadType)
@@ -115,7 +126,28 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Lead, error)
 
 	result, err := builder.Save(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("create lead: %w", err)
+		return rollback(fmt.Errorf("create lead: %w", err))
+	}
+
+	event := leadCreatedEvent(result)
+	payload, err := event.ToJSON()
+	if err != nil {
+		return rollback(fmt.Errorf("marshal lead.created: %w", err))
+	}
+	if _, err := tx.OutboxEvent.Create().
+		SetID(event.ID).
+		SetTenantID(result.TenantID).
+		SetAggregateType(event.AggregateType).
+		SetAggregateID(event.AggregateID).
+		SetEventType(event.EventType).
+		SetPayload(payload).
+		SetStatus("PENDING").
+		Save(ctx); err != nil {
+		// In the transaction: a lead without its event would never be nurtured or scored.
+		return rollback(fmt.Errorf("enqueue lead.created: %w", err))
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("create lead: commit: %w", err)
 	}
 
 	s.logger.Info("lead created",

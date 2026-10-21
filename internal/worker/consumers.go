@@ -12,6 +12,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/modules/activities"
 	"github.com/bengobox/marketflow-api/internal/notifications"
@@ -506,28 +507,16 @@ func (h *LeadCreatedHandler) Subject() string { return "lead.created" }
 func (h *LeadCreatedHandler) Durable() string { return "marketflow-worker-lead" }
 
 func (h *LeadCreatedHandler) Handle(ctx context.Context, msg jetstream.Msg) error {
-	var ev struct {
-		TenantID string `json:"tenant_id"`
-		LeadID   string `json:"lead_id"`
-		LeadType string `json:"lead_type"`
-		Source   string `json:"source"`
-	}
-	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
+	ev, err := decodeLeadCreated(msg.Data())
+	if err != nil {
 		return dropPoison(h.logger, msg, "decode lead.created", err)
 	}
 	if h.db == nil {
 		h.logger.Warn("lead.created received but no DB client configured — skipping auto-enrol",
-			zap.String("tenant", ev.TenantID), zap.String("lead", ev.LeadID))
+			zap.String("tenant", ev.TenantID.String()), zap.String("lead", ev.LeadID.String()))
 		return nil
 	}
-	tenantUUID, err := uuid.Parse(ev.TenantID)
-	if err != nil {
-		return dropPoison(h.logger, msg, "invalid tenant_id", err)
-	}
-	leadUUID, err := uuid.Parse(ev.LeadID)
-	if err != nil {
-		return dropPoison(h.logger, msg, "invalid lead_id", err)
-	}
+	tenantUUID, leadUUID := ev.TenantID, ev.LeadID
 
 	// Match the first active sequence with trigger_event="lead.created" whose
 	// lead_type_filter is either nil or equals the lead's type.
@@ -549,7 +538,20 @@ func (h *LeadCreatedHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 	}
 	if chosen == nil {
 		h.logger.Debug("no matching nurture sequence",
-			zap.String("tenant", ev.TenantID), zap.String("lead_type", ev.LeadType))
+			zap.String("tenant", ev.TenantID.String()), zap.String("lead_type", ev.LeadType))
+		return nil
+	}
+
+	// A redelivered event must not enrol the lead twice (index tenant_id, lead_id, sequence_id).
+	already, err := h.db.NurtureEnrollment.Query().Where(
+		nurtureenrollment.TenantIDEQ(tenantUUID),
+		nurtureenrollment.LeadIDEQ(leadUUID),
+		nurtureenrollment.SequenceIDEQ(chosen.ID),
+	).Exist(ctx)
+	if err != nil {
+		return fmt.Errorf("check existing enrollment: %w", err)
+	}
+	if already {
 		return nil
 	}
 
@@ -573,8 +575,8 @@ func (h *LeadCreatedHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 		Save(ctx)
 
 	h.logger.Info("lead auto-enrolled",
-		zap.String("tenant", ev.TenantID),
-		zap.String("lead", ev.LeadID),
+		zap.String("tenant", ev.TenantID.String()),
+		zap.String("lead", ev.LeadID.String()),
 		zap.String("sequence", chosen.ID.String()),
 		zap.String("enrollment", enrollment.ID.String()),
 	)

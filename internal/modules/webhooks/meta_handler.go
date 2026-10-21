@@ -177,10 +177,11 @@ func (h *MetaHandler) HandleLeadgen(w http.ResponseWriter, r *http.Request) {
 					input.CampaignID = &cid
 				}
 			}
-			// NOTE: full lead field enrichment (email, name, phone) requires a follow-up
-			// Graph API call to /{leadgen_id}?access_token=<tenant_page_token>. This is
-			// done asynchronously by marketflow-worker consuming lead.created; here we
-			// just capture the leadgen_id and source so the lead row exists immediately.
+			// NOTE: full lead field enrichment (email, name, phone) needs a follow-up Graph API
+			// call to /{leadgen_id} with the Page token. That is NOT built yet (Sprint 14 gap G5,
+			// docs/sprint-plans/sprint-14-ads-autopilot-foundations.md); for now only the
+			// leadgen_id and source are captured so the lead row exists immediately. The lead
+			// service publishes lead.created, so nurture and scoring still start.
 			if _, err := h.leadService.Create(r.Context(), input); err != nil {
 				h.logger.Error("create lead from meta webhook",
 					zap.String("tenant", tenantID.String()), zap.Error(err))
