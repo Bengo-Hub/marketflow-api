@@ -9,8 +9,10 @@ import (
 	"net/url"
 	"time"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
+	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -44,7 +46,9 @@ type account struct {
 // saveAccounts upserts one ConnectedAccount row per asset, in one statement. Tokens are stored
 // only as ciphertext: with no encryption key configured the rows are not written at all (the
 // ProviderSetting copy, re-sealed once a key exists, still serves reads), never in plain text.
-func (h *Handler) saveAccounts(ctx context.Context, tenantID string, accounts []account) error {
+// authUserID is the auth user who started the connect (from the signed state), recorded as
+// connected_by when they have a MarketFlow user in this tenant.
+func (h *Handler) saveAccounts(ctx context.Context, tenantID, authUserID string, accounts []account) error {
 	tid, err := uuid.Parse(tenantID)
 	if err != nil || len(accounts) == 0 {
 		return err
@@ -53,6 +57,7 @@ func (h *Handler) saveAccounts(ctx context.Context, tenantID string, accounts []
 		h.logger.Warn("connected accounts not stored: no encryption key configured", zap.String("tenant", tenantID))
 		return nil
 	}
+	connectedBy := h.localUserID(ctx, tid, authUserID)
 	builders := make([]*ent.ConnectedAccountCreate, 0, len(accounts))
 	for _, a := range accounts {
 		b := h.db.ConnectedAccount.Create().
@@ -62,6 +67,7 @@ func (h *Handler) saveAccounts(ctx context.Context, tenantID string, accounts []
 			SetExternalID(a.ExternalID).
 			SetDisplayName(truncate(a.DisplayName, 255)).
 			SetStatus("active").
+			SetNillableConnectedBy(connectedBy).
 			SetMetadata(a.Metadata)
 		if a.Scopes != nil {
 			b.SetScopes(a.Scopes)
@@ -104,6 +110,34 @@ func (h *Handler) revokeAccounts(ctx context.Context, tenantID, provider string)
 		ClearTokenCiphertext().
 		ClearRefreshCiphertext().
 		Save(ctx)
+}
+
+// localUserID maps an auth user id to the tenant's MarketFlow user id (nil when unknown).
+func (h *Handler) localUserID(ctx context.Context, tenantID uuid.UUID, authUserID string) *uuid.UUID {
+	aid, err := uuid.Parse(authUserID)
+	if err != nil {
+		return nil
+	}
+	u, err := h.db.MarketflowUser.Query().
+		Where(marketflowuser.TenantID(tenantID), marketflowuser.AuthServiceUserID(aid)).
+		Only(ctx)
+	if err != nil {
+		return nil
+	}
+	return &u.ID
+}
+
+// requestUserID is the signed-in auth user's id, "" for an API key caller.
+func requestUserID(r *http.Request) string {
+	c, ok := authclient.ClaimsFromContext(r.Context())
+	if !ok || c == nil {
+		return ""
+	}
+	id, err := c.UserID()
+	if err != nil {
+		return ""
+	}
+	return id.String()
 }
 
 func truncate(s string, n int) string {

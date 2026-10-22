@@ -41,7 +41,7 @@ import (
 // Handler owns the OAuth endpoints.
 type Handler struct {
 	db       *ent.Client
-	stateKey []byte                   // signs the `state` round-trip; reuses encryption key
+	stateKey []byte                  // signs the `state` round-trip; reuses encryption key
 	keys     *encryption.KeyProvider // encrypts OAuth tokens at rest, decrypts platform secrets
 	logger   *zap.Logger
 }
@@ -108,7 +108,7 @@ func (h *Handler) GoogleAuthorize(w http.ResponseWriter, r *http.Request) {
 			"platform google_calendar oauth client not configured", nil)
 		return
 	}
-	state := h.signState(tenantID)
+	state := h.signState(tenantID, requestUserID(r))
 	q := url.Values{
 		"client_id":     {creds["client_id"]},
 		"redirect_uri":  {creds["redirect_url"]},
@@ -139,7 +139,7 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "missing_params", "code and state required", nil)
 		return
 	}
-	tenantID, ok := h.verifyState(state)
+	tenantID, _, ok := h.verifyState(state)
 	if !ok {
 		httpapi.Error(w, http.StatusUnauthorized, "bad_state", "state signature invalid", nil)
 		return
@@ -205,6 +205,27 @@ const (
 	metaScope    = "pages_show_list,pages_read_engagement,leads_retrieval,pages_manage_metadata"
 )
 
+// metaLoginParams sets what the consent dialog asks for, from the platform Meta app settings.
+// Meta refuses a dialog that asks for a permission the app has not been approved for (for
+// everyone but the app's own testers), so the list grows in settings as App Review approves
+// permissions, never in code:
+//   - login_config_id: a Facebook Login for Business configuration; its permissions and assets
+//     are set in Meta's dashboard and replace the scope list;
+//   - scopes: a comma-separated permission list for classic Facebook Login;
+//   - neither: the permissions MarketFlow has always asked for (Pages and Lead Ads).
+func metaLoginParams(q url.Values, creds map[string]string) {
+	if id := strings.TrimSpace(creds["login_config_id"]); id != "" {
+		q.Set("config_id", id)
+		q.Set("override_default_response_type", "true")
+		return
+	}
+	scope := metaScope
+	if s := strings.Join(strings.Fields(strings.ReplaceAll(creds["scopes"], ",", " ")), ","); s != "" {
+		scope = s
+	}
+	q.Set("scope", scope)
+}
+
 // MetaAuthorize returns the consent URL for connecting a Facebook Page.
 // @Summary Start Meta OAuth for a tenant
 // @Tags Integrations
@@ -226,14 +247,14 @@ func (h *Handler) MetaAuthorize(w http.ResponseWriter, r *http.Request) {
 			"platform meta oauth app not configured", nil)
 		return
 	}
-	state := h.signState(tenantID)
+	state := h.signState(tenantID, requestUserID(r))
 	q := url.Values{
 		"client_id":     {creds["app_id"]},
 		"redirect_uri":  {creds["redirect_url"]},
 		"response_type": {"code"},
-		"scope":         {metaScope},
 		"state":         {state},
 	}
+	metaLoginParams(q, creds)
 	httpapi.JSON(w, http.StatusOK, map[string]string{
 		"url": metaAuthURL + "?" + q.Encode(),
 	})
@@ -255,7 +276,7 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "missing_params", "code and state required", nil)
 		return
 	}
-	tenantID, ok := h.verifyState(state)
+	tenantID, userID, ok := h.verifyState(state)
 	if !ok {
 		httpapi.Error(w, http.StatusUnauthorized, "bad_state", "state signature invalid", nil)
 		return
@@ -355,7 +376,7 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 		h.logger.Info("meta connect: ad accounts not listed", zap.String("tenant", tenantID), zap.Error(err))
 	}
 	accounts := metaAccounts(pages, adAccounts, userToken, metaGrantedScopes(r.Context(), userToken))
-	if err := h.saveAccounts(r.Context(), tenantID, accounts); err != nil {
+	if err := h.saveAccounts(r.Context(), tenantID, userID, accounts); err != nil {
 		// The default Page is already saved above, so the connect still works; the full list
 		// is stored again on the next connect.
 		h.logger.Error("meta connect: connected accounts not stored", zap.String("tenant", tenantID), zap.Error(err))
@@ -389,7 +410,7 @@ func (h *Handler) TikTokAuthorize(w http.ResponseWriter, r *http.Request) {
 			"TikTok app credentials not configured. Set them at /platform/providers.", nil)
 		return
 	}
-	state := h.signState(tenantID)
+	state := h.signState(tenantID, requestUserID(r))
 	authURL := fmt.Sprintf("%s?app_id=%s&redirect_uri=%s&state=%s",
 		tiktokAuthURL,
 		url.QueryEscape(creds["app_id"]),
@@ -412,7 +433,7 @@ func (h *Handler) TikTokCallback(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "missing_params", "auth_code and state required", nil)
 		return
 	}
-	tenantID, ok := h.verifyState(state)
+	tenantID, userID, ok := h.verifyState(state)
 	if !ok {
 		httpapi.Error(w, http.StatusUnauthorized, "bad_state", "state signature invalid", nil)
 		return
@@ -470,7 +491,7 @@ func (h *Handler) TikTokCallback(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
-	if err := h.saveAccounts(r.Context(), tenantID, advertisers); err != nil {
+	if err := h.saveAccounts(r.Context(), tenantID, userID, advertisers); err != nil {
 		h.logger.Error("tiktok connect: connected accounts not stored", zap.String("tenant", tenantID), zap.Error(err))
 	}
 	target := h.integrationsURL(r.Context(), tenantID, "tiktok=connected")
@@ -774,34 +795,41 @@ func (h *Handler) integrationsURL(ctx context.Context, tenantID, query string) s
 	return "/" + url.PathEscape(org) + "/settings/integrations?" + query
 }
 
-// signState returns `tenantID.nonce.hmac` for a 10-minute validity window.
-func (h *Handler) signState(tenantID string) string {
+// signState returns `tenantID.userID.nonce.hmac` for a 10-minute validity window. userID is the
+// signed-in auth user ("" for an API key caller); the callback records it as connected_by.
+func (h *Handler) signState(tenantID, userID string) string {
 	nonce := fmt.Sprintf("%d", time.Now().UnixNano())
-	payload := tenantID + "." + nonce
+	payload := tenantID + "." + userID + "." + nonce
 	mac := hmac.New(sha256.New, h.stateKey)
 	mac.Write([]byte(payload))
 	return payload + "." + hex.EncodeToString(mac.Sum(nil))
 }
 
-func (h *Handler) verifyState(state string) (string, bool) {
-	parts := strings.SplitN(state, ".", 3)
-	if len(parts) != 3 {
-		return "", false
+// verifyState checks the signature and age and returns the tenant and user. The older
+// `tenantID.nonce.hmac` form (no user) is still accepted.
+func (h *Handler) verifyState(state string) (string, string, bool) {
+	parts := strings.Split(state, ".")
+	var tenantID, userID, nonce, sig string
+	switch len(parts) {
+	case 3:
+		tenantID, nonce, sig = parts[0], parts[1], parts[2]
+	case 4:
+		tenantID, userID, nonce, sig = parts[0], parts[1], parts[2], parts[3]
+	default:
+		return "", "", false
 	}
-	tenantID, nonce, sig := parts[0], parts[1], parts[2]
 	mac := hmac.New(sha256.New, h.stateKey)
-	mac.Write([]byte(tenantID + "." + nonce))
+	mac.Write([]byte(strings.Join(parts[:len(parts)-1], ".")))
 	expected := hex.EncodeToString(mac.Sum(nil))
 	if !hmac.Equal([]byte(sig), []byte(expected)) {
-		return "", false
+		return "", "", false
 	}
-	// Age check (10 min).
-	if ns := parseInt64(nonce); ns > 0 {
-		if time.Since(time.Unix(0, ns)) > 10*time.Minute {
-			return "", false
-		}
+	// Age check (10 min). The nonce is signed, so a missing timestamp means a forged format.
+	ns := parseInt64(nonce)
+	if ns <= 0 || time.Since(time.Unix(0, ns)) > 10*time.Minute {
+		return "", "", false
 	}
-	return tenantID, true
+	return tenantID, userID, true
 }
 
 func parseInt64(s string) int64 {
