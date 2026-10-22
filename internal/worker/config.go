@@ -59,6 +59,8 @@ type APIConfig struct {
 	OllamaURL          string `env:"OLLAMA_URL" envDefault:"http://ollama.shared-infra.svc.cluster.local:11434"`
 	EmbeddingModel     string `env:"EMBEDDING_MODEL" envDefault:"nomic-embed-text"`
 	InternalServiceKey string `env:"INTERNAL_SERVICE_KEY"`
+	// PortalURL is the tenant portal, for links in notices (reconnect an integration).
+	PortalURL string `env:"PORTAL_URL" envDefault:"https://marketflow.codevertexafrica.com"`
 }
 
 // NotificationsConfig carries the platform notifications-api coordinates.

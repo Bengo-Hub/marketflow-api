@@ -298,7 +298,13 @@ func firstNonEmptyConv(vals ...string) string {
 // ── helpers ───────────────────────────────────────────────────────────────
 
 func (h *ConversionsHandler) loadTenantProvider(ctx context.Context, tenantID, ptype, pname string) (map[string]string, error) {
-	rows, err := h.db.ProviderSetting.Query().
+	return loadProviderSettings(ctx, h.db, h.keys, tenantID, ptype, pname)
+}
+
+// loadProviderSettings returns one provider's active settings for a tenant (or "platform") as
+// key/value pairs, with secrets decrypted.
+func loadProviderSettings(ctx context.Context, db *ent.Client, keys *encryption.KeyProvider, tenantID, ptype, pname string) (map[string]string, error) {
+	rows, err := db.ProviderSetting.Query().
 		Where(
 			providersetting.TenantIDEQ(tenantID),
 			providersetting.ProviderTypeEQ(ptype),
@@ -314,7 +320,7 @@ func (h *ConversionsHandler) loadTenantProvider(ctx context.Context, tenantID, p
 	out := make(map[string]string, len(rows))
 	for _, r := range rows {
 		// Tokens (Meta CAPI access_token, Google Ads refresh_token) are encrypted at rest.
-		v, err := h.keys.SettingValue(ctx, h.db, r)
+		v, err := keys.SettingValue(ctx, db, r)
 		if err != nil {
 			return nil, fmt.Errorf("decrypt %s/%s %s for tenant %s: %w", ptype, pname, r.Key, tenantID, err)
 		}

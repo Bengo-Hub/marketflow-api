@@ -32,6 +32,7 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/bengobox/marketflow-api/internal/worker"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -182,6 +183,15 @@ func main() {
 
 		// Chat transcript retention (30 days after last activity by default).
 		go worker.NewChatRetention(entClient, cfg.Scheduler.ChatRetentionDays, logger).Run(ctx)
+
+		// Daily ConnectedAccount token check: records when Meta tokens must be renewed, marks
+		// dead ones expired and emails the tenant's admins to reconnect.
+		tokenNotif := notifications.New(notifications.Config{
+			BaseURL:   cfg.Notifications.URL,
+			APIKey:    cfg.Notifications.APIKey,
+			AuthToken: cfg.Notifications.Token,
+		})
+		go worker.NewConnectedTokenHealth(entClient, keys, tokenNotif, cfg.API.PortalURL, logger).Run(ctx)
 
 		// Ad-insights polling cron (Meta campaigns only today). Resolver
 		// pulls the tenant's Meta page token from ProviderSetting at query
