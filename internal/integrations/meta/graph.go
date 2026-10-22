@@ -43,11 +43,11 @@ func NewClient(version string) *Client {
 // ad categories and targeting live on AdSet; we expose only what marketflow
 // currently surfaces in the Campaign schema.
 type CampaignInput struct {
-	Name             string   `json:"name"`
-	Objective        string   `json:"objective,omitempty"`          // OUTCOME_LEADS, OUTCOME_SALES, etc.
-	Status           string   `json:"status,omitempty"`             // ACTIVE | PAUSED
-	DailyBudget      int64    `json:"daily_budget,omitempty"`       // cents
-	LifetimeBudget   int64    `json:"lifetime_budget,omitempty"`    // cents
+	Name                string   `json:"name"`
+	Objective           string   `json:"objective,omitempty"`       // OUTCOME_LEADS, OUTCOME_SALES, etc.
+	Status              string   `json:"status,omitempty"`          // ACTIVE | PAUSED
+	DailyBudget         int64    `json:"daily_budget,omitempty"`    // cents
+	LifetimeBudget      int64    `json:"lifetime_budget,omitempty"` // cents
 	SpecialAdCategories []string `json:"special_ad_categories,omitempty"`
 }
 
@@ -91,7 +91,7 @@ func (c *Client) CreateCampaign(ctx context.Context, accessToken, adAccountID st
 	} else {
 		form.Set("special_ad_categories", "[]")
 	}
-	endpoint := fmt.Sprintf("%s/%s/act_%s/campaigns", c.baseURL, c.version, strings.TrimPrefix(adAccountID, "act_"))
+	endpoint := fmt.Sprintf("%s/%s/act_%s/campaigns", c.baseURL, c.version, url.PathEscape(strings.TrimPrefix(adAccountID, "act_")))
 	resp, err := c.postForm(ctx, endpoint, form)
 	if err != nil {
 		return nil, err
@@ -119,7 +119,7 @@ func (c *Client) UpdateCampaign(ctx context.Context, accessToken, campaignID str
 	if in.LifetimeBudget > 0 {
 		form.Set("lifetime_budget", fmt.Sprintf("%d", in.LifetimeBudget))
 	}
-	endpoint := fmt.Sprintf("%s/%s/%s", c.baseURL, c.version, campaignID)
+	endpoint := fmt.Sprintf("%s/%s/%s", c.baseURL, c.version, url.PathEscape(campaignID))
 	resp, err := c.postForm(ctx, endpoint, form)
 	if err != nil {
 		return nil, err
@@ -132,8 +132,11 @@ func (c *Client) DeleteCampaign(ctx context.Context, accessToken, campaignID str
 	if accessToken == "" || campaignID == "" {
 		return fmt.Errorf("meta: access token + campaign id required")
 	}
-	endpoint := fmt.Sprintf("%s/%s/%s?access_token=%s", c.baseURL, c.version, campaignID, url.QueryEscape(accessToken))
-	req, _ := http.NewRequestWithContext(ctx, http.MethodDelete, endpoint, nil)
+	endpoint := fmt.Sprintf("%s/%s/%s?access_token=%s", c.baseURL, c.version, url.PathEscape(campaignID), url.QueryEscape(accessToken))
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, endpoint, nil)
+	if err != nil {
+		return err
+	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
@@ -170,8 +173,11 @@ func (c *Client) GetCampaignInsights(ctx context.Context, accessToken, campaignI
 	q.Set("fields", "campaign_id,date_start,impressions,clicks,spend,ctr,cost_per_result")
 	q.Set("date_preset", "today")
 	q.Set("time_increment", "1")
-	endpoint := fmt.Sprintf("%s/%s/%s/insights?%s", c.baseURL, c.version, campaignID, q.Encode())
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	endpoint := fmt.Sprintf("%s/%s/%s/insights?%s", c.baseURL, c.version, url.PathEscape(campaignID), q.Encode())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -194,7 +200,10 @@ func (c *Client) GetCampaignInsights(ctx context.Context, accessToken, campaignI
 }
 
 func (c *Client) postForm(ctx context.Context, endpoint string, form url.Values) ([]byte, error) {
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBufferString(form.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBufferString(form.Encode()))
+	if err != nil {
+		return nil, err
+	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

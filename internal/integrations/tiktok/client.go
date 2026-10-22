@@ -11,17 +11,19 @@ import (
 	"time"
 )
 
-const baseURL = "https://business-api.tiktok.com/open_api/v1.3"
+const defaultBaseURL = "https://business-api.tiktok.com/open_api/v1.3"
 
 // Client communicates with the TikTok Business API.
 type Client struct {
 	httpClient *http.Client
+	baseURL    string
 }
 
 // NewClient creates a new TikTok Business API client.
 func NewClient() *Client {
 	return &Client{
 		httpClient: &http.Client{Timeout: 30 * time.Second},
+		baseURL:    defaultBaseURL,
 	}
 }
 
@@ -63,7 +65,7 @@ func (c *Client) CreateCampaign(ctx context.Context, advertiserID, accessToken s
 		return "", fmt.Errorf("marshal campaign payload: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/campaign/create/", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/campaign/create/", bytes.NewReader(body))
 	if err != nil {
 		return "", fmt.Errorf("build request: %w", err)
 	}
@@ -105,7 +107,7 @@ func (c *Client) UpdateCampaignStatus(ctx context.Context, advertiserID, accessT
 		return fmt.Errorf("marshal update payload: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/campaign/update/", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/campaign/update/", bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("build request: %w", err)
 	}
@@ -135,11 +137,17 @@ func (c *Client) GetCampaignReport(ctx context.Context, advertiserID, accessToke
 	params.Set("report_type", "BASIC")
 	params.Set("dimensions", `["campaign_id"]`)
 	params.Set("metrics", `["spend","impressions","clicks","conversions","leads"]`)
-	params.Set("filters", fmt.Sprintf(`[{"field_name":"campaign_ids","filter_type":"IN","filter_value":"[%q]"}]`, campaignID))
+	// filter_value is itself a JSON array inside a JSON string. Built by hand it came out as
+	// "["id"]", which is not valid JSON, so every report request was refused.
+	ids, _ := json.Marshal([]string{campaignID})
+	filters, _ := json.Marshal([]map[string]string{{
+		"field_name": "campaign_ids", "filter_type": "IN", "filter_value": string(ids),
+	}})
+	params.Set("filters", string(filters))
 	params.Set("data_level", "AUCTION_CAMPAIGN")
 	params.Set("lifetime", "true")
 
-	reqURL := baseURL + "/report/integrated/get/?" + params.Encode()
+	reqURL := c.baseURL + "/report/integrated/get/?" + params.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return Metrics{}, fmt.Errorf("build request: %w", err)
