@@ -332,10 +332,16 @@ func (j *ConnectedTokenHealth) notify(ctx context.Context, tenantID uuid.UUID, l
 }
 
 func (j *ConnectedTokenHealth) adminEmails(ctx context.Context, tenantID uuid.UUID) ([]string, error) {
-	assignments, err := j.db.UserRoleAssignment.Query().
+	return tenantAdminEmails(ctx, j.db, tenantID, tokenNoticeRoles)
+}
+
+// tenantAdminEmails returns the emails of the tenant's active users holding one of
+// roles (deduplicated, at most 20). Shared by the worker jobs that email admins.
+func tenantAdminEmails(ctx context.Context, db *ent.Client, tenantID uuid.UUID, roles []string) ([]string, error) {
+	assignments, err := db.UserRoleAssignment.Query().
 		Where(
 			userroleassignment.TenantID(tenantID),
-			userroleassignment.HasRoleWith(marketflowrole.RoleCodeIn(tokenNoticeRoles...)),
+			userroleassignment.HasRoleWith(marketflowrole.RoleCodeIn(roles...)),
 			userroleassignment.HasUserWith(marketflowuser.TenantID(tenantID), marketflowuser.Status("active")),
 		).
 		WithUser().

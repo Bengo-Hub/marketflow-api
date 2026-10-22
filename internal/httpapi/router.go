@@ -113,6 +113,7 @@ type RouterDeps struct {
 	TaskHandlers        TaskHandlers
 	CustomFieldHandlers CustomFieldHandlers
 	CustomAgentHandlers CustomAgentHandlers
+	MarketingOSHandlers MarketingOSHandlers
 	SuggestionHandlers  SuggestionHandlers
 	SegmentHandlers     SegmentHandlers
 
@@ -417,6 +418,16 @@ type CustomFieldHandlers struct {
 	GetContactValues http.HandlerFunc
 	SetDealValues    http.HandlerFunc
 	GetDealValues    http.HandlerFunc
+}
+
+// MarketingOSHandlers groups the Marketing OS endpoints owned by marketflow-api
+// (brand context, team member overrides, and the context marketflow-ai reads).
+type MarketingOSHandlers struct {
+	GetBrandContext http.HandlerFunc
+	PutBrandContext http.HandlerFunc
+	ListTeam        http.HandlerFunc
+	PutTeamMember   http.HandlerFunc
+	InternalContext http.HandlerFunc
 }
 
 // CustomAgentHandlers groups custom agent HTTP handlers.
@@ -762,6 +773,15 @@ func NewRouter(deps RouterDeps) http.Handler {
 				})
 			}
 
+			// Marketing OS: brand context and team member overrides. The tenant
+			// header is checked against the token by the group's tenant check.
+			if deps.MarketingOSHandlers.GetBrandContext != nil {
+				r.Get("/tenant/marketing-context", deps.MarketingOSHandlers.GetBrandContext)
+				r.Put("/tenant/marketing-context", deps.MarketingOSHandlers.PutBrandContext)
+				r.Get("/agents/team", deps.MarketingOSHandlers.ListTeam)
+				r.Put("/agents/team/{key}", deps.MarketingOSHandlers.PutTeamMember)
+			}
+
 			// CRM: Proactive suggestions
 			if deps.SuggestionHandlers.List != nil {
 				r.Get("/suggestions", deps.SuggestionHandlers.List)
@@ -848,6 +868,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 				})
 				r.Route("/internal", func(r chi.Router) {
 					r.Post("/leads", deps.InternalLeadHandlers.IngestFromService)
+					// Marketing OS context for marketflow-ai (tenant in the query, service key only).
+					if deps.MarketingOSHandlers.InternalContext != nil {
+						r.Get("/os/context", deps.MarketingOSHandlers.InternalContext)
+					}
 					if deps.ContactHandlers.GetByEmail != nil {
 						r.Get("/contacts/by-email", deps.ContactHandlers.GetByEmail)
 					}

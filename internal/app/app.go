@@ -29,6 +29,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	custom_agents "github.com/bengobox/marketflow-api/internal/modules/custom_agents"
+	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	custom_fields "github.com/bengobox/marketflow-api/internal/modules/custom_fields"
 	"github.com/bengobox/marketflow-api/internal/modules/deals"
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
@@ -296,6 +297,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	}
 	customAgentService := custom_agents.NewService(entClient, logger, customAgentServiceOpts...)
 	customAgentHandler := custom_agents.NewHandler(customAgentService, logger)
+	marketingOSHandler := marketingos.NewHandler(marketingos.NewService(entClient, subsClient, logger), logger)
 
 	segmentHandler := segments.NewHandler(segmentService, logger)
 
@@ -563,6 +565,13 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Delete:     customAgentHandler.Delete,
 			ListRuns:   customAgentHandler.ListRuns,
 			TriggerRun: customAgentHandler.TriggerRun,
+		},
+		MarketingOSHandlers: httpapi.MarketingOSHandlers{
+			GetBrandContext: marketingOSHandler.GetBrandContext,
+			PutBrandContext: marketingOSHandler.PutBrandContext,
+			ListTeam:        marketingOSHandler.ListTeam,
+			PutTeamMember:   marketingOSHandler.PutTeamMember,
+			InternalContext: marketingOSHandler.InternalContext,
 		},
 		SegmentHandlers: httpapi.SegmentHandlers{
 			Create:   segmentHandler.Create,

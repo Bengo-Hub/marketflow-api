@@ -32,6 +32,7 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/bengobox/marketflow-api/internal/worker"
 	"github.com/nats-io/nats.go"
@@ -192,6 +193,11 @@ func main() {
 			AuthToken: cfg.Notifications.Token,
 		})
 		go worker.NewConnectedTokenHealth(entClient, keys, tokenNotif, cfg.API.PortalURL, logger).Run(ctx)
+
+		// Marketing OS daily brief: 06:30 tenant time, once per tenant per day, to
+		// the tenant's admins. Numbers from marketflow-api, wording from marketflow-ai.
+		go worker.NewDailyBrief(entClient, marketingos.NewService(entClient, nil, logger), tokenNotif,
+			cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, cfg.API.PortalURL, logger).Run(ctx)
 
 		// Ad-insights polling cron (Meta campaigns only today). Resolver
 		// pulls the tenant's Meta page token from ProviderSetting at query
