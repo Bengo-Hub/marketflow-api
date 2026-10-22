@@ -2,21 +2,29 @@ package worker
 
 import (
 	"context"
-	sharedcache "github.com/Bengo-Hub/cache"
 	"time"
+
+	entsql "entgo.io/ent/dialect/sql"
+	sharedcache "github.com/Bengo-Hub/cache"
+	"github.com/google/uuid"
+	"go.uber.org/zap"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
-	"github.com/google/uuid"
-	"go.uber.org/zap"
+	"github.com/bengobox/marketflow-api/internal/ent/predicate"
 )
 
-// ReEngagement is a daily cron that finds dormant leads (no activity in the
-// configured window) and enrols them into the tenant's active sequence whose
-// trigger_event == "contact.dormant". Idempotent: skips leads that already
-// have an active enrollment on the same sequence.
+const (
+	reengagementBatch      = 500
+	reengagementMaxBatches = 20 // at most 10,000 enrolments per run
+)
+
+// ReEngagement is a daily cron that finds dormant leads (created and not updated within the
+// configured window) and enrols them into the tenant's active sequence whose trigger_event is
+// "contact.dormant". A lead is enrolled in that sequence at most once, ever: one that already
+// went through it (any status, including completed) is never re-enrolled.
 type ReEngagement struct {
 	db       *ent.Client
 	interval time.Duration
@@ -67,66 +75,114 @@ func (r *ReEngagement) tick(ctx context.Context) {
 	if !sharedcache.ClaimPeriod(ctx, "marketflow:reengagement", r.interval) {
 		return
 	}
-	cutoff := time.Now().UTC().Add(-r.dormant)
-
-	// Eligible leads: created before cutoff, no activity since, not converted/lost.
-	rows, err := r.db.Lead.Query().
-		Where(
-			lead.CreatedAtLT(cutoff),
-			lead.StatusNotIn("converted", "lost"),
-		).
-		Limit(500).
-		All(ctx)
+	enrolled, err := r.enrolDormant(ctx, time.Now().UTC())
 	if err != nil {
-		r.logger.Error("dormant query failed", zap.Error(err))
+		r.logger.Error("re-engagement run failed", zap.Int("enrolled_before_error", enrolled), zap.Error(err))
 		return
-	}
-	if len(rows) == 0 {
-		return
-	}
-	enrolled := 0
-	for _, ld := range rows {
-		// Pick the tenant's active re-engagement sequence.
-		seq, err := r.db.NurtureSequence.Query().
-			Where(
-				nurturesequence.TenantIDEQ(ld.TenantID),
-				nurturesequence.TriggerEventEQ("contact.dormant"),
-				nurturesequence.ActiveEQ(true),
-			).
-			First(ctx)
-		if err != nil {
-			continue // no re-engagement sequence configured for this tenant
-		}
-		// Already enrolled on this sequence? Skip.
-		exists, err := r.db.NurtureEnrollment.Query().
-			Where(
-				nurtureenrollment.TenantIDEQ(ld.TenantID),
-				nurtureenrollment.SequenceIDEQ(seq.ID),
-				nurtureenrollment.LeadIDEQ(ld.ID),
-				nurtureenrollment.StatusIn("active", "paused"),
-			).
-			Exist(ctx)
-		if err != nil || exists {
-			continue
-		}
-		_, err = r.db.NurtureEnrollment.Create().
-			SetTenantID(ld.TenantID).
-			SetSequenceID(seq.ID).
-			SetLeadID(ld.ID).
-			SetCurrentStep(0).
-			SetStatus("active").
-			SetNextStepAt(time.Now().UTC()).
-			SetMetadata(map[string]any{"source": "reengagement_cron"}).
-			Save(ctx)
-		if err == nil {
-			enrolled++
-			_, _ = r.db.NurtureSequence.UpdateOneID(seq.ID).AddTotalEnrolled(1).Save(ctx)
-		}
 	}
 	if enrolled > 0 {
 		r.logger.Info("re-engagement enrollments created", zap.Int("count", enrolled))
 	}
 }
 
-// Ensure uuid import is not flagged as unused when the file is ever reduced.
-var _ = uuid.Nil
+// enrolDormant does one run: it walks every eligible lead once, in id order, with all filters
+// in SQL, and returns how many enrolments it created.
+func (r *ReEngagement) enrolDormant(ctx context.Context, now time.Time) (int, error) {
+	// One sequence per tenant: the oldest active contact.dormant sequence.
+	seqs, err := r.db.NurtureSequence.Query().
+		Where(
+			nurturesequence.TriggerEventEQ("contact.dormant"),
+			nurturesequence.ActiveEQ(true),
+		).
+		Order(ent.Asc(nurturesequence.FieldCreatedAt), ent.Asc(nurturesequence.FieldID)).
+		All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	seqByTenant := make(map[uuid.UUID]uuid.UUID, len(seqs))
+	for _, s := range seqs {
+		if _, ok := seqByTenant[s.TenantID]; !ok {
+			seqByTenant[s.TenantID] = s.ID
+		}
+	}
+	return r.enrolForSequences(ctx, now, seqByTenant)
+}
+
+// enrolForSequences enrols the dormant leads of the given tenants into their sequence.
+func (r *ReEngagement) enrolForSequences(ctx context.Context, now time.Time, seqByTenant map[uuid.UUID]uuid.UUID) (int, error) {
+	if len(seqByTenant) == 0 {
+		return 0, nil
+	}
+	tenantIDs := make([]uuid.UUID, 0, len(seqByTenant))
+	seqIDs := make([]uuid.UUID, 0, len(seqByTenant))
+	for t, s := range seqByTenant {
+		tenantIDs = append(tenantIDs, t)
+		seqIDs = append(seqIDs, s)
+	}
+
+	cutoff := now.Add(-r.dormant)
+	enrolled := 0
+	perSeq := make(map[uuid.UUID]int)
+	after := uuid.Nil
+	for i := 0; i < reengagementMaxBatches; i++ {
+		rows, err := r.db.Lead.Query().
+			Where(
+				lead.TenantIDIn(tenantIDs...),
+				lead.CreatedAtLT(cutoff),
+				lead.UpdatedAtLT(cutoff),
+				lead.StatusNotIn("converted", "lost"),
+				lead.IDGT(after),
+				notEnrolledIn(seqIDs),
+			).
+			Order(ent.Asc(lead.FieldID)).
+			Limit(reengagementBatch).
+			All(ctx)
+		if err != nil {
+			return enrolled, err
+		}
+		for _, ld := range rows {
+			seqID := seqByTenant[ld.TenantID]
+			if _, err := r.db.NurtureEnrollment.Create().
+				SetTenantID(ld.TenantID).
+				SetSequenceID(seqID).
+				SetLeadID(ld.ID).
+				SetCurrentStep(0).
+				SetStatus("active").
+				SetNextStepAt(now).
+				SetMetadata(map[string]any{"source": "reengagement_cron"}).
+				Save(ctx); err != nil {
+				r.logger.Warn("re-engagement enrol failed", zap.String("lead", ld.ID.String()), zap.Error(err))
+				continue
+			}
+			enrolled++
+			perSeq[seqID]++
+		}
+		if len(rows) < reengagementBatch {
+			break
+		}
+		after = rows[len(rows)-1].ID
+	}
+	for seqID, n := range perSeq {
+		_, _ = r.db.NurtureSequence.UpdateOneID(seqID).AddTotalEnrolled(n).Save(ctx)
+	}
+	return enrolled, nil
+}
+
+// notEnrolledIn keeps leads that have never had an enrolment (any status) in any of the given
+// sequences: NOT EXISTS against nurture_enrollments, served by its (tenant_id, lead_id,
+// sequence_id) index.
+func notEnrolledIn(seqIDs []uuid.UUID) predicate.Lead {
+	return predicate.Lead(func(s *entsql.Selector) {
+		e := entsql.Table(nurtureenrollment.Table)
+		ids := make([]any, len(seqIDs))
+		for i, id := range seqIDs {
+			ids[i] = id
+		}
+		s.Where(entsql.NotExists(
+			entsql.Select(e.C(nurtureenrollment.FieldID)).From(e).Where(entsql.And(
+				entsql.ColumnsEQ(e.C(nurtureenrollment.FieldLeadID), s.C(lead.FieldID)),
+				entsql.In(e.C(nurtureenrollment.FieldSequenceID), ids...),
+			)),
+		))
+	})
+}
