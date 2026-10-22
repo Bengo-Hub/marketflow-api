@@ -20,6 +20,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/behavioraltrigger"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
+	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/bengobox/marketflow-api/internal/ent/customfielddef"
@@ -117,6 +118,7 @@ func checkColumn(t, c string) error {
 			behavioraltrigger.Table:    behavioraltrigger.ValidColumn,
 			campaign.Table:             campaign.ValidColumn,
 			chatsession.Table:          chatsession.ValidColumn,
+			connectedaccount.Table:     connectedaccount.ValidColumn,
 			contact.Table:              contact.ValidColumn,
 			customagent.Table:          customagent.ValidColumn,
 			customfielddef.Table:       customfielddef.ValidColumn,

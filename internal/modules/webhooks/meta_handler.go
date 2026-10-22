@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -246,9 +247,24 @@ func (h *MetaHandler) resolveTenantByPageID(ctx context.Context, pageID string) 
 		return uuid.Nil, fmt.Errorf("db not configured")
 	}
 	var id uuid.UUID
-	// Using raw SQL to avoid an Ent dependency here; metadata JSON fallback
-	// lets the field be stored before the Ent schema migration lands.
+	// Every Page a tenant connected is a ConnectedAccount row, so leads from any of them are
+	// attributed, not only from the default Page. If two tenants connected the same Page, the
+	// latest connect wins.
 	err := h.db.QueryRowContext(ctx,
+		`SELECT tenant_id FROM connected_accounts
+		  WHERE external_id = $1 AND account_type = 'facebook_page' AND status = 'active'
+		  ORDER BY updated_at DESC
+		  LIMIT 1`, pageID,
+	).Scan(&id)
+	if err == nil {
+		return id, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return uuid.Nil, err
+	}
+	// Tenants that connected before ConnectedAccount; the metadata fallback covers rows
+	// written before the meta_page_id column existed.
+	err = h.db.QueryRowContext(ctx,
 		`SELECT id FROM tenants
 		  WHERE meta_page_id = $1
 		     OR metadata->>'meta_page_id' = $1

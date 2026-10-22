@@ -19,6 +19,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/behavioraltrigger"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
+	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/bengobox/marketflow-api/internal/ent/customfielddef"
@@ -619,6 +620,21 @@ func (_c *TenantCreate) AddCustomAgents(v ...*CustomAgent) *TenantCreate {
 	return _c.AddCustomAgentIDs(ids...)
 }
 
+// AddConnectedAccountIDs adds the "connected_accounts" edge to the ConnectedAccount entity by IDs.
+func (_c *TenantCreate) AddConnectedAccountIDs(ids ...uuid.UUID) *TenantCreate {
+	_c.mutation.AddConnectedAccountIDs(ids...)
+	return _c
+}
+
+// AddConnectedAccounts adds the "connected_accounts" edges to the ConnectedAccount entity.
+func (_c *TenantCreate) AddConnectedAccounts(v ...*ConnectedAccount) *TenantCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddConnectedAccountIDs(ids...)
+}
+
 // AddAgentRunIDs adds the "agent_runs" edge to the AgentRun entity by IDs.
 func (_c *TenantCreate) AddAgentRunIDs(ids ...uuid.UUID) *TenantCreate {
 	_c.mutation.AddAgentRunIDs(ids...)
@@ -1208,6 +1224,22 @@ func (_c *TenantCreate) createSpec() (*Tenant, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(customagent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ConnectedAccountsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ConnectedAccountsTable,
+			Columns: []string{tenant.ConnectedAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(connectedaccount.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

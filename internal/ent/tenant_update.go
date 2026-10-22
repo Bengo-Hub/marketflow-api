@@ -18,6 +18,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/behavioraltrigger"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
+	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/bengobox/marketflow-api/internal/ent/customfielddef"
@@ -683,6 +684,21 @@ func (_u *TenantUpdate) AddCustomAgents(v ...*CustomAgent) *TenantUpdate {
 	return _u.AddCustomAgentIDs(ids...)
 }
 
+// AddConnectedAccountIDs adds the "connected_accounts" edge to the ConnectedAccount entity by IDs.
+func (_u *TenantUpdate) AddConnectedAccountIDs(ids ...uuid.UUID) *TenantUpdate {
+	_u.mutation.AddConnectedAccountIDs(ids...)
+	return _u
+}
+
+// AddConnectedAccounts adds the "connected_accounts" edges to the ConnectedAccount entity.
+func (_u *TenantUpdate) AddConnectedAccounts(v ...*ConnectedAccount) *TenantUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddConnectedAccountIDs(ids...)
+}
+
 // AddAgentRunIDs adds the "agent_runs" edge to the AgentRun entity by IDs.
 func (_u *TenantUpdate) AddAgentRunIDs(ids ...uuid.UUID) *TenantUpdate {
 	_u.mutation.AddAgentRunIDs(ids...)
@@ -1172,6 +1188,27 @@ func (_u *TenantUpdate) RemoveCustomAgents(v ...*CustomAgent) *TenantUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveCustomAgentIDs(ids...)
+}
+
+// ClearConnectedAccounts clears all "connected_accounts" edges to the ConnectedAccount entity.
+func (_u *TenantUpdate) ClearConnectedAccounts() *TenantUpdate {
+	_u.mutation.ClearConnectedAccounts()
+	return _u
+}
+
+// RemoveConnectedAccountIDs removes the "connected_accounts" edge to ConnectedAccount entities by IDs.
+func (_u *TenantUpdate) RemoveConnectedAccountIDs(ids ...uuid.UUID) *TenantUpdate {
+	_u.mutation.RemoveConnectedAccountIDs(ids...)
+	return _u
+}
+
+// RemoveConnectedAccounts removes "connected_accounts" edges to ConnectedAccount entities.
+func (_u *TenantUpdate) RemoveConnectedAccounts(v ...*ConnectedAccount) *TenantUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveConnectedAccountIDs(ids...)
 }
 
 // ClearAgentRuns clears all "agent_runs" edges to the AgentRun entity.
@@ -2344,6 +2381,51 @@ func (_u *TenantUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ConnectedAccountsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ConnectedAccountsTable,
+			Columns: []string{tenant.ConnectedAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(connectedaccount.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedConnectedAccountsIDs(); len(nodes) > 0 && !_u.mutation.ConnectedAccountsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ConnectedAccountsTable,
+			Columns: []string{tenant.ConnectedAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(connectedaccount.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ConnectedAccountsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ConnectedAccountsTable,
+			Columns: []string{tenant.ConnectedAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(connectedaccount.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.AgentRunsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -3130,6 +3212,21 @@ func (_u *TenantUpdateOne) AddCustomAgents(v ...*CustomAgent) *TenantUpdateOne {
 	return _u.AddCustomAgentIDs(ids...)
 }
 
+// AddConnectedAccountIDs adds the "connected_accounts" edge to the ConnectedAccount entity by IDs.
+func (_u *TenantUpdateOne) AddConnectedAccountIDs(ids ...uuid.UUID) *TenantUpdateOne {
+	_u.mutation.AddConnectedAccountIDs(ids...)
+	return _u
+}
+
+// AddConnectedAccounts adds the "connected_accounts" edges to the ConnectedAccount entity.
+func (_u *TenantUpdateOne) AddConnectedAccounts(v ...*ConnectedAccount) *TenantUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddConnectedAccountIDs(ids...)
+}
+
 // AddAgentRunIDs adds the "agent_runs" edge to the AgentRun entity by IDs.
 func (_u *TenantUpdateOne) AddAgentRunIDs(ids ...uuid.UUID) *TenantUpdateOne {
 	_u.mutation.AddAgentRunIDs(ids...)
@@ -3619,6 +3716,27 @@ func (_u *TenantUpdateOne) RemoveCustomAgents(v ...*CustomAgent) *TenantUpdateOn
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveCustomAgentIDs(ids...)
+}
+
+// ClearConnectedAccounts clears all "connected_accounts" edges to the ConnectedAccount entity.
+func (_u *TenantUpdateOne) ClearConnectedAccounts() *TenantUpdateOne {
+	_u.mutation.ClearConnectedAccounts()
+	return _u
+}
+
+// RemoveConnectedAccountIDs removes the "connected_accounts" edge to ConnectedAccount entities by IDs.
+func (_u *TenantUpdateOne) RemoveConnectedAccountIDs(ids ...uuid.UUID) *TenantUpdateOne {
+	_u.mutation.RemoveConnectedAccountIDs(ids...)
+	return _u
+}
+
+// RemoveConnectedAccounts removes "connected_accounts" edges to ConnectedAccount entities.
+func (_u *TenantUpdateOne) RemoveConnectedAccounts(v ...*ConnectedAccount) *TenantUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveConnectedAccountIDs(ids...)
 }
 
 // ClearAgentRuns clears all "agent_runs" edges to the AgentRun entity.
@@ -4814,6 +4932,51 @@ func (_u *TenantUpdateOne) sqlSave(ctx context.Context) (_node *Tenant, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(customagent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ConnectedAccountsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ConnectedAccountsTable,
+			Columns: []string{tenant.ConnectedAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(connectedaccount.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedConnectedAccountsIDs(); len(nodes) > 0 && !_u.mutation.ConnectedAccountsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ConnectedAccountsTable,
+			Columns: []string{tenant.ConnectedAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(connectedaccount.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ConnectedAccountsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   tenant.ConnectedAccountsTable,
+			Columns: []string{tenant.ConnectedAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(connectedaccount.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

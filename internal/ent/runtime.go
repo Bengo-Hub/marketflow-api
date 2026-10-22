@@ -13,6 +13,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/behavioraltrigger"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
+	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/bengobox/marketflow-api/internal/ent/customfielddef"
@@ -303,6 +304,86 @@ func init() {
 	chatsessionDescID := chatsessionFields[0].Descriptor()
 	// chatsession.DefaultID holds the default value on creation for the id field.
 	chatsession.DefaultID = chatsessionDescID.Default.(func() uuid.UUID)
+	connectedaccountFields := schema.ConnectedAccount{}.Fields()
+	_ = connectedaccountFields
+	// connectedaccountDescPlatform is the schema descriptor for platform field.
+	connectedaccountDescPlatform := connectedaccountFields[2].Descriptor()
+	// connectedaccount.PlatformValidator is a validator for the "platform" field. It is called by the builders before save.
+	connectedaccount.PlatformValidator = func() func(string) error {
+		validators := connectedaccountDescPlatform.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(platform string) error {
+			for _, fn := range fns {
+				if err := fn(platform); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// connectedaccountDescAccountType is the schema descriptor for account_type field.
+	connectedaccountDescAccountType := connectedaccountFields[3].Descriptor()
+	// connectedaccount.AccountTypeValidator is a validator for the "account_type" field. It is called by the builders before save.
+	connectedaccount.AccountTypeValidator = func() func(string) error {
+		validators := connectedaccountDescAccountType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(account_type string) error {
+			for _, fn := range fns {
+				if err := fn(account_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// connectedaccountDescExternalID is the schema descriptor for external_id field.
+	connectedaccountDescExternalID := connectedaccountFields[4].Descriptor()
+	// connectedaccount.ExternalIDValidator is a validator for the "external_id" field. It is called by the builders before save.
+	connectedaccount.ExternalIDValidator = func() func(string) error {
+		validators := connectedaccountDescExternalID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(external_id string) error {
+			for _, fn := range fns {
+				if err := fn(external_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// connectedaccountDescDisplayName is the schema descriptor for display_name field.
+	connectedaccountDescDisplayName := connectedaccountFields[5].Descriptor()
+	// connectedaccount.DisplayNameValidator is a validator for the "display_name" field. It is called by the builders before save.
+	connectedaccount.DisplayNameValidator = connectedaccountDescDisplayName.Validators[0].(func(string) error)
+	// connectedaccountDescStatus is the schema descriptor for status field.
+	connectedaccountDescStatus := connectedaccountFields[10].Descriptor()
+	// connectedaccount.DefaultStatus holds the default value on creation for the status field.
+	connectedaccount.DefaultStatus = connectedaccountDescStatus.Default.(string)
+	// connectedaccount.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	connectedaccount.StatusValidator = connectedaccountDescStatus.Validators[0].(func(string) error)
+	// connectedaccountDescCreatedAt is the schema descriptor for created_at field.
+	connectedaccountDescCreatedAt := connectedaccountFields[13].Descriptor()
+	// connectedaccount.DefaultCreatedAt holds the default value on creation for the created_at field.
+	connectedaccount.DefaultCreatedAt = connectedaccountDescCreatedAt.Default.(func() time.Time)
+	// connectedaccountDescUpdatedAt is the schema descriptor for updated_at field.
+	connectedaccountDescUpdatedAt := connectedaccountFields[14].Descriptor()
+	// connectedaccount.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	connectedaccount.DefaultUpdatedAt = connectedaccountDescUpdatedAt.Default.(func() time.Time)
+	// connectedaccount.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	connectedaccount.UpdateDefaultUpdatedAt = connectedaccountDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// connectedaccountDescID is the schema descriptor for id field.
+	connectedaccountDescID := connectedaccountFields[0].Descriptor()
+	// connectedaccount.DefaultID holds the default value on creation for the id field.
+	connectedaccount.DefaultID = connectedaccountDescID.Default.(func() uuid.UUID)
 	contactFields := schema.Contact{}.Fields()
 	_ = contactFields
 	// contactDescContactType is the schema descriptor for contact_type field.

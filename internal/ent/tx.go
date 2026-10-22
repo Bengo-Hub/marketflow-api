@@ -28,6 +28,8 @@ type Tx struct {
 	Campaign *CampaignClient
 	// ChatSession is the client for interacting with the ChatSession builders.
 	ChatSession *ChatSessionClient
+	// ConnectedAccount is the client for interacting with the ConnectedAccount builders.
+	ConnectedAccount *ConnectedAccountClient
 	// Contact is the client for interacting with the Contact builders.
 	Contact *ContactClient
 	// CustomAgent is the client for interacting with the CustomAgent builders.
@@ -225,6 +227,7 @@ func (tx *Tx) init() {
 	tx.BehavioralTrigger = NewBehavioralTriggerClient(tx.config)
 	tx.Campaign = NewCampaignClient(tx.config)
 	tx.ChatSession = NewChatSessionClient(tx.config)
+	tx.ConnectedAccount = NewConnectedAccountClient(tx.config)
 	tx.Contact = NewContactClient(tx.config)
 	tx.CustomAgent = NewCustomAgentClient(tx.config)
 	tx.CustomFieldDef = NewCustomFieldDefClient(tx.config)

@@ -1,4 +1,4 @@
-h1:EQlyPe8FkzbjfgEOG5xfgNQCRlHZwK1I+M3RwJSZ/c0=
+h1:HN/Jw9Sk9GxfRyYs8oyRlxc6QMHdwWar9ALsoxBFOP8=
 20260409124338_initial_schema.sql h1:iNv9wYlWyj89NJ9fwXRtTK7/piL1QJoDgZ8I/Jez73Y=
 20260409172839_add_short_links.sql h1:ZFVlyvbHvjwvCGxYF3aDKiEX/cCCIimxV9xHWL9K9kc=
 20260409183000_add_kb_embeddings.sql h1:izCf/H3H6y+AUYzhE6pL63cFkvRhFIn7ae24uewYRL4=
@@ -21,3 +21,4 @@ h1:EQlyPe8FkzbjfgEOG5xfgNQCRlHZwK1I+M3RwJSZ/c0=
 20261019090000_drop_per_service_backups.sql h1:Y6pgbSSDsRUef3L8yS1FN860/+9euPkQJj0n+qVARAc=
 20261022061305_chat_session_last_activity.sql h1:h0jys0NQ3lZGSyAjQj9AzWBfSEikYh61UMM4ZDKYdSA=
 20261022151508_os_team_metadata_and_attribution_indexes.sql h1:SoG8ozcdlfQ38vLp6yof0Auoyujtuo8/NGv/HL232ao=
+20261022152831_connected_accounts.sql h1:vBLoJmpenRX58MOHqwKmirED2r1qlR9cCeXZkvrk49E=

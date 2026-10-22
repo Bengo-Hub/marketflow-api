@@ -95,6 +95,8 @@ const (
 	EdgeLeadScoringRules = "lead_scoring_rules"
 	// EdgeCustomAgents holds the string denoting the custom_agents edge name in mutations.
 	EdgeCustomAgents = "custom_agents"
+	// EdgeConnectedAccounts holds the string denoting the connected_accounts edge name in mutations.
+	EdgeConnectedAccounts = "connected_accounts"
 	// EdgeAgentRuns holds the string denoting the agent_runs edge name in mutations.
 	EdgeAgentRuns = "agent_runs"
 	// EdgeSegments holds the string denoting the segments edge name in mutations.
@@ -250,6 +252,13 @@ const (
 	CustomAgentsInverseTable = "custom_agents"
 	// CustomAgentsColumn is the table column denoting the custom_agents relation/edge.
 	CustomAgentsColumn = "tenant_id"
+	// ConnectedAccountsTable is the table that holds the connected_accounts relation/edge.
+	ConnectedAccountsTable = "connected_accounts"
+	// ConnectedAccountsInverseTable is the table name for the ConnectedAccount entity.
+	// It exists in this package in order to avoid circular dependency with the "connectedaccount" package.
+	ConnectedAccountsInverseTable = "connected_accounts"
+	// ConnectedAccountsColumn is the table column denoting the connected_accounts relation/edge.
+	ConnectedAccountsColumn = "tenant_id"
 	// AgentRunsTable is the table that holds the agent_runs relation/edge.
 	AgentRunsTable = "agent_runs"
 	// AgentRunsInverseTable is the table name for the AgentRun entity.
@@ -726,6 +735,20 @@ func ByCustomAgents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByConnectedAccountsCount orders the results by connected_accounts count.
+func ByConnectedAccountsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newConnectedAccountsStep(), opts...)
+	}
+}
+
+// ByConnectedAccounts orders the results by connected_accounts terms.
+func ByConnectedAccounts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newConnectedAccountsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByAgentRunsCount orders the results by agent_runs count.
 func ByAgentRunsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -912,6 +935,13 @@ func newCustomAgentsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(CustomAgentsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, CustomAgentsTable, CustomAgentsColumn),
+	)
+}
+func newConnectedAccountsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ConnectedAccountsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ConnectedAccountsTable, ConnectedAccountsColumn),
 	)
 }
 func newAgentRunsStep() *sqlgraph.Step {

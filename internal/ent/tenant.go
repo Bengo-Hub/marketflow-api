@@ -107,6 +107,8 @@ type TenantEdges struct {
 	LeadScoringRules []*LeadScoringRule `json:"lead_scoring_rules,omitempty"`
 	// CustomAgents holds the value of the custom_agents edge.
 	CustomAgents []*CustomAgent `json:"custom_agents,omitempty"`
+	// ConnectedAccounts holds the value of the connected_accounts edge.
+	ConnectedAccounts []*ConnectedAccount `json:"connected_accounts,omitempty"`
 	// AgentRuns holds the value of the agent_runs edge.
 	AgentRuns []*AgentRun `json:"agent_runs,omitempty"`
 	// Segments holds the value of the segments edge.
@@ -115,7 +117,7 @@ type TenantEdges struct {
 	BehavioralTriggers []*BehavioralTrigger `json:"behavioral_triggers,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [24]bool
+	loadedTypes [25]bool
 }
 
 // LeadsOrErr returns the Leads value or an error if the edge
@@ -307,10 +309,19 @@ func (e TenantEdges) CustomAgentsOrErr() ([]*CustomAgent, error) {
 	return nil, &NotLoadedError{edge: "custom_agents"}
 }
 
+// ConnectedAccountsOrErr returns the ConnectedAccounts value or an error if the edge
+// was not loaded in eager-loading.
+func (e TenantEdges) ConnectedAccountsOrErr() ([]*ConnectedAccount, error) {
+	if e.loadedTypes[21] {
+		return e.ConnectedAccounts, nil
+	}
+	return nil, &NotLoadedError{edge: "connected_accounts"}
+}
+
 // AgentRunsOrErr returns the AgentRuns value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) AgentRunsOrErr() ([]*AgentRun, error) {
-	if e.loadedTypes[21] {
+	if e.loadedTypes[22] {
 		return e.AgentRuns, nil
 	}
 	return nil, &NotLoadedError{edge: "agent_runs"}
@@ -319,7 +330,7 @@ func (e TenantEdges) AgentRunsOrErr() ([]*AgentRun, error) {
 // SegmentsOrErr returns the Segments value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) SegmentsOrErr() ([]*Segment, error) {
-	if e.loadedTypes[22] {
+	if e.loadedTypes[23] {
 		return e.Segments, nil
 	}
 	return nil, &NotLoadedError{edge: "segments"}
@@ -328,7 +339,7 @@ func (e TenantEdges) SegmentsOrErr() ([]*Segment, error) {
 // BehavioralTriggersOrErr returns the BehavioralTriggers value or an error if the edge
 // was not loaded in eager-loading.
 func (e TenantEdges) BehavioralTriggersOrErr() ([]*BehavioralTrigger, error) {
-	if e.loadedTypes[23] {
+	if e.loadedTypes[24] {
 		return e.BehavioralTriggers, nil
 	}
 	return nil, &NotLoadedError{edge: "behavioral_triggers"}
@@ -612,6 +623,11 @@ func (_m *Tenant) QueryLeadScoringRules() *LeadScoringRuleQuery {
 // QueryCustomAgents queries the "custom_agents" edge of the Tenant entity.
 func (_m *Tenant) QueryCustomAgents() *CustomAgentQuery {
 	return NewTenantClient(_m.config).QueryCustomAgents(_m)
+}
+
+// QueryConnectedAccounts queries the "connected_accounts" edge of the Tenant entity.
+func (_m *Tenant) QueryConnectedAccounts() *ConnectedAccountQuery {
+	return NewTenantClient(_m.config).QueryConnectedAccounts(_m)
 }
 
 // QueryAgentRuns queries the "agent_runs" edge of the Tenant entity.

@@ -1879,6 +1879,29 @@ func HasCustomAgentsWith(preds ...predicate.CustomAgent) predicate.Tenant {
 	})
 }
 
+// HasConnectedAccounts applies the HasEdge predicate on the "connected_accounts" edge.
+func HasConnectedAccounts() predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ConnectedAccountsTable, ConnectedAccountsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasConnectedAccountsWith applies the HasEdge predicate on the "connected_accounts" edge with a given conditions (other predicates).
+func HasConnectedAccountsWith(preds ...predicate.ConnectedAccount) predicate.Tenant {
+	return predicate.Tenant(func(s *sql.Selector) {
+		step := newConnectedAccountsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasAgentRuns applies the HasEdge predicate on the "agent_runs" edge.
 func HasAgentRuns() predicate.Tenant {
 	return predicate.Tenant(func(s *sql.Selector) {

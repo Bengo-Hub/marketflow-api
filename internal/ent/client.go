@@ -24,6 +24,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/behavioraltrigger"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
+	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/bengobox/marketflow-api/internal/ent/customfielddef"
@@ -76,6 +77,8 @@ type Client struct {
 	Campaign *CampaignClient
 	// ChatSession is the client for interacting with the ChatSession builders.
 	ChatSession *ChatSessionClient
+	// ConnectedAccount is the client for interacting with the ConnectedAccount builders.
+	ConnectedAccount *ConnectedAccountClient
 	// Contact is the client for interacting with the Contact builders.
 	Contact *ContactClient
 	// CustomAgent is the client for interacting with the CustomAgent builders.
@@ -153,6 +156,7 @@ func (c *Client) init() {
 	c.BehavioralTrigger = NewBehavioralTriggerClient(c.config)
 	c.Campaign = NewCampaignClient(c.config)
 	c.ChatSession = NewChatSessionClient(c.config)
+	c.ConnectedAccount = NewConnectedAccountClient(c.config)
 	c.Contact = NewContactClient(c.config)
 	c.CustomAgent = NewCustomAgentClient(c.config)
 	c.CustomFieldDef = NewCustomFieldDefClient(c.config)
@@ -282,6 +286,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		BehavioralTrigger:    NewBehavioralTriggerClient(cfg),
 		Campaign:             NewCampaignClient(cfg),
 		ChatSession:          NewChatSessionClient(cfg),
+		ConnectedAccount:     NewConnectedAccountClient(cfg),
 		Contact:              NewContactClient(cfg),
 		CustomAgent:          NewCustomAgentClient(cfg),
 		CustomFieldDef:       NewCustomFieldDefClient(cfg),
@@ -338,6 +343,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		BehavioralTrigger:    NewBehavioralTriggerClient(cfg),
 		Campaign:             NewCampaignClient(cfg),
 		ChatSession:          NewChatSessionClient(cfg),
+		ConnectedAccount:     NewConnectedAccountClient(cfg),
 		Contact:              NewContactClient(cfg),
 		CustomAgent:          NewCustomAgentClient(cfg),
 		CustomFieldDef:       NewCustomFieldDefClient(cfg),
@@ -397,13 +403,14 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Account, c.Activity, c.AdMetrics, c.AgentRun, c.AuditLog, c.BehavioralTrigger,
-		c.Campaign, c.ChatSession, c.Contact, c.CustomAgent, c.CustomFieldDef,
-		c.CustomFieldValue, c.Deal, c.Funnel, c.KnowledgeBaseEntry, c.Lead,
-		c.LeadScoringRule, c.MarketflowPermission, c.MarketflowRole, c.MarketflowUser,
-		c.NurtureDeliveryEvent, c.NurtureEnrollment, c.NurtureSequence, c.OutboxEvent,
-		c.Pipeline, c.PipelineStage, c.ProfileEvent, c.ProviderSetting,
-		c.RolePermission, c.ScheduledMeeting, c.Segment, c.ServiceConfig, c.ShortLink,
-		c.Task, c.Tenant, c.Testimonial, c.UserRoleAssignment,
+		c.Campaign, c.ChatSession, c.ConnectedAccount, c.Contact, c.CustomAgent,
+		c.CustomFieldDef, c.CustomFieldValue, c.Deal, c.Funnel, c.KnowledgeBaseEntry,
+		c.Lead, c.LeadScoringRule, c.MarketflowPermission, c.MarketflowRole,
+		c.MarketflowUser, c.NurtureDeliveryEvent, c.NurtureEnrollment,
+		c.NurtureSequence, c.OutboxEvent, c.Pipeline, c.PipelineStage, c.ProfileEvent,
+		c.ProviderSetting, c.RolePermission, c.ScheduledMeeting, c.Segment,
+		c.ServiceConfig, c.ShortLink, c.Task, c.Tenant, c.Testimonial,
+		c.UserRoleAssignment,
 	} {
 		n.Use(hooks...)
 	}
@@ -414,13 +421,14 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Account, c.Activity, c.AdMetrics, c.AgentRun, c.AuditLog, c.BehavioralTrigger,
-		c.Campaign, c.ChatSession, c.Contact, c.CustomAgent, c.CustomFieldDef,
-		c.CustomFieldValue, c.Deal, c.Funnel, c.KnowledgeBaseEntry, c.Lead,
-		c.LeadScoringRule, c.MarketflowPermission, c.MarketflowRole, c.MarketflowUser,
-		c.NurtureDeliveryEvent, c.NurtureEnrollment, c.NurtureSequence, c.OutboxEvent,
-		c.Pipeline, c.PipelineStage, c.ProfileEvent, c.ProviderSetting,
-		c.RolePermission, c.ScheduledMeeting, c.Segment, c.ServiceConfig, c.ShortLink,
-		c.Task, c.Tenant, c.Testimonial, c.UserRoleAssignment,
+		c.Campaign, c.ChatSession, c.ConnectedAccount, c.Contact, c.CustomAgent,
+		c.CustomFieldDef, c.CustomFieldValue, c.Deal, c.Funnel, c.KnowledgeBaseEntry,
+		c.Lead, c.LeadScoringRule, c.MarketflowPermission, c.MarketflowRole,
+		c.MarketflowUser, c.NurtureDeliveryEvent, c.NurtureEnrollment,
+		c.NurtureSequence, c.OutboxEvent, c.Pipeline, c.PipelineStage, c.ProfileEvent,
+		c.ProviderSetting, c.RolePermission, c.ScheduledMeeting, c.Segment,
+		c.ServiceConfig, c.ShortLink, c.Task, c.Tenant, c.Testimonial,
+		c.UserRoleAssignment,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -445,6 +453,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Campaign.mutate(ctx, m)
 	case *ChatSessionMutation:
 		return c.ChatSession.mutate(ctx, m)
+	case *ConnectedAccountMutation:
+		return c.ConnectedAccount.mutate(ctx, m)
 	case *ContactMutation:
 		return c.Contact.mutate(ctx, m)
 	case *CustomAgentMutation:
@@ -1809,6 +1819,155 @@ func (c *ChatSessionClient) mutate(ctx context.Context, m *ChatSessionMutation) 
 		return (&ChatSessionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ChatSession mutation op: %q", m.Op())
+	}
+}
+
+// ConnectedAccountClient is a client for the ConnectedAccount schema.
+type ConnectedAccountClient struct {
+	config
+}
+
+// NewConnectedAccountClient returns a client for the ConnectedAccount from the given config.
+func NewConnectedAccountClient(c config) *ConnectedAccountClient {
+	return &ConnectedAccountClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `connectedaccount.Hooks(f(g(h())))`.
+func (c *ConnectedAccountClient) Use(hooks ...Hook) {
+	c.hooks.ConnectedAccount = append(c.hooks.ConnectedAccount, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `connectedaccount.Intercept(f(g(h())))`.
+func (c *ConnectedAccountClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ConnectedAccount = append(c.inters.ConnectedAccount, interceptors...)
+}
+
+// Create returns a builder for creating a ConnectedAccount entity.
+func (c *ConnectedAccountClient) Create() *ConnectedAccountCreate {
+	mutation := newConnectedAccountMutation(c.config, OpCreate)
+	return &ConnectedAccountCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ConnectedAccount entities.
+func (c *ConnectedAccountClient) CreateBulk(builders ...*ConnectedAccountCreate) *ConnectedAccountCreateBulk {
+	return &ConnectedAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ConnectedAccountClient) MapCreateBulk(slice any, setFunc func(*ConnectedAccountCreate, int)) *ConnectedAccountCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ConnectedAccountCreateBulk{err: fmt.Errorf("calling to ConnectedAccountClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ConnectedAccountCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ConnectedAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ConnectedAccount.
+func (c *ConnectedAccountClient) Update() *ConnectedAccountUpdate {
+	mutation := newConnectedAccountMutation(c.config, OpUpdate)
+	return &ConnectedAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ConnectedAccountClient) UpdateOne(_m *ConnectedAccount) *ConnectedAccountUpdateOne {
+	mutation := newConnectedAccountMutation(c.config, OpUpdateOne, withConnectedAccount(_m))
+	return &ConnectedAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ConnectedAccountClient) UpdateOneID(id uuid.UUID) *ConnectedAccountUpdateOne {
+	mutation := newConnectedAccountMutation(c.config, OpUpdateOne, withConnectedAccountID(id))
+	return &ConnectedAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ConnectedAccount.
+func (c *ConnectedAccountClient) Delete() *ConnectedAccountDelete {
+	mutation := newConnectedAccountMutation(c.config, OpDelete)
+	return &ConnectedAccountDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ConnectedAccountClient) DeleteOne(_m *ConnectedAccount) *ConnectedAccountDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ConnectedAccountClient) DeleteOneID(id uuid.UUID) *ConnectedAccountDeleteOne {
+	builder := c.Delete().Where(connectedaccount.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ConnectedAccountDeleteOne{builder}
+}
+
+// Query returns a query builder for ConnectedAccount.
+func (c *ConnectedAccountClient) Query() *ConnectedAccountQuery {
+	return &ConnectedAccountQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeConnectedAccount},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ConnectedAccount entity by its id.
+func (c *ConnectedAccountClient) Get(ctx context.Context, id uuid.UUID) (*ConnectedAccount, error) {
+	return c.Query().Where(connectedaccount.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ConnectedAccountClient) GetX(ctx context.Context, id uuid.UUID) *ConnectedAccount {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTenant queries the tenant edge of a ConnectedAccount.
+func (c *ConnectedAccountClient) QueryTenant(_m *ConnectedAccount) *TenantQuery {
+	query := (&TenantClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(connectedaccount.Table, connectedaccount.FieldID, id),
+			sqlgraph.To(tenant.Table, tenant.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, connectedaccount.TenantTable, connectedaccount.TenantColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ConnectedAccountClient) Hooks() []Hook {
+	return c.hooks.ConnectedAccount
+}
+
+// Interceptors returns the client interceptors.
+func (c *ConnectedAccountClient) Interceptors() []Interceptor {
+	return c.inters.ConnectedAccount
+}
+
+func (c *ConnectedAccountClient) mutate(ctx context.Context, m *ConnectedAccountMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ConnectedAccountCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ConnectedAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ConnectedAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ConnectedAccountDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ConnectedAccount mutation op: %q", m.Op())
 	}
 }
 
@@ -6466,6 +6625,22 @@ func (c *TenantClient) QueryCustomAgents(_m *Tenant) *CustomAgentQuery {
 	return query
 }
 
+// QueryConnectedAccounts queries the connected_accounts edge of a Tenant.
+func (c *TenantClient) QueryConnectedAccounts(_m *Tenant) *ConnectedAccountQuery {
+	query := (&ConnectedAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, id),
+			sqlgraph.To(connectedaccount.Table, connectedaccount.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.ConnectedAccountsTable, tenant.ConnectedAccountsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryAgentRuns queries the agent_runs edge of a Tenant.
 func (c *TenantClient) QueryAgentRuns(_m *Tenant) *AgentRunQuery {
 	query := (&AgentRunClient{config: c.config}).Query()
@@ -6857,20 +7032,22 @@ func (c *UserRoleAssignmentClient) mutate(ctx context.Context, m *UserRoleAssign
 type (
 	hooks struct {
 		Account, Activity, AdMetrics, AgentRun, AuditLog, BehavioralTrigger, Campaign,
-		ChatSession, Contact, CustomAgent, CustomFieldDef, CustomFieldValue, Deal,
-		Funnel, KnowledgeBaseEntry, Lead, LeadScoringRule, MarketflowPermission,
-		MarketflowRole, MarketflowUser, NurtureDeliveryEvent, NurtureEnrollment,
-		NurtureSequence, OutboxEvent, Pipeline, PipelineStage, ProfileEvent,
-		ProviderSetting, RolePermission, ScheduledMeeting, Segment, ServiceConfig,
-		ShortLink, Task, Tenant, Testimonial, UserRoleAssignment []ent.Hook
+		ChatSession, ConnectedAccount, Contact, CustomAgent, CustomFieldDef,
+		CustomFieldValue, Deal, Funnel, KnowledgeBaseEntry, Lead, LeadScoringRule,
+		MarketflowPermission, MarketflowRole, MarketflowUser, NurtureDeliveryEvent,
+		NurtureEnrollment, NurtureSequence, OutboxEvent, Pipeline, PipelineStage,
+		ProfileEvent, ProviderSetting, RolePermission, ScheduledMeeting, Segment,
+		ServiceConfig, ShortLink, Task, Tenant, Testimonial,
+		UserRoleAssignment []ent.Hook
 	}
 	inters struct {
 		Account, Activity, AdMetrics, AgentRun, AuditLog, BehavioralTrigger, Campaign,
-		ChatSession, Contact, CustomAgent, CustomFieldDef, CustomFieldValue, Deal,
-		Funnel, KnowledgeBaseEntry, Lead, LeadScoringRule, MarketflowPermission,
-		MarketflowRole, MarketflowUser, NurtureDeliveryEvent, NurtureEnrollment,
-		NurtureSequence, OutboxEvent, Pipeline, PipelineStage, ProfileEvent,
-		ProviderSetting, RolePermission, ScheduledMeeting, Segment, ServiceConfig,
-		ShortLink, Task, Tenant, Testimonial, UserRoleAssignment []ent.Interceptor
+		ChatSession, ConnectedAccount, Contact, CustomAgent, CustomFieldDef,
+		CustomFieldValue, Deal, Funnel, KnowledgeBaseEntry, Lead, LeadScoringRule,
+		MarketflowPermission, MarketflowRole, MarketflowUser, NurtureDeliveryEvent,
+		NurtureEnrollment, NurtureSequence, OutboxEvent, Pipeline, PipelineStage,
+		ProfileEvent, ProviderSetting, RolePermission, ScheduledMeeting, Segment,
+		ServiceConfig, ShortLink, Task, Tenant, Testimonial,
+		UserRoleAssignment []ent.Interceptor
 	}
 )

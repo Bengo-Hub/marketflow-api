@@ -19,6 +19,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/behavioraltrigger"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
+	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/bengobox/marketflow-api/internal/ent/customfielddef"
@@ -69,6 +70,7 @@ type TenantQuery struct {
 	withCustomFieldValues     *CustomFieldValueQuery
 	withLeadScoringRules      *LeadScoringRuleQuery
 	withCustomAgents          *CustomAgentQuery
+	withConnectedAccounts     *ConnectedAccountQuery
 	withAgentRuns             *AgentRunQuery
 	withSegments              *SegmentQuery
 	withBehavioralTriggers    *BehavioralTriggerQuery
@@ -571,6 +573,28 @@ func (_q *TenantQuery) QueryCustomAgents() *CustomAgentQuery {
 	return query
 }
 
+// QueryConnectedAccounts chains the current query on the "connected_accounts" edge.
+func (_q *TenantQuery) QueryConnectedAccounts() *ConnectedAccountQuery {
+	query := (&ConnectedAccountClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(tenant.Table, tenant.FieldID, selector),
+			sqlgraph.To(connectedaccount.Table, connectedaccount.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, tenant.ConnectedAccountsTable, tenant.ConnectedAccountsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // QueryAgentRuns chains the current query on the "agent_runs" edge.
 func (_q *TenantQuery) QueryAgentRuns() *AgentRunQuery {
 	query := (&AgentRunClient{config: _q.config}).Query()
@@ -850,6 +874,7 @@ func (_q *TenantQuery) Clone() *TenantQuery {
 		withCustomFieldValues:     _q.withCustomFieldValues.Clone(),
 		withLeadScoringRules:      _q.withLeadScoringRules.Clone(),
 		withCustomAgents:          _q.withCustomAgents.Clone(),
+		withConnectedAccounts:     _q.withConnectedAccounts.Clone(),
 		withAgentRuns:             _q.withAgentRuns.Clone(),
 		withSegments:              _q.withSegments.Clone(),
 		withBehavioralTriggers:    _q.withBehavioralTriggers.Clone(),
@@ -1091,6 +1116,17 @@ func (_q *TenantQuery) WithCustomAgents(opts ...func(*CustomAgentQuery)) *Tenant
 	return _q
 }
 
+// WithConnectedAccounts tells the query-builder to eager-load the nodes that are connected to
+// the "connected_accounts" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TenantQuery) WithConnectedAccounts(opts ...func(*ConnectedAccountQuery)) *TenantQuery {
+	query := (&ConnectedAccountClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withConnectedAccounts = query
+	return _q
+}
+
 // WithAgentRuns tells the query-builder to eager-load the nodes that are connected to
 // the "agent_runs" edge. The optional arguments are used to configure the query builder of the edge.
 func (_q *TenantQuery) WithAgentRuns(opts ...func(*AgentRunQuery)) *TenantQuery {
@@ -1202,7 +1238,7 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 	var (
 		nodes       = []*Tenant{}
 		_spec       = _q.querySpec()
-		loadedTypes = [24]bool{
+		loadedTypes = [25]bool{
 			_q.withLeads != nil,
 			_q.withContacts != nil,
 			_q.withCampaigns != nil,
@@ -1224,6 +1260,7 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 			_q.withCustomFieldValues != nil,
 			_q.withLeadScoringRules != nil,
 			_q.withCustomAgents != nil,
+			_q.withConnectedAccounts != nil,
 			_q.withAgentRuns != nil,
 			_q.withSegments != nil,
 			_q.withBehavioralTriggers != nil,
@@ -1400,6 +1437,13 @@ func (_q *TenantQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Tenan
 		if err := _q.loadCustomAgents(ctx, query, nodes,
 			func(n *Tenant) { n.Edges.CustomAgents = []*CustomAgent{} },
 			func(n *Tenant, e *CustomAgent) { n.Edges.CustomAgents = append(n.Edges.CustomAgents, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withConnectedAccounts; query != nil {
+		if err := _q.loadConnectedAccounts(ctx, query, nodes,
+			func(n *Tenant) { n.Edges.ConnectedAccounts = []*ConnectedAccount{} },
+			func(n *Tenant, e *ConnectedAccount) { n.Edges.ConnectedAccounts = append(n.Edges.ConnectedAccounts, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -2044,6 +2088,36 @@ func (_q *TenantQuery) loadCustomAgents(ctx context.Context, query *CustomAgentQ
 	}
 	query.Where(predicate.CustomAgent(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(tenant.CustomAgentsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TenantID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "tenant_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *TenantQuery) loadConnectedAccounts(ctx context.Context, query *ConnectedAccountQuery, nodes []*Tenant, init func(*Tenant), assign func(*Tenant, *ConnectedAccount)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Tenant)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(connectedaccount.FieldTenantID)
+	}
+	query.Where(predicate.ConnectedAccount(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(tenant.ConnectedAccountsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

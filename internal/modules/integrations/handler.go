@@ -9,7 +9,9 @@
 //  3. Backend builds the provider's consent URL with a short-lived signed
 //     `state` carrying {tenant_id, nonce}, signed with MF_SECURITY_ENCRYPTION_KEY.
 //  4. Provider redirects to /api/v1/integrations/{provider}/callback.
-//  5. Backend verifies state, exchanges code, persists token as ProviderSetting.
+//  5. Backend verifies state, exchanges code, persists the token as ProviderSetting and
+//     writes one ConnectedAccount row per Page, Instagram account, ad account or TikTok
+//     advertiser granted (tokens as ciphertext only; see accounts.go).
 package integrations
 
 import (
@@ -310,28 +312,23 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 	if userToken == "" {
 		userToken = shortTok.AccessToken
 	}
-	// Step 3: fetch user's pages + pick the first (tenant can switch in UI).
-	pagesResp, err := http.Get("https://graph.facebook.com/v21.0/me/accounts?access_token=" + url.QueryEscape(userToken))
-	if err != nil {
+	// Step 3: fetch every Page the user granted, with its Instagram business account. The first
+	// is the tenant's default Page (switchable in the UI); all are stored as ConnectedAccounts.
+	pages, err := graphList[metaPage](r.Context(), "/me/accounts", url.Values{
+		"access_token": {userToken},
+		"fields":       {"id,name,access_token,instagram_business_account{id,username}"},
+		"limit":        {"100"},
+	}, 5)
+	if err != nil && len(pages) == 0 {
 		httpapi.Error(w, http.StatusBadGateway, "pages_fetch_failed", err.Error(), nil)
 		return
 	}
-	pagesBody, _ := io.ReadAll(pagesResp.Body)
-	pagesResp.Body.Close()
-	var pagesResult struct {
-		Data []struct {
-			ID          string `json:"id"`
-			Name        string `json:"name"`
-			AccessToken string `json:"access_token"`
-		} `json:"data"`
-	}
-	_ = json.Unmarshal(pagesBody, &pagesResult)
-	if len(pagesResult.Data) == 0 {
+	if len(pages) == 0 {
 		httpapi.Error(w, http.StatusBadRequest, "no_pages",
 			"no Facebook Pages found for this user", nil)
 		return
 	}
-	p := pagesResult.Data[0]
+	p := pages[0]
 	if err := h.upsertTenantKV(r.Context(), tenantID, "meta_ads", "page", map[string]string{
 		"page_id":    p.ID,
 		"page_name":  p.Name,
@@ -347,6 +344,21 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 		if err := h.db.Tenant.UpdateOneID(tid).SetMetaPageID(p.ID).Exec(r.Context()); err != nil {
 			h.logger.Warn("meta connect: could not record the page id on the tenant", zap.String("tenant", tenantID), zap.Error(err))
 		}
+	}
+	// Ad accounts need ads_management or ads_read; without them the list is simply empty.
+	adAccounts, err := graphList[metaAdAccount](r.Context(), "/me/adaccounts", url.Values{
+		"access_token": {userToken},
+		"fields":       {"id,name,currency,account_status"},
+		"limit":        {"100"},
+	}, 5)
+	if err != nil {
+		h.logger.Info("meta connect: ad accounts not listed", zap.String("tenant", tenantID), zap.Error(err))
+	}
+	accounts := metaAccounts(pages, adAccounts, userToken, metaGrantedScopes(r.Context(), userToken))
+	if err := h.saveAccounts(r.Context(), tenantID, accounts); err != nil {
+		// The default Page is already saved above, so the connect still works; the full list
+		// is stored again on the next connect.
+		h.logger.Error("meta connect: connected accounts not stored", zap.String("tenant", tenantID), zap.Error(err))
 	}
 	target := h.integrationsURL(r.Context(), tenantID, "meta=connected&page="+url.QueryEscape(p.Name))
 	http.Redirect(w, r, target, http.StatusFound)
@@ -447,6 +459,19 @@ func (h *Handler) TikTokCallback(w http.ResponseWriter, r *http.Request) {
 	}, []string{"access_token"}); err != nil {
 		httpapi.Error(w, http.StatusInternalServerError, "persist_failed", err.Error(), nil)
 		return
+	}
+	// One token covers every advertiser the user authorised; each is its own account.
+	advertisers := make([]account, 0, len(tokResp.Data.AdvertiserIDs))
+	for _, id := range tokResp.Data.AdvertiserIDs {
+		if id != "" {
+			advertisers = append(advertisers, account{
+				Platform: PlatformTikTok, Type: AccountTikTokAdvertiser, ExternalID: id,
+				Token: tokResp.Data.AccessToken, Metadata: map[string]any{},
+			})
+		}
+	}
+	if err := h.saveAccounts(r.Context(), tenantID, advertisers); err != nil {
+		h.logger.Error("tiktok connect: connected accounts not stored", zap.String("tenant", tenantID), zap.Error(err))
 	}
 	target := h.integrationsURL(r.Context(), tenantID, "tiktok=connected")
 	http.Redirect(w, r, target, http.StatusFound)
@@ -575,7 +600,12 @@ func (h *Handler) DisconnectTenant(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusInternalServerError, "disconnect_failed", err.Error(), nil)
 		return
 	}
-	httpapi.JSON(w, http.StatusOK, map[string]any{"disconnected": provider, "rows": n})
+	revoked, err := h.revokeAccounts(r.Context(), tenantID, provider)
+	if err != nil {
+		httpapi.Error(w, http.StatusInternalServerError, "disconnect_failed", err.Error(), nil)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, map[string]any{"disconnected": provider, "rows": n, "accounts_revoked": revoked})
 }
 
 type businessHoursInput struct {

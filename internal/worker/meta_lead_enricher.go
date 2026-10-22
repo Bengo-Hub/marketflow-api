@@ -67,7 +67,10 @@ func (h *MetaLeadEnricher) Handle(ctx context.Context, msg jetstream.Msg) error 
 	if leadgenID == "" {
 		return nil
 	}
-	token, ok := h.tokens.Resolve(ctx, ev.TenantID.String())
+	// The lead came from one Page; read it with that Page's token (any connected Page, not
+	// only the default one).
+	pageID, _ := l.Metadata["meta_page_id"].(string)
+	token, ok := h.tokens.ResolvePage(ctx, ev.TenantID.String(), pageID)
 	if !ok {
 		h.logger.Warn("meta lead not enriched: tenant has no Page token", zap.String("tenant", ev.TenantID.String()))
 		return nil

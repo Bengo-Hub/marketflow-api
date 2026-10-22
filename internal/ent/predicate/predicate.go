@@ -30,6 +30,9 @@ type Campaign func(*sql.Selector)
 // ChatSession is the predicate function for chatsession builders.
 type ChatSession func(*sql.Selector)
 
+// ConnectedAccount is the predicate function for connectedaccount builders.
+type ConnectedAccount func(*sql.Selector)
+
 // Contact is the predicate function for contact builders.
 type Contact func(*sql.Selector)
 

@@ -437,6 +437,60 @@ var (
 			},
 		},
 	}
+	// ConnectedAccountsColumns holds the columns for the "connected_accounts" table.
+	ConnectedAccountsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "platform", Type: field.TypeString, Size: 32},
+		{Name: "account_type", Type: field.TypeString, Size: 32},
+		{Name: "external_id", Type: field.TypeString, Size: 128},
+		{Name: "display_name", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "scopes", Type: field.TypeJSON, Nullable: true},
+		{Name: "token_ciphertext", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "refresh_ciphertext", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "active"},
+		{Name: "connected_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "tenant_id", Type: field.TypeUUID},
+	}
+	// ConnectedAccountsTable holds the schema information for the "connected_accounts" table.
+	ConnectedAccountsTable = &schema.Table{
+		Name:       "connected_accounts",
+		Columns:    ConnectedAccountsColumns,
+		PrimaryKey: []*schema.Column{ConnectedAccountsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "connected_accounts_tenants_connected_accounts",
+				Columns:    []*schema.Column{ConnectedAccountsColumns[14]},
+				RefColumns: []*schema.Column{TenantsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "connectedaccount_tenant_id_platform_account_type_external_id",
+				Unique:  true,
+				Columns: []*schema.Column{ConnectedAccountsColumns[14], ConnectedAccountsColumns[1], ConnectedAccountsColumns[2], ConnectedAccountsColumns[3]},
+			},
+			{
+				Name:    "connectedaccount_tenant_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{ConnectedAccountsColumns[14], ConnectedAccountsColumns[9]},
+			},
+			{
+				Name:    "connectedaccount_external_id_account_type",
+				Unique:  false,
+				Columns: []*schema.Column{ConnectedAccountsColumns[3], ConnectedAccountsColumns[2]},
+			},
+			{
+				Name:    "connectedaccount_status_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{ConnectedAccountsColumns[9], ConnectedAccountsColumns[8]},
+			},
+		},
+	}
 	// ContactsColumns holds the columns for the "contacts" table.
 	ContactsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -1914,6 +1968,7 @@ var (
 		BehavioralTriggersTable,
 		CampaignsTable,
 		ChatSessionsTable,
+		ConnectedAccountsTable,
 		ContactsTable,
 		CustomAgentsTable,
 		CustomFieldDefsTable,
@@ -1958,6 +2013,7 @@ func init() {
 	ChatSessionsTable.ForeignKeys[0].RefTable = ContactsTable
 	ChatSessionsTable.ForeignKeys[1].RefTable = LeadsTable
 	ChatSessionsTable.ForeignKeys[2].RefTable = TenantsTable
+	ConnectedAccountsTable.ForeignKeys[0].RefTable = TenantsTable
 	ContactsTable.ForeignKeys[0].RefTable = AccountsTable
 	ContactsTable.ForeignKeys[1].RefTable = TenantsTable
 	CustomAgentsTable.ForeignKeys[0].RefTable = TenantsTable

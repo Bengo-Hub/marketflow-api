@@ -19,6 +19,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/behavioraltrigger"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
+	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/bengobox/marketflow-api/internal/ent/customfielddef"
@@ -69,6 +70,7 @@ const (
 	TypeBehavioralTrigger    = "BehavioralTrigger"
 	TypeCampaign             = "Campaign"
 	TypeChatSession          = "ChatSession"
+	TypeConnectedAccount     = "ConnectedAccount"
 	TypeContact              = "Contact"
 	TypeCustomAgent          = "CustomAgent"
 	TypeCustomFieldDef       = "CustomFieldDef"
@@ -10567,6 +10569,1247 @@ func (m *ChatSessionMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown ChatSession edge %s", name)
+}
+
+// ConnectedAccountMutation represents an operation that mutates the ConnectedAccount nodes in the graph.
+type ConnectedAccountMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *uuid.UUID
+	platform           *string
+	account_type       *string
+	external_id        *string
+	display_name       *string
+	scopes             *[]string
+	appendscopes       []string
+	token_ciphertext   *string
+	refresh_ciphertext *string
+	expires_at         *time.Time
+	status             *string
+	connected_by       *uuid.UUID
+	metadata           *map[string]interface{}
+	created_at         *time.Time
+	updated_at         *time.Time
+	clearedFields      map[string]struct{}
+	tenant             *uuid.UUID
+	clearedtenant      bool
+	done               bool
+	oldValue           func(context.Context) (*ConnectedAccount, error)
+	predicates         []predicate.ConnectedAccount
+}
+
+var _ ent.Mutation = (*ConnectedAccountMutation)(nil)
+
+// connectedaccountOption allows management of the mutation configuration using functional options.
+type connectedaccountOption func(*ConnectedAccountMutation)
+
+// newConnectedAccountMutation creates new mutation for the ConnectedAccount entity.
+func newConnectedAccountMutation(c config, op Op, opts ...connectedaccountOption) *ConnectedAccountMutation {
+	m := &ConnectedAccountMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeConnectedAccount,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withConnectedAccountID sets the ID field of the mutation.
+func withConnectedAccountID(id uuid.UUID) connectedaccountOption {
+	return func(m *ConnectedAccountMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ConnectedAccount
+		)
+		m.oldValue = func(ctx context.Context) (*ConnectedAccount, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ConnectedAccount.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withConnectedAccount sets the old ConnectedAccount of the mutation.
+func withConnectedAccount(node *ConnectedAccount) connectedaccountOption {
+	return func(m *ConnectedAccountMutation) {
+		m.oldValue = func(context.Context) (*ConnectedAccount, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ConnectedAccountMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ConnectedAccountMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of ConnectedAccount entities.
+func (m *ConnectedAccountMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ConnectedAccountMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ConnectedAccountMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ConnectedAccount.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *ConnectedAccountMutation) SetTenantID(u uuid.UUID) {
+	m.tenant = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *ConnectedAccountMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the ConnectedAccount entity.
+// If the ConnectedAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConnectedAccountMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *ConnectedAccountMutation) ResetTenantID() {
+	m.tenant = nil
+}
+
+// SetPlatform sets the "platform" field.
+func (m *ConnectedAccountMutation) SetPlatform(s string) {
+	m.platform = &s
+}
+
+// Platform returns the value of the "platform" field in the mutation.
+func (m *ConnectedAccountMutation) Platform() (r string, exists bool) {
+	v := m.platform
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlatform returns the old "platform" field's value of the ConnectedAccount entity.
+// If the ConnectedAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConnectedAccountMutation) OldPlatform(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlatform is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlatform requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlatform: %w", err)
+	}
+	return oldValue.Platform, nil
+}
+
+// ResetPlatform resets all changes to the "platform" field.
+func (m *ConnectedAccountMutation) ResetPlatform() {
+	m.platform = nil
+}
+
+// SetAccountType sets the "account_type" field.
+func (m *ConnectedAccountMutation) SetAccountType(s string) {
+	m.account_type = &s
+}
+
+// AccountType returns the value of the "account_type" field in the mutation.
+func (m *ConnectedAccountMutation) AccountType() (r string, exists bool) {
+	v := m.account_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountType returns the old "account_type" field's value of the ConnectedAccount entity.
+// If the ConnectedAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConnectedAccountMutation) OldAccountType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountType: %w", err)
+	}
+	return oldValue.AccountType, nil
+}
+
+// ResetAccountType resets all changes to the "account_type" field.
+func (m *ConnectedAccountMutation) ResetAccountType() {
+	m.account_type = nil
+}
+
+// SetExternalID sets the "external_id" field.
+func (m *ConnectedAccountMutation) SetExternalID(s string) {
+	m.external_id = &s
+}
+
+// ExternalID returns the value of the "external_id" field in the mutation.
+func (m *ConnectedAccountMutation) ExternalID() (r string, exists bool) {
+	v := m.external_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExternalID returns the old "external_id" field's value of the ConnectedAccount entity.
+// If the ConnectedAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConnectedAccountMutation) OldExternalID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExternalID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExternalID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExternalID: %w", err)
+	}
+	return oldValue.ExternalID, nil
+}
+
+// ResetExternalID resets all changes to the "external_id" field.
+func (m *ConnectedAccountMutation) ResetExternalID() {
+	m.external_id = nil
+}
+
+// SetDisplayName sets the "display_name" field.
+func (m *ConnectedAccountMutation) SetDisplayName(s string) {
+	m.display_name = &s
+}
+
+// DisplayName returns the value of the "display_name" field in the mutation.
+func (m *ConnectedAccountMutation) DisplayName() (r string, exists bool) {
+	v := m.display_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisplayName returns the old "display_name" field's value of the ConnectedAccount entity.
+// If the ConnectedAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConnectedAccountMutation) OldDisplayName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisplayName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisplayName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisplayName: %w", err)
+	}
+	return oldValue.DisplayName, nil
+}
+
+// ClearDisplayName clears the value of the "display_name" field.
+func (m *ConnectedAccountMutation) ClearDisplayName() {
+	m.display_name = nil
+	m.clearedFields[connectedaccount.FieldDisplayName] = struct{}{}
+}
+
+// DisplayNameCleared returns if the "display_name" field was cleared in this mutation.
+func (m *ConnectedAccountMutation) DisplayNameCleared() bool {
+	_, ok := m.clearedFields[connectedaccount.FieldDisplayName]
+	return ok
+}
+
+// ResetDisplayName resets all changes to the "display_name" field.
+func (m *ConnectedAccountMutation) ResetDisplayName() {
+	m.display_name = nil
+	delete(m.clearedFields, connectedaccount.FieldDisplayName)
+}
+
+// SetScopes sets the "scopes" field.
+func (m *ConnectedAccountMutation) SetScopes(s []string) {
+	m.scopes = &s
+	m.appendscopes = nil
+}
+
+// Scopes returns the value of the "scopes" field in the mutation.
+func (m *ConnectedAccountMutation) Scopes() (r []string, exists bool) {
+	v := m.scopes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScopes returns the old "scopes" field's value of the ConnectedAccount entity.
+// If the ConnectedAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConnectedAccountMutation) OldScopes(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScopes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScopes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScopes: %w", err)
+	}
+	return oldValue.Scopes, nil
+}
+
+// AppendScopes adds s to the "scopes" field.
+func (m *ConnectedAccountMutation) AppendScopes(s []string) {
+	m.appendscopes = append(m.appendscopes, s...)
+}
+
+// AppendedScopes returns the list of values that were appended to the "scopes" field in this mutation.
+func (m *ConnectedAccountMutation) AppendedScopes() ([]string, bool) {
+	if len(m.appendscopes) == 0 {
+		return nil, false
+	}
+	return m.appendscopes, true
+}
+
+// ClearScopes clears the value of the "scopes" field.
+func (m *ConnectedAccountMutation) ClearScopes() {
+	m.scopes = nil
+	m.appendscopes = nil
+	m.clearedFields[connectedaccount.FieldScopes] = struct{}{}
+}
+
+// ScopesCleared returns if the "scopes" field was cleared in this mutation.
+func (m *ConnectedAccountMutation) ScopesCleared() bool {
+	_, ok := m.clearedFields[connectedaccount.FieldScopes]
+	return ok
+}
+
+// ResetScopes resets all changes to the "scopes" field.
+func (m *ConnectedAccountMutation) ResetScopes() {
+	m.scopes = nil
+	m.appendscopes = nil
+	delete(m.clearedFields, connectedaccount.FieldScopes)
+}
+
+// SetTokenCiphertext sets the "token_ciphertext" field.
+func (m *ConnectedAccountMutation) SetTokenCiphertext(s string) {
+	m.token_ciphertext = &s
+}
+
+// TokenCiphertext returns the value of the "token_ciphertext" field in the mutation.
+func (m *ConnectedAccountMutation) TokenCiphertext() (r string, exists bool) {
+	v := m.token_ciphertext
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenCiphertext returns the old "token_ciphertext" field's value of the ConnectedAccount entity.
+// If the ConnectedAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConnectedAccountMutation) OldTokenCiphertext(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenCiphertext is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenCiphertext requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenCiphertext: %w", err)
+	}
+	return oldValue.TokenCiphertext, nil
+}
+
+// ClearTokenCiphertext clears the value of the "token_ciphertext" field.
+func (m *ConnectedAccountMutation) ClearTokenCiphertext() {
+	m.token_ciphertext = nil
+	m.clearedFields[connectedaccount.FieldTokenCiphertext] = struct{}{}
+}
+
+// TokenCiphertextCleared returns if the "token_ciphertext" field was cleared in this mutation.
+func (m *ConnectedAccountMutation) TokenCiphertextCleared() bool {
+	_, ok := m.clearedFields[connectedaccount.FieldTokenCiphertext]
+	return ok
+}
+
+// ResetTokenCiphertext resets all changes to the "token_ciphertext" field.
+func (m *ConnectedAccountMutation) ResetTokenCiphertext() {
+	m.token_ciphertext = nil
+	delete(m.clearedFields, connectedaccount.FieldTokenCiphertext)
+}
+
+// SetRefreshCiphertext sets the "refresh_ciphertext" field.
+func (m *ConnectedAccountMutation) SetRefreshCiphertext(s string) {
+	m.refresh_ciphertext = &s
+}
+
+// RefreshCiphertext returns the value of the "refresh_ciphertext" field in the mutation.
+func (m *ConnectedAccountMutation) RefreshCiphertext() (r string, exists bool) {
+	v := m.refresh_ciphertext
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRefreshCiphertext returns the old "refresh_ciphertext" field's value of the ConnectedAccount entity.
+// If the ConnectedAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConnectedAccountMutation) OldRefreshCiphertext(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRefreshCiphertext is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRefreshCiphertext requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRefreshCiphertext: %w", err)
+	}
+	return oldValue.RefreshCiphertext, nil
+}
+
+// ClearRefreshCiphertext clears the value of the "refresh_ciphertext" field.
+func (m *ConnectedAccountMutation) ClearRefreshCiphertext() {
+	m.refresh_ciphertext = nil
+	m.clearedFields[connectedaccount.FieldRefreshCiphertext] = struct{}{}
+}
+
+// RefreshCiphertextCleared returns if the "refresh_ciphertext" field was cleared in this mutation.
+func (m *ConnectedAccountMutation) RefreshCiphertextCleared() bool {
+	_, ok := m.clearedFields[connectedaccount.FieldRefreshCiphertext]
+	return ok
+}
+
+// ResetRefreshCiphertext resets all changes to the "refresh_ciphertext" field.
+func (m *ConnectedAccountMutation) ResetRefreshCiphertext() {
+	m.refresh_ciphertext = nil
+	delete(m.clearedFields, connectedaccount.FieldRefreshCiphertext)
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *ConnectedAccountMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *ConnectedAccountMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the ConnectedAccount entity.
+// If the ConnectedAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConnectedAccountMutation) OldExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (m *ConnectedAccountMutation) ClearExpiresAt() {
+	m.expires_at = nil
+	m.clearedFields[connectedaccount.FieldExpiresAt] = struct{}{}
+}
+
+// ExpiresAtCleared returns if the "expires_at" field was cleared in this mutation.
+func (m *ConnectedAccountMutation) ExpiresAtCleared() bool {
+	_, ok := m.clearedFields[connectedaccount.FieldExpiresAt]
+	return ok
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *ConnectedAccountMutation) ResetExpiresAt() {
+	m.expires_at = nil
+	delete(m.clearedFields, connectedaccount.FieldExpiresAt)
+}
+
+// SetStatus sets the "status" field.
+func (m *ConnectedAccountMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *ConnectedAccountMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the ConnectedAccount entity.
+// If the ConnectedAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConnectedAccountMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *ConnectedAccountMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetConnectedBy sets the "connected_by" field.
+func (m *ConnectedAccountMutation) SetConnectedBy(u uuid.UUID) {
+	m.connected_by = &u
+}
+
+// ConnectedBy returns the value of the "connected_by" field in the mutation.
+func (m *ConnectedAccountMutation) ConnectedBy() (r uuid.UUID, exists bool) {
+	v := m.connected_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConnectedBy returns the old "connected_by" field's value of the ConnectedAccount entity.
+// If the ConnectedAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConnectedAccountMutation) OldConnectedBy(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConnectedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConnectedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConnectedBy: %w", err)
+	}
+	return oldValue.ConnectedBy, nil
+}
+
+// ClearConnectedBy clears the value of the "connected_by" field.
+func (m *ConnectedAccountMutation) ClearConnectedBy() {
+	m.connected_by = nil
+	m.clearedFields[connectedaccount.FieldConnectedBy] = struct{}{}
+}
+
+// ConnectedByCleared returns if the "connected_by" field was cleared in this mutation.
+func (m *ConnectedAccountMutation) ConnectedByCleared() bool {
+	_, ok := m.clearedFields[connectedaccount.FieldConnectedBy]
+	return ok
+}
+
+// ResetConnectedBy resets all changes to the "connected_by" field.
+func (m *ConnectedAccountMutation) ResetConnectedBy() {
+	m.connected_by = nil
+	delete(m.clearedFields, connectedaccount.FieldConnectedBy)
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *ConnectedAccountMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *ConnectedAccountMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the ConnectedAccount entity.
+// If the ConnectedAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConnectedAccountMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (m *ConnectedAccountMutation) ClearMetadata() {
+	m.metadata = nil
+	m.clearedFields[connectedaccount.FieldMetadata] = struct{}{}
+}
+
+// MetadataCleared returns if the "metadata" field was cleared in this mutation.
+func (m *ConnectedAccountMutation) MetadataCleared() bool {
+	_, ok := m.clearedFields[connectedaccount.FieldMetadata]
+	return ok
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *ConnectedAccountMutation) ResetMetadata() {
+	m.metadata = nil
+	delete(m.clearedFields, connectedaccount.FieldMetadata)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ConnectedAccountMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ConnectedAccountMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ConnectedAccount entity.
+// If the ConnectedAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConnectedAccountMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ConnectedAccountMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ConnectedAccountMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ConnectedAccountMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ConnectedAccount entity.
+// If the ConnectedAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConnectedAccountMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ConnectedAccountMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// ClearTenant clears the "tenant" edge to the Tenant entity.
+func (m *ConnectedAccountMutation) ClearTenant() {
+	m.clearedtenant = true
+	m.clearedFields[connectedaccount.FieldTenantID] = struct{}{}
+}
+
+// TenantCleared reports if the "tenant" edge to the Tenant entity was cleared.
+func (m *ConnectedAccountMutation) TenantCleared() bool {
+	return m.clearedtenant
+}
+
+// TenantIDs returns the "tenant" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TenantID instead. It exists only for internal usage by the builders.
+func (m *ConnectedAccountMutation) TenantIDs() (ids []uuid.UUID) {
+	if id := m.tenant; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTenant resets all changes to the "tenant" edge.
+func (m *ConnectedAccountMutation) ResetTenant() {
+	m.tenant = nil
+	m.clearedtenant = false
+}
+
+// Where appends a list predicates to the ConnectedAccountMutation builder.
+func (m *ConnectedAccountMutation) Where(ps ...predicate.ConnectedAccount) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ConnectedAccountMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ConnectedAccountMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ConnectedAccount, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ConnectedAccountMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ConnectedAccountMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ConnectedAccount).
+func (m *ConnectedAccountMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ConnectedAccountMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.tenant != nil {
+		fields = append(fields, connectedaccount.FieldTenantID)
+	}
+	if m.platform != nil {
+		fields = append(fields, connectedaccount.FieldPlatform)
+	}
+	if m.account_type != nil {
+		fields = append(fields, connectedaccount.FieldAccountType)
+	}
+	if m.external_id != nil {
+		fields = append(fields, connectedaccount.FieldExternalID)
+	}
+	if m.display_name != nil {
+		fields = append(fields, connectedaccount.FieldDisplayName)
+	}
+	if m.scopes != nil {
+		fields = append(fields, connectedaccount.FieldScopes)
+	}
+	if m.token_ciphertext != nil {
+		fields = append(fields, connectedaccount.FieldTokenCiphertext)
+	}
+	if m.refresh_ciphertext != nil {
+		fields = append(fields, connectedaccount.FieldRefreshCiphertext)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, connectedaccount.FieldExpiresAt)
+	}
+	if m.status != nil {
+		fields = append(fields, connectedaccount.FieldStatus)
+	}
+	if m.connected_by != nil {
+		fields = append(fields, connectedaccount.FieldConnectedBy)
+	}
+	if m.metadata != nil {
+		fields = append(fields, connectedaccount.FieldMetadata)
+	}
+	if m.created_at != nil {
+		fields = append(fields, connectedaccount.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, connectedaccount.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ConnectedAccountMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case connectedaccount.FieldTenantID:
+		return m.TenantID()
+	case connectedaccount.FieldPlatform:
+		return m.Platform()
+	case connectedaccount.FieldAccountType:
+		return m.AccountType()
+	case connectedaccount.FieldExternalID:
+		return m.ExternalID()
+	case connectedaccount.FieldDisplayName:
+		return m.DisplayName()
+	case connectedaccount.FieldScopes:
+		return m.Scopes()
+	case connectedaccount.FieldTokenCiphertext:
+		return m.TokenCiphertext()
+	case connectedaccount.FieldRefreshCiphertext:
+		return m.RefreshCiphertext()
+	case connectedaccount.FieldExpiresAt:
+		return m.ExpiresAt()
+	case connectedaccount.FieldStatus:
+		return m.Status()
+	case connectedaccount.FieldConnectedBy:
+		return m.ConnectedBy()
+	case connectedaccount.FieldMetadata:
+		return m.Metadata()
+	case connectedaccount.FieldCreatedAt:
+		return m.CreatedAt()
+	case connectedaccount.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ConnectedAccountMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case connectedaccount.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case connectedaccount.FieldPlatform:
+		return m.OldPlatform(ctx)
+	case connectedaccount.FieldAccountType:
+		return m.OldAccountType(ctx)
+	case connectedaccount.FieldExternalID:
+		return m.OldExternalID(ctx)
+	case connectedaccount.FieldDisplayName:
+		return m.OldDisplayName(ctx)
+	case connectedaccount.FieldScopes:
+		return m.OldScopes(ctx)
+	case connectedaccount.FieldTokenCiphertext:
+		return m.OldTokenCiphertext(ctx)
+	case connectedaccount.FieldRefreshCiphertext:
+		return m.OldRefreshCiphertext(ctx)
+	case connectedaccount.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	case connectedaccount.FieldStatus:
+		return m.OldStatus(ctx)
+	case connectedaccount.FieldConnectedBy:
+		return m.OldConnectedBy(ctx)
+	case connectedaccount.FieldMetadata:
+		return m.OldMetadata(ctx)
+	case connectedaccount.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case connectedaccount.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown ConnectedAccount field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ConnectedAccountMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case connectedaccount.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case connectedaccount.FieldPlatform:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlatform(v)
+		return nil
+	case connectedaccount.FieldAccountType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountType(v)
+		return nil
+	case connectedaccount.FieldExternalID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExternalID(v)
+		return nil
+	case connectedaccount.FieldDisplayName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisplayName(v)
+		return nil
+	case connectedaccount.FieldScopes:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScopes(v)
+		return nil
+	case connectedaccount.FieldTokenCiphertext:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenCiphertext(v)
+		return nil
+	case connectedaccount.FieldRefreshCiphertext:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRefreshCiphertext(v)
+		return nil
+	case connectedaccount.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	case connectedaccount.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case connectedaccount.FieldConnectedBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConnectedBy(v)
+		return nil
+	case connectedaccount.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	case connectedaccount.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case connectedaccount.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ConnectedAccount field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ConnectedAccountMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ConnectedAccountMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ConnectedAccountMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown ConnectedAccount numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ConnectedAccountMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(connectedaccount.FieldDisplayName) {
+		fields = append(fields, connectedaccount.FieldDisplayName)
+	}
+	if m.FieldCleared(connectedaccount.FieldScopes) {
+		fields = append(fields, connectedaccount.FieldScopes)
+	}
+	if m.FieldCleared(connectedaccount.FieldTokenCiphertext) {
+		fields = append(fields, connectedaccount.FieldTokenCiphertext)
+	}
+	if m.FieldCleared(connectedaccount.FieldRefreshCiphertext) {
+		fields = append(fields, connectedaccount.FieldRefreshCiphertext)
+	}
+	if m.FieldCleared(connectedaccount.FieldExpiresAt) {
+		fields = append(fields, connectedaccount.FieldExpiresAt)
+	}
+	if m.FieldCleared(connectedaccount.FieldConnectedBy) {
+		fields = append(fields, connectedaccount.FieldConnectedBy)
+	}
+	if m.FieldCleared(connectedaccount.FieldMetadata) {
+		fields = append(fields, connectedaccount.FieldMetadata)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ConnectedAccountMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ConnectedAccountMutation) ClearField(name string) error {
+	switch name {
+	case connectedaccount.FieldDisplayName:
+		m.ClearDisplayName()
+		return nil
+	case connectedaccount.FieldScopes:
+		m.ClearScopes()
+		return nil
+	case connectedaccount.FieldTokenCiphertext:
+		m.ClearTokenCiphertext()
+		return nil
+	case connectedaccount.FieldRefreshCiphertext:
+		m.ClearRefreshCiphertext()
+		return nil
+	case connectedaccount.FieldExpiresAt:
+		m.ClearExpiresAt()
+		return nil
+	case connectedaccount.FieldConnectedBy:
+		m.ClearConnectedBy()
+		return nil
+	case connectedaccount.FieldMetadata:
+		m.ClearMetadata()
+		return nil
+	}
+	return fmt.Errorf("unknown ConnectedAccount nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ConnectedAccountMutation) ResetField(name string) error {
+	switch name {
+	case connectedaccount.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case connectedaccount.FieldPlatform:
+		m.ResetPlatform()
+		return nil
+	case connectedaccount.FieldAccountType:
+		m.ResetAccountType()
+		return nil
+	case connectedaccount.FieldExternalID:
+		m.ResetExternalID()
+		return nil
+	case connectedaccount.FieldDisplayName:
+		m.ResetDisplayName()
+		return nil
+	case connectedaccount.FieldScopes:
+		m.ResetScopes()
+		return nil
+	case connectedaccount.FieldTokenCiphertext:
+		m.ResetTokenCiphertext()
+		return nil
+	case connectedaccount.FieldRefreshCiphertext:
+		m.ResetRefreshCiphertext()
+		return nil
+	case connectedaccount.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	case connectedaccount.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case connectedaccount.FieldConnectedBy:
+		m.ResetConnectedBy()
+		return nil
+	case connectedaccount.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	case connectedaccount.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case connectedaccount.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ConnectedAccount field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ConnectedAccountMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.tenant != nil {
+		edges = append(edges, connectedaccount.EdgeTenant)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ConnectedAccountMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case connectedaccount.EdgeTenant:
+		if id := m.tenant; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ConnectedAccountMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ConnectedAccountMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ConnectedAccountMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedtenant {
+		edges = append(edges, connectedaccount.EdgeTenant)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ConnectedAccountMutation) EdgeCleared(name string) bool {
+	switch name {
+	case connectedaccount.EdgeTenant:
+		return m.clearedtenant
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ConnectedAccountMutation) ClearEdge(name string) error {
+	switch name {
+	case connectedaccount.EdgeTenant:
+		m.ClearTenant()
+		return nil
+	}
+	return fmt.Errorf("unknown ConnectedAccount unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ConnectedAccountMutation) ResetEdge(name string) error {
+	switch name {
+	case connectedaccount.EdgeTenant:
+		m.ResetTenant()
+		return nil
+	}
+	return fmt.Errorf("unknown ConnectedAccount edge %s", name)
 }
 
 // ContactMutation represents an operation that mutates the Contact nodes in the graph.
@@ -40537,6 +41780,9 @@ type TenantMutation struct {
 	custom_agents                  map[uuid.UUID]struct{}
 	removedcustom_agents           map[uuid.UUID]struct{}
 	clearedcustom_agents           bool
+	connected_accounts             map[uuid.UUID]struct{}
+	removedconnected_accounts      map[uuid.UUID]struct{}
+	clearedconnected_accounts      bool
 	agent_runs                     map[uuid.UUID]struct{}
 	removedagent_runs              map[uuid.UUID]struct{}
 	clearedagent_runs              bool
@@ -42642,6 +43888,60 @@ func (m *TenantMutation) ResetCustomAgents() {
 	m.removedcustom_agents = nil
 }
 
+// AddConnectedAccountIDs adds the "connected_accounts" edge to the ConnectedAccount entity by ids.
+func (m *TenantMutation) AddConnectedAccountIDs(ids ...uuid.UUID) {
+	if m.connected_accounts == nil {
+		m.connected_accounts = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.connected_accounts[ids[i]] = struct{}{}
+	}
+}
+
+// ClearConnectedAccounts clears the "connected_accounts" edge to the ConnectedAccount entity.
+func (m *TenantMutation) ClearConnectedAccounts() {
+	m.clearedconnected_accounts = true
+}
+
+// ConnectedAccountsCleared reports if the "connected_accounts" edge to the ConnectedAccount entity was cleared.
+func (m *TenantMutation) ConnectedAccountsCleared() bool {
+	return m.clearedconnected_accounts
+}
+
+// RemoveConnectedAccountIDs removes the "connected_accounts" edge to the ConnectedAccount entity by IDs.
+func (m *TenantMutation) RemoveConnectedAccountIDs(ids ...uuid.UUID) {
+	if m.removedconnected_accounts == nil {
+		m.removedconnected_accounts = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.connected_accounts, ids[i])
+		m.removedconnected_accounts[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedConnectedAccounts returns the removed IDs of the "connected_accounts" edge to the ConnectedAccount entity.
+func (m *TenantMutation) RemovedConnectedAccountsIDs() (ids []uuid.UUID) {
+	for id := range m.removedconnected_accounts {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ConnectedAccountsIDs returns the "connected_accounts" edge IDs in the mutation.
+func (m *TenantMutation) ConnectedAccountsIDs() (ids []uuid.UUID) {
+	for id := range m.connected_accounts {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetConnectedAccounts resets all changes to the "connected_accounts" edge.
+func (m *TenantMutation) ResetConnectedAccounts() {
+	m.connected_accounts = nil
+	m.clearedconnected_accounts = false
+	m.removedconnected_accounts = nil
+}
+
 // AddAgentRunIDs adds the "agent_runs" edge to the AgentRun entity by ids.
 func (m *TenantMutation) AddAgentRunIDs(ids ...uuid.UUID) {
 	if m.agent_runs == nil {
@@ -43324,7 +44624,7 @@ func (m *TenantMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TenantMutation) AddedEdges() []string {
-	edges := make([]string, 0, 24)
+	edges := make([]string, 0, 25)
 	if m.leads != nil {
 		edges = append(edges, tenant.EdgeLeads)
 	}
@@ -43387,6 +44687,9 @@ func (m *TenantMutation) AddedEdges() []string {
 	}
 	if m.custom_agents != nil {
 		edges = append(edges, tenant.EdgeCustomAgents)
+	}
+	if m.connected_accounts != nil {
+		edges = append(edges, tenant.EdgeConnectedAccounts)
 	}
 	if m.agent_runs != nil {
 		edges = append(edges, tenant.EdgeAgentRuns)
@@ -43530,6 +44833,12 @@ func (m *TenantMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeConnectedAccounts:
+		ids := make([]ent.Value, 0, len(m.connected_accounts))
+		for id := range m.connected_accounts {
+			ids = append(ids, id)
+		}
+		return ids
 	case tenant.EdgeAgentRuns:
 		ids := make([]ent.Value, 0, len(m.agent_runs))
 		for id := range m.agent_runs {
@@ -43554,7 +44863,7 @@ func (m *TenantMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TenantMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 24)
+	edges := make([]string, 0, 25)
 	if m.removedleads != nil {
 		edges = append(edges, tenant.EdgeLeads)
 	}
@@ -43617,6 +44926,9 @@ func (m *TenantMutation) RemovedEdges() []string {
 	}
 	if m.removedcustom_agents != nil {
 		edges = append(edges, tenant.EdgeCustomAgents)
+	}
+	if m.removedconnected_accounts != nil {
+		edges = append(edges, tenant.EdgeConnectedAccounts)
 	}
 	if m.removedagent_runs != nil {
 		edges = append(edges, tenant.EdgeAgentRuns)
@@ -43760,6 +45072,12 @@ func (m *TenantMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case tenant.EdgeConnectedAccounts:
+		ids := make([]ent.Value, 0, len(m.removedconnected_accounts))
+		for id := range m.removedconnected_accounts {
+			ids = append(ids, id)
+		}
+		return ids
 	case tenant.EdgeAgentRuns:
 		ids := make([]ent.Value, 0, len(m.removedagent_runs))
 		for id := range m.removedagent_runs {
@@ -43784,7 +45102,7 @@ func (m *TenantMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TenantMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 24)
+	edges := make([]string, 0, 25)
 	if m.clearedleads {
 		edges = append(edges, tenant.EdgeLeads)
 	}
@@ -43848,6 +45166,9 @@ func (m *TenantMutation) ClearedEdges() []string {
 	if m.clearedcustom_agents {
 		edges = append(edges, tenant.EdgeCustomAgents)
 	}
+	if m.clearedconnected_accounts {
+		edges = append(edges, tenant.EdgeConnectedAccounts)
+	}
 	if m.clearedagent_runs {
 		edges = append(edges, tenant.EdgeAgentRuns)
 	}
@@ -43906,6 +45227,8 @@ func (m *TenantMutation) EdgeCleared(name string) bool {
 		return m.clearedlead_scoring_rules
 	case tenant.EdgeCustomAgents:
 		return m.clearedcustom_agents
+	case tenant.EdgeConnectedAccounts:
+		return m.clearedconnected_accounts
 	case tenant.EdgeAgentRuns:
 		return m.clearedagent_runs
 	case tenant.EdgeSegments:
@@ -43990,6 +45313,9 @@ func (m *TenantMutation) ResetEdge(name string) error {
 		return nil
 	case tenant.EdgeCustomAgents:
 		m.ResetCustomAgents()
+		return nil
+	case tenant.EdgeConnectedAccounts:
+		m.ResetConnectedAccounts()
 		return nil
 	case tenant.EdgeAgentRuns:
 		m.ResetAgentRuns()

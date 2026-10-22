@@ -105,6 +105,18 @@ func (f ChatSessionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChatSessionMutation", m)
 }
 
+// The ConnectedAccountFunc type is an adapter to allow the use of ordinary
+// function as ConnectedAccount mutator.
+type ConnectedAccountFunc func(context.Context, *ent.ConnectedAccountMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ConnectedAccountFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ConnectedAccountMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ConnectedAccountMutation", m)
+}
+
 // The ContactFunc type is an adapter to allow the use of ordinary
 // function as Contact mutator.
 type ContactFunc func(context.Context, *ent.ContactMutation) (ent.Value, error)

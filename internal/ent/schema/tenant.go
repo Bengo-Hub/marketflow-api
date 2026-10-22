@@ -143,6 +143,7 @@ func (Tenant) Edges() []ent.Edge {
 		edge.To("custom_field_values", CustomFieldValue.Type),
 		edge.To("lead_scoring_rules", LeadScoringRule.Type),
 		edge.To("custom_agents", CustomAgent.Type),
+		edge.To("connected_accounts", ConnectedAccount.Type),
 		edge.To("agent_runs", AgentRun.Type),
 		edge.To("segments", Segment.Type),
 		edge.To("behavioral_triggers", BehavioralTrigger.Type),
