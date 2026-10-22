@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 )
 
 // loadPlatformCreds reads the shared Google OAuth client config from the
-// platform-level ProviderSetting rows.
-func loadPlatformCreds(ctx context.Context, db *ent.Client) (PlatformCreds, error) {
+// platform-level ProviderSetting rows. client_secret is encrypted at rest.
+func loadPlatformCreds(ctx context.Context, db *ent.Client, keys *encryption.KeyProvider) (PlatformCreds, error) {
 	rows, err := db.ProviderSetting.Query().
 		Where(
 			providersetting.TenantIDEQ("platform"),
@@ -27,7 +28,11 @@ func loadPlatformCreds(ctx context.Context, db *ent.Client) (PlatformCreds, erro
 		case "client_id":
 			out.ClientID = r.Value
 		case "client_secret":
-			out.ClientSecret = r.Value
+			v, err := keys.SettingValue(ctx, db, r)
+			if err != nil {
+				return PlatformCreds{}, fmt.Errorf("gcal: decrypt client_secret: %w", err)
+			}
+			out.ClientSecret = v
 		case "redirect_url":
 			out.RedirectURL = r.Value
 		}
@@ -39,8 +44,9 @@ func loadPlatformCreds(ctx context.Context, db *ent.Client) (PlatformCreds, erro
 }
 
 // loadTenantCreds reads a tenant's linked refresh_token + chosen calendar_id
-// from their ProviderSetting rows.
-func loadTenantCreds(ctx context.Context, db *ent.Client, tenantID string) (TenantCreds, error) {
+// from their ProviderSetting rows. The refresh_token is encrypted at rest; keys
+// decrypts it (and re-seals a legacy plaintext row).
+func loadTenantCreds(ctx context.Context, db *ent.Client, keys *encryption.KeyProvider, tenantID string) (TenantCreds, error) {
 	rows, err := db.ProviderSetting.Query().
 		Where(
 			providersetting.TenantIDEQ(tenantID),
@@ -55,7 +61,11 @@ func loadTenantCreds(ctx context.Context, db *ent.Client, tenantID string) (Tena
 	for _, r := range rows {
 		switch r.Key {
 		case "refresh_token":
-			out.RefreshToken = r.Value
+			v, err := keys.SettingValue(ctx, db, r)
+			if err != nil {
+				return TenantCreds{}, fmt.Errorf("gcal: decrypt refresh_token: %w", err)
+			}
+			out.RefreshToken = v
 		case "calendar_id":
 			out.CalendarID = r.Value
 		}

@@ -264,9 +264,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	sequenceService := sequences.NewService(entClient, logger)
 	sequenceHandler := sequences.NewHandler(sequenceService, logger)
 
-	meetingService := meetings.NewService(entClient, gcal.NewSyncer(entClient, logger), logger)
+	meetingService := meetings.NewService(entClient, gcal.NewSyncer(entClient, keyProvider, logger), logger)
 	meetingHandler := meetings.NewHandler(meetingService, logger)
-	availabilitySvc := gcal.NewAvailabilityService(entClient, logger)
+	availabilitySvc := gcal.NewAvailabilityService(entClient, keyProvider, logger)
 
 	analyticsHandler := analytics.NewHandler(entClient, logger)
 	auditHandler := audit.NewHandler(entClient, logger)
@@ -307,7 +307,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// key for signing `state`; no separate secret needed. This is the OAuth
 	// state-signing key (must stay stable across the redirect round-trip) and is
 	// deliberately kept on the env value rather than the rotatable DB key.
-	integrationsHandler := integrations.NewHandler(entClient, encryption.KeyFromEnv(cfg.Security.EncryptionKey), logger)
+	integrationsHandler := integrations.NewHandler(entClient, encryption.KeyFromEnv(cfg.Security.EncryptionKey), keyProvider, logger)
 
 	// Webhook handlers — Meta app credentials are platform-level (MF_META_*),
 	// shared across all tenants; per-tenant link is Tenant.meta_page_id.

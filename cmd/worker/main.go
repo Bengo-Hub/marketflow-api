@@ -30,6 +30,7 @@ import (
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
+	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/worker"
 	"github.com/nats-io/nats.go"
@@ -158,7 +159,10 @@ func main() {
 			}
 		}
 	}
-	reg := worker.NewRegistry(cfg, entClient, rawDB, logger)
+	// Provider-secret key: DB-first (platform ServiceConfig), then the same env key the API uses.
+	// This worker runs in the API pod, so MF_SECURITY_ENCRYPTION_KEY is the API's own value.
+	keys := encryption.NewKeyProvider(entClient, os.Getenv("MF_SECURITY_ENCRYPTION_KEY"))
+	reg := worker.NewRegistry(cfg, entClient, rawDB, keys, logger)
 	if err := reg.RegisterAll(ctx, js); err != nil {
 		log.Fatalf("register consumers: %v", err)
 	}
@@ -182,7 +186,7 @@ func main() {
 		// pulls the tenant's Meta page token from ProviderSetting at query
 		// time; falls back to the Tenant.meta_access_token legacy field
 		// when the ProviderSetting row is missing.
-		tokenResolver := worker.NewMetaTokenResolver(entClient, logger)
+		tokenResolver := worker.NewMetaTokenResolver(entClient, keys, logger)
 		insights := worker.NewAdInsights(entClient, 15*time.Minute, tokenResolver.Resolve, logger)
 		go insights.Run(ctx)
 

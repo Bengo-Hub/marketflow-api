@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/nats-io/nats.go/jetstream"
@@ -44,6 +45,7 @@ type ConversionEvent struct {
 type ConversionsHandler struct {
 	cfg    *Config
 	db     *ent.Client
+	keys   *encryption.KeyProvider
 	logger *zap.Logger
 	http   *http.Client
 }
@@ -311,7 +313,12 @@ func (h *ConversionsHandler) loadTenantProvider(ctx context.Context, tenantID, p
 	}
 	out := make(map[string]string, len(rows))
 	for _, r := range rows {
-		out[r.Key] = r.Value
+		// Tokens (Meta CAPI access_token, Google Ads refresh_token) are encrypted at rest.
+		v, err := h.keys.SettingValue(ctx, h.db, r)
+		if err != nil {
+			return nil, fmt.Errorf("decrypt %s/%s %s for tenant %s: %w", ptype, pname, r.Key, tenantID, err)
+		}
+		out[r.Key] = v
 	}
 	return out, nil
 }

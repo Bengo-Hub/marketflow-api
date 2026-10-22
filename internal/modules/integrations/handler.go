@@ -26,24 +26,27 @@ import (
 	"time"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
+	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	chirouter "github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
 // Handler owns the OAuth endpoints.
 type Handler struct {
 	db       *ent.Client
-	stateKey []byte // signs the `state` round-trip; reuses encryption key
+	stateKey []byte                   // signs the `state` round-trip; reuses encryption key
+	keys     *encryption.KeyProvider // encrypts OAuth tokens at rest, decrypts platform secrets
 	logger   *zap.Logger
 }
 
 // NewHandler constructs a Handler.
-func NewHandler(db *ent.Client, stateKey []byte, logger *zap.Logger) *Handler {
-	return &Handler{db: db, stateKey: stateKey, logger: logger.Named("integrations")}
+func NewHandler(db *ent.Client, stateKey []byte, keys *encryption.KeyProvider, logger *zap.Logger) *Handler {
+	return &Handler{db: db, stateKey: stateKey, keys: keys, logger: logger.Named("integrations")}
 }
 
 // resolveTenantID picks a tenant context using, in order of priority:
@@ -188,7 +191,7 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Redirect back to the dashboard integrations page with a success flag.
-	target := fmt.Sprintf("/%s/settings/integrations?google=connected", tenantID)
+	target := h.integrationsURL(r.Context(), tenantID, "google=connected")
 	http.Redirect(w, r, target, http.StatusFound)
 }
 
@@ -338,7 +341,14 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusInternalServerError, "persist_failed", err.Error(), nil)
 		return
 	}
-	target := fmt.Sprintf("/%s/settings/integrations?meta=connected&page=%s", tenantID, url.QueryEscape(p.Name))
+	// The Meta Lead Ads webhook resolves the tenant by tenants.meta_page_id; without it no
+	// lead from this Page could ever be attributed (Sprint 14 G2).
+	if tid, perr := uuid.Parse(tenantID); perr == nil {
+		if err := h.db.Tenant.UpdateOneID(tid).SetMetaPageID(p.ID).Exec(r.Context()); err != nil {
+			h.logger.Warn("meta connect: could not record the page id on the tenant", zap.String("tenant", tenantID), zap.Error(err))
+		}
+	}
+	target := h.integrationsURL(r.Context(), tenantID, "meta=connected&page="+url.QueryEscape(p.Name))
 	http.Redirect(w, r, target, http.StatusFound)
 }
 
@@ -438,7 +448,7 @@ func (h *Handler) TikTokCallback(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusInternalServerError, "persist_failed", err.Error(), nil)
 		return
 	}
-	target := fmt.Sprintf("/%s/settings/integrations?tiktok=connected", tenantID)
+	target := h.integrationsURL(r.Context(), tenantID, "tiktok=connected")
 	http.Redirect(w, r, target, http.StatusFound)
 }
 
@@ -653,13 +663,13 @@ func (h *Handler) loadPlatform(ctx context.Context, provType, provName string) (
 	}
 	out := make(map[string]string, len(rows))
 	for _, r := range rows {
-		// NOTE: values are encrypted at rest when is_encrypted=true; the
-		// ProviderSetting handler has already decrypted via its Manager when
-		// clients call /admin/providers/resolve. Here we only read plain
-		// fields (OAuth client_id, redirect_url are not sensitive per se,
-		// but the client_secret / app_secret SHOULD be decrypted — do so
-		// below when the row is flagged encrypted).
-		out[r.Key] = r.Value
+		// client_secret / app_secret are encrypted at rest; SettingValue decrypts flagged rows
+		// and re-seals any legacy plaintext secret.
+		v, err := h.keys.SettingValue(ctx, h.db, r)
+		if err != nil {
+			return nil, fmt.Errorf("decrypt platform %s:%s %s: %w", provType, provName, r.Key, err)
+		}
+		out[r.Key] = v
 	}
 	if out["client_id"] == "" && out["app_id"] == "" {
 		return nil, fmt.Errorf("platform OAuth client for %s:%s not configured", provType, provName)
@@ -676,7 +686,10 @@ func (h *Handler) upsertTenantKV(ctx context.Context, tenantID, provType, provNa
 		}
 		return false
 	}
-	for k, v := range kv {
+	for k, raw := range kv {
+		// Tokens are encrypted at rest; with no key configured they are stored as-is and
+		// re-sealed on first read once a key exists.
+		v, encrypted := h.keys.SealSecret(ctx, k, raw, isSecret(k))
 		existing, err := h.db.ProviderSetting.Query().
 			Where(
 				providersetting.TenantIDEQ(tenantID),
@@ -694,7 +707,8 @@ func (h *Handler) upsertTenantKV(ctx context.Context, tenantID, provType, provNa
 				SetEnvironment("production").
 				SetKey(k).
 				SetValue(v).
-				SetIsSecret(isSecret(k)).
+				SetIsSecret(isSecret(k) || encryption.IsSecret(k)).
+				SetIsEncrypted(encrypted).
 				SetIsActive(true).
 				SetStatus("active").
 				Save(ctx); err != nil {
@@ -705,6 +719,8 @@ func (h *Handler) upsertTenantKV(ctx context.Context, tenantID, provType, provNa
 		default:
 			if _, err := h.db.ProviderSetting.UpdateOne(existing).
 				SetValue(v).
+				SetIsSecret(isSecret(k) || encryption.IsSecret(k)).
+				SetIsEncrypted(encrypted).
 				SetIsActive(true).
 				SetStatus("active").
 				Save(ctx); err != nil {
@@ -713,6 +729,19 @@ func (h *Handler) upsertTenantKV(ctx context.Context, tenantID, provType, provNa
 		}
 	}
 	return nil
+}
+
+// integrationsURL is the UI page a connect callback returns to. UI routes are keyed by the
+// tenant slug (/[orgSlug]/settings/integrations), so the tenant UUID from the OAuth state is
+// mapped to its slug; the UUID is kept only as a last resort when the lookup fails (G12).
+func (h *Handler) integrationsURL(ctx context.Context, tenantID, query string) string {
+	org := tenantID
+	if tid, err := uuid.Parse(tenantID); err == nil {
+		if t, err := h.db.Tenant.Query().Where(tenant.IDEQ(tid)).Select(tenant.FieldSlug).Only(ctx); err == nil && t.Slug != "" {
+			org = t.Slug
+		}
+	}
+	return "/" + url.PathEscape(org) + "/settings/integrations?" + query
 }
 
 // signState returns `tenantID.nonce.hmac` for a 10-minute validity window.

@@ -13,6 +13,9 @@ import (
 var SecretKeys = map[string]bool{
 	"api_key": true, "password": true, "auth_token": true, "api_secret": true,
 	"access_token": true, "app_secret": true,
+	// OAuth credentials written by the integrations connect flows and the platform OAuth apps.
+	"client_secret": true, "refresh_token": true, "page_token": true, "user_token": true,
+	"page_access_token": true,
 }
 
 // IsSecret returns true if the setting key should be encrypted.

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
@@ -64,7 +65,9 @@ type Registry struct {
 // NewRegistry constructs a Registry with the four core handlers.
 // db/rawDB may be nil — handlers that require DB access (lead auto-enrol,
 // embedding upsert) degrade to a no-op and log a warning.
-func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, logger *zap.Logger) *Registry {
+//
+// keys decrypts provider-setting tokens (Meta CAPI, Google Ads) for the conversions handler.
+func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, keys *encryption.KeyProvider, logger *zap.Logger) *Registry {
 	notif := notifications.New(notifications.Config{
 		BaseURL:   cfg.Notifications.URL,
 		APIKey:    cfg.Notifications.APIKey,
@@ -88,7 +91,7 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, logger *zap.Logger)
 			&EmbeddingHandler{cfg: cfg, db: db, rawDB: rawDB, logger: logger.Named("embedding")},
 			&ChatCompletedHandler{db: db, logger: logger.Named("audit")},
 			&LeadCreatedHandler{cfg: cfg, db: db, logger: logger.Named("lead")},
-			&ConversionsHandler{cfg: cfg, db: db, logger: logger.Named("conversions")},
+			&ConversionsHandler{cfg: cfg, db: db, keys: keys, logger: logger.Named("conversions")},
 			// CRM cross-service event consumers (Phase D)
 			&OrderingOrderCreatedHandler{db: db, svc: activitySvc, logger: logger.Named("crm-ordering")},
 			&POSSaleFinalizedHandler{db: db, svc: activitySvc, logger: logger.Named("crm-pos-sale")},

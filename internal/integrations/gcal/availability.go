@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"go.uber.org/zap"
@@ -47,23 +48,25 @@ func DefaultBusinessHours() BusinessHours {
 // linked Google Calendar's free/busy data.
 type AvailabilityService struct {
 	db     *ent.Client
+	keys   *encryption.KeyProvider
 	logger *zap.Logger
 }
 
-// NewAvailabilityService constructs an AvailabilityService.
-func NewAvailabilityService(db *ent.Client, logger *zap.Logger) *AvailabilityService {
-	return &AvailabilityService{db: db, logger: logger.Named("gcal.availability")}
+// NewAvailabilityService constructs an AvailabilityService. keys decrypts the OAuth secrets
+// stored in ProviderSetting.
+func NewAvailabilityService(db *ent.Client, keys *encryption.KeyProvider, logger *zap.Logger) *AvailabilityService {
+	return &AvailabilityService{db: db, keys: keys, logger: logger.Named("gcal.availability")}
 }
 
 // ComputeSlots returns the open slots for tenantID on the given date (in the
 // given IANA timezone). Returns ErrNotConnected if the tenant hasn't linked a
 // Google Calendar.
 func (s *AvailabilityService) ComputeSlots(ctx context.Context, tenantID string, date time.Time, timezone string) ([]Slot, error) {
-	platform, err := loadPlatformCreds(ctx, s.db)
+	platform, err := loadPlatformCreds(ctx, s.db, s.keys)
 	if err != nil {
 		return nil, ErrNotConnected
 	}
-	tenant, err := loadTenantCreds(ctx, s.db, tenantID)
+	tenant, err := loadTenantCreds(ctx, s.db, s.keys, tenantID)
 	if err != nil {
 		return nil, ErrNotConnected
 	}

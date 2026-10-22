@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/modules/meetings"
 	"go.uber.org/zap"
@@ -14,12 +15,13 @@ import (
 // store: the platform-level OAuth client + the tenant's refresh_token.
 type Syncer struct {
 	db     *ent.Client
+	keys   *encryption.KeyProvider
 	logger *zap.Logger
 }
 
-// NewSyncer constructs a Syncer.
-func NewSyncer(db *ent.Client, logger *zap.Logger) *Syncer {
-	return &Syncer{db: db, logger: logger.Named("gcal.syncer")}
+// NewSyncer constructs a Syncer. keys decrypts the OAuth secrets stored in ProviderSetting.
+func NewSyncer(db *ent.Client, keys *encryption.KeyProvider, logger *zap.Logger) *Syncer {
+	return &Syncer{db: db, keys: keys, logger: logger.Named("gcal.syncer")}
 }
 
 // Sync pushes the meeting to the tenant's Google Calendar. Returns nil
@@ -35,13 +37,13 @@ func (s *Syncer) Sync(ctx context.Context, m *ent.ScheduledMeeting) (*meetings.S
 	}
 
 	// Platform OAuth client (shared).
-	platform, err := loadPlatformCreds(ctx, s.db)
+	platform, err := loadPlatformCreds(ctx, s.db, s.keys)
 	if err != nil {
 		s.logger.Debug("gcal platform creds not configured", zap.Error(err))
 		return nil, nil
 	}
 	// Tenant refresh token + calendar id.
-	tenant, err := loadTenantCreds(ctx, s.db, m.TenantID.String())
+	tenant, err := loadTenantCreds(ctx, s.db, s.keys, m.TenantID.String())
 	if err != nil {
 		s.logger.Debug("tenant has not linked Google Calendar",
 			zap.String("tenant", m.TenantID.String()))
