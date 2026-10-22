@@ -55,7 +55,7 @@ func (*ConversionsHandler) Durable() string { return "marketflow-worker-conversi
 
 func (h *ConversionsHandler) Handle(ctx context.Context, msg jetstream.Msg) error {
 	var ev ConversionEvent
-	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
+	if err := json.Unmarshal(eventBody(msg.Data()), &ev); err != nil {
 		return dropPoison(h.logger, msg, "decode conversion event", err)
 	}
 	if ev.TenantID == "" || ev.EventName == "" {

@@ -464,7 +464,7 @@ func (h *ChatCompletedHandler) Handle(ctx context.Context, msg jetstream.Msg) er
 		ActorEmail string         `json:"actor_email,omitempty"`
 		Raw        map[string]any `json:"raw,omitempty"`
 	}
-	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
+	if err := json.Unmarshal(eventBody(msg.Data()), &ev); err != nil {
 		h.logger.Warn("chat.completed decode", zap.Error(err))
 	}
 	if h.db == nil {

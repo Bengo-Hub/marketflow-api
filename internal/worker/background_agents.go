@@ -149,7 +149,7 @@ func (a *ActivityLoggedLeadScorerAgent) Handle(ctx context.Context, msg jetstrea
 		EntityType string `json:"entity_type"`
 		EntityID   string `json:"entity_id"`
 	}
-	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
+	if err := json.Unmarshal(eventBody(msg.Data()), &ev); err != nil {
 		return nil
 	}
 	if ev.EntityType != "lead" {
@@ -182,7 +182,7 @@ func (a *ProactiveFollowUpAgent) Handle(ctx context.Context, msg jetstream.Msg) 
 		TenantID     string `json:"tenant_id"`
 		FollowUpDays int    `json:"follow_up_days"`
 	}
-	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
+	if err := json.Unmarshal(eventBody(msg.Data()), &ev); err != nil {
 		return nil
 	}
 	if ev.FollowUpDays <= 0 {
@@ -270,7 +270,7 @@ func (a *DealStaleDetector) Handle(ctx context.Context, msg jetstream.Msg) error
 		TenantID  string `json:"tenant_id"`
 		StaleDays int    `json:"stale_days"`
 	}
-	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
+	if err := json.Unmarshal(eventBody(msg.Data()), &ev); err != nil {
 		return nil
 	}
 	if ev.StaleDays <= 0 {
@@ -356,7 +356,7 @@ func (a *NurtureSequenceEnhancer) Handle(ctx context.Context, msg jetstream.Msg)
 		LeadID   string `json:"lead_id"`
 		Score    int    `json:"score"`
 	}
-	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
+	if err := json.Unmarshal(eventBody(msg.Data()), &ev); err != nil {
 		return nil
 	}
 	if ev.LeadID == "" || a.db == nil {
@@ -507,7 +507,7 @@ func (c *CustomAgentExecutionConsumer) Handle(ctx context.Context, msg jetstream
 		TenantID string         `json:"tenant_id"`
 		Payload  map[string]any `json:"payload"`
 	}
-	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
+	if err := json.Unmarshal(eventBody(msg.Data()), &ev); err != nil {
 		return dropPoison(c.logger, msg, "custom agent consumer: unmarshal", err)
 	}
 

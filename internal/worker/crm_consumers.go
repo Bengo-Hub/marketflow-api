@@ -38,7 +38,7 @@ func (h *OrderingOrderCreatedHandler) Handle(ctx context.Context, msg jetstream.
 		Currency     string  `json:"currency"`
 		Status       string  `json:"status"`
 	}
-	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
+	if err := json.Unmarshal(eventBody(msg.Data()), &ev); err != nil {
 		return dropPoison(h.logger, msg, "decode ordering.order.created", err)
 	}
 
@@ -107,7 +107,7 @@ func (h *POSSaleFinalizedHandler) Handle(ctx context.Context, msg jetstream.Msg)
 		Total        float64 `json:"total"`
 		Currency     string  `json:"currency"`
 	}
-	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
+	if err := json.Unmarshal(eventBody(msg.Data()), &ev); err != nil {
 		return dropPoison(h.logger, msg, "decode pos.sale.finalized", err)
 	}
 
@@ -170,7 +170,7 @@ func (h *POSAppointmentCompletedHandler) Handle(ctx context.Context, msg jetstre
 		ServiceName   string  `json:"service_name"`
 		CRMContactID  *string `json:"crm_contact_id"`
 	}
-	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
+	if err := json.Unmarshal(eventBody(msg.Data()), &ev); err != nil {
 		return dropPoison(h.logger, msg, "decode pos.appointment.completed", err)
 	}
 
@@ -237,7 +237,7 @@ func (h *TreasuryPaymentSucceededHandler) Handle(ctx context.Context, msg jetstr
 		Currency     string  `json:"currency"`
 		Method       string  `json:"payment_method"`
 	}
-	if err := json.Unmarshal(msg.Data(), &ev); err != nil {
+	if err := json.Unmarshal(eventBody(msg.Data()), &ev); err != nil {
 		return dropPoison(h.logger, msg, "decode treasury.payment.succeeded", err)
 	}
 
