@@ -83,6 +83,7 @@ func (h *OrderingOrderCreatedHandler) Handle(ctx context.Context, msg jetstream.
 		zap.String("contact_id", contactID.String()),
 		zap.String("order_id", ev.OrderID),
 	)
+	queueConversion(ctx, h.db, h.logger, tenantID, contactID, "ordering:"+ev.OrderID, ev.Total, ev.Currency, "order")
 	return nil
 }
 
@@ -146,6 +147,7 @@ func (h *POSSaleFinalizedHandler) Handle(ctx context.Context, msg jetstream.Msg)
 			zap.String("contact_id", contactID.String()), zap.Error(err))
 		return err
 	}
+	queueConversion(ctx, h.db, h.logger, tenantID, contactID, "pos:"+ev.OrderID, ev.Total, ev.Currency, "order")
 	return nil
 }
 

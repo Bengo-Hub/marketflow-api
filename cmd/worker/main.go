@@ -50,6 +50,7 @@ var workerSignalSubjects = []string{
 	"embedding.>",
 	"chat.>",
 	"lead.>",
+	"conversion.>", // conversion.occurred from the purchase consumers' outbox rows (Meta CAPI, Google Ads)
 }
 
 // ensureWorkerStream creates the worker stream when missing, or reconciles an existing
