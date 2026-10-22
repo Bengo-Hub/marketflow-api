@@ -172,16 +172,19 @@ func (h *MetaHandler) HandleLeadgen(w http.ResponseWriter, r *http.Request) {
 					"meta_campaign_id":  ch.Value.CampaignID,
 				},
 			}
-			if ch.Value.CampaignID != "" {
-				if cid, err := uuid.Parse(ch.Value.CampaignID); err == nil {
-					input.CampaignID = &cid
-				}
+			// Meta redelivers webhooks; one leadgen id is one lead.
+			if h.leadExists(r.Context(), tenantID, ch.Value.LeadgenID) {
+				processed++
+				continue
 			}
-			// NOTE: full lead field enrichment (email, name, phone) needs a follow-up Graph API
-			// call to /{leadgen_id} with the Page token. That is NOT built yet (Sprint 14 gap G5,
-			// docs/sprint-plans/sprint-14-ads-autopilot-foundations.md); for now only the
-			// leadgen_id and source are captured so the lead row exists immediately. The lead
-			// service publishes lead.created, so nurture and scoring still start.
+			// Meta's campaign id is numeric, never a UUID: link our Campaign through its
+			// meta_campaign_id (the old UUID parse always failed).
+			if cid, ok := h.campaignByMetaID(r.Context(), tenantID, ch.Value.CampaignID); ok {
+				input.CampaignID = &cid
+			}
+			// Only ids are stored here so Meta gets a fast 200. The lead service publishes
+			// lead.created, and the worker's MetaLeadEnricher fetches /{leadgen_id} with the
+			// Page token to fill in name, email, phone and answers, then creates the Contact.
 			if _, err := h.leadService.Create(r.Context(), input); err != nil {
 				h.logger.Error("create lead from meta webhook",
 					zap.String("tenant", tenantID.String()), zap.Error(err))
@@ -211,6 +214,33 @@ func (h *MetaHandler) verifySignature(body []byte, header string) bool {
 
 // resolveTenantByPageID looks up the Tenant by its linked Meta page_id.
 // Requires Tenant.meta_page_id field (new; add via Ent schema + migration).
+// leadExists reports whether this tenant already has the lead for a Meta leadgen id.
+func (h *MetaHandler) leadExists(ctx context.Context, tenantID uuid.UUID, leadgenID string) bool {
+	if h.db == nil || leadgenID == "" {
+		return false
+	}
+	var one int
+	err := h.db.QueryRowContext(ctx,
+		`SELECT 1 FROM leads
+		  WHERE tenant_id = $1 AND source = 'meta_ad' AND metadata->>'meta_leadgen_id' = $2
+		  LIMIT 1`, tenantID, leadgenID,
+	).Scan(&one)
+	return err == nil
+}
+
+// campaignByMetaID finds the tenant's Campaign that Meta's numeric campaign id belongs to.
+func (h *MetaHandler) campaignByMetaID(ctx context.Context, tenantID uuid.UUID, metaCampaignID string) (uuid.UUID, bool) {
+	if h.db == nil || metaCampaignID == "" {
+		return uuid.Nil, false
+	}
+	var id uuid.UUID
+	err := h.db.QueryRowContext(ctx,
+		`SELECT id FROM campaigns WHERE tenant_id = $1 AND meta_campaign_id = $2 LIMIT 1`,
+		tenantID, metaCampaignID,
+	).Scan(&id)
+	return id, err == nil
+}
+
 func (h *MetaHandler) resolveTenantByPageID(ctx context.Context, pageID string) (uuid.UUID, error) {
 	if h.db == nil {
 		return uuid.Nil, fmt.Errorf("db not configured")

@@ -16,6 +16,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/modules/activities"
+	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go/jetstream"
@@ -92,6 +93,12 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, keys *encryption.Ke
 			&ChatCompletedHandler{db: db, logger: logger.Named("audit")},
 			&LeadCreatedHandler{cfg: cfg, db: db, logger: logger.Named("lead")},
 			&ConversionsHandler{cfg: cfg, db: db, keys: keys, logger: logger.Named("conversions")},
+			&MetaLeadEnricher{
+				db:       db,
+				tokens:   NewMetaTokenResolver(db, keys, logger),
+				contacts: contacts.NewService(db, logger),
+				logger:   logger.Named("meta-lead-enricher"),
+			},
 			// CRM cross-service event consumers (Phase D)
 			&OrderingOrderCreatedHandler{db: db, svc: activitySvc, logger: logger.Named("crm-ordering")},
 			&POSSaleFinalizedHandler{db: db, svc: activitySvc, logger: logger.Named("crm-pos-sale")},
