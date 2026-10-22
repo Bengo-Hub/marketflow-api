@@ -16,12 +16,17 @@ import (
 // For an envelope this returns the payload object, adding the envelope's tenant_id when the
 // payload has none. Anything else (flat JSON, or invalid JSON for the caller to reject) is
 // returned unchanged.
+//
+// An envelope is recognised by its event_type. A flat message may carry its own "payload"
+// field (crm.agent.run_requested is {run_id, agent_id, tenant_id, payload}); treating that
+// as an envelope would drop run_id and turn every custom-agent run into a poison message.
 func eventBody(data []byte) []byte {
 	var env struct {
-		TenantID string          `json:"tenant_id"`
-		Payload  json.RawMessage `json:"payload"`
+		EventType string          `json:"event_type"`
+		TenantID  string          `json:"tenant_id"`
+		Payload   json.RawMessage `json:"payload"`
 	}
-	if err := json.Unmarshal(data, &env); err != nil || len(env.Payload) == 0 || env.Payload[0] != '{' {
+	if err := json.Unmarshal(data, &env); err != nil || env.EventType == "" || len(env.Payload) == 0 || env.Payload[0] != '{' {
 		return data
 	}
 	var fields map[string]json.RawMessage

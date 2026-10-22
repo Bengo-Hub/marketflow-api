@@ -56,6 +56,13 @@ func TestEventBody(t *testing.T) {
 			t.Fatal("invalid JSON must be returned unchanged")
 		}
 	})
+	t.Run("flat message with its own payload field is not an envelope", func(t *testing.T) {
+		// The shape custom_agents.TriggerRun publishes on crm.agent.run_requested.
+		flat := []byte(`{"run_id":"r1","agent_id":"a1","tenant_id":"t1","payload":{"why":"manual"}}`)
+		if string(eventBody(flat)) != string(flat) {
+			t.Fatal("a message without event_type must pass through unchanged")
+		}
+	})
 	t.Run("non-object payload passes through", func(t *testing.T) {
 		raw := []byte(`{"tenant_id":"t1","payload":"text"}`)
 		if string(eventBody(raw)) != string(raw) {

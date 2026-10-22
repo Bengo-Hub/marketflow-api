@@ -20,9 +20,11 @@ import (
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/agentrun"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
+	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
 	"github.com/google/uuid"
 	nats "github.com/nats-io/nats.go"
@@ -524,15 +526,48 @@ func (c *CustomAgentExecutionConsumer) Handle(ctx context.Context, msg jetstream
 		return dropPoison(c.logger, msg, "bad tenant_id", err)
 	}
 
-	// Mark run as running.
+	run, err := c.db.AgentRun.Get(ctx, runID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return dropPoison(c.logger, msg, "agent run not found", err)
+		}
+		return fmt.Errorf("custom agent execution: get run: %w", err)
+	}
 	agent, err := c.db.CustomAgent.Get(ctx, agentID)
 	if err != nil {
-		// Transient DB error — Nak via wrapper so it retries.
+		if ent.IsNotFound(err) {
+			c.finishRun(ctx, runID, "failed", "the agent no longer exists", nil)
+			_ = msg.Ack()
+			return nil
+		}
+		// Transient DB error: Nak via the wrapper so it retries.
 		return fmt.Errorf("custom agent execution: get agent: %w", err)
 	}
-	_ = tenantID
+	if agent.TenantID != tenantID || run.TenantID != tenantID || run.CustomAgentID != agentID {
+		return dropPoison(c.logger, msg, "custom agent run tenant mismatch", fmt.Errorf("run %s", runID))
+	}
+	// Manual runs work on inactive agents (testing before switching one on);
+	// schedule and event triggers only run active agents.
+	if !agent.IsActive && run.TriggeredBy != "manual" {
+		c.finishRun(ctx, runID, "failed", "the agent is switched off", nil)
+		_ = msg.Ack()
+		return nil
+	}
 
-	// Call marketflow-ai /api/v1/agent/run with agent definition + payload.
+	// Claim the run: pending to running, once. A redelivered message finds it
+	// claimed and stops, so an agent never runs twice for one trigger.
+	claimed, err := c.db.AgentRun.Update().
+		Where(agentrun.ID(runID), agentrun.StatusEQ("pending")).
+		SetStatus("running").
+		Save(ctx)
+	if err != nil {
+		return fmt.Errorf("custom agent execution: claim run: %w", err)
+	}
+	if claimed == 0 {
+		_ = msg.Ack()
+		return nil
+	}
+
 	payload := map[string]any{
 		"run_id":         runID.String(),
 		"system_prompt":  agent.SystemPrompt,
@@ -541,32 +576,89 @@ func (c *CustomAgentExecutionConsumer) Handle(ctx context.Context, msg jetstream
 		"tenant_id":      ev.TenantID,
 		"context":        ev.Payload,
 	}
-	callCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	callCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 
-	if err := agentS2SPost(callCtx, c.hc, c.aiBaseURL+"/api/v1/agent/run", c.serviceKey, payload); err != nil {
-		c.logger.Warn("custom agent AI call failed",
-			zap.String("run_id", runID.String()),
-			zap.Error(err),
-		)
-		// Update run status to failed.
-		_, _ = c.db.AgentRun.UpdateOneID(runID).
-			SetStatus("failed").
-			SetErrorMessage(err.Error()).
-			SetFinishedAt(time.Now()).
-			Save(ctx)
+	var out agentRunResponse
+	if err := agentS2SCall(callCtx, c.hc, c.aiBaseURL+"/api/v1/agent/run", c.serviceKey, payload, &out); err != nil {
+		c.logger.Warn("custom agent AI call failed", zap.String("run_id", runID.String()), zap.Error(err))
+		c.finishRun(ctx, runID, "failed", err.Error(), nil)
 		_ = msg.Ack()
 		return nil
 	}
-
-	// Mark run as completed (AI service updates trace/tokens via callback or we poll).
-	_, _ = c.db.AgentRun.UpdateOneID(runID).
-		SetStatus("completed").
-		SetFinishedAt(time.Now()).
-		Save(ctx)
-
-	c.logger.Info("custom agent run completed", zap.String("run_id", runID.String()))
+	status := "completed"
+	errMsg := ""
+	if out.Status != "completed" {
+		status, errMsg = "failed", out.Error
+	}
+	c.finishRun(ctx, runID, status, errMsg, &out)
+	if status == "completed" {
+		_, _ = c.db.CustomAgent.UpdateOneID(agentID).AddRunCount(1).SetLastRunAt(time.Now()).Save(ctx)
+	}
+	c.logger.Info("custom agent run finished", zap.String("run_id", runID.String()), zap.String("status", status),
+		zap.Int("tokens", out.TotalTokens), zap.Int("tool_calls", out.ToolCalls))
 	_ = msg.Ack()
+	return nil
+}
+
+// agentRunResponse is marketflow-ai's /api/v1/agent/run reply.
+type agentRunResponse struct {
+	Status       string `json:"status"`
+	Error        string `json:"error"`
+	Answer       string `json:"answer"`
+	Trace        any    `json:"trace"`
+	TotalTokens  int    `json:"total_tokens"`
+	ToolCalls    int    `json:"tool_calls"`
+	Iterations   int    `json:"iterations"`
+	StoppedEarly bool   `json:"stopped_early"`
+	StopReason   string `json:"stop_reason"`
+}
+
+// finishRun records the outcome; the answer and the loop trace go into the
+// run's trace JSON so the run history shows what the agent did.
+func (c *CustomAgentExecutionConsumer) finishRun(ctx context.Context, runID uuid.UUID, status, errMsg string, out *agentRunResponse) {
+	upd := c.db.AgentRun.UpdateOneID(runID).SetStatus(status).SetFinishedAt(time.Now())
+	if errMsg != "" {
+		upd.SetErrorMessage(truncateStr(errMsg, 1000))
+	}
+	if out != nil {
+		upd.SetTotalTokens(out.TotalTokens).SetToolCallsN(out.ToolCalls).SetTrace(map[string]any{
+			"answer":        truncateStr(out.Answer, 8000),
+			"iterations":    out.Iterations,
+			"steps":         out.Trace,
+			"stopped_early": out.StoppedEarly,
+			"stop_reason":   out.StopReason,
+		})
+	}
+	if _, err := upd.Save(ctx); err != nil {
+		c.logger.Error("custom agent run: record outcome", zap.String("run_id", runID.String()), zap.Error(err))
+	}
+}
+
+// agentS2SCall posts body and decodes the JSON reply into out.
+func agentS2SCall(ctx context.Context, hc *http.Client, url, serviceKey string, body map[string]any, out any) error {
+	b, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-API-Key", serviceKey)
+	resp, err := hc.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	rb, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("s2s %s: status %d: %s", url, resp.StatusCode, truncateStr(string(rb), 200))
+	}
+	if err := json.Unmarshal(rb, out); err != nil {
+		return fmt.Errorf("s2s %s: decode: %w", url, err)
+	}
 	return nil
 }
 
@@ -656,34 +748,61 @@ func (r *CronAgentRunner) runPerTenant(ctx context.Context, handle func(context.
 	if !sharedcache.ClaimPeriod(ctx, "marketflow:cron-agent:"+name, every) {
 		return
 	}
-	// Get distinct tenant IDs from leads (proxy for active tenants using CRM)
-	type tenantRow struct{ TenantID uuid.UUID }
-	var tenants []tenantRow
-	rows, err := r.cfg.DB.Lead.Query().All(ctx)
-	if err != nil {
-		return
-	}
-	seen := map[uuid.UUID]bool{}
-	for _, l := range rows {
-		if !seen[l.TenantID] {
-			seen[l.TenantID] = true
-			tenants = append(tenants, tenantRow{l.TenantID})
-		}
-	}
-	for _, t := range tenants {
+	// Tenants using the CRM are those with at least one lead. Walk the tenants
+	// table in keyset pages and check each with an indexed LIMIT 1 lookup
+	// (leads(tenant_id, ...)), so the cost follows the tenant count, never the
+	// lead count. (It used to load every lead of every tenant each run.)
+	err := forEachCRMTenant(ctx, r.cfg.DB, func(tenantID uuid.UUID) {
 		payload, _ := json.Marshal(map[string]any{
-			"tenant_id":      t.TenantID.String(),
+			"tenant_id":      tenantID.String(),
 			"follow_up_days": days,
 			"stale_days":     days,
 		})
-		msg := &syntheticMsg{data: payload}
-		if err := handle(ctx, msg); err != nil {
+		if err := handle(ctx, &syntheticMsg{data: payload}); err != nil {
 			r.cfg.Logger.Warn("cron agent error",
 				zap.String("agent", name),
-				zap.String("tenant", t.TenantID.String()),
+				zap.String("tenant", tenantID.String()),
 				zap.Error(err),
 			)
 		}
+	})
+	if err != nil {
+		r.cfg.Logger.Warn("cron agent tenant scan failed", zap.String("agent", name), zap.Error(err))
+	}
+}
+
+// crmTenantPage bounds one keyset page of the tenant walk.
+const crmTenantPage = 200
+
+// forEachCRMTenant calls fn for every tenant with at least one lead, in id
+// order, a page of tenants at a time.
+func forEachCRMTenant(ctx context.Context, db *ent.Client, fn func(uuid.UUID)) error {
+	var after uuid.UUID
+	for {
+		q := db.Tenant.Query().Order(ent.Asc(tenant.FieldID)).Limit(crmTenantPage)
+		if after != uuid.Nil {
+			q = q.Where(tenant.IDGT(after))
+		}
+		ids, err := q.IDs(ctx)
+		if err != nil {
+			return err
+		}
+		for _, id := range ids {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			has, err := db.Lead.Query().Where(lead.TenantID(id)).Exist(ctx)
+			if err != nil {
+				return err
+			}
+			if has {
+				fn(id)
+			}
+		}
+		if len(ids) < crmTenantPage {
+			return nil
+		}
+		after = ids[len(ids)-1]
 	}
 }
 
