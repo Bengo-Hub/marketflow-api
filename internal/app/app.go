@@ -580,6 +580,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		TrackCampaignCreated: usagePub.TrackUsage("campaigns_active"),
 		TrackMeetingBooked:   usagePub.TrackUsage("meetings_booked"),
 		AllowedOrigins:       cfg.HTTP.AllowedOrigins,
+		EnforceTenantHeader:  cfg.Security.EnforceTenantHeader,
 	})
 
 	// ── HTTP Server ───────────────────────────────────────────────────────

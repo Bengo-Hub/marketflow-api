@@ -118,6 +118,39 @@ type RouterDeps struct {
 
 	// Allowed origins for CORS
 	AllowedOrigins string
+
+	// EnforceTenantHeader answers 403 when X-Tenant-ID, X-Tenant-Slug or a tenant path parameter
+	// names another tenant than the token. False only logs the mismatch (rollout step).
+	EnforceTenantHeader bool
+}
+
+// tenantCheck pins the tenant headers (and the tenant path parameter urlParam, when set) to the
+// signed-in tenant. Handlers read X-Tenant-ID themselves, so without this any signed-in user
+// could name another tenant. Platform owners and calls without claims are not checked.
+func tenantCheck(deps RouterDeps, urlParam string) func(http.Handler) http.Handler {
+	cfg := httpware.TenantConfig{
+		ClaimsExtractor: func(ctx context.Context) (string, string, bool, bool) {
+			c, ok := authclient.ClaimsFromContext(ctx)
+			if !ok || c == nil {
+				return "", "", false, false
+			}
+			return c.TenantID, c.GetTenantSlug(), c.IsPlatformOwner, true
+		},
+		ReportOnly: !deps.EnforceTenantHeader,
+		OnMismatch: func(r *http.Request, source, supplied, claimed string) {
+			if deps.Log != nil {
+				deps.Log.Warn("tenant in request does not match the token",
+					zap.String("method", r.Method), zap.String("path", r.URL.Path),
+					zap.String("source", source), zap.String("supplied", supplied), zap.String("claimed", claimed),
+					zap.Bool("enforced", deps.EnforceTenantHeader))
+			}
+		},
+	}
+	if urlParam != "" {
+		cfg.URLParamFunc = chi.URLParam
+		cfg.URLParamName = urlParam
+	}
+	return httpware.TenantV2(cfg)
 }
 
 // AdminProviderHandlers groups platform provider management handlers.
@@ -458,6 +491,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 			if deps.RequireAuthHandler != nil {
 				r.Use(deps.RequireAuthHandler)
 			}
+			r.Use(tenantCheck(deps, ""))
 			// Subscription enforcement — mutations only (GET/HEAD/OPTIONS pass through).
 			// Uniform 7-day grace for EXPIRED tenants.
 			r.Use(authclient.RequireActiveSubscriptionForMutationsWithGrace(7))
@@ -551,7 +585,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 			// Bulk SMS for a campaign — tenant + campaign in the path so POS/admin
 			// callers can target a CRM segment without relying on header context.
 			r.Route("/{tenantID}/campaigns/{campaignID}", func(r chi.Router) {
-				r.Post("/send-sms", deps.CampaignHandlers.SendSMS)
+				r.With(tenantCheck(deps, "tenantID")).Post("/send-sms", deps.CampaignHandlers.SendSMS)
 			})
 
 			// Funnel management

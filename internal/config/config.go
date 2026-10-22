@@ -68,6 +68,9 @@ type SecurityConfig struct {
 	EncryptionKey  string `env:"ENCRYPTION_KEY" comment:"32-byte base64-encoded key for AES-256-GCM encryption of provider secrets"`
 	PlatformTenant string `env:"PLATFORM_TENANT" envDefault:"codevertex" comment:"Platform owner tenant slug for provider config hierarchy"`
 	AuthServiceURL string `env:"AUTH_SERVICE_URL" envDefault:"https://sso.codevertexafrica.com" comment:"Used by shared-auth-client APIKeyValidator"`
+	// EnforceTenantHeader refuses a tenant header that names another tenant than the token.
+	// Off, the mismatch is only logged ("tenant in request does not match the token").
+	EnforceTenantHeader bool `env:"ENFORCE_TENANT_HEADER" envDefault:"false"`
 }
 
 type EventsConfig struct {
