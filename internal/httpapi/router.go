@@ -651,16 +651,13 @@ func NewRouter(deps RouterDeps) http.Handler {
 			})
 
 			// Per-tenant integration OAuth flows. authorize returns the
-			// provider auth URL; callback is hit by the provider.
+			// provider auth URL; the callbacks are public routes (below).
 			r.Route("/integrations", func(r chi.Router) {
 				r.Get("/available", deps.IntegrationsHandlers.AvailableIntegrations)
 				r.Get("/google/authorize", deps.IntegrationsHandlers.GoogleAuthorize)
-				r.Get("/google/callback", deps.IntegrationsHandlers.GoogleCallback)
 				r.Put("/google/business-hours", deps.IntegrationsHandlers.UpdateGoogleCalendarBusinessHours)
 				r.Get("/meta/authorize", deps.IntegrationsHandlers.MetaAuthorize)
-				r.Get("/meta/callback", deps.IntegrationsHandlers.MetaCallback)
 				r.Get("/tiktok/authorize", deps.IntegrationsHandlers.TikTokAuthorize)
-				r.Get("/tiktok/callback", deps.IntegrationsHandlers.TikTokCallback)
 				r.Get("/", deps.IntegrationsHandlers.ListTenant)
 				r.Delete("/{provider}", deps.IntegrationsHandlers.DisconnectTenant)
 			})
@@ -876,6 +873,13 @@ func NewRouter(deps RouterDeps) http.Handler {
 				})
 			})
 		}
+
+		// OAuth callbacks (public). The provider redirects the browser here without a bearer
+		// token, so inside the authenticated group every connect ended in a 401. The HMAC-signed,
+		// 10-minute state names the tenant. The paths are registered with Meta, TikTok and Google.
+		r.Get("/integrations/google/callback", deps.IntegrationsHandlers.GoogleCallback)
+		r.Get("/integrations/meta/callback", deps.IntegrationsHandlers.MetaCallback)
+		r.Get("/integrations/tiktok/callback", deps.IntegrationsHandlers.TikTokCallback)
 
 		// Webhook routes (public, no auth — signature-verified by each handler)
 		r.Route("/webhooks", func(r chi.Router) {
