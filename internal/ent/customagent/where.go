@@ -481,6 +481,16 @@ func IsActiveNEQ(v bool) predicate.CustomAgent {
 	return predicate.CustomAgent(sql.FieldNEQ(FieldIsActive, v))
 }
 
+// MetadataIsNil applies the IsNil predicate on the "metadata" field.
+func MetadataIsNil() predicate.CustomAgent {
+	return predicate.CustomAgent(sql.FieldIsNull(FieldMetadata))
+}
+
+// MetadataNotNil applies the NotNil predicate on the "metadata" field.
+func MetadataNotNil() predicate.CustomAgent {
+	return predicate.CustomAgent(sql.FieldNotNull(FieldMetadata))
+}
+
 // RunCountEQ applies the EQ predicate on the "run_count" field.
 func RunCountEQ(v int) predicate.CustomAgent {
 	return predicate.CustomAgent(sql.FieldEQ(FieldRunCount, v))

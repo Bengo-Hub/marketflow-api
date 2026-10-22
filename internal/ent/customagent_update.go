@@ -180,6 +180,18 @@ func (_u *CustomAgentUpdate) SetNillableIsActive(v *bool) *CustomAgentUpdate {
 	return _u
 }
 
+// SetMetadata sets the "metadata" field.
+func (_u *CustomAgentUpdate) SetMetadata(v map[string]interface{}) *CustomAgentUpdate {
+	_u.mutation.SetMetadata(v)
+	return _u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (_u *CustomAgentUpdate) ClearMetadata() *CustomAgentUpdate {
+	_u.mutation.ClearMetadata()
+	return _u
+}
+
 // SetRunCount sets the "run_count" field.
 func (_u *CustomAgentUpdate) SetRunCount(v int) *CustomAgentUpdate {
 	_u.mutation.ResetRunCount()
@@ -389,6 +401,12 @@ func (_u *CustomAgentUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.IsActive(); ok {
 		_spec.SetField(customagent.FieldIsActive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Metadata(); ok {
+		_spec.SetField(customagent.FieldMetadata, field.TypeJSON, value)
+	}
+	if _u.mutation.MetadataCleared() {
+		_spec.ClearField(customagent.FieldMetadata, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.RunCount(); ok {
 		_spec.SetField(customagent.FieldRunCount, field.TypeInt, value)
@@ -648,6 +666,18 @@ func (_u *CustomAgentUpdateOne) SetNillableIsActive(v *bool) *CustomAgentUpdateO
 	return _u
 }
 
+// SetMetadata sets the "metadata" field.
+func (_u *CustomAgentUpdateOne) SetMetadata(v map[string]interface{}) *CustomAgentUpdateOne {
+	_u.mutation.SetMetadata(v)
+	return _u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (_u *CustomAgentUpdateOne) ClearMetadata() *CustomAgentUpdateOne {
+	_u.mutation.ClearMetadata()
+	return _u
+}
+
 // SetRunCount sets the "run_count" field.
 func (_u *CustomAgentUpdateOne) SetRunCount(v int) *CustomAgentUpdateOne {
 	_u.mutation.ResetRunCount()
@@ -887,6 +917,12 @@ func (_u *CustomAgentUpdateOne) sqlSave(ctx context.Context) (_node *CustomAgent
 	}
 	if value, ok := _u.mutation.IsActive(); ok {
 		_spec.SetField(customagent.FieldIsActive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Metadata(); ok {
+		_spec.SetField(customagent.FieldMetadata, field.TypeJSON, value)
+	}
+	if _u.mutation.MetadataCleared() {
+		_spec.ClearField(customagent.FieldMetadata, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.RunCount(); ok {
 		_spec.SetField(customagent.FieldRunCount, field.TypeInt, value)

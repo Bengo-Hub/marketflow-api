@@ -33,6 +33,8 @@ const (
 	FieldMaxIterations = "max_iterations"
 	// FieldIsActive holds the string denoting the is_active field in the database.
 	FieldIsActive = "is_active"
+	// FieldMetadata holds the string denoting the metadata field in the database.
+	FieldMetadata = "metadata"
 	// FieldRunCount holds the string denoting the run_count field in the database.
 	FieldRunCount = "run_count"
 	// FieldLastRunAt holds the string denoting the last_run_at field in the database.
@@ -75,6 +77,7 @@ var Columns = []string{
 	FieldAllowedTools,
 	FieldMaxIterations,
 	FieldIsActive,
+	FieldMetadata,
 	FieldRunCount,
 	FieldLastRunAt,
 	FieldCreatedAt,

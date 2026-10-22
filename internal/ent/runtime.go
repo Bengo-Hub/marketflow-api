@@ -376,15 +376,15 @@ func init() {
 	// customagent.DefaultIsActive holds the default value on creation for the is_active field.
 	customagent.DefaultIsActive = customagentDescIsActive.Default.(bool)
 	// customagentDescRunCount is the schema descriptor for run_count field.
-	customagentDescRunCount := customagentFields[10].Descriptor()
+	customagentDescRunCount := customagentFields[11].Descriptor()
 	// customagent.DefaultRunCount holds the default value on creation for the run_count field.
 	customagent.DefaultRunCount = customagentDescRunCount.Default.(int)
 	// customagentDescCreatedAt is the schema descriptor for created_at field.
-	customagentDescCreatedAt := customagentFields[12].Descriptor()
+	customagentDescCreatedAt := customagentFields[13].Descriptor()
 	// customagent.DefaultCreatedAt holds the default value on creation for the created_at field.
 	customagent.DefaultCreatedAt = customagentDescCreatedAt.Default.(func() time.Time)
 	// customagentDescUpdatedAt is the schema descriptor for updated_at field.
-	customagentDescUpdatedAt := customagentFields[13].Descriptor()
+	customagentDescUpdatedAt := customagentFields[14].Descriptor()
 	// customagent.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	customagent.DefaultUpdatedAt = customagentDescUpdatedAt.Default.(func() time.Time)
 	// customagent.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

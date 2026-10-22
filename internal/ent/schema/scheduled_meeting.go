@@ -119,5 +119,7 @@ func (ScheduledMeeting) Indexes() []ent.Index {
 		index.Fields("tenant_id", "meeting_type"),
 		index.Fields("external_booking_id"),
 		index.Fields("google_event_id"),
+		// Lead timelines and the daily brief look meetings up by lead.
+		index.Fields("lead_id"),
 	}
 }

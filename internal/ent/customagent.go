@@ -38,6 +38,8 @@ type CustomAgent struct {
 	MaxIterations int `json:"max_iterations,omitempty"`
 	// IsActive holds the value of the "is_active" field.
 	IsActive bool `json:"is_active,omitempty"`
+	// kind (crm | team_member | ad_autopilot | content_planner), role, reports_to, skills, model_class, definition, autopilot, template, template_ref, versions
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// RunCount holds the value of the "run_count" field.
 	RunCount int `json:"run_count,omitempty"`
 	// LastRunAt holds the value of the "last_run_at" field.
@@ -88,7 +90,7 @@ func (*CustomAgent) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case customagent.FieldTriggerConfig, customagent.FieldAllowedTools:
+		case customagent.FieldTriggerConfig, customagent.FieldAllowedTools, customagent.FieldMetadata:
 			values[i] = new([]byte)
 		case customagent.FieldIsActive:
 			values[i] = new(sql.NullBool)
@@ -180,6 +182,14 @@ func (_m *CustomAgent) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field is_active", values[i])
 			} else if value.Valid {
 				_m.IsActive = value.Bool
+			}
+		case customagent.FieldMetadata:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field metadata", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Metadata); err != nil {
+					return fmt.Errorf("unmarshal field metadata: %w", err)
+				}
 			}
 		case customagent.FieldRunCount:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -282,6 +292,9 @@ func (_m *CustomAgent) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("is_active=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsActive))
+	builder.WriteString(", ")
+	builder.WriteString("metadata=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))
 	builder.WriteString(", ")
 	builder.WriteString("run_count=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RunCount))

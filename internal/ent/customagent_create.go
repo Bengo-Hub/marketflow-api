@@ -120,6 +120,12 @@ func (_c *CustomAgentCreate) SetNillableIsActive(v *bool) *CustomAgentCreate {
 	return _c
 }
 
+// SetMetadata sets the "metadata" field.
+func (_c *CustomAgentCreate) SetMetadata(v map[string]interface{}) *CustomAgentCreate {
+	_c.mutation.SetMetadata(v)
+	return _c
+}
+
 // SetRunCount sets the "run_count" field.
 func (_c *CustomAgentCreate) SetRunCount(v int) *CustomAgentCreate {
 	_c.mutation.SetRunCount(v)
@@ -377,6 +383,10 @@ func (_c *CustomAgentCreate) createSpec() (*CustomAgent, *sqlgraph.CreateSpec) {
 		_spec.SetField(customagent.FieldIsActive, field.TypeBool, value)
 		_node.IsActive = value
 	}
+	if value, ok := _c.mutation.Metadata(); ok {
+		_spec.SetField(customagent.FieldMetadata, field.TypeJSON, value)
+		_node.Metadata = value
+	}
 	if value, ok := _c.mutation.RunCount(); ok {
 		_spec.SetField(customagent.FieldRunCount, field.TypeInt, value)
 		_node.RunCount = value
@@ -613,6 +623,24 @@ func (u *CustomAgentUpsert) SetIsActive(v bool) *CustomAgentUpsert {
 // UpdateIsActive sets the "is_active" field to the value that was provided on create.
 func (u *CustomAgentUpsert) UpdateIsActive() *CustomAgentUpsert {
 	u.SetExcluded(customagent.FieldIsActive)
+	return u
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *CustomAgentUpsert) SetMetadata(v map[string]interface{}) *CustomAgentUpsert {
+	u.Set(customagent.FieldMetadata, v)
+	return u
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *CustomAgentUpsert) UpdateMetadata() *CustomAgentUpsert {
+	u.SetExcluded(customagent.FieldMetadata)
+	return u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *CustomAgentUpsert) ClearMetadata() *CustomAgentUpsert {
+	u.SetNull(customagent.FieldMetadata)
 	return u
 }
 
@@ -873,6 +901,27 @@ func (u *CustomAgentUpsertOne) SetIsActive(v bool) *CustomAgentUpsertOne {
 func (u *CustomAgentUpsertOne) UpdateIsActive() *CustomAgentUpsertOne {
 	return u.Update(func(s *CustomAgentUpsert) {
 		s.UpdateIsActive()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *CustomAgentUpsertOne) SetMetadata(v map[string]interface{}) *CustomAgentUpsertOne {
+	return u.Update(func(s *CustomAgentUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *CustomAgentUpsertOne) UpdateMetadata() *CustomAgentUpsertOne {
+	return u.Update(func(s *CustomAgentUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *CustomAgentUpsertOne) ClearMetadata() *CustomAgentUpsertOne {
+	return u.Update(func(s *CustomAgentUpsert) {
+		s.ClearMetadata()
 	})
 }
 
@@ -1308,6 +1357,27 @@ func (u *CustomAgentUpsertBulk) SetIsActive(v bool) *CustomAgentUpsertBulk {
 func (u *CustomAgentUpsertBulk) UpdateIsActive() *CustomAgentUpsertBulk {
 	return u.Update(func(s *CustomAgentUpsert) {
 		s.UpdateIsActive()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *CustomAgentUpsertBulk) SetMetadata(v map[string]interface{}) *CustomAgentUpsertBulk {
+	return u.Update(func(s *CustomAgentUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *CustomAgentUpsertBulk) UpdateMetadata() *CustomAgentUpsertBulk {
+	return u.Update(func(s *CustomAgentUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *CustomAgentUpsertBulk) ClearMetadata() *CustomAgentUpsertBulk {
+	return u.Update(func(s *CustomAgentUpsert) {
+		s.ClearMetadata()
 	})
 }
 

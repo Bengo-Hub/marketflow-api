@@ -548,6 +548,7 @@ var (
 		{Name: "allowed_tools", Type: field.TypeJSON, Nullable: true},
 		{Name: "max_iterations", Type: field.TypeInt, Default: 5},
 		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
 		{Name: "run_count", Type: field.TypeInt, Default: 0},
 		{Name: "last_run_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
@@ -562,7 +563,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "custom_agents_tenants_custom_agents",
-				Columns:    []*schema.Column{CustomAgentsColumns[13]},
+				Columns:    []*schema.Column{CustomAgentsColumns[14]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -571,12 +572,12 @@ var (
 			{
 				Name:    "customagent_tenant_id_is_active",
 				Unique:  false,
-				Columns: []*schema.Column{CustomAgentsColumns[13], CustomAgentsColumns[8]},
+				Columns: []*schema.Column{CustomAgentsColumns[14], CustomAgentsColumns[8]},
 			},
 			{
 				Name:    "customagent_tenant_id_trigger_type",
 				Unique:  false,
-				Columns: []*schema.Column{CustomAgentsColumns[13], CustomAgentsColumns[3]},
+				Columns: []*schema.Column{CustomAgentsColumns[14], CustomAgentsColumns[3]},
 			},
 		},
 	}
@@ -954,6 +955,11 @@ var (
 				Name:    "lead_tenant_id_created_at",
 				Unique:  false,
 				Columns: []*schema.Column{LeadsColumns[25], LeadsColumns[21]},
+			},
+			{
+				Name:    "lead_tenant_id_campaign_id",
+				Unique:  false,
+				Columns: []*schema.Column{LeadsColumns[25], LeadsColumns[23]},
 			},
 		},
 	}
@@ -1554,6 +1560,11 @@ var (
 				Name:    "scheduledmeeting_google_event_id",
 				Unique:  false,
 				Columns: []*schema.Column{ScheduledMeetingsColumns[4]},
+			},
+			{
+				Name:    "scheduledmeeting_lead_id",
+				Unique:  false,
+				Columns: []*schema.Column{ScheduledMeetingsColumns[19]},
 			},
 		},
 	}

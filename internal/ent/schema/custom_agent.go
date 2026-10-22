@@ -46,6 +46,9 @@ func (CustomAgent) Fields() []ent.Field {
 			Comment("Max agent loop iterations; max 10 (Pro: 20)"),
 		field.Bool("is_active").
 			Default(true),
+		field.JSON("metadata", map[string]any{}).
+			Optional().
+			Comment("kind (crm | team_member | ad_autopilot | content_planner), role, reports_to, skills, model_class, definition, autopilot, template, template_ref, versions"),
 		field.Int("run_count").
 			Default(0),
 		field.Time("last_run_at").

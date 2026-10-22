@@ -12811,6 +12811,7 @@ type CustomAgentMutation struct {
 	max_iterations      *int
 	addmax_iterations   *int
 	is_active           *bool
+	metadata            *map[string]interface{}
 	run_count           *int
 	addrun_count        *int
 	last_run_at         *time.Time
@@ -13343,6 +13344,55 @@ func (m *CustomAgentMutation) ResetIsActive() {
 	m.is_active = nil
 }
 
+// SetMetadata sets the "metadata" field.
+func (m *CustomAgentMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *CustomAgentMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the CustomAgent entity.
+// If the CustomAgent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CustomAgentMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (m *CustomAgentMutation) ClearMetadata() {
+	m.metadata = nil
+	m.clearedFields[customagent.FieldMetadata] = struct{}{}
+}
+
+// MetadataCleared returns if the "metadata" field was cleared in this mutation.
+func (m *CustomAgentMutation) MetadataCleared() bool {
+	_, ok := m.clearedFields[customagent.FieldMetadata]
+	return ok
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *CustomAgentMutation) ResetMetadata() {
+	m.metadata = nil
+	delete(m.clearedFields, customagent.FieldMetadata)
+}
+
 // SetRunCount sets the "run_count" field.
 func (m *CustomAgentMutation) SetRunCount(i int) {
 	m.run_count = &i
@@ -13635,7 +13685,7 @@ func (m *CustomAgentMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CustomAgentMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.tenant != nil {
 		fields = append(fields, customagent.FieldTenantID)
 	}
@@ -13662,6 +13712,9 @@ func (m *CustomAgentMutation) Fields() []string {
 	}
 	if m.is_active != nil {
 		fields = append(fields, customagent.FieldIsActive)
+	}
+	if m.metadata != nil {
+		fields = append(fields, customagent.FieldMetadata)
 	}
 	if m.run_count != nil {
 		fields = append(fields, customagent.FieldRunCount)
@@ -13701,6 +13754,8 @@ func (m *CustomAgentMutation) Field(name string) (ent.Value, bool) {
 		return m.MaxIterations()
 	case customagent.FieldIsActive:
 		return m.IsActive()
+	case customagent.FieldMetadata:
+		return m.Metadata()
 	case customagent.FieldRunCount:
 		return m.RunCount()
 	case customagent.FieldLastRunAt:
@@ -13736,6 +13791,8 @@ func (m *CustomAgentMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldMaxIterations(ctx)
 	case customagent.FieldIsActive:
 		return m.OldIsActive(ctx)
+	case customagent.FieldMetadata:
+		return m.OldMetadata(ctx)
 	case customagent.FieldRunCount:
 		return m.OldRunCount(ctx)
 	case customagent.FieldLastRunAt:
@@ -13815,6 +13872,13 @@ func (m *CustomAgentMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetIsActive(v)
+		return nil
+	case customagent.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
 		return nil
 	case customagent.FieldRunCount:
 		v, ok := value.(int)
@@ -13913,6 +13977,9 @@ func (m *CustomAgentMutation) ClearedFields() []string {
 	if m.FieldCleared(customagent.FieldAllowedTools) {
 		fields = append(fields, customagent.FieldAllowedTools)
 	}
+	if m.FieldCleared(customagent.FieldMetadata) {
+		fields = append(fields, customagent.FieldMetadata)
+	}
 	if m.FieldCleared(customagent.FieldLastRunAt) {
 		fields = append(fields, customagent.FieldLastRunAt)
 	}
@@ -13941,6 +14008,9 @@ func (m *CustomAgentMutation) ClearField(name string) error {
 		return nil
 	case customagent.FieldAllowedTools:
 		m.ClearAllowedTools()
+		return nil
+	case customagent.FieldMetadata:
+		m.ClearMetadata()
 		return nil
 	case customagent.FieldLastRunAt:
 		m.ClearLastRunAt()
@@ -13979,6 +14049,9 @@ func (m *CustomAgentMutation) ResetField(name string) error {
 		return nil
 	case customagent.FieldIsActive:
 		m.ResetIsActive()
+		return nil
+	case customagent.FieldMetadata:
+		m.ResetMetadata()
 		return nil
 	case customagent.FieldRunCount:
 		m.ResetRunCount()

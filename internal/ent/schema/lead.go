@@ -149,5 +149,7 @@ func (Lead) Indexes() []ent.Index {
 		index.Fields("tenant_id", "source"),
 		index.Fields("tenant_id", "lead_type"),
 		index.Fields("tenant_id", "created_at"),
+		// Ad-to-customer attribution and the daily brief group leads by campaign.
+		index.Fields("tenant_id", "campaign_id"),
 	}
 }
