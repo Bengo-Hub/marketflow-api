@@ -9121,6 +9121,7 @@ type ChatSessionMutation struct {
 	metadata          *map[string]interface{}
 	started_at        *time.Time
 	ended_at          *time.Time
+	last_activity_at  *time.Time
 	clearedFields     map[string]struct{}
 	tenant            *uuid.UUID
 	clearedtenant     bool
@@ -9880,6 +9881,55 @@ func (m *ChatSessionMutation) ResetEndedAt() {
 	delete(m.clearedFields, chatsession.FieldEndedAt)
 }
 
+// SetLastActivityAt sets the "last_activity_at" field.
+func (m *ChatSessionMutation) SetLastActivityAt(t time.Time) {
+	m.last_activity_at = &t
+}
+
+// LastActivityAt returns the value of the "last_activity_at" field in the mutation.
+func (m *ChatSessionMutation) LastActivityAt() (r time.Time, exists bool) {
+	v := m.last_activity_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastActivityAt returns the old "last_activity_at" field's value of the ChatSession entity.
+// If the ChatSession object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChatSessionMutation) OldLastActivityAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastActivityAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastActivityAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastActivityAt: %w", err)
+	}
+	return oldValue.LastActivityAt, nil
+}
+
+// ClearLastActivityAt clears the value of the "last_activity_at" field.
+func (m *ChatSessionMutation) ClearLastActivityAt() {
+	m.last_activity_at = nil
+	m.clearedFields[chatsession.FieldLastActivityAt] = struct{}{}
+}
+
+// LastActivityAtCleared returns if the "last_activity_at" field was cleared in this mutation.
+func (m *ChatSessionMutation) LastActivityAtCleared() bool {
+	_, ok := m.clearedFields[chatsession.FieldLastActivityAt]
+	return ok
+}
+
+// ResetLastActivityAt resets all changes to the "last_activity_at" field.
+func (m *ChatSessionMutation) ResetLastActivityAt() {
+	m.last_activity_at = nil
+	delete(m.clearedFields, chatsession.FieldLastActivityAt)
+}
+
 // ClearTenant clears the "tenant" edge to the Tenant entity.
 func (m *ChatSessionMutation) ClearTenant() {
 	m.clearedtenant = true
@@ -9995,7 +10045,7 @@ func (m *ChatSessionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChatSessionMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.tenant != nil {
 		fields = append(fields, chatsession.FieldTenantID)
 	}
@@ -10035,6 +10085,9 @@ func (m *ChatSessionMutation) Fields() []string {
 	if m.ended_at != nil {
 		fields = append(fields, chatsession.FieldEndedAt)
 	}
+	if m.last_activity_at != nil {
+		fields = append(fields, chatsession.FieldLastActivityAt)
+	}
 	return fields
 }
 
@@ -10069,6 +10122,8 @@ func (m *ChatSessionMutation) Field(name string) (ent.Value, bool) {
 		return m.StartedAt()
 	case chatsession.FieldEndedAt:
 		return m.EndedAt()
+	case chatsession.FieldLastActivityAt:
+		return m.LastActivityAt()
 	}
 	return nil, false
 }
@@ -10104,6 +10159,8 @@ func (m *ChatSessionMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldStartedAt(ctx)
 	case chatsession.FieldEndedAt:
 		return m.OldEndedAt(ctx)
+	case chatsession.FieldLastActivityAt:
+		return m.OldLastActivityAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown ChatSession field %s", name)
 }
@@ -10204,6 +10261,13 @@ func (m *ChatSessionMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetEndedAt(v)
 		return nil
+	case chatsession.FieldLastActivityAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastActivityAt(v)
+		return nil
 	}
 	return fmt.Errorf("unknown ChatSession field %s", name)
 }
@@ -10303,6 +10367,9 @@ func (m *ChatSessionMutation) ClearedFields() []string {
 	if m.FieldCleared(chatsession.FieldEndedAt) {
 		fields = append(fields, chatsession.FieldEndedAt)
 	}
+	if m.FieldCleared(chatsession.FieldLastActivityAt) {
+		fields = append(fields, chatsession.FieldLastActivityAt)
+	}
 	return fields
 }
 
@@ -10334,6 +10401,9 @@ func (m *ChatSessionMutation) ClearField(name string) error {
 		return nil
 	case chatsession.FieldEndedAt:
 		m.ClearEndedAt()
+		return nil
+	case chatsession.FieldLastActivityAt:
+		m.ClearLastActivityAt()
 		return nil
 	}
 	return fmt.Errorf("unknown ChatSession nullable field %s", name)
@@ -10381,6 +10451,9 @@ func (m *ChatSessionMutation) ResetField(name string) error {
 		return nil
 	case chatsession.FieldEndedAt:
 		m.ResetEndedAt()
+		return nil
+	case chatsession.FieldLastActivityAt:
+		m.ResetLastActivityAt()
 		return nil
 	}
 	return fmt.Errorf("unknown ChatSession field %s", name)

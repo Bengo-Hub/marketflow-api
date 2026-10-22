@@ -256,6 +256,26 @@ func (_u *ChatSessionUpdate) ClearEndedAt() *ChatSessionUpdate {
 	return _u
 }
 
+// SetLastActivityAt sets the "last_activity_at" field.
+func (_u *ChatSessionUpdate) SetLastActivityAt(v time.Time) *ChatSessionUpdate {
+	_u.mutation.SetLastActivityAt(v)
+	return _u
+}
+
+// SetNillableLastActivityAt sets the "last_activity_at" field if the given value is not nil.
+func (_u *ChatSessionUpdate) SetNillableLastActivityAt(v *time.Time) *ChatSessionUpdate {
+	if v != nil {
+		_u.SetLastActivityAt(*v)
+	}
+	return _u
+}
+
+// ClearLastActivityAt clears the value of the "last_activity_at" field.
+func (_u *ChatSessionUpdate) ClearLastActivityAt() *ChatSessionUpdate {
+	_u.mutation.ClearLastActivityAt()
+	return _u
+}
+
 // SetTenant sets the "tenant" edge to the Tenant entity.
 func (_u *ChatSessionUpdate) SetTenant(v *Tenant) *ChatSessionUpdate {
 	return _u.SetTenantID(v.ID)
@@ -402,6 +422,12 @@ func (_u *ChatSessionUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if _u.mutation.EndedAtCleared() {
 		_spec.ClearField(chatsession.FieldEndedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.LastActivityAt(); ok {
+		_spec.SetField(chatsession.FieldLastActivityAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastActivityAtCleared() {
+		_spec.ClearField(chatsession.FieldLastActivityAt, field.TypeTime)
 	}
 	if _u.mutation.TenantCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -734,6 +760,26 @@ func (_u *ChatSessionUpdateOne) ClearEndedAt() *ChatSessionUpdateOne {
 	return _u
 }
 
+// SetLastActivityAt sets the "last_activity_at" field.
+func (_u *ChatSessionUpdateOne) SetLastActivityAt(v time.Time) *ChatSessionUpdateOne {
+	_u.mutation.SetLastActivityAt(v)
+	return _u
+}
+
+// SetNillableLastActivityAt sets the "last_activity_at" field if the given value is not nil.
+func (_u *ChatSessionUpdateOne) SetNillableLastActivityAt(v *time.Time) *ChatSessionUpdateOne {
+	if v != nil {
+		_u.SetLastActivityAt(*v)
+	}
+	return _u
+}
+
+// ClearLastActivityAt clears the value of the "last_activity_at" field.
+func (_u *ChatSessionUpdateOne) ClearLastActivityAt() *ChatSessionUpdateOne {
+	_u.mutation.ClearLastActivityAt()
+	return _u
+}
+
 // SetTenant sets the "tenant" edge to the Tenant entity.
 func (_u *ChatSessionUpdateOne) SetTenant(v *Tenant) *ChatSessionUpdateOne {
 	return _u.SetTenantID(v.ID)
@@ -910,6 +956,12 @@ func (_u *ChatSessionUpdateOne) sqlSave(ctx context.Context) (_node *ChatSession
 	}
 	if _u.mutation.EndedAtCleared() {
 		_spec.ClearField(chatsession.FieldEndedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.LastActivityAt(); ok {
+		_spec.SetField(chatsession.FieldLastActivityAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastActivityAtCleared() {
+		_spec.ClearField(chatsession.FieldLastActivityAt, field.TypeTime)
 	}
 	if _u.mutation.TenantCleared() {
 		edge := &sqlgraph.EdgeSpec{

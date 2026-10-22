@@ -175,6 +175,9 @@ func main() {
 		)
 		go reeng.Run(ctx)
 
+		// Chat transcript retention (30 days after last activity by default).
+		go worker.NewChatRetention(entClient, cfg.Scheduler.ChatRetentionDays, logger).Run(ctx)
+
 		// Ad-insights polling cron (Meta campaigns only today). Resolver
 		// pulls the tenant's Meta page token from ProviderSetting at query
 		// time; falls back to the Tenant.meta_access_token legacy field

@@ -111,6 +111,11 @@ func EndedAt(v time.Time) predicate.ChatSession {
 	return predicate.ChatSession(sql.FieldEQ(FieldEndedAt, v))
 }
 
+// LastActivityAt applies equality check predicate on the "last_activity_at" field. It's identical to LastActivityAtEQ.
+func LastActivityAt(v time.Time) predicate.ChatSession {
+	return predicate.ChatSession(sql.FieldEQ(FieldLastActivityAt, v))
+}
+
 // TenantIDEQ applies the EQ predicate on the "tenant_id" field.
 func TenantIDEQ(v uuid.UUID) predicate.ChatSession {
 	return predicate.ChatSession(sql.FieldEQ(FieldTenantID, v))
@@ -599,6 +604,56 @@ func EndedAtIsNil() predicate.ChatSession {
 // EndedAtNotNil applies the NotNil predicate on the "ended_at" field.
 func EndedAtNotNil() predicate.ChatSession {
 	return predicate.ChatSession(sql.FieldNotNull(FieldEndedAt))
+}
+
+// LastActivityAtEQ applies the EQ predicate on the "last_activity_at" field.
+func LastActivityAtEQ(v time.Time) predicate.ChatSession {
+	return predicate.ChatSession(sql.FieldEQ(FieldLastActivityAt, v))
+}
+
+// LastActivityAtNEQ applies the NEQ predicate on the "last_activity_at" field.
+func LastActivityAtNEQ(v time.Time) predicate.ChatSession {
+	return predicate.ChatSession(sql.FieldNEQ(FieldLastActivityAt, v))
+}
+
+// LastActivityAtIn applies the In predicate on the "last_activity_at" field.
+func LastActivityAtIn(vs ...time.Time) predicate.ChatSession {
+	return predicate.ChatSession(sql.FieldIn(FieldLastActivityAt, vs...))
+}
+
+// LastActivityAtNotIn applies the NotIn predicate on the "last_activity_at" field.
+func LastActivityAtNotIn(vs ...time.Time) predicate.ChatSession {
+	return predicate.ChatSession(sql.FieldNotIn(FieldLastActivityAt, vs...))
+}
+
+// LastActivityAtGT applies the GT predicate on the "last_activity_at" field.
+func LastActivityAtGT(v time.Time) predicate.ChatSession {
+	return predicate.ChatSession(sql.FieldGT(FieldLastActivityAt, v))
+}
+
+// LastActivityAtGTE applies the GTE predicate on the "last_activity_at" field.
+func LastActivityAtGTE(v time.Time) predicate.ChatSession {
+	return predicate.ChatSession(sql.FieldGTE(FieldLastActivityAt, v))
+}
+
+// LastActivityAtLT applies the LT predicate on the "last_activity_at" field.
+func LastActivityAtLT(v time.Time) predicate.ChatSession {
+	return predicate.ChatSession(sql.FieldLT(FieldLastActivityAt, v))
+}
+
+// LastActivityAtLTE applies the LTE predicate on the "last_activity_at" field.
+func LastActivityAtLTE(v time.Time) predicate.ChatSession {
+	return predicate.ChatSession(sql.FieldLTE(FieldLastActivityAt, v))
+}
+
+// LastActivityAtIsNil applies the IsNil predicate on the "last_activity_at" field.
+func LastActivityAtIsNil() predicate.ChatSession {
+	return predicate.ChatSession(sql.FieldIsNull(FieldLastActivityAt))
+}
+
+// LastActivityAtNotNil applies the NotNil predicate on the "last_activity_at" field.
+func LastActivityAtNotNil() predicate.ChatSession {
+	return predicate.ChatSession(sql.FieldNotNull(FieldLastActivityAt))
 }
 
 // HasTenant applies the HasEdge predicate on the "tenant" edge.

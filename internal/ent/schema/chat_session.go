@@ -67,6 +67,12 @@ func (ChatSession) Fields() []ent.Field {
 		field.Time("ended_at").
 			Optional().
 			Nillable(),
+		// Set by marketflow-ai on every new or appended message. Drives the 30-day retention
+		// prune (a session can be resumed long after it started, so started_at is not enough).
+		// Nullable: rows from before this column existed have no value until their next message.
+		field.Time("last_activity_at").
+			Optional().
+			Nillable(),
 	}
 }
 
@@ -96,5 +102,9 @@ func (ChatSession) Indexes() []ent.Index {
 		index.Fields("tenant_id", "lead_id"),
 		index.Fields("tenant_id", "contact_id"),
 		index.Fields("tenant_id", "channel"),
+		// Retention prune (by last activity, and by start for rows without an activity stamp);
+		// started_at also serves the analytics "sessions this week" counts.
+		index.Fields("last_activity_at"),
+		index.Fields("started_at"),
 	}
 }

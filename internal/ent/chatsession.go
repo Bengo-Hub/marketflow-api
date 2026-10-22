@@ -48,6 +48,8 @@ type ChatSession struct {
 	StartedAt time.Time `json:"started_at,omitempty"`
 	// EndedAt holds the value of the "ended_at" field.
 	EndedAt *time.Time `json:"ended_at,omitempty"`
+	// LastActivityAt holds the value of the "last_activity_at" field.
+	LastActivityAt *time.Time `json:"last_activity_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ChatSessionQuery when eager-loading is set.
 	Edges        ChatSessionEdges `json:"edges"`
@@ -115,7 +117,7 @@ func (*ChatSession) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case chatsession.FieldStatus, chatsession.FieldChannel:
 			values[i] = new(sql.NullString)
-		case chatsession.FieldStartedAt, chatsession.FieldEndedAt:
+		case chatsession.FieldStartedAt, chatsession.FieldEndedAt, chatsession.FieldLastActivityAt:
 			values[i] = new(sql.NullTime)
 		case chatsession.FieldID, chatsession.FieldTenantID:
 			values[i] = new(uuid.UUID)
@@ -226,6 +228,13 @@ func (_m *ChatSession) assignValues(columns []string, values []any) error {
 				_m.EndedAt = new(time.Time)
 				*_m.EndedAt = value.Time
 			}
+		case chatsession.FieldLastActivityAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field last_activity_at", values[i])
+			} else if value.Valid {
+				_m.LastActivityAt = new(time.Time)
+				*_m.LastActivityAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -321,6 +330,11 @@ func (_m *ChatSession) String() string {
 	builder.WriteString(", ")
 	if v := _m.EndedAt; v != nil {
 		builder.WriteString("ended_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.LastActivityAt; v != nil {
+		builder.WriteString("last_activity_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteByte(')')

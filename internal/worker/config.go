@@ -35,6 +35,8 @@ type SchedulerConfig struct {
 	// Re-engagement cron
 	ReengagementIntervalHours int `env:"REENGAGEMENT_INTERVAL_HOURS" envDefault:"24"`
 	ReengagementDormantDays   int `env:"REENGAGEMENT_DORMANT_DAYS" envDefault:"60"`
+	// Chat transcript retention after last activity; 0 disables the daily prune.
+	ChatRetentionDays int `env:"CHAT_RETENTION_DAYS" envDefault:"30"`
 }
 
 type NATSConfig struct {

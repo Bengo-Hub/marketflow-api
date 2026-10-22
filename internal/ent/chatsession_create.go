@@ -185,6 +185,20 @@ func (_c *ChatSessionCreate) SetNillableEndedAt(v *time.Time) *ChatSessionCreate
 	return _c
 }
 
+// SetLastActivityAt sets the "last_activity_at" field.
+func (_c *ChatSessionCreate) SetLastActivityAt(v time.Time) *ChatSessionCreate {
+	_c.mutation.SetLastActivityAt(v)
+	return _c
+}
+
+// SetNillableLastActivityAt sets the "last_activity_at" field if the given value is not nil.
+func (_c *ChatSessionCreate) SetNillableLastActivityAt(v *time.Time) *ChatSessionCreate {
+	if v != nil {
+		_c.SetLastActivityAt(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *ChatSessionCreate) SetID(v uuid.UUID) *ChatSessionCreate {
 	_c.mutation.SetID(v)
@@ -380,6 +394,10 @@ func (_c *ChatSessionCreate) createSpec() (*ChatSession, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.EndedAt(); ok {
 		_spec.SetField(chatsession.FieldEndedAt, field.TypeTime, value)
 		_node.EndedAt = &value
+	}
+	if value, ok := _c.mutation.LastActivityAt(); ok {
+		_spec.SetField(chatsession.FieldLastActivityAt, field.TypeTime, value)
+		_node.LastActivityAt = &value
 	}
 	if nodes := _c.mutation.TenantIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -688,6 +706,24 @@ func (u *ChatSessionUpsert) ClearEndedAt() *ChatSessionUpsert {
 	return u
 }
 
+// SetLastActivityAt sets the "last_activity_at" field.
+func (u *ChatSessionUpsert) SetLastActivityAt(v time.Time) *ChatSessionUpsert {
+	u.Set(chatsession.FieldLastActivityAt, v)
+	return u
+}
+
+// UpdateLastActivityAt sets the "last_activity_at" field to the value that was provided on create.
+func (u *ChatSessionUpsert) UpdateLastActivityAt() *ChatSessionUpsert {
+	u.SetExcluded(chatsession.FieldLastActivityAt)
+	return u
+}
+
+// ClearLastActivityAt clears the value of the "last_activity_at" field.
+func (u *ChatSessionUpsert) ClearLastActivityAt() *ChatSessionUpsert {
+	u.SetNull(chatsession.FieldLastActivityAt)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create except the ID field.
 // Using this option is equivalent to using:
 //
@@ -974,6 +1010,27 @@ func (u *ChatSessionUpsertOne) UpdateEndedAt() *ChatSessionUpsertOne {
 func (u *ChatSessionUpsertOne) ClearEndedAt() *ChatSessionUpsertOne {
 	return u.Update(func(s *ChatSessionUpsert) {
 		s.ClearEndedAt()
+	})
+}
+
+// SetLastActivityAt sets the "last_activity_at" field.
+func (u *ChatSessionUpsertOne) SetLastActivityAt(v time.Time) *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetLastActivityAt(v)
+	})
+}
+
+// UpdateLastActivityAt sets the "last_activity_at" field to the value that was provided on create.
+func (u *ChatSessionUpsertOne) UpdateLastActivityAt() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateLastActivityAt()
+	})
+}
+
+// ClearLastActivityAt clears the value of the "last_activity_at" field.
+func (u *ChatSessionUpsertOne) ClearLastActivityAt() *ChatSessionUpsertOne {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.ClearLastActivityAt()
 	})
 }
 
@@ -1430,6 +1487,27 @@ func (u *ChatSessionUpsertBulk) UpdateEndedAt() *ChatSessionUpsertBulk {
 func (u *ChatSessionUpsertBulk) ClearEndedAt() *ChatSessionUpsertBulk {
 	return u.Update(func(s *ChatSessionUpsert) {
 		s.ClearEndedAt()
+	})
+}
+
+// SetLastActivityAt sets the "last_activity_at" field.
+func (u *ChatSessionUpsertBulk) SetLastActivityAt(v time.Time) *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.SetLastActivityAt(v)
+	})
+}
+
+// UpdateLastActivityAt sets the "last_activity_at" field to the value that was provided on create.
+func (u *ChatSessionUpsertBulk) UpdateLastActivityAt() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.UpdateLastActivityAt()
+	})
+}
+
+// ClearLastActivityAt clears the value of the "last_activity_at" field.
+func (u *ChatSessionUpsertBulk) ClearLastActivityAt() *ChatSessionUpsertBulk {
+	return u.Update(func(s *ChatSessionUpsert) {
+		s.ClearLastActivityAt()
 	})
 }
 

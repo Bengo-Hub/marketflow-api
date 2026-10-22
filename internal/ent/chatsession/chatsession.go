@@ -41,6 +41,8 @@ const (
 	FieldStartedAt = "started_at"
 	// FieldEndedAt holds the string denoting the ended_at field in the database.
 	FieldEndedAt = "ended_at"
+	// FieldLastActivityAt holds the string denoting the last_activity_at field in the database.
+	FieldLastActivityAt = "last_activity_at"
 	// EdgeTenant holds the string denoting the tenant edge name in mutations.
 	EdgeTenant = "tenant"
 	// EdgeLead holds the string denoting the lead edge name in mutations.
@@ -88,6 +90,7 @@ var Columns = []string{
 	FieldMetadata,
 	FieldStartedAt,
 	FieldEndedAt,
+	FieldLastActivityAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -178,6 +181,11 @@ func ByStartedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByEndedAt orders the results by the ended_at field.
 func ByEndedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEndedAt, opts...).ToFunc()
+}
+
+// ByLastActivityAt orders the results by the last_activity_at field.
+func ByLastActivityAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastActivityAt, opts...).ToFunc()
 }
 
 // ByTenantField orders the results by tenant field.

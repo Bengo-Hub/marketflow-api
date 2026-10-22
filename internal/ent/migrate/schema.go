@@ -374,6 +374,7 @@ var (
 		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
 		{Name: "started_at", Type: field.TypeTime},
 		{Name: "ended_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_activity_at", Type: field.TypeTime, Nullable: true},
 		{Name: "contact_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "lead_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "tenant_id", Type: field.TypeUUID},
@@ -386,19 +387,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "chat_sessions_contacts_chat_sessions",
-				Columns:    []*schema.Column{ChatSessionsColumns[11]},
+				Columns:    []*schema.Column{ChatSessionsColumns[12]},
 				RefColumns: []*schema.Column{ContactsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "chat_sessions_leads_chat_sessions",
-				Columns:    []*schema.Column{ChatSessionsColumns[12]},
+				Columns:    []*schema.Column{ChatSessionsColumns[13]},
 				RefColumns: []*schema.Column{LeadsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "chat_sessions_tenants_chat_sessions",
-				Columns:    []*schema.Column{ChatSessionsColumns[13]},
+				Columns:    []*schema.Column{ChatSessionsColumns[14]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -407,22 +408,32 @@ var (
 			{
 				Name:    "chatsession_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{ChatSessionsColumns[13], ChatSessionsColumns[1]},
+				Columns: []*schema.Column{ChatSessionsColumns[14], ChatSessionsColumns[1]},
 			},
 			{
 				Name:    "chatsession_tenant_id_lead_id",
 				Unique:  false,
-				Columns: []*schema.Column{ChatSessionsColumns[13], ChatSessionsColumns[12]},
+				Columns: []*schema.Column{ChatSessionsColumns[14], ChatSessionsColumns[13]},
 			},
 			{
 				Name:    "chatsession_tenant_id_contact_id",
 				Unique:  false,
-				Columns: []*schema.Column{ChatSessionsColumns[13], ChatSessionsColumns[11]},
+				Columns: []*schema.Column{ChatSessionsColumns[14], ChatSessionsColumns[12]},
 			},
 			{
 				Name:    "chatsession_tenant_id_channel",
 				Unique:  false,
-				Columns: []*schema.Column{ChatSessionsColumns[13], ChatSessionsColumns[2]},
+				Columns: []*schema.Column{ChatSessionsColumns[14], ChatSessionsColumns[2]},
+			},
+			{
+				Name:    "chatsession_last_activity_at",
+				Unique:  false,
+				Columns: []*schema.Column{ChatSessionsColumns[11]},
+			},
+			{
+				Name:    "chatsession_started_at",
+				Unique:  false,
+				Columns: []*schema.Column{ChatSessionsColumns[9]},
 			},
 		},
 	}
