@@ -184,13 +184,24 @@ source "${HOME}/devops-k8s/scripts/helm/update-values.sh" 2>/dev/null || {
 }
 if declare -f update_helm_values >/dev/null 2>&1; then
   update_helm_values "$APP_NAME" "$GIT_COMMIT_ID" "$IMAGE_REPO"
-  # The worker runs from the same image as its own deployment (MF_ROLE=worker), so it moves to
-  # the same tag. Skipped until that app exists in devops-k8s (the first call synced the clone).
-  if [ -f "${DEVOPS_DIR:-$HOME/devops-k8s}/apps/marketflow-worker/values.yaml" ]; then
-    update_helm_values "marketflow-worker" "$GIT_COMMIT_ID" "$IMAGE_REPO" || warn "marketflow-worker values not updated"
-  fi
 else
   warn "update_helm_values function not available - helm values not updated"
+fi
+
+# Keep marketflow-worker on this build's image. It runs this image's entrypoint with
+# MF_ROLE=worker but is a plain Deployment manifest (manifests/marketflow-worker-deployment.yaml,
+# no values.yaml of its own), so update_helm_values above never sees it; same pattern as
+# auth-api's session cleanup CronJob.
+if declare -f update_plain_manifest_image >/dev/null 2>&1; then
+  if [ -f "${DEVOPS_DIR}/manifests/marketflow-worker-deployment.yaml" ]; then
+    update_plain_manifest_image \
+      "manifests/marketflow-worker-deployment.yaml" \
+      ".spec.template.spec.containers[0].image" \
+      "${IMAGE_REPO}:${GIT_COMMIT_ID}" \
+      || warn "marketflow-worker image update failed - it will keep running its last-pinned tag"
+  fi
+else
+  warn "update_plain_manifest_image function not available - marketflow-worker image not updated"
 fi
 
 info "Deployment summary"
