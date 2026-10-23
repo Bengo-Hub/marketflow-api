@@ -29,6 +29,7 @@ var PublicMetadataKeys = []string{
 	"offerings",
 	"booking_enabled",
 	"brand_primary_color",
+	"contact_email",
 }
 
 // ReservedMetadataKeys belong to other features and are written only through their own
