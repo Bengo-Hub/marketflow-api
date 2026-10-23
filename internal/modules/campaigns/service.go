@@ -7,6 +7,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
+	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -32,6 +33,7 @@ type CreateInput struct {
 	Name           string
 	CampaignType   *string
 	Platform       *string
+	Channel        *string
 	MetaCampaignID *string
 	MetaAdsetID    *string
 	MetaAdID       *string
@@ -51,6 +53,7 @@ type UpdateInput struct {
 	Name           *string
 	CampaignType   *string
 	Platform       *string
+	Channel        *string
 	Status         *string
 	MetaCampaignID *string
 	MetaAdsetID    *string
@@ -87,6 +90,9 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Campaign, er
 	}
 	if in.Platform != nil {
 		builder.SetNillablePlatform(in.Platform)
+	}
+	if in.Channel != nil {
+		builder.SetChannel(*in.Channel)
 	}
 	if in.MetaCampaignID != nil {
 		builder.SetNillableMetaCampaignID(in.MetaCampaignID)
@@ -210,6 +216,9 @@ func (s *Service) Update(ctx context.Context, tenantID, campaignID uuid.UUID, in
 	if in.Platform != nil {
 		builder.SetNillablePlatform(in.Platform)
 	}
+	if in.Channel != nil {
+		builder.SetChannel(*in.Channel)
+	}
 	if in.Status != nil {
 		builder.SetNillableStatus(in.Status)
 	}
@@ -315,4 +324,29 @@ func (s *Service) Resume(ctx context.Context, tenantID, campaignID uuid.UUID) (*
 	)
 
 	return result, nil
+}
+
+// LeadCounts returns the number of leads attributed to each of the given campaigns, in one
+// grouped query (the list page shows it per row).
+func (s *Service) LeadCounts(ctx context.Context, tenantID uuid.UUID, ids []uuid.UUID) (map[uuid.UUID]int, error) {
+	out := make(map[uuid.UUID]int, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		CampaignID uuid.UUID `json:"campaign_id"`
+		Count      int       `json:"count"`
+	}
+	err := s.client.Lead.Query().
+		Where(lead.TenantID(tenantID), lead.CampaignIDIn(ids...)).
+		GroupBy(lead.FieldCampaignID).
+		Aggregate(ent.Count()).
+		Scan(ctx, &rows)
+	if err != nil {
+		return nil, fmt.Errorf("count campaign leads: %w", err)
+	}
+	for _, r := range rows {
+		out[r.CampaignID] = r.Count
+	}
+	return out, nil
 }

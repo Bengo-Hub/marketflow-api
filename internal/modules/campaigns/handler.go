@@ -31,6 +31,7 @@ type createCampaignRequest struct {
 	Name           string         `json:"name"`
 	CampaignType   *string        `json:"campaign_type"`
 	Platform       *string        `json:"platform"`
+	Channel        *string        `json:"channel"`
 	MetaCampaignID *string        `json:"meta_campaign_id"`
 	MetaAdsetID    *string        `json:"meta_adset_id"`
 	MetaAdID       *string        `json:"meta_ad_id"`
@@ -49,6 +50,7 @@ type updateCampaignRequest struct {
 	Name           *string        `json:"name"`
 	CampaignType   *string        `json:"campaign_type"`
 	Platform       *string        `json:"platform"`
+	Channel        *string        `json:"channel"`
 	Status         *string        `json:"status"`
 	MetaCampaignID *string        `json:"meta_campaign_id"`
 	MetaAdsetID    *string        `json:"meta_adset_id"`
@@ -95,10 +97,15 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Channel != nil && *req.Channel != "email" && *req.Channel != "sms" && *req.Channel != "whatsapp" {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_channel", "channel must be email, sms or whatsapp", nil)
+		return
+	}
 	result, err := h.service.Create(r.Context(), CreateInput{
 		TenantID:       tenantID,
 		Name:           req.Name,
 		CampaignType:   req.CampaignType,
+		Channel:        req.Channel,
 		Platform:       req.Platform,
 		MetaCampaignID: req.MetaCampaignID,
 		MetaAdsetID:    req.MetaAdsetID,
@@ -170,7 +177,21 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httpapi.JSON(w, http.StatusOK, pagination.NewResponse(results, total, p))
+	ids := make([]uuid.UUID, 0, len(results))
+	for _, c := range results {
+		ids = append(ids, c.ID)
+	}
+	counts, err := h.service.LeadCounts(r.Context(), tenantID, ids)
+	if err != nil {
+		h.logger.Warn("campaign lead counts failed", zap.Error(err))
+		counts = map[uuid.UUID]int{}
+	}
+	// The page envelope plus lead_counts keyed by campaign id.
+	resp := pagination.NewResponse(results, total, p)
+	httpapi.JSON(w, http.StatusOK, map[string]any{
+		"data": resp.Data, "total": resp.Total, "page": resp.Page, "limit": resp.Limit, "has_more": resp.HasMore,
+		"lead_counts": counts,
+	})
 }
 
 // Get handles GET /api/v1/campaigns/{id}
@@ -236,9 +257,14 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Channel != nil && *req.Channel != "email" && *req.Channel != "sms" && *req.Channel != "whatsapp" {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_channel", "channel must be email, sms or whatsapp", nil)
+		return
+	}
 	result, err := h.service.Update(r.Context(), tenantID, campaignID, UpdateInput{
 		Name:           req.Name,
 		CampaignType:   req.CampaignType,
+		Channel:        req.Channel,
 		Platform:       req.Platform,
 		Status:         req.Status,
 		MetaCampaignID: req.MetaCampaignID,

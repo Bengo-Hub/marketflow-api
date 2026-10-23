@@ -54,6 +54,7 @@ func (h *Handler) CampaignMetrics(w http.ResponseWriter, r *http.Request) {
 			admetrics.CampaignIDEQ(campaignID),
 			admetrics.DateGTE(cutoff),
 		).
+		Order(ent.Asc(admetrics.FieldDate)).
 		All(r.Context())
 	if err != nil {
 		httpapi.Error(w, http.StatusInternalServerError, "query_failed", err.Error(), nil)
