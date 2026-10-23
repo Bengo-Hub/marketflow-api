@@ -1,13 +1,17 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
+	serviceclient "github.com/Bengo-Hub/shared-service-client"
+	"github.com/sony/gobreaker"
 	"go.uber.org/zap"
 )
 
@@ -16,20 +20,33 @@ import (
 // at 60s TTL on their side) and returns an error when the tenant has exceeded
 // their plan limit. Used as a guard BEFORE creating campaigns, sending chats,
 // or capturing leads.
+//
+// The check sits on the request path, so it must never make a request feel stuck: one check
+// gets featureCheckBudget in total (retries included), and the shared client's circuit breaker
+// opens after a few consecutive failures, after which checks fail open at once instead of each
+// waiting for a service that is down.
 type FeatureGate struct {
-	subscriptionsURL string
-	apiKey           string
-	http             *http.Client
-	logger           *zap.Logger
+	client *serviceclient.Client
+	apiKey string
+	logger *zap.Logger
 }
 
+const featureCheckBudget = 2 * time.Second
+
 func NewFeatureGate(subscriptionsURL, apiKey string, logger *zap.Logger) *FeatureGate {
-	return &FeatureGate{
-		subscriptionsURL: subscriptionsURL,
-		apiKey:           apiKey,
-		http:             &http.Client{Timeout: 5 * time.Second},
-		logger:           logger.Named("feature_gate"),
+	logger = logger.Named("feature_gate")
+	fg := &FeatureGate{apiKey: apiKey, logger: logger}
+	if subscriptionsURL == "" {
+		return fg
 	}
+	cfg := serviceclient.DefaultConfig(strings.TrimSuffix(subscriptionsURL, "/"), "subscriptions-api", logger)
+	cfg.Timeout = 1500 * time.Millisecond
+	cfg.MaxElapsedTime = featureCheckBudget
+	cfg.MaxInterval = 500 * time.Millisecond
+	cfg.TimeoutCB = 30 * time.Second
+	cfg.ReadyToTrip = func(c gobreaker.Counts) bool { return c.ConsecutiveFailures >= 3 }
+	fg.client = serviceclient.New(cfg)
+	return fg
 }
 
 // FeatureCheckResult mirrors the subscriptions-api response.
@@ -40,32 +57,30 @@ type FeatureCheckResult struct {
 	Source     string  `json:"source"`
 }
 
-// Check returns (allowed, result, error). If the subscriptions service is
-// unreachable the gate fails OPEN (allowed=true) to avoid blocking the
-// entire platform when a downstream is down.
-func (fg *FeatureGate) Check(tenantID, featureCode string) (bool, *FeatureCheckResult) {
-	if fg.subscriptionsURL == "" || tenantID == "" {
+// Check returns (allowed, result). If the subscriptions service is unreachable, slow or
+// answers badly, the gate fails OPEN (allowed=true) to avoid blocking the entire platform
+// when a downstream is down.
+func (fg *FeatureGate) Check(ctx context.Context, tenantID, featureCode string) (bool, *FeatureCheckResult) {
+	if fg.client == nil || tenantID == "" {
 		return true, nil
 	}
-	url := fmt.Sprintf("%s/api/v1/features/%s/check", fg.subscriptionsURL, featureCode)
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("X-Tenant-ID", tenantID)
+	ctx, cancel := context.WithTimeout(ctx, featureCheckBudget)
+	defer cancel()
+	headers := map[string]string{"X-Tenant-ID": tenantID}
 	if fg.apiKey != "" {
-		req.Header.Set("X-API-Key", fg.apiKey)
+		headers["X-API-Key"] = fg.apiKey
 	}
-	resp, err := fg.http.Do(req)
+	resp, err := fg.client.Get(ctx, "/api/v1/features/"+url.PathEscape(featureCode)+"/check", headers)
 	if err != nil {
 		fg.logger.Debug("feature check failed, failing open", zap.String("feature", featureCode), zap.Error(err))
 		return true, nil
 	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		fg.logger.Debug("feature check non-200, failing open", zap.String("feature", featureCode), zap.Int("status", resp.StatusCode))
 		return true, nil
 	}
 	var result FeatureCheckResult
-	if json.Unmarshal(body, &result) != nil {
+	if json.Unmarshal(resp.Body, &result) != nil {
 		return true, nil
 	}
 	return result.Allowed, &result
@@ -79,12 +94,18 @@ func (fg *FeatureGate) RequireFeature(featureCode, upgradeMsg string) func(http.
 			// Gating-exempt tenants (platform owner / demo / service-charge / sub-exempt)
 			// bypass usage gating entirely — uniform with the rest of the fleet's
 			// claims.IsGatingExempt() funnel — and we skip the S2S round-trip for them.
-			if claims, ok := authclient.ClaimsFromContext(r.Context()); ok && claims != nil && claims.IsGatingExempt() {
+			claims, ok := authclient.ClaimsFromContext(r.Context())
+			if ok && claims != nil && claims.IsGatingExempt() {
 				next.ServeHTTP(w, r)
 				return
 			}
+			// The quota is the signed-in tenant's: a header naming another tenant must not
+			// spend (or dodge) someone else's limit. Calls without claims keep the header.
 			tenantID := r.Header.Get("X-Tenant-ID")
-			allowed, result := fg.Check(tenantID, featureCode)
+			if ok && claims != nil && claims.TenantID != "" {
+				tenantID = claims.TenantID
+			}
+			allowed, result := fg.Check(r.Context(), tenantID, featureCode)
 			if !allowed {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusPaymentRequired)

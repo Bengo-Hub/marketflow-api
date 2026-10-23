@@ -6,6 +6,7 @@ import (
 	"html"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	sharedcache "github.com/Bengo-Hub/cache"
@@ -27,6 +28,14 @@ const DailyBriefOptOutKey = marketingos.DailyBriefKey
 // briefSendAfter is the tenant-local time the brief goes out from.
 const briefSendAfter = 6*time.Hour + 30*time.Minute
 
+const (
+	// briefWordsTimeout sits above marketflow-ai's own cap on the wording call (about 20s), so a
+	// slow answer that is still coming is not cut off early.
+	briefWordsTimeout = 25 * time.Second
+	// briefWordsBackoff is how long the wording call is skipped after it fails.
+	briefWordsBackoff = 10 * time.Minute
+)
+
 // DailyBrief emails each tenant's admins a one-page morning brief: customers
 // first (orders, deals won, leads), then spend and cost per lead, yesterday
 // against the 7-day average. Numbers are computed here; marketflow-ai only picks
@@ -44,12 +53,18 @@ type DailyBrief struct {
 	logger     *zap.Logger
 	nowFn      func() time.Time
 	claim      func(ctx context.Context, key string, ttl time.Duration) bool
+
+	// aiDownUntil skips the wording call after a failure, so when marketflow-ai is down or slow
+	// the remaining tenants get their numbers-only brief at once instead of each waiting out
+	// the client timeout.
+	aiMu        sync.Mutex
+	aiDownUntil time.Time
 }
 
 // NewDailyBrief builds the job.
 func NewDailyBrief(db *ent.Client, svc *marketingos.Service, notif *notifications.Client, aiURL, serviceKey, portalURL string, logger *zap.Logger) *DailyBrief {
 	return &DailyBrief{db: db, svc: svc, notif: notif, aiURL: strings.TrimSuffix(aiURL, "/"), serviceKey: serviceKey,
-		portalURL: strings.TrimSuffix(portalURL, "/"), hc: &http.Client{Timeout: 30 * time.Second},
+		portalURL: strings.TrimSuffix(portalURL, "/"), hc: &http.Client{Timeout: briefWordsTimeout},
 		every: 15 * time.Minute, logger: logger.Named("daily-brief"), nowFn: time.Now, claim: sharedcache.ClaimOnce}
 }
 
@@ -171,13 +186,23 @@ func (j *DailyBrief) words(ctx context.Context, lang string, metrics []marketing
 	if j.aiURL == "" || j.serviceKey == "" {
 		return out
 	}
+	j.aiMu.Lock()
+	skip := j.nowFn().Before(j.aiDownUntil)
+	j.aiMu.Unlock()
+	if skip {
+		return out
+	}
 	m := make([]any, 0, len(metrics))
 	for _, x := range metrics {
 		m = append(m, x)
 	}
 	if err := agentS2SCall(ctx, j.hc, j.aiURL+"/api/v1/internal/os/daily-brief", j.serviceKey,
 		map[string]any{"language": lang, "metrics": m}, &out); err != nil {
-		j.logger.Warn("daily brief wording unavailable", zap.Error(err))
+		j.logger.Warn("daily brief wording unavailable; numbers-only briefs for a while", zap.Error(err),
+			zap.Duration("skip_for", briefWordsBackoff))
+		j.aiMu.Lock()
+		j.aiDownUntil = j.nowFn().Add(briefWordsBackoff)
+		j.aiMu.Unlock()
 		return briefWords{}
 	}
 	return out

@@ -164,7 +164,10 @@ func (r *Registry) RegisterAll(ctx context.Context, js jetstream.JetStream) erro
 			Durable:       h.Durable(),
 			FilterSubject: h.Subject(),
 			AckPolicy:     jetstream.AckExplicitPolicy,
-			MaxDeliver:    5,
+			MaxDeliver:    consumerMaxDeliver,
+			// Above the slowest handler's own bounds (an embedding call alone may take 30s), so
+			// a slow success is never redelivered and processed twice.
+			AckWait: consumerAckWait,
 		})
 		if err != nil {
 			return err
@@ -177,11 +180,23 @@ func (r *Registry) RegisterAll(ctx context.Context, js jetstream.JetStream) erro
 				if errors.Is(err, errPoisonDropped) {
 					return
 				}
-				r.logger.Error("handler error",
-					zap.String("subject", msg.Subject()),
-					zap.Error(err),
-				)
-				_ = msg.Nak()
+				delivered := uint64(1)
+				if md, merr := msg.Metadata(); merr == nil && md != nil {
+					delivered = md.NumDelivered
+				}
+				if delivered >= consumerMaxDeliver {
+					// Out of retries: say so loudly instead of letting the server drop it quietly.
+					r.logger.Error("handler failed on the last delivery; message dropped",
+						zap.String("subject", msg.Subject()), zap.String("durable", hc.Durable()),
+						zap.Uint64("delivered", delivered), zap.Error(err))
+					_ = msg.Term()
+					return
+				}
+				delay := retryDelay(delivered)
+				r.logger.Warn("handler error, retrying later",
+					zap.String("subject", msg.Subject()), zap.Uint64("delivered", delivered),
+					zap.Duration("retry_in", delay), zap.Error(err))
+				_ = msg.NakWithDelay(delay)
 				return
 			}
 			_ = msg.Ack()
@@ -190,6 +205,27 @@ func (r *Registry) RegisterAll(ctx context.Context, js jetstream.JetStream) erro
 		}
 	}
 	return nil
+}
+
+const (
+	consumerMaxDeliver = 5
+	consumerAckWait    = 2 * time.Minute
+)
+
+// consumerRetryDelays spread a failing message's retries over about 16 minutes. An immediate
+// Nak would spend every delivery within seconds while a downstream (marketflow-ai, Ollama,
+// Meta) is briefly down, and the message would be lost for an outage that heals in a minute.
+var consumerRetryDelays = []time.Duration{10 * time.Second, time.Minute, 5 * time.Minute, 10 * time.Minute}
+
+// retryDelay is the wait before redelivering a message that failed on delivery n (1-based).
+func retryDelay(n uint64) time.Duration {
+	if n == 0 {
+		n = 1
+	}
+	if int(n) > len(consumerRetryDelays) {
+		return consumerRetryDelays[len(consumerRetryDelays)-1]
+	}
+	return consumerRetryDelays[n-1]
 }
 
 // Count returns the number of registered handlers.
