@@ -201,6 +201,19 @@ func (s *Service) SaveSettings(ctx context.Context, tenantID uuid.UUID, in Setti
 	return in, nil
 }
 
+// overrideName is the name the owner gave a member, empty when they kept the
+// default. Rows saved before metadata carried the name fall back to the row
+// name unless it is the key-derived label.
+func overrideName(a *ent.CustomAgent) string {
+	if n, ok := a.Metadata["name"].(string); ok {
+		return n
+	}
+	if a.Name == strings.ReplaceAll(str(a.Metadata["key"]), "_", " ") {
+		return ""
+	}
+	return a.Name
+}
+
 // TeamOverrides returns the tenant's team member overrides.
 func (s *Service) TeamOverrides(ctx context.Context, tenantID uuid.UUID) ([]MemberOverride, error) {
 	rows, err := s.db.CustomAgent.Query().
@@ -214,7 +227,7 @@ func (s *Service) TeamOverrides(ctx context.Context, tenantID uuid.UUID) ([]Memb
 	}
 	out := make([]MemberOverride, 0, len(rows))
 	for _, a := range rows {
-		o := MemberOverride{Key: str(a.Metadata["key"]), Name: a.Name, Disabled: !a.IsActive,
+		o := MemberOverride{Key: str(a.Metadata["key"]), Name: overrideName(a), Disabled: !a.IsActive,
 			ModelClass: str(a.Metadata["model_class"]), Instructions: str(a.Metadata["instructions"])}
 		if o.Key != "" {
 			out = append(out, o)
@@ -246,7 +259,9 @@ func (s *Service) UpsertTeamMember(ctx context.Context, tenantID uuid.UUID, o Me
 	if name == "" {
 		name = strings.ReplaceAll(o.Key, "_", " ")
 	}
-	meta := map[string]any{"kind": KindTeamMember, "key": o.Key, "model_class": o.ModelClass, "instructions": o.Instructions}
+	// The owner's chosen name lives in metadata; the row name is only a label, so
+	// switching a member off never renames it to its key.
+	meta := map[string]any{"kind": KindTeamMember, "key": o.Key, "name": o.Name, "model_class": o.ModelClass, "instructions": o.Instructions}
 
 	existing, err := s.db.CustomAgent.Query().
 		Where(customagent.TenantID(tenantID), func(sel *sql.Selector) {

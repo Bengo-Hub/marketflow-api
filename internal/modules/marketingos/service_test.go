@@ -153,6 +153,21 @@ func TestTeamOverridesAndContext(t *testing.T) {
 	if members[1].Key != "manager" || members[1].Disabled {
 		t.Fatalf("the manager must stay enabled: %+v", members[1])
 	}
+	// Saved without a name, the override has none, so the default name stays.
+	if members[1].Name != "" {
+		t.Fatalf("an unnamed override renamed the manager to %q", members[1].Name)
+	}
+	// A row saved before metadata carried the name, labelled from its key.
+	legacy := map[string]any{"kind": KindTeamMember, "key": "seo_writer"}
+	if _, err := db.CustomAgent.Create().SetTenantID(tid).SetName("seo writer").SetTriggerType("manual").SetMetadata(legacy).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	members, _ = svc.TeamOverrides(ctx, tid)
+	for _, m := range members {
+		if m.Key == "seo_writer" && m.Name != "" {
+			t.Fatalf("legacy key label read as a rename: %q", m.Name)
+		}
+	}
 
 	_, _ = svc.SaveBrandContext(ctx, tid, BrandContext{Positioning: "p", Offers: []string{"Gift box", "shea butter body lotion"}})
 	for _, title := range []string{"Shea Butter Body Lotion", "Delivery FAQ"} {
@@ -171,7 +186,7 @@ func TestTeamOverridesAndContext(t *testing.T) {
 	if strings.Join(oc.Offerings, "|") != "Shea Butter Body Lotion|Gift box" {
 		t.Fatalf("offerings = %v (FAQ excluded, case-insensitive dedupe)", oc.Offerings)
 	}
-	if oc.BusinessType != "generic" || !strings.Contains(oc.MarketingContext, `"positioning":"p"`) || len(oc.Members) != 2 {
+	if oc.BusinessType != "generic" || !strings.Contains(oc.MarketingContext, `"positioning":"p"`) || len(oc.Members) != 3 {
 		t.Fatalf("context = %+v", oc)
 	}
 }
