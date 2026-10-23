@@ -533,8 +533,16 @@ func NewRouter(deps RouterDeps) http.Handler {
 							slug = claims.GetTenantSlug()
 						}
 						var resolved uuid.UUID
+						var syncErr error
 						if slug != "" {
-							resolved, _ = deps.TenantSyncer.SyncTenant(r.Context(), slug)
+							resolved, syncErr = deps.TenantSyncer.SyncTenant(r.Context(), slug)
+						}
+						// A value that is not a UUID ("undefined", a slug) is as good as none.
+						sent := r.Header.Get("X-Tenant-ID")
+						if sent != "" {
+							if _, err := uuid.Parse(sent); err != nil {
+								r.Header.Del("X-Tenant-ID")
+							}
 						}
 						// Handlers read the tenant from X-Tenant-ID. Clients that send only the slug
 						// (the UI for platform owners, or a page whose URL slug differs from the
@@ -547,6 +555,17 @@ func NewRouter(deps RouterDeps) http.Handler {
 								r.Header.Set("X-Tenant-ID", claims.TenantID)
 							case resolved != uuid.Nil:
 								r.Header.Set("X-Tenant-ID", resolved.String())
+							default:
+								// Nothing to act for: the handler answers 400. Logged with enough to
+								// tell why, and no personal data.
+								if deps.Log != nil {
+									deps.Log.Warn("no tenant resolved for request",
+										zap.String("path", r.URL.Path), zap.String("slug", slug),
+										zap.Bool("sent_tenant_id", sent != ""), zap.Bool("has_claims", claims != nil),
+										zap.Bool("claims_tenant", claims != nil && claims.TenantID != ""),
+										zap.Bool("platform_owner", claims != nil && claims.IsPlatformOwner),
+										zap.NamedError("sync_error", syncErr))
+								}
 							}
 						}
 						next.ServeHTTP(w, r)

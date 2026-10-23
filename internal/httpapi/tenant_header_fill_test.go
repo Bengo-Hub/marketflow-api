@@ -65,6 +65,12 @@ func TestTenantHeaderFilledFromSlugOrToken(t *testing.T) {
 	if got := get(owner, map[string]string{"X-Tenant-ID": explicit, "X-Tenant-Slug": "rival"}); got != explicit {
 		t.Errorf("an explicit X-Tenant-ID is left alone: %q", got)
 	}
+	if got := get(user, map[string]string{"X-Tenant-ID": "undefined"}); got != acme.String() {
+		t.Errorf("a non-UUID X-Tenant-ID is replaced by the token tenant: %q", got)
+	}
+	if got := get(owner, map[string]string{"X-Tenant-ID": "undefined", "X-Tenant-Slug": "rival"}); got != rival.String() {
+		t.Errorf("a non-UUID X-Tenant-ID is replaced by the slug tenant: %q", got)
+	}
 	if got := get(owner, map[string]string{"X-Tenant-Slug": "unknown"}); got != "" {
 		t.Errorf("an unknown slug resolves to nothing: %q", got)
 	}
