@@ -1,6 +1,7 @@
 package contacts
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/bengobox/marketflow-api/internal/httpapi"
@@ -19,6 +20,9 @@ type bulkImportRowRequest struct {
 	LifecycleStage string         `json:"lifecycle_stage"`
 	Metadata       map[string]any `json:"metadata"`
 }
+
+// MaxBulkImportRows is the most contacts one bulk-import request may carry.
+const MaxBulkImportRows = 1000
 
 type bulkImportRequest struct {
 	Contacts []bulkImportRowRequest `json:"contacts"`
@@ -53,6 +57,13 @@ func (h *Handler) BulkImport(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(req.Contacts) == 0 {
 		httpapi.Error(w, http.StatusBadRequest, "empty_batch", "contacts array is required and must be non-empty", nil)
+		return
+	}
+	// One request upserts row by row inside the request, so an unbounded batch could hold a
+	// connection for minutes. Callers send larger files in chunks (marketflow-ui sends 500).
+	if len(req.Contacts) > MaxBulkImportRows {
+		httpapi.Error(w, http.StatusRequestEntityTooLarge, "batch_too_large",
+			fmt.Sprintf("send at most %d contacts per request", MaxBulkImportRows), nil)
 		return
 	}
 

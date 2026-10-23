@@ -296,7 +296,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	audit.Tenant(r.Context(), h.service.client, h.logger, tenantID, "lead.deleted", "lead", &leadID, nil)
+	audit.Tenant(r.Context(), h.service.client, h.logger, tenantID, "lead.marked_lost", "lead", &leadID, nil)
 	httpapi.JSON(w, http.StatusOK, map[string]any{"status": "deleted"})
 }
 
