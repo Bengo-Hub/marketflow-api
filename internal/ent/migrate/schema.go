@@ -250,6 +250,11 @@ var (
 				Columns: []*schema.Column{AuditLogsColumns[1], AuditLogsColumns[3]},
 			},
 			{
+				Name:    "auditlog_tenant_id_occurred_at",
+				Unique:  false,
+				Columns: []*schema.Column{AuditLogsColumns[1], AuditLogsColumns[8]},
+			},
+			{
 				Name:    "auditlog_scope_event",
 				Unique:  false,
 				Columns: []*schema.Column{AuditLogsColumns[2], AuditLogsColumns[3]},

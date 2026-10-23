@@ -63,6 +63,8 @@ func (AuditLog) Fields() []ent.Field {
 func (AuditLog) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("tenant_id", "event"),
+		// The tenant activity log lists one tenant newest first; without this it sorts every row.
+		index.Fields("tenant_id", "occurred_at"),
 		index.Fields("scope", "event"),
 		index.Fields("occurred_at"),
 	}
