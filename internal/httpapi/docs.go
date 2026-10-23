@@ -3764,6 +3764,12 @@ const docTemplate = `{
                         "description": "Offset for pagination",
                         "name": "offset",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search name, email or phone",
+                        "name": "q",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -3879,6 +3885,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "End date (RFC3339 or YYYY-MM-DD)",
                         "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search name, email or phone",
+                        "name": "q",
                         "in": "query"
                     }
                 ],

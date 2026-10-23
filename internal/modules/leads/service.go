@@ -3,6 +3,7 @@ package leads
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
@@ -64,10 +65,12 @@ type ListInput struct {
 	Status   *string
 	Source   *string
 	LeadType *string
-	From     *time.Time
-	To       *time.Time
-	Limit    int
-	Offset   int
+	// Search matches name, email or phone (case-insensitive substring), at most 100 characters.
+	Search string
+	From   *time.Time
+	To     *time.Time
+	Limit  int
+	Offset int
 }
 
 // Create creates a new lead and, in the same transaction, the outbox row for its lead.created
@@ -163,24 +166,7 @@ func (s *Service) Get(ctx context.Context, tenantID, leadID uuid.UUID) (*ent.Lea
 
 // List retrieves leads with filtering and pagination.
 func (s *Service) List(ctx context.Context, in ListInput) ([]*ent.Lead, int, error) {
-	query := s.client.Lead.Query().
-		Where(lead.TenantID(in.TenantID))
-
-	if in.Status != nil {
-		query = query.Where(lead.StatusEQ(*in.Status))
-	}
-	if in.Source != nil {
-		query = query.Where(lead.SourceEQ(*in.Source))
-	}
-	if in.LeadType != nil {
-		query = query.Where(lead.LeadTypeEQ(*in.LeadType))
-	}
-	if in.From != nil {
-		query = query.Where(lead.CreatedAtGTE(*in.From))
-	}
-	if in.To != nil {
-		query = query.Where(lead.CreatedAtLTE(*in.To))
-	}
+	query := s.filtered(in)
 
 	total, err := query.Clone().Count(ctx)
 	if err != nil {
@@ -241,6 +227,12 @@ func (s *Service) ExportEach(ctx context.Context, in ListInput, fn func(*ent.Lea
 }
 
 func (s *Service) exportQuery(in ListInput) *ent.LeadQuery {
+	return s.filtered(in)
+}
+
+// filtered is the one filter set shared by the list and the CSV export, so the export always
+// matches what the list shows.
+func (s *Service) filtered(in ListInput) *ent.LeadQuery {
 	query := s.client.Lead.Query().
 		Where(lead.TenantID(in.TenantID))
 
@@ -258,6 +250,17 @@ func (s *Service) exportQuery(in ListInput) *ent.LeadQuery {
 	}
 	if in.To != nil {
 		query = query.Where(lead.CreatedAtLTE(*in.To))
+	}
+	if q := strings.TrimSpace(in.Search); q != "" {
+		if len(q) > 100 {
+			q = q[:100]
+		}
+		query = query.Where(lead.Or(
+			lead.FirstNameContainsFold(q),
+			lead.LastNameContainsFold(q),
+			lead.EmailContainsFold(q),
+			lead.PhoneContains(q),
+		))
 	}
 	return query
 }

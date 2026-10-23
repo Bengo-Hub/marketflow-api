@@ -130,6 +130,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 // @Param offset query int false "Offset for pagination"
 // @Success 200 {object} map[string]interface{}
 // @Security bearerAuth
+// @Param q query string false "Search name, email or phone"
 // @Router /leads [get]
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := extractTenantID(r)
@@ -145,6 +146,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	p := pagination.Parse(r)
 	input := ListInput{
 		TenantID: tenantID,
+		Search:   r.URL.Query().Get("q"),
 		Limit:    p.Limit,
 		Offset:   p.Offset,
 	}
@@ -310,6 +312,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 // @Param to query string false "End date (RFC3339 or YYYY-MM-DD)"
 // @Success 200 {file} file "CSV file"
 // @Security bearerAuth
+// @Param q query string false "Search name, email or phone"
 // @Router /leads/export [get]
 func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := extractTenantID(r)
@@ -320,6 +323,11 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 
 	input := ListInput{
 		TenantID: tenantID,
+		Search:   r.URL.Query().Get("q"),
+	}
+	// Same filters as the list, so the file matches what the user is looking at.
+	if status := r.URL.Query().Get("status"); status != "" {
+		input.Status = &status
 	}
 	if source := r.URL.Query().Get("source"); source != "" {
 		input.Source = &source

@@ -3460,6 +3460,10 @@ paths:
         in: query
         name: offset
         type: integer
+      - description: Search name, email or phone
+        in: query
+        name: q
+        type: string
       produces:
       - application/json
       responses:
@@ -3628,6 +3632,10 @@ paths:
       - description: End date (RFC3339 or YYYY-MM-DD)
         in: query
         name: to
+        type: string
+      - description: Search name, email or phone
+        in: query
+        name: q
         type: string
       produces:
       - text/csv
