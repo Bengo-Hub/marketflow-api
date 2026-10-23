@@ -427,6 +427,8 @@ type MarketingOSHandlers struct {
 	PutBrandContext http.HandlerFunc
 	ListTeam        http.HandlerFunc
 	PutTeamMember   http.HandlerFunc
+	GetSettings     http.HandlerFunc
+	PutSettings     http.HandlerFunc
 	InternalContext http.HandlerFunc
 }
 
@@ -780,6 +782,8 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Put("/tenant/marketing-context", deps.MarketingOSHandlers.PutBrandContext)
 				r.Get("/agents/team", deps.MarketingOSHandlers.ListTeam)
 				r.Put("/agents/team/{key}", deps.MarketingOSHandlers.PutTeamMember)
+				r.Get("/tenant/os-settings", deps.MarketingOSHandlers.GetSettings)
+				r.Put("/tenant/os-settings", deps.MarketingOSHandlers.PutSettings)
 			}
 
 			// CRM: Proactive suggestions

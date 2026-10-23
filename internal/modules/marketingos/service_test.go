@@ -96,6 +96,30 @@ func TestBrandContextValidationAndStorage(t *testing.T) {
 	}
 }
 
+func TestSettingsDefaultOnAndKeepOtherMetadata(t *testing.T) {
+	db := openDB(t)
+	ctx := context.Background()
+	tid := seedTenant(t, db)
+	if _, err := db.Tenant.UpdateOneID(tid).SetMetadata(map[string]any{"keep": "me"}).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	svc := NewService(db, nil, zap.NewNop())
+	st, err := svc.GetSettings(ctx, tid)
+	if err != nil || !st.DailyBrief {
+		t.Fatalf("absent switch must read as on: %+v %v", st, err)
+	}
+	if _, err := svc.SaveSettings(ctx, tid, Settings{DailyBrief: false}); err != nil {
+		t.Fatal(err)
+	}
+	tn, _ := db.Tenant.Get(ctx, tid)
+	if tn.Metadata[DailyBriefKey] != false || tn.Metadata["keep"] != "me" {
+		t.Fatalf("metadata = %+v", tn.Metadata)
+	}
+	if st, _ := svc.GetSettings(ctx, tid); st.DailyBrief {
+		t.Fatal("saved off, read on")
+	}
+}
+
 func TestTeamOverridesAndContext(t *testing.T) {
 	db := openDB(t)
 	ctx := context.Background()

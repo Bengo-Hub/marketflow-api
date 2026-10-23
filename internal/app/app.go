@@ -571,6 +571,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			PutBrandContext: marketingOSHandler.PutBrandContext,
 			ListTeam:        marketingOSHandler.ListTeam,
 			PutTeamMember:   marketingOSHandler.PutTeamMember,
+			GetSettings:     marketingOSHandler.GetSettings,
+			PutSettings:     marketingOSHandler.PutSettings,
 			InternalContext: marketingOSHandler.InternalContext,
 		},
 		SegmentHandlers: httpapi.SegmentHandlers{

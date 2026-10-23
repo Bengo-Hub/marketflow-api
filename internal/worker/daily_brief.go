@@ -20,8 +20,9 @@ import (
 // briefRoles receive the daily brief.
 var briefRoles = []string{"marketflow_admin", "fbo_owner"}
 
-// DailyBriefOptOutKey in Tenant.metadata switches the brief off when false.
-const DailyBriefOptOutKey = "os_daily_brief"
+// DailyBriefOptOutKey in Tenant.metadata switches the brief off when false
+// (set through PUT /tenant/os-settings).
+const DailyBriefOptOutKey = marketingos.DailyBriefKey
 
 // briefSendAfter is the tenant-local time the brief goes out from.
 const briefSendAfter = 6*time.Hour + 30*time.Minute

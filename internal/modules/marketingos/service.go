@@ -29,6 +29,15 @@ const MetadataKey = "marketing_context"
 // KindTeamMember marks a CustomAgent row as a team member override.
 const KindTeamMember = "team_member"
 
+// DailyBriefKey in Tenant.metadata switches the morning brief off when false.
+// Absent means on.
+const DailyBriefKey = "os_daily_brief"
+
+// Settings are the tenant's Marketing OS switches.
+type Settings struct {
+	DailyBrief bool `json:"daily_brief"`
+}
+
 // BrandContext is the owner-approved description every specialist reads first.
 type BrandContext struct {
 	Positioning   string   `json:"positioning"`
@@ -163,6 +172,33 @@ func (s *Service) SaveBrandContext(ctx context.Context, tenantID uuid.UUID, bc B
 		return bc, err
 	}
 	return bc, nil
+}
+
+// GetSettings reads the tenant's Marketing OS switches.
+func (s *Service) GetSettings(ctx context.Context, tenantID uuid.UUID) (Settings, error) {
+	t, err := s.db.Tenant.Get(ctx, tenantID)
+	if err != nil {
+		return Settings{}, err
+	}
+	on, ok := t.Metadata[DailyBriefKey].(bool)
+	return Settings{DailyBrief: !ok || on}, nil
+}
+
+// SaveSettings stores the switches, keeping the rest of the tenant metadata.
+func (s *Service) SaveSettings(ctx context.Context, tenantID uuid.UUID, in Settings) (Settings, error) {
+	t, err := s.db.Tenant.Get(ctx, tenantID)
+	if err != nil {
+		return in, err
+	}
+	meta := map[string]any{}
+	for k, v := range t.Metadata {
+		meta[k] = v
+	}
+	meta[DailyBriefKey] = in.DailyBrief
+	if _, err := t.Update().SetMetadata(meta).Save(ctx); err != nil {
+		return in, err
+	}
+	return in, nil
 }
 
 // TeamOverrides returns the tenant's team member overrides.

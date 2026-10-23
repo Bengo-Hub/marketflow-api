@@ -141,6 +141,55 @@ func (h *Handler) PutTeamMember(w http.ResponseWriter, r *http.Request) {
 	httpapi.JSON(w, http.StatusOK, saved)
 }
 
+// GetSettings handles GET /api/v1/tenant/os-settings.
+// @Summary Get the tenant's Marketing OS switches
+// @Tags MarketingOS
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Success 200 {object} Settings
+// @Security bearerAuth
+// @Router /tenant/os-settings [get]
+func (h *Handler) GetSettings(w http.ResponseWriter, r *http.Request) {
+	tid, ok := tenantOf(w, r)
+	if !ok {
+		return
+	}
+	st, err := h.svc.GetSettings(r.Context(), tid)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, st)
+}
+
+// PutSettings handles PUT /api/v1/tenant/os-settings.
+// @Summary Save the tenant's Marketing OS switches (daily brief on or off)
+// @Tags MarketingOS
+// @Accept json
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param request body Settings true "Switches"
+// @Success 200 {object} Settings
+// @Security bearerAuth
+// @Router /tenant/os-settings [put]
+func (h *Handler) PutSettings(w http.ResponseWriter, r *http.Request) {
+	tid, ok := tenantOf(w, r)
+	if !ok {
+		return
+	}
+	var in Settings
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&in); err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
+		return
+	}
+	saved, err := h.svc.SaveSettings(r.Context(), tid, in)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, saved)
+}
+
 // InternalContext handles GET /api/v1/internal/os/context?tenant_id= (service
 // key only): what marketflow-ai reads for each Marketing OS request.
 func (h *Handler) InternalContext(w http.ResponseWriter, r *http.Request) {
