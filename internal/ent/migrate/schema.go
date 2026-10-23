@@ -601,6 +601,135 @@ var (
 			},
 		},
 	}
+	// CreativeAssetsColumns holds the columns for the "creative_assets" table.
+	CreativeAssetsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "kind", Type: field.TypeString, Default: "image"},
+		{Name: "storage_key", Type: field.TypeString},
+		{Name: "url", Type: field.TypeString},
+		{Name: "bytes", Type: field.TypeInt64, Default: 0},
+		{Name: "width", Type: field.TypeInt, Default: 0},
+		{Name: "height", Type: field.TypeInt, Default: 0},
+		{Name: "duration_ms", Type: field.TypeInt, Default: 0},
+		{Name: "sha256", Type: field.TypeString, Nullable: true},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "purged_at", Type: field.TypeTime, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "version_id", Type: field.TypeUUID},
+	}
+	// CreativeAssetsTable holds the schema information for the "creative_assets" table.
+	CreativeAssetsTable = &schema.Table{
+		Name:       "creative_assets",
+		Columns:    CreativeAssetsColumns,
+		PrimaryKey: []*schema.Column{CreativeAssetsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "creative_assets_creative_versions_assets",
+				Columns:    []*schema.Column{CreativeAssetsColumns[14]},
+				RefColumns: []*schema.Column{CreativeVersionsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "creativeasset_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{CreativeAssetsColumns[10]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "purged_at IS NULL AND expires_at IS NOT NULL",
+				},
+			},
+			{
+				Name:    "creativeasset_tenant_id_version_id",
+				Unique:  false,
+				Columns: []*schema.Column{CreativeAssetsColumns[1], CreativeAssetsColumns[14]},
+			},
+		},
+	}
+	// CreativeBriefsColumns holds the columns for the "creative_briefs" table.
+	CreativeBriefsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "title", Type: field.TypeString, Size: 160},
+		{Name: "offering", Type: field.TypeJSON, Nullable: true},
+		{Name: "objective", Type: field.TypeString, Default: "sales"},
+		{Name: "audience", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "language", Type: field.TypeString, Default: "en"},
+		{Name: "status", Type: field.TypeString, Default: "active"},
+		{Name: "created_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// CreativeBriefsTable holds the schema information for the "creative_briefs" table.
+	CreativeBriefsTable = &schema.Table{
+		Name:       "creative_briefs",
+		Columns:    CreativeBriefsColumns,
+		PrimaryKey: []*schema.Column{CreativeBriefsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "creativebrief_tenant_id_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{CreativeBriefsColumns[1], CreativeBriefsColumns[7], CreativeBriefsColumns[10]},
+			},
+		},
+	}
+	// CreativeVersionsColumns holds the columns for the "creative_versions" table.
+	CreativeVersionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "parent_version_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "version_no", Type: field.TypeInt},
+		{Name: "kind", Type: field.TypeString, Default: "poster"},
+		{Name: "tier", Type: field.TypeString, Default: "standard"},
+		{Name: "format", Type: field.TypeString},
+		{Name: "copy", Type: field.TypeJSON, Nullable: true},
+		{Name: "status", Type: field.TypeString, Default: "queued"},
+		{Name: "credits", Type: field.TypeInt, Default: 0},
+		{Name: "error", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "approved_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "approved_at", Type: field.TypeTime, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "brief_id", Type: field.TypeUUID},
+	}
+	// CreativeVersionsTable holds the schema information for the "creative_versions" table.
+	CreativeVersionsTable = &schema.Table{
+		Name:       "creative_versions",
+		Columns:    CreativeVersionsColumns,
+		PrimaryKey: []*schema.Column{CreativeVersionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "creative_versions_creative_briefs_versions",
+				Columns:    []*schema.Column{CreativeVersionsColumns[16]},
+				RefColumns: []*schema.Column{CreativeBriefsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "creativeversion_brief_id_version_no",
+				Unique:  true,
+				Columns: []*schema.Column{CreativeVersionsColumns[16], CreativeVersionsColumns[3]},
+			},
+			{
+				Name:    "creativeversion_tenant_id_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{CreativeVersionsColumns[1], CreativeVersionsColumns[8], CreativeVersionsColumns[14]},
+			},
+			{
+				Name:    "creativeversion_render_queue",
+				Unique:  false,
+				Columns: []*schema.Column{CreativeVersionsColumns[14]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "status IN ('queued', 'rendering')",
+				},
+			},
+		},
+	}
 	// CustomAgentsColumns holds the columns for the "custom_agents" table.
 	CustomAgentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -1980,6 +2109,9 @@ var (
 		ChatSessionsTable,
 		ConnectedAccountsTable,
 		ContactsTable,
+		CreativeAssetsTable,
+		CreativeBriefsTable,
+		CreativeVersionsTable,
 		CustomAgentsTable,
 		CustomFieldDefsTable,
 		CustomFieldValuesTable,
@@ -2026,6 +2158,8 @@ func init() {
 	ConnectedAccountsTable.ForeignKeys[0].RefTable = TenantsTable
 	ContactsTable.ForeignKeys[0].RefTable = AccountsTable
 	ContactsTable.ForeignKeys[1].RefTable = TenantsTable
+	CreativeAssetsTable.ForeignKeys[0].RefTable = CreativeVersionsTable
+	CreativeVersionsTable.ForeignKeys[0].RefTable = CreativeBriefsTable
 	CustomAgentsTable.ForeignKeys[0].RefTable = TenantsTable
 	CustomFieldDefsTable.ForeignKeys[0].RefTable = TenantsTable
 	CustomFieldValuesTable.ForeignKeys[0].RefTable = CustomFieldDefsTable

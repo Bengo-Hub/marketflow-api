@@ -32,6 +32,12 @@ type Tx struct {
 	ConnectedAccount *ConnectedAccountClient
 	// Contact is the client for interacting with the Contact builders.
 	Contact *ContactClient
+	// CreativeAsset is the client for interacting with the CreativeAsset builders.
+	CreativeAsset *CreativeAssetClient
+	// CreativeBrief is the client for interacting with the CreativeBrief builders.
+	CreativeBrief *CreativeBriefClient
+	// CreativeVersion is the client for interacting with the CreativeVersion builders.
+	CreativeVersion *CreativeVersionClient
 	// CustomAgent is the client for interacting with the CustomAgent builders.
 	CustomAgent *CustomAgentClient
 	// CustomFieldDef is the client for interacting with the CustomFieldDef builders.
@@ -229,6 +235,9 @@ func (tx *Tx) init() {
 	tx.ChatSession = NewChatSessionClient(tx.config)
 	tx.ConnectedAccount = NewConnectedAccountClient(tx.config)
 	tx.Contact = NewContactClient(tx.config)
+	tx.CreativeAsset = NewCreativeAssetClient(tx.config)
+	tx.CreativeBrief = NewCreativeBriefClient(tx.config)
+	tx.CreativeVersion = NewCreativeVersionClient(tx.config)
 	tx.CustomAgent = NewCustomAgentClient(tx.config)
 	tx.CustomFieldDef = NewCustomFieldDefClient(tx.config)
 	tx.CustomFieldValue = NewCustomFieldValueClient(tx.config)

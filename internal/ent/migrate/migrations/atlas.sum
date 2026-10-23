@@ -1,4 +1,4 @@
-h1:ENE+zx1LIxbU7M3Z9A5ugZGne77QcjLfJLoEgHdcuEA=
+h1:FedxvkUlHcLwdJ7wVHOC3eQ0ydN4aq1qV/33/nZf+pk=
 20260409124338_initial_schema.sql h1:iNv9wYlWyj89NJ9fwXRtTK7/piL1QJoDgZ8I/Jez73Y=
 20260409172839_add_short_links.sql h1:ZFVlyvbHvjwvCGxYF3aDKiEX/cCCIimxV9xHWL9K9kc=
 20260409183000_add_kb_embeddings.sql h1:izCf/H3H6y+AUYzhE6pL63cFkvRhFIn7ae24uewYRL4=
@@ -24,3 +24,4 @@ h1:ENE+zx1LIxbU7M3Z9A5ugZGne77QcjLfJLoEgHdcuEA=
 20261022152831_connected_accounts.sql h1:vBLoJmpenRX58MOHqwKmirED2r1qlR9cCeXZkvrk49E=
 20261023205255_audit_log_tenant_occurred_at.sql h1:MCSRm/kR0ZKJk68rtsZcpNsrgYJQEsFw1m3rIdlnslY=
 20261023212419_activity_tenant_performed_at.sql h1:bReshPwWAzHKTmnzLwfW3FIhxFg8lficM/dBC+JoAnk=
+20261023221433_creative_studio.sql h1:YolVGkagihOtRQ7Bq1emfw1MEtAFJ919iRPdQy9CR4A=

@@ -32,6 +32,8 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/Bengo-Hub/httpware/objectstore"
+	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/notifications"
@@ -240,6 +242,15 @@ func main() {
 		// each meeting, with AI talking points when marketflow-ai answers in time.
 		go worker.NewMeetingPrepAgent(entClient, tokenNotif, cfg.API.MarketFlowAIURL,
 			cfg.API.InternalServiceKey, cfg.API.PortalURL, logger.Named("agent.meeting-prep")).Run(ctx)
+
+		// Creative Studio: makes queued posters through marketflow-ai, and deletes
+		// draft files whose time is up (hourly) from the shared object storage.
+		go creative.NewRenderer(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).Run(ctx)
+		mediaStore, err := objectstore.New("marketflow", objectstore.FromEnv())
+		if err != nil {
+			logger.Warn("object storage unavailable; creative draft purge off", zap.Error(err))
+		}
+		go creative.NewPurger(entClient, mediaStore, logger).Run(ctx)
 	}
 
 	// ── Health endpoint ───────────────────────────────────────────────────

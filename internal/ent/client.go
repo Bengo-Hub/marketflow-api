@@ -26,6 +26,9 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
+	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
+	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
+	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/bengobox/marketflow-api/internal/ent/customfielddef"
 	"github.com/bengobox/marketflow-api/internal/ent/customfieldvalue"
@@ -81,6 +84,12 @@ type Client struct {
 	ConnectedAccount *ConnectedAccountClient
 	// Contact is the client for interacting with the Contact builders.
 	Contact *ContactClient
+	// CreativeAsset is the client for interacting with the CreativeAsset builders.
+	CreativeAsset *CreativeAssetClient
+	// CreativeBrief is the client for interacting with the CreativeBrief builders.
+	CreativeBrief *CreativeBriefClient
+	// CreativeVersion is the client for interacting with the CreativeVersion builders.
+	CreativeVersion *CreativeVersionClient
 	// CustomAgent is the client for interacting with the CustomAgent builders.
 	CustomAgent *CustomAgentClient
 	// CustomFieldDef is the client for interacting with the CustomFieldDef builders.
@@ -158,6 +167,9 @@ func (c *Client) init() {
 	c.ChatSession = NewChatSessionClient(c.config)
 	c.ConnectedAccount = NewConnectedAccountClient(c.config)
 	c.Contact = NewContactClient(c.config)
+	c.CreativeAsset = NewCreativeAssetClient(c.config)
+	c.CreativeBrief = NewCreativeBriefClient(c.config)
+	c.CreativeVersion = NewCreativeVersionClient(c.config)
 	c.CustomAgent = NewCustomAgentClient(c.config)
 	c.CustomFieldDef = NewCustomFieldDefClient(c.config)
 	c.CustomFieldValue = NewCustomFieldValueClient(c.config)
@@ -288,6 +300,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ChatSession:          NewChatSessionClient(cfg),
 		ConnectedAccount:     NewConnectedAccountClient(cfg),
 		Contact:              NewContactClient(cfg),
+		CreativeAsset:        NewCreativeAssetClient(cfg),
+		CreativeBrief:        NewCreativeBriefClient(cfg),
+		CreativeVersion:      NewCreativeVersionClient(cfg),
 		CustomAgent:          NewCustomAgentClient(cfg),
 		CustomFieldDef:       NewCustomFieldDefClient(cfg),
 		CustomFieldValue:     NewCustomFieldValueClient(cfg),
@@ -345,6 +360,9 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ChatSession:          NewChatSessionClient(cfg),
 		ConnectedAccount:     NewConnectedAccountClient(cfg),
 		Contact:              NewContactClient(cfg),
+		CreativeAsset:        NewCreativeAssetClient(cfg),
+		CreativeBrief:        NewCreativeBriefClient(cfg),
+		CreativeVersion:      NewCreativeVersionClient(cfg),
 		CustomAgent:          NewCustomAgentClient(cfg),
 		CustomFieldDef:       NewCustomFieldDefClient(cfg),
 		CustomFieldValue:     NewCustomFieldValueClient(cfg),
@@ -403,14 +421,14 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Account, c.Activity, c.AdMetrics, c.AgentRun, c.AuditLog, c.BehavioralTrigger,
-		c.Campaign, c.ChatSession, c.ConnectedAccount, c.Contact, c.CustomAgent,
-		c.CustomFieldDef, c.CustomFieldValue, c.Deal, c.Funnel, c.KnowledgeBaseEntry,
-		c.Lead, c.LeadScoringRule, c.MarketflowPermission, c.MarketflowRole,
-		c.MarketflowUser, c.NurtureDeliveryEvent, c.NurtureEnrollment,
-		c.NurtureSequence, c.OutboxEvent, c.Pipeline, c.PipelineStage, c.ProfileEvent,
-		c.ProviderSetting, c.RolePermission, c.ScheduledMeeting, c.Segment,
-		c.ServiceConfig, c.ShortLink, c.Task, c.Tenant, c.Testimonial,
-		c.UserRoleAssignment,
+		c.Campaign, c.ChatSession, c.ConnectedAccount, c.Contact, c.CreativeAsset,
+		c.CreativeBrief, c.CreativeVersion, c.CustomAgent, c.CustomFieldDef,
+		c.CustomFieldValue, c.Deal, c.Funnel, c.KnowledgeBaseEntry, c.Lead,
+		c.LeadScoringRule, c.MarketflowPermission, c.MarketflowRole, c.MarketflowUser,
+		c.NurtureDeliveryEvent, c.NurtureEnrollment, c.NurtureSequence, c.OutboxEvent,
+		c.Pipeline, c.PipelineStage, c.ProfileEvent, c.ProviderSetting,
+		c.RolePermission, c.ScheduledMeeting, c.Segment, c.ServiceConfig, c.ShortLink,
+		c.Task, c.Tenant, c.Testimonial, c.UserRoleAssignment,
 	} {
 		n.Use(hooks...)
 	}
@@ -421,14 +439,14 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Account, c.Activity, c.AdMetrics, c.AgentRun, c.AuditLog, c.BehavioralTrigger,
-		c.Campaign, c.ChatSession, c.ConnectedAccount, c.Contact, c.CustomAgent,
-		c.CustomFieldDef, c.CustomFieldValue, c.Deal, c.Funnel, c.KnowledgeBaseEntry,
-		c.Lead, c.LeadScoringRule, c.MarketflowPermission, c.MarketflowRole,
-		c.MarketflowUser, c.NurtureDeliveryEvent, c.NurtureEnrollment,
-		c.NurtureSequence, c.OutboxEvent, c.Pipeline, c.PipelineStage, c.ProfileEvent,
-		c.ProviderSetting, c.RolePermission, c.ScheduledMeeting, c.Segment,
-		c.ServiceConfig, c.ShortLink, c.Task, c.Tenant, c.Testimonial,
-		c.UserRoleAssignment,
+		c.Campaign, c.ChatSession, c.ConnectedAccount, c.Contact, c.CreativeAsset,
+		c.CreativeBrief, c.CreativeVersion, c.CustomAgent, c.CustomFieldDef,
+		c.CustomFieldValue, c.Deal, c.Funnel, c.KnowledgeBaseEntry, c.Lead,
+		c.LeadScoringRule, c.MarketflowPermission, c.MarketflowRole, c.MarketflowUser,
+		c.NurtureDeliveryEvent, c.NurtureEnrollment, c.NurtureSequence, c.OutboxEvent,
+		c.Pipeline, c.PipelineStage, c.ProfileEvent, c.ProviderSetting,
+		c.RolePermission, c.ScheduledMeeting, c.Segment, c.ServiceConfig, c.ShortLink,
+		c.Task, c.Tenant, c.Testimonial, c.UserRoleAssignment,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -457,6 +475,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ConnectedAccount.mutate(ctx, m)
 	case *ContactMutation:
 		return c.Contact.mutate(ctx, m)
+	case *CreativeAssetMutation:
+		return c.CreativeAsset.mutate(ctx, m)
+	case *CreativeBriefMutation:
+		return c.CreativeBrief.mutate(ctx, m)
+	case *CreativeVersionMutation:
+		return c.CreativeVersion.mutate(ctx, m)
 	case *CustomAgentMutation:
 		return c.CustomAgent.mutate(ctx, m)
 	case *CustomFieldDefMutation:
@@ -2181,6 +2205,469 @@ func (c *ContactClient) mutate(ctx context.Context, m *ContactMutation) (Value, 
 		return (&ContactDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Contact mutation op: %q", m.Op())
+	}
+}
+
+// CreativeAssetClient is a client for the CreativeAsset schema.
+type CreativeAssetClient struct {
+	config
+}
+
+// NewCreativeAssetClient returns a client for the CreativeAsset from the given config.
+func NewCreativeAssetClient(c config) *CreativeAssetClient {
+	return &CreativeAssetClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `creativeasset.Hooks(f(g(h())))`.
+func (c *CreativeAssetClient) Use(hooks ...Hook) {
+	c.hooks.CreativeAsset = append(c.hooks.CreativeAsset, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `creativeasset.Intercept(f(g(h())))`.
+func (c *CreativeAssetClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CreativeAsset = append(c.inters.CreativeAsset, interceptors...)
+}
+
+// Create returns a builder for creating a CreativeAsset entity.
+func (c *CreativeAssetClient) Create() *CreativeAssetCreate {
+	mutation := newCreativeAssetMutation(c.config, OpCreate)
+	return &CreativeAssetCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CreativeAsset entities.
+func (c *CreativeAssetClient) CreateBulk(builders ...*CreativeAssetCreate) *CreativeAssetCreateBulk {
+	return &CreativeAssetCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CreativeAssetClient) MapCreateBulk(slice any, setFunc func(*CreativeAssetCreate, int)) *CreativeAssetCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CreativeAssetCreateBulk{err: fmt.Errorf("calling to CreativeAssetClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CreativeAssetCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CreativeAssetCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CreativeAsset.
+func (c *CreativeAssetClient) Update() *CreativeAssetUpdate {
+	mutation := newCreativeAssetMutation(c.config, OpUpdate)
+	return &CreativeAssetUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CreativeAssetClient) UpdateOne(_m *CreativeAsset) *CreativeAssetUpdateOne {
+	mutation := newCreativeAssetMutation(c.config, OpUpdateOne, withCreativeAsset(_m))
+	return &CreativeAssetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CreativeAssetClient) UpdateOneID(id uuid.UUID) *CreativeAssetUpdateOne {
+	mutation := newCreativeAssetMutation(c.config, OpUpdateOne, withCreativeAssetID(id))
+	return &CreativeAssetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CreativeAsset.
+func (c *CreativeAssetClient) Delete() *CreativeAssetDelete {
+	mutation := newCreativeAssetMutation(c.config, OpDelete)
+	return &CreativeAssetDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CreativeAssetClient) DeleteOne(_m *CreativeAsset) *CreativeAssetDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CreativeAssetClient) DeleteOneID(id uuid.UUID) *CreativeAssetDeleteOne {
+	builder := c.Delete().Where(creativeasset.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CreativeAssetDeleteOne{builder}
+}
+
+// Query returns a query builder for CreativeAsset.
+func (c *CreativeAssetClient) Query() *CreativeAssetQuery {
+	return &CreativeAssetQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCreativeAsset},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CreativeAsset entity by its id.
+func (c *CreativeAssetClient) Get(ctx context.Context, id uuid.UUID) (*CreativeAsset, error) {
+	return c.Query().Where(creativeasset.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CreativeAssetClient) GetX(ctx context.Context, id uuid.UUID) *CreativeAsset {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryVersion queries the version edge of a CreativeAsset.
+func (c *CreativeAssetClient) QueryVersion(_m *CreativeAsset) *CreativeVersionQuery {
+	query := (&CreativeVersionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(creativeasset.Table, creativeasset.FieldID, id),
+			sqlgraph.To(creativeversion.Table, creativeversion.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, creativeasset.VersionTable, creativeasset.VersionColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *CreativeAssetClient) Hooks() []Hook {
+	return c.hooks.CreativeAsset
+}
+
+// Interceptors returns the client interceptors.
+func (c *CreativeAssetClient) Interceptors() []Interceptor {
+	return c.inters.CreativeAsset
+}
+
+func (c *CreativeAssetClient) mutate(ctx context.Context, m *CreativeAssetMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CreativeAssetCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CreativeAssetUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CreativeAssetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CreativeAssetDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CreativeAsset mutation op: %q", m.Op())
+	}
+}
+
+// CreativeBriefClient is a client for the CreativeBrief schema.
+type CreativeBriefClient struct {
+	config
+}
+
+// NewCreativeBriefClient returns a client for the CreativeBrief from the given config.
+func NewCreativeBriefClient(c config) *CreativeBriefClient {
+	return &CreativeBriefClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `creativebrief.Hooks(f(g(h())))`.
+func (c *CreativeBriefClient) Use(hooks ...Hook) {
+	c.hooks.CreativeBrief = append(c.hooks.CreativeBrief, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `creativebrief.Intercept(f(g(h())))`.
+func (c *CreativeBriefClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CreativeBrief = append(c.inters.CreativeBrief, interceptors...)
+}
+
+// Create returns a builder for creating a CreativeBrief entity.
+func (c *CreativeBriefClient) Create() *CreativeBriefCreate {
+	mutation := newCreativeBriefMutation(c.config, OpCreate)
+	return &CreativeBriefCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CreativeBrief entities.
+func (c *CreativeBriefClient) CreateBulk(builders ...*CreativeBriefCreate) *CreativeBriefCreateBulk {
+	return &CreativeBriefCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CreativeBriefClient) MapCreateBulk(slice any, setFunc func(*CreativeBriefCreate, int)) *CreativeBriefCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CreativeBriefCreateBulk{err: fmt.Errorf("calling to CreativeBriefClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CreativeBriefCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CreativeBriefCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CreativeBrief.
+func (c *CreativeBriefClient) Update() *CreativeBriefUpdate {
+	mutation := newCreativeBriefMutation(c.config, OpUpdate)
+	return &CreativeBriefUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CreativeBriefClient) UpdateOne(_m *CreativeBrief) *CreativeBriefUpdateOne {
+	mutation := newCreativeBriefMutation(c.config, OpUpdateOne, withCreativeBrief(_m))
+	return &CreativeBriefUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CreativeBriefClient) UpdateOneID(id uuid.UUID) *CreativeBriefUpdateOne {
+	mutation := newCreativeBriefMutation(c.config, OpUpdateOne, withCreativeBriefID(id))
+	return &CreativeBriefUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CreativeBrief.
+func (c *CreativeBriefClient) Delete() *CreativeBriefDelete {
+	mutation := newCreativeBriefMutation(c.config, OpDelete)
+	return &CreativeBriefDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CreativeBriefClient) DeleteOne(_m *CreativeBrief) *CreativeBriefDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CreativeBriefClient) DeleteOneID(id uuid.UUID) *CreativeBriefDeleteOne {
+	builder := c.Delete().Where(creativebrief.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CreativeBriefDeleteOne{builder}
+}
+
+// Query returns a query builder for CreativeBrief.
+func (c *CreativeBriefClient) Query() *CreativeBriefQuery {
+	return &CreativeBriefQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCreativeBrief},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CreativeBrief entity by its id.
+func (c *CreativeBriefClient) Get(ctx context.Context, id uuid.UUID) (*CreativeBrief, error) {
+	return c.Query().Where(creativebrief.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CreativeBriefClient) GetX(ctx context.Context, id uuid.UUID) *CreativeBrief {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryVersions queries the versions edge of a CreativeBrief.
+func (c *CreativeBriefClient) QueryVersions(_m *CreativeBrief) *CreativeVersionQuery {
+	query := (&CreativeVersionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(creativebrief.Table, creativebrief.FieldID, id),
+			sqlgraph.To(creativeversion.Table, creativeversion.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, creativebrief.VersionsTable, creativebrief.VersionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *CreativeBriefClient) Hooks() []Hook {
+	return c.hooks.CreativeBrief
+}
+
+// Interceptors returns the client interceptors.
+func (c *CreativeBriefClient) Interceptors() []Interceptor {
+	return c.inters.CreativeBrief
+}
+
+func (c *CreativeBriefClient) mutate(ctx context.Context, m *CreativeBriefMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CreativeBriefCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CreativeBriefUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CreativeBriefUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CreativeBriefDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CreativeBrief mutation op: %q", m.Op())
+	}
+}
+
+// CreativeVersionClient is a client for the CreativeVersion schema.
+type CreativeVersionClient struct {
+	config
+}
+
+// NewCreativeVersionClient returns a client for the CreativeVersion from the given config.
+func NewCreativeVersionClient(c config) *CreativeVersionClient {
+	return &CreativeVersionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `creativeversion.Hooks(f(g(h())))`.
+func (c *CreativeVersionClient) Use(hooks ...Hook) {
+	c.hooks.CreativeVersion = append(c.hooks.CreativeVersion, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `creativeversion.Intercept(f(g(h())))`.
+func (c *CreativeVersionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CreativeVersion = append(c.inters.CreativeVersion, interceptors...)
+}
+
+// Create returns a builder for creating a CreativeVersion entity.
+func (c *CreativeVersionClient) Create() *CreativeVersionCreate {
+	mutation := newCreativeVersionMutation(c.config, OpCreate)
+	return &CreativeVersionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CreativeVersion entities.
+func (c *CreativeVersionClient) CreateBulk(builders ...*CreativeVersionCreate) *CreativeVersionCreateBulk {
+	return &CreativeVersionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CreativeVersionClient) MapCreateBulk(slice any, setFunc func(*CreativeVersionCreate, int)) *CreativeVersionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CreativeVersionCreateBulk{err: fmt.Errorf("calling to CreativeVersionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CreativeVersionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CreativeVersionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CreativeVersion.
+func (c *CreativeVersionClient) Update() *CreativeVersionUpdate {
+	mutation := newCreativeVersionMutation(c.config, OpUpdate)
+	return &CreativeVersionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CreativeVersionClient) UpdateOne(_m *CreativeVersion) *CreativeVersionUpdateOne {
+	mutation := newCreativeVersionMutation(c.config, OpUpdateOne, withCreativeVersion(_m))
+	return &CreativeVersionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CreativeVersionClient) UpdateOneID(id uuid.UUID) *CreativeVersionUpdateOne {
+	mutation := newCreativeVersionMutation(c.config, OpUpdateOne, withCreativeVersionID(id))
+	return &CreativeVersionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CreativeVersion.
+func (c *CreativeVersionClient) Delete() *CreativeVersionDelete {
+	mutation := newCreativeVersionMutation(c.config, OpDelete)
+	return &CreativeVersionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CreativeVersionClient) DeleteOne(_m *CreativeVersion) *CreativeVersionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CreativeVersionClient) DeleteOneID(id uuid.UUID) *CreativeVersionDeleteOne {
+	builder := c.Delete().Where(creativeversion.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CreativeVersionDeleteOne{builder}
+}
+
+// Query returns a query builder for CreativeVersion.
+func (c *CreativeVersionClient) Query() *CreativeVersionQuery {
+	return &CreativeVersionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCreativeVersion},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CreativeVersion entity by its id.
+func (c *CreativeVersionClient) Get(ctx context.Context, id uuid.UUID) (*CreativeVersion, error) {
+	return c.Query().Where(creativeversion.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CreativeVersionClient) GetX(ctx context.Context, id uuid.UUID) *CreativeVersion {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryBrief queries the brief edge of a CreativeVersion.
+func (c *CreativeVersionClient) QueryBrief(_m *CreativeVersion) *CreativeBriefQuery {
+	query := (&CreativeBriefClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(creativeversion.Table, creativeversion.FieldID, id),
+			sqlgraph.To(creativebrief.Table, creativebrief.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, creativeversion.BriefTable, creativeversion.BriefColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAssets queries the assets edge of a CreativeVersion.
+func (c *CreativeVersionClient) QueryAssets(_m *CreativeVersion) *CreativeAssetQuery {
+	query := (&CreativeAssetClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(creativeversion.Table, creativeversion.FieldID, id),
+			sqlgraph.To(creativeasset.Table, creativeasset.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, creativeversion.AssetsTable, creativeversion.AssetsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *CreativeVersionClient) Hooks() []Hook {
+	return c.hooks.CreativeVersion
+}
+
+// Interceptors returns the client interceptors.
+func (c *CreativeVersionClient) Interceptors() []Interceptor {
+	return c.inters.CreativeVersion
+}
+
+func (c *CreativeVersionClient) mutate(ctx context.Context, m *CreativeVersionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CreativeVersionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CreativeVersionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CreativeVersionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CreativeVersionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CreativeVersion mutation op: %q", m.Op())
 	}
 }
 
@@ -7032,22 +7519,22 @@ func (c *UserRoleAssignmentClient) mutate(ctx context.Context, m *UserRoleAssign
 type (
 	hooks struct {
 		Account, Activity, AdMetrics, AgentRun, AuditLog, BehavioralTrigger, Campaign,
-		ChatSession, ConnectedAccount, Contact, CustomAgent, CustomFieldDef,
-		CustomFieldValue, Deal, Funnel, KnowledgeBaseEntry, Lead, LeadScoringRule,
-		MarketflowPermission, MarketflowRole, MarketflowUser, NurtureDeliveryEvent,
-		NurtureEnrollment, NurtureSequence, OutboxEvent, Pipeline, PipelineStage,
-		ProfileEvent, ProviderSetting, RolePermission, ScheduledMeeting, Segment,
-		ServiceConfig, ShortLink, Task, Tenant, Testimonial,
-		UserRoleAssignment []ent.Hook
+		ChatSession, ConnectedAccount, Contact, CreativeAsset, CreativeBrief,
+		CreativeVersion, CustomAgent, CustomFieldDef, CustomFieldValue, Deal, Funnel,
+		KnowledgeBaseEntry, Lead, LeadScoringRule, MarketflowPermission,
+		MarketflowRole, MarketflowUser, NurtureDeliveryEvent, NurtureEnrollment,
+		NurtureSequence, OutboxEvent, Pipeline, PipelineStage, ProfileEvent,
+		ProviderSetting, RolePermission, ScheduledMeeting, Segment, ServiceConfig,
+		ShortLink, Task, Tenant, Testimonial, UserRoleAssignment []ent.Hook
 	}
 	inters struct {
 		Account, Activity, AdMetrics, AgentRun, AuditLog, BehavioralTrigger, Campaign,
-		ChatSession, ConnectedAccount, Contact, CustomAgent, CustomFieldDef,
-		CustomFieldValue, Deal, Funnel, KnowledgeBaseEntry, Lead, LeadScoringRule,
-		MarketflowPermission, MarketflowRole, MarketflowUser, NurtureDeliveryEvent,
-		NurtureEnrollment, NurtureSequence, OutboxEvent, Pipeline, PipelineStage,
-		ProfileEvent, ProviderSetting, RolePermission, ScheduledMeeting, Segment,
-		ServiceConfig, ShortLink, Task, Tenant, Testimonial,
-		UserRoleAssignment []ent.Interceptor
+		ChatSession, ConnectedAccount, Contact, CreativeAsset, CreativeBrief,
+		CreativeVersion, CustomAgent, CustomFieldDef, CustomFieldValue, Deal, Funnel,
+		KnowledgeBaseEntry, Lead, LeadScoringRule, MarketflowPermission,
+		MarketflowRole, MarketflowUser, NurtureDeliveryEvent, NurtureEnrollment,
+		NurtureSequence, OutboxEvent, Pipeline, PipelineStage, ProfileEvent,
+		ProviderSetting, RolePermission, ScheduledMeeting, Segment, ServiceConfig,
+		ShortLink, Task, Tenant, Testimonial, UserRoleAssignment []ent.Interceptor
 	}
 )

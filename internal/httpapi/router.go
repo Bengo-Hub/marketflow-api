@@ -114,6 +114,7 @@ type RouterDeps struct {
 	CustomFieldHandlers CustomFieldHandlers
 	CustomAgentHandlers CustomAgentHandlers
 	MarketingOSHandlers MarketingOSHandlers
+	CreativeHandlers    CreativeHandlers
 	SuggestionHandlers  SuggestionHandlers
 	SegmentHandlers     SegmentHandlers
 
@@ -435,6 +436,22 @@ type MarketingOSHandlers struct {
 	GetSettings     http.HandlerFunc
 	PutSettings     http.HandlerFunc
 	InternalContext http.HandlerFunc
+}
+
+// CreativeHandlers groups the Creative Studio endpoints (briefs, poster
+// versions, review links).
+type CreativeHandlers struct {
+	ListBriefs        http.HandlerFunc
+	CreateBrief       http.HandlerFunc
+	GetBrief          http.HandlerFunc
+	UpdateBrief       http.HandlerFunc
+	CreateVersion     http.HandlerFunc
+	GetVersion        http.HandlerFunc
+	Approve           http.HandlerFunc
+	Discard           http.HandlerFunc
+	CreateReviewLink  http.HandlerFunc
+	RevokeReviewLinks http.HandlerFunc
+	OpenReview        http.HandlerFunc // Public — GET /r/{token}
 }
 
 // CustomAgentHandlers groups custom agent HTTP handlers.
@@ -823,6 +840,22 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Put("/tenant/os-settings", deps.MarketingOSHandlers.PutSettings)
 			}
 
+			// Creative Studio: briefs and the poster versions made from them.
+			if deps.CreativeHandlers.ListBriefs != nil {
+				r.Route("/creative", func(r chi.Router) {
+					r.Get("/briefs", deps.CreativeHandlers.ListBriefs)
+					r.Post("/briefs", deps.CreativeHandlers.CreateBrief)
+					r.Get("/briefs/{id}", deps.CreativeHandlers.GetBrief)
+					r.Put("/briefs/{id}", deps.CreativeHandlers.UpdateBrief)
+					r.Post("/briefs/{id}/versions", deps.CreativeHandlers.CreateVersion)
+					r.Get("/versions/{id}", deps.CreativeHandlers.GetVersion)
+					r.Post("/versions/{id}/approve", deps.CreativeHandlers.Approve)
+					r.Post("/versions/{id}/discard", deps.CreativeHandlers.Discard)
+					r.Post("/versions/{id}/review-link", deps.CreativeHandlers.CreateReviewLink)
+					r.Delete("/versions/{id}/review-link", deps.CreativeHandlers.RevokeReviewLinks)
+				})
+			}
+
 			// CRM: Proactive suggestions
 			if deps.SuggestionHandlers.List != nil {
 				r.Get("/suggestions", deps.SuggestionHandlers.List)
@@ -977,6 +1010,11 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 	// Public FBO profile page (no auth required)
 	r.Get("/p/{slug}", deps.PublicHandlers.GetProfile)
+
+	// Public creative review link (HMAC token, expiring, revocable) → 302 to the draft.
+	if deps.CreativeHandlers.OpenReview != nil {
+		r.Get("/r/{token}", deps.CreativeHandlers.OpenReview)
+	}
 
 	return r
 }

@@ -166,6 +166,9 @@ type tableCount struct {
 var purgeOrder = []string{
 	// Leaf / dependent rows first.
 	"ad_metrics",              // -> campaigns
+	"creative_assets",         // -> creative_versions
+	"creative_versions",       // -> creative_briefs
+	"creative_briefs",
 	"nurture_delivery_events", // -> nurture_enrollments
 	"agent_runs",              // -> custom_agents
 	"custom_field_values",     // -> custom_field_defs

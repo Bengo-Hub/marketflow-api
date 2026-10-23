@@ -36,6 +36,15 @@ type ConnectedAccount func(*sql.Selector)
 // Contact is the predicate function for contact builders.
 type Contact func(*sql.Selector)
 
+// CreativeAsset is the predicate function for creativeasset builders.
+type CreativeAsset func(*sql.Selector)
+
+// CreativeBrief is the predicate function for creativebrief builders.
+type CreativeBrief func(*sql.Selector)
+
+// CreativeVersion is the predicate function for creativeversion builders.
+type CreativeVersion func(*sql.Selector)
+
 // CustomAgent is the predicate function for customagent builders.
 type CustomAgent func(*sql.Selector)
 

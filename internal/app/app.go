@@ -29,6 +29,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	custom_agents "github.com/bengobox/marketflow-api/internal/modules/custom_agents"
+	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	custom_fields "github.com/bengobox/marketflow-api/internal/modules/custom_fields"
 	"github.com/bengobox/marketflow-api/internal/modules/deals"
@@ -298,6 +299,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	customAgentService := custom_agents.NewService(entClient, logger, customAgentServiceOpts...)
 	customAgentHandler := custom_agents.NewHandler(customAgentService, logger)
 	marketingOSHandler := marketingos.NewHandler(marketingos.NewService(entClient, subsClient, logger), logger)
+	// Review links are signed with the env encryption key (stable, like the OAuth
+	// state), separated from it by the token's own HMAC domain.
+	creativeHandler := creative.NewHandler(creative.NewService(entClient, logger),
+		creative.NewReviews(entClient, encryption.KeyFromEnv(cfg.Security.EncryptionKey)), logger)
 
 	segmentHandler := segments.NewHandler(segmentService, logger)
 
@@ -574,6 +579,19 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			GetSettings:     marketingOSHandler.GetSettings,
 			PutSettings:     marketingOSHandler.PutSettings,
 			InternalContext: marketingOSHandler.InternalContext,
+		},
+		CreativeHandlers: httpapi.CreativeHandlers{
+			ListBriefs:        creativeHandler.ListBriefs,
+			CreateBrief:       creativeHandler.CreateBrief,
+			GetBrief:          creativeHandler.GetBrief,
+			UpdateBrief:       creativeHandler.UpdateBrief,
+			CreateVersion:     creativeHandler.CreateVersion,
+			GetVersion:        creativeHandler.GetVersion,
+			Approve:           creativeHandler.Approve,
+			Discard:           creativeHandler.Discard,
+			CreateReviewLink:  creativeHandler.CreateReviewLink,
+			RevokeReviewLinks: creativeHandler.RevokeReviewLinks,
+			OpenReview:        creativeHandler.OpenReview,
 		},
 		SegmentHandlers: httpapi.SegmentHandlers{
 			Create:   segmentHandler.Create,

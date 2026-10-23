@@ -129,6 +129,42 @@ func (f ContactFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ContactMutation", m)
 }
 
+// The CreativeAssetFunc type is an adapter to allow the use of ordinary
+// function as CreativeAsset mutator.
+type CreativeAssetFunc func(context.Context, *ent.CreativeAssetMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CreativeAssetFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CreativeAssetMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CreativeAssetMutation", m)
+}
+
+// The CreativeBriefFunc type is an adapter to allow the use of ordinary
+// function as CreativeBrief mutator.
+type CreativeBriefFunc func(context.Context, *ent.CreativeBriefMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CreativeBriefFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CreativeBriefMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CreativeBriefMutation", m)
+}
+
+// The CreativeVersionFunc type is an adapter to allow the use of ordinary
+// function as CreativeVersion mutator.
+type CreativeVersionFunc func(context.Context, *ent.CreativeVersionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CreativeVersionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CreativeVersionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CreativeVersionMutation", m)
+}
+
 // The CustomAgentFunc type is an adapter to allow the use of ordinary
 // function as CustomAgent mutator.
 type CustomAgentFunc func(context.Context, *ent.CustomAgentMutation) (ent.Value, error)

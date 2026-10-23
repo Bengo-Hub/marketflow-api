@@ -21,6 +21,9 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
+	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
+	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
+	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/bengobox/marketflow-api/internal/ent/customfielddef"
 	"github.com/bengobox/marketflow-api/internal/ent/customfieldvalue"
@@ -72,6 +75,9 @@ const (
 	TypeChatSession          = "ChatSession"
 	TypeConnectedAccount     = "ConnectedAccount"
 	TypeContact              = "Contact"
+	TypeCreativeAsset        = "CreativeAsset"
+	TypeCreativeBrief        = "CreativeBrief"
+	TypeCreativeVersion      = "CreativeVersion"
 	TypeCustomAgent          = "CustomAgent"
 	TypeCustomFieldDef       = "CustomFieldDef"
 	TypeCustomFieldValue     = "CustomFieldValue"
@@ -14036,6 +14042,3819 @@ func (m *ContactMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Contact edge %s", name)
+}
+
+// CreativeAssetMutation represents an operation that mutates the CreativeAsset nodes in the graph.
+type CreativeAssetMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *uuid.UUID
+	tenant_id      *uuid.UUID
+	kind           *string
+	storage_key    *string
+	url            *string
+	bytes          *int64
+	addbytes       *int64
+	width          *int
+	addwidth       *int
+	height         *int
+	addheight      *int
+	duration_ms    *int
+	addduration_ms *int
+	sha256         *string
+	expires_at     *time.Time
+	purged_at      *time.Time
+	metadata       *map[string]interface{}
+	created_at     *time.Time
+	clearedFields  map[string]struct{}
+	version        *uuid.UUID
+	clearedversion bool
+	done           bool
+	oldValue       func(context.Context) (*CreativeAsset, error)
+	predicates     []predicate.CreativeAsset
+}
+
+var _ ent.Mutation = (*CreativeAssetMutation)(nil)
+
+// creativeassetOption allows management of the mutation configuration using functional options.
+type creativeassetOption func(*CreativeAssetMutation)
+
+// newCreativeAssetMutation creates new mutation for the CreativeAsset entity.
+func newCreativeAssetMutation(c config, op Op, opts ...creativeassetOption) *CreativeAssetMutation {
+	m := &CreativeAssetMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCreativeAsset,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCreativeAssetID sets the ID field of the mutation.
+func withCreativeAssetID(id uuid.UUID) creativeassetOption {
+	return func(m *CreativeAssetMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CreativeAsset
+		)
+		m.oldValue = func(ctx context.Context) (*CreativeAsset, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CreativeAsset.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCreativeAsset sets the old CreativeAsset of the mutation.
+func withCreativeAsset(node *CreativeAsset) creativeassetOption {
+	return func(m *CreativeAssetMutation) {
+		m.oldValue = func(context.Context) (*CreativeAsset, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CreativeAssetMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CreativeAssetMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of CreativeAsset entities.
+func (m *CreativeAssetMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CreativeAssetMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CreativeAssetMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CreativeAsset.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *CreativeAssetMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *CreativeAssetMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the CreativeAsset entity.
+// If the CreativeAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeAssetMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *CreativeAssetMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetVersionID sets the "version_id" field.
+func (m *CreativeAssetMutation) SetVersionID(u uuid.UUID) {
+	m.version = &u
+}
+
+// VersionID returns the value of the "version_id" field in the mutation.
+func (m *CreativeAssetMutation) VersionID() (r uuid.UUID, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersionID returns the old "version_id" field's value of the CreativeAsset entity.
+// If the CreativeAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeAssetMutation) OldVersionID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersionID: %w", err)
+	}
+	return oldValue.VersionID, nil
+}
+
+// ResetVersionID resets all changes to the "version_id" field.
+func (m *CreativeAssetMutation) ResetVersionID() {
+	m.version = nil
+}
+
+// SetKind sets the "kind" field.
+func (m *CreativeAssetMutation) SetKind(s string) {
+	m.kind = &s
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *CreativeAssetMutation) Kind() (r string, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the CreativeAsset entity.
+// If the CreativeAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeAssetMutation) OldKind(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *CreativeAssetMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetStorageKey sets the "storage_key" field.
+func (m *CreativeAssetMutation) SetStorageKey(s string) {
+	m.storage_key = &s
+}
+
+// StorageKey returns the value of the "storage_key" field in the mutation.
+func (m *CreativeAssetMutation) StorageKey() (r string, exists bool) {
+	v := m.storage_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStorageKey returns the old "storage_key" field's value of the CreativeAsset entity.
+// If the CreativeAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeAssetMutation) OldStorageKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStorageKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStorageKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStorageKey: %w", err)
+	}
+	return oldValue.StorageKey, nil
+}
+
+// ResetStorageKey resets all changes to the "storage_key" field.
+func (m *CreativeAssetMutation) ResetStorageKey() {
+	m.storage_key = nil
+}
+
+// SetURL sets the "url" field.
+func (m *CreativeAssetMutation) SetURL(s string) {
+	m.url = &s
+}
+
+// URL returns the value of the "url" field in the mutation.
+func (m *CreativeAssetMutation) URL() (r string, exists bool) {
+	v := m.url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldURL returns the old "url" field's value of the CreativeAsset entity.
+// If the CreativeAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeAssetMutation) OldURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldURL: %w", err)
+	}
+	return oldValue.URL, nil
+}
+
+// ResetURL resets all changes to the "url" field.
+func (m *CreativeAssetMutation) ResetURL() {
+	m.url = nil
+}
+
+// SetBytes sets the "bytes" field.
+func (m *CreativeAssetMutation) SetBytes(i int64) {
+	m.bytes = &i
+	m.addbytes = nil
+}
+
+// Bytes returns the value of the "bytes" field in the mutation.
+func (m *CreativeAssetMutation) Bytes() (r int64, exists bool) {
+	v := m.bytes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBytes returns the old "bytes" field's value of the CreativeAsset entity.
+// If the CreativeAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeAssetMutation) OldBytes(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBytes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBytes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBytes: %w", err)
+	}
+	return oldValue.Bytes, nil
+}
+
+// AddBytes adds i to the "bytes" field.
+func (m *CreativeAssetMutation) AddBytes(i int64) {
+	if m.addbytes != nil {
+		*m.addbytes += i
+	} else {
+		m.addbytes = &i
+	}
+}
+
+// AddedBytes returns the value that was added to the "bytes" field in this mutation.
+func (m *CreativeAssetMutation) AddedBytes() (r int64, exists bool) {
+	v := m.addbytes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBytes resets all changes to the "bytes" field.
+func (m *CreativeAssetMutation) ResetBytes() {
+	m.bytes = nil
+	m.addbytes = nil
+}
+
+// SetWidth sets the "width" field.
+func (m *CreativeAssetMutation) SetWidth(i int) {
+	m.width = &i
+	m.addwidth = nil
+}
+
+// Width returns the value of the "width" field in the mutation.
+func (m *CreativeAssetMutation) Width() (r int, exists bool) {
+	v := m.width
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWidth returns the old "width" field's value of the CreativeAsset entity.
+// If the CreativeAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeAssetMutation) OldWidth(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWidth is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWidth requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWidth: %w", err)
+	}
+	return oldValue.Width, nil
+}
+
+// AddWidth adds i to the "width" field.
+func (m *CreativeAssetMutation) AddWidth(i int) {
+	if m.addwidth != nil {
+		*m.addwidth += i
+	} else {
+		m.addwidth = &i
+	}
+}
+
+// AddedWidth returns the value that was added to the "width" field in this mutation.
+func (m *CreativeAssetMutation) AddedWidth() (r int, exists bool) {
+	v := m.addwidth
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetWidth resets all changes to the "width" field.
+func (m *CreativeAssetMutation) ResetWidth() {
+	m.width = nil
+	m.addwidth = nil
+}
+
+// SetHeight sets the "height" field.
+func (m *CreativeAssetMutation) SetHeight(i int) {
+	m.height = &i
+	m.addheight = nil
+}
+
+// Height returns the value of the "height" field in the mutation.
+func (m *CreativeAssetMutation) Height() (r int, exists bool) {
+	v := m.height
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHeight returns the old "height" field's value of the CreativeAsset entity.
+// If the CreativeAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeAssetMutation) OldHeight(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHeight is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHeight requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHeight: %w", err)
+	}
+	return oldValue.Height, nil
+}
+
+// AddHeight adds i to the "height" field.
+func (m *CreativeAssetMutation) AddHeight(i int) {
+	if m.addheight != nil {
+		*m.addheight += i
+	} else {
+		m.addheight = &i
+	}
+}
+
+// AddedHeight returns the value that was added to the "height" field in this mutation.
+func (m *CreativeAssetMutation) AddedHeight() (r int, exists bool) {
+	v := m.addheight
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetHeight resets all changes to the "height" field.
+func (m *CreativeAssetMutation) ResetHeight() {
+	m.height = nil
+	m.addheight = nil
+}
+
+// SetDurationMs sets the "duration_ms" field.
+func (m *CreativeAssetMutation) SetDurationMs(i int) {
+	m.duration_ms = &i
+	m.addduration_ms = nil
+}
+
+// DurationMs returns the value of the "duration_ms" field in the mutation.
+func (m *CreativeAssetMutation) DurationMs() (r int, exists bool) {
+	v := m.duration_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDurationMs returns the old "duration_ms" field's value of the CreativeAsset entity.
+// If the CreativeAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeAssetMutation) OldDurationMs(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDurationMs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDurationMs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDurationMs: %w", err)
+	}
+	return oldValue.DurationMs, nil
+}
+
+// AddDurationMs adds i to the "duration_ms" field.
+func (m *CreativeAssetMutation) AddDurationMs(i int) {
+	if m.addduration_ms != nil {
+		*m.addduration_ms += i
+	} else {
+		m.addduration_ms = &i
+	}
+}
+
+// AddedDurationMs returns the value that was added to the "duration_ms" field in this mutation.
+func (m *CreativeAssetMutation) AddedDurationMs() (r int, exists bool) {
+	v := m.addduration_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDurationMs resets all changes to the "duration_ms" field.
+func (m *CreativeAssetMutation) ResetDurationMs() {
+	m.duration_ms = nil
+	m.addduration_ms = nil
+}
+
+// SetSha256 sets the "sha256" field.
+func (m *CreativeAssetMutation) SetSha256(s string) {
+	m.sha256 = &s
+}
+
+// Sha256 returns the value of the "sha256" field in the mutation.
+func (m *CreativeAssetMutation) Sha256() (r string, exists bool) {
+	v := m.sha256
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSha256 returns the old "sha256" field's value of the CreativeAsset entity.
+// If the CreativeAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeAssetMutation) OldSha256(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSha256 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSha256 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSha256: %w", err)
+	}
+	return oldValue.Sha256, nil
+}
+
+// ClearSha256 clears the value of the "sha256" field.
+func (m *CreativeAssetMutation) ClearSha256() {
+	m.sha256 = nil
+	m.clearedFields[creativeasset.FieldSha256] = struct{}{}
+}
+
+// Sha256Cleared returns if the "sha256" field was cleared in this mutation.
+func (m *CreativeAssetMutation) Sha256Cleared() bool {
+	_, ok := m.clearedFields[creativeasset.FieldSha256]
+	return ok
+}
+
+// ResetSha256 resets all changes to the "sha256" field.
+func (m *CreativeAssetMutation) ResetSha256() {
+	m.sha256 = nil
+	delete(m.clearedFields, creativeasset.FieldSha256)
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *CreativeAssetMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *CreativeAssetMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the CreativeAsset entity.
+// If the CreativeAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeAssetMutation) OldExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (m *CreativeAssetMutation) ClearExpiresAt() {
+	m.expires_at = nil
+	m.clearedFields[creativeasset.FieldExpiresAt] = struct{}{}
+}
+
+// ExpiresAtCleared returns if the "expires_at" field was cleared in this mutation.
+func (m *CreativeAssetMutation) ExpiresAtCleared() bool {
+	_, ok := m.clearedFields[creativeasset.FieldExpiresAt]
+	return ok
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *CreativeAssetMutation) ResetExpiresAt() {
+	m.expires_at = nil
+	delete(m.clearedFields, creativeasset.FieldExpiresAt)
+}
+
+// SetPurgedAt sets the "purged_at" field.
+func (m *CreativeAssetMutation) SetPurgedAt(t time.Time) {
+	m.purged_at = &t
+}
+
+// PurgedAt returns the value of the "purged_at" field in the mutation.
+func (m *CreativeAssetMutation) PurgedAt() (r time.Time, exists bool) {
+	v := m.purged_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPurgedAt returns the old "purged_at" field's value of the CreativeAsset entity.
+// If the CreativeAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeAssetMutation) OldPurgedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPurgedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPurgedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPurgedAt: %w", err)
+	}
+	return oldValue.PurgedAt, nil
+}
+
+// ClearPurgedAt clears the value of the "purged_at" field.
+func (m *CreativeAssetMutation) ClearPurgedAt() {
+	m.purged_at = nil
+	m.clearedFields[creativeasset.FieldPurgedAt] = struct{}{}
+}
+
+// PurgedAtCleared returns if the "purged_at" field was cleared in this mutation.
+func (m *CreativeAssetMutation) PurgedAtCleared() bool {
+	_, ok := m.clearedFields[creativeasset.FieldPurgedAt]
+	return ok
+}
+
+// ResetPurgedAt resets all changes to the "purged_at" field.
+func (m *CreativeAssetMutation) ResetPurgedAt() {
+	m.purged_at = nil
+	delete(m.clearedFields, creativeasset.FieldPurgedAt)
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *CreativeAssetMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *CreativeAssetMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the CreativeAsset entity.
+// If the CreativeAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeAssetMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (m *CreativeAssetMutation) ClearMetadata() {
+	m.metadata = nil
+	m.clearedFields[creativeasset.FieldMetadata] = struct{}{}
+}
+
+// MetadataCleared returns if the "metadata" field was cleared in this mutation.
+func (m *CreativeAssetMutation) MetadataCleared() bool {
+	_, ok := m.clearedFields[creativeasset.FieldMetadata]
+	return ok
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *CreativeAssetMutation) ResetMetadata() {
+	m.metadata = nil
+	delete(m.clearedFields, creativeasset.FieldMetadata)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CreativeAssetMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CreativeAssetMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CreativeAsset entity.
+// If the CreativeAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeAssetMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CreativeAssetMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// ClearVersion clears the "version" edge to the CreativeVersion entity.
+func (m *CreativeAssetMutation) ClearVersion() {
+	m.clearedversion = true
+	m.clearedFields[creativeasset.FieldVersionID] = struct{}{}
+}
+
+// VersionCleared reports if the "version" edge to the CreativeVersion entity was cleared.
+func (m *CreativeAssetMutation) VersionCleared() bool {
+	return m.clearedversion
+}
+
+// VersionIDs returns the "version" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// VersionID instead. It exists only for internal usage by the builders.
+func (m *CreativeAssetMutation) VersionIDs() (ids []uuid.UUID) {
+	if id := m.version; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetVersion resets all changes to the "version" edge.
+func (m *CreativeAssetMutation) ResetVersion() {
+	m.version = nil
+	m.clearedversion = false
+}
+
+// Where appends a list predicates to the CreativeAssetMutation builder.
+func (m *CreativeAssetMutation) Where(ps ...predicate.CreativeAsset) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CreativeAssetMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CreativeAssetMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CreativeAsset, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CreativeAssetMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CreativeAssetMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CreativeAsset).
+func (m *CreativeAssetMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CreativeAssetMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.tenant_id != nil {
+		fields = append(fields, creativeasset.FieldTenantID)
+	}
+	if m.version != nil {
+		fields = append(fields, creativeasset.FieldVersionID)
+	}
+	if m.kind != nil {
+		fields = append(fields, creativeasset.FieldKind)
+	}
+	if m.storage_key != nil {
+		fields = append(fields, creativeasset.FieldStorageKey)
+	}
+	if m.url != nil {
+		fields = append(fields, creativeasset.FieldURL)
+	}
+	if m.bytes != nil {
+		fields = append(fields, creativeasset.FieldBytes)
+	}
+	if m.width != nil {
+		fields = append(fields, creativeasset.FieldWidth)
+	}
+	if m.height != nil {
+		fields = append(fields, creativeasset.FieldHeight)
+	}
+	if m.duration_ms != nil {
+		fields = append(fields, creativeasset.FieldDurationMs)
+	}
+	if m.sha256 != nil {
+		fields = append(fields, creativeasset.FieldSha256)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, creativeasset.FieldExpiresAt)
+	}
+	if m.purged_at != nil {
+		fields = append(fields, creativeasset.FieldPurgedAt)
+	}
+	if m.metadata != nil {
+		fields = append(fields, creativeasset.FieldMetadata)
+	}
+	if m.created_at != nil {
+		fields = append(fields, creativeasset.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CreativeAssetMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case creativeasset.FieldTenantID:
+		return m.TenantID()
+	case creativeasset.FieldVersionID:
+		return m.VersionID()
+	case creativeasset.FieldKind:
+		return m.Kind()
+	case creativeasset.FieldStorageKey:
+		return m.StorageKey()
+	case creativeasset.FieldURL:
+		return m.URL()
+	case creativeasset.FieldBytes:
+		return m.Bytes()
+	case creativeasset.FieldWidth:
+		return m.Width()
+	case creativeasset.FieldHeight:
+		return m.Height()
+	case creativeasset.FieldDurationMs:
+		return m.DurationMs()
+	case creativeasset.FieldSha256:
+		return m.Sha256()
+	case creativeasset.FieldExpiresAt:
+		return m.ExpiresAt()
+	case creativeasset.FieldPurgedAt:
+		return m.PurgedAt()
+	case creativeasset.FieldMetadata:
+		return m.Metadata()
+	case creativeasset.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CreativeAssetMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case creativeasset.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case creativeasset.FieldVersionID:
+		return m.OldVersionID(ctx)
+	case creativeasset.FieldKind:
+		return m.OldKind(ctx)
+	case creativeasset.FieldStorageKey:
+		return m.OldStorageKey(ctx)
+	case creativeasset.FieldURL:
+		return m.OldURL(ctx)
+	case creativeasset.FieldBytes:
+		return m.OldBytes(ctx)
+	case creativeasset.FieldWidth:
+		return m.OldWidth(ctx)
+	case creativeasset.FieldHeight:
+		return m.OldHeight(ctx)
+	case creativeasset.FieldDurationMs:
+		return m.OldDurationMs(ctx)
+	case creativeasset.FieldSha256:
+		return m.OldSha256(ctx)
+	case creativeasset.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	case creativeasset.FieldPurgedAt:
+		return m.OldPurgedAt(ctx)
+	case creativeasset.FieldMetadata:
+		return m.OldMetadata(ctx)
+	case creativeasset.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown CreativeAsset field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CreativeAssetMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case creativeasset.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case creativeasset.FieldVersionID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersionID(v)
+		return nil
+	case creativeasset.FieldKind:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case creativeasset.FieldStorageKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStorageKey(v)
+		return nil
+	case creativeasset.FieldURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetURL(v)
+		return nil
+	case creativeasset.FieldBytes:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBytes(v)
+		return nil
+	case creativeasset.FieldWidth:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWidth(v)
+		return nil
+	case creativeasset.FieldHeight:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHeight(v)
+		return nil
+	case creativeasset.FieldDurationMs:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDurationMs(v)
+		return nil
+	case creativeasset.FieldSha256:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSha256(v)
+		return nil
+	case creativeasset.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	case creativeasset.FieldPurgedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPurgedAt(v)
+		return nil
+	case creativeasset.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	case creativeasset.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CreativeAsset field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CreativeAssetMutation) AddedFields() []string {
+	var fields []string
+	if m.addbytes != nil {
+		fields = append(fields, creativeasset.FieldBytes)
+	}
+	if m.addwidth != nil {
+		fields = append(fields, creativeasset.FieldWidth)
+	}
+	if m.addheight != nil {
+		fields = append(fields, creativeasset.FieldHeight)
+	}
+	if m.addduration_ms != nil {
+		fields = append(fields, creativeasset.FieldDurationMs)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CreativeAssetMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case creativeasset.FieldBytes:
+		return m.AddedBytes()
+	case creativeasset.FieldWidth:
+		return m.AddedWidth()
+	case creativeasset.FieldHeight:
+		return m.AddedHeight()
+	case creativeasset.FieldDurationMs:
+		return m.AddedDurationMs()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CreativeAssetMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case creativeasset.FieldBytes:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBytes(v)
+		return nil
+	case creativeasset.FieldWidth:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWidth(v)
+		return nil
+	case creativeasset.FieldHeight:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddHeight(v)
+		return nil
+	case creativeasset.FieldDurationMs:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDurationMs(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CreativeAsset numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CreativeAssetMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(creativeasset.FieldSha256) {
+		fields = append(fields, creativeasset.FieldSha256)
+	}
+	if m.FieldCleared(creativeasset.FieldExpiresAt) {
+		fields = append(fields, creativeasset.FieldExpiresAt)
+	}
+	if m.FieldCleared(creativeasset.FieldPurgedAt) {
+		fields = append(fields, creativeasset.FieldPurgedAt)
+	}
+	if m.FieldCleared(creativeasset.FieldMetadata) {
+		fields = append(fields, creativeasset.FieldMetadata)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CreativeAssetMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CreativeAssetMutation) ClearField(name string) error {
+	switch name {
+	case creativeasset.FieldSha256:
+		m.ClearSha256()
+		return nil
+	case creativeasset.FieldExpiresAt:
+		m.ClearExpiresAt()
+		return nil
+	case creativeasset.FieldPurgedAt:
+		m.ClearPurgedAt()
+		return nil
+	case creativeasset.FieldMetadata:
+		m.ClearMetadata()
+		return nil
+	}
+	return fmt.Errorf("unknown CreativeAsset nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CreativeAssetMutation) ResetField(name string) error {
+	switch name {
+	case creativeasset.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case creativeasset.FieldVersionID:
+		m.ResetVersionID()
+		return nil
+	case creativeasset.FieldKind:
+		m.ResetKind()
+		return nil
+	case creativeasset.FieldStorageKey:
+		m.ResetStorageKey()
+		return nil
+	case creativeasset.FieldURL:
+		m.ResetURL()
+		return nil
+	case creativeasset.FieldBytes:
+		m.ResetBytes()
+		return nil
+	case creativeasset.FieldWidth:
+		m.ResetWidth()
+		return nil
+	case creativeasset.FieldHeight:
+		m.ResetHeight()
+		return nil
+	case creativeasset.FieldDurationMs:
+		m.ResetDurationMs()
+		return nil
+	case creativeasset.FieldSha256:
+		m.ResetSha256()
+		return nil
+	case creativeasset.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	case creativeasset.FieldPurgedAt:
+		m.ResetPurgedAt()
+		return nil
+	case creativeasset.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	case creativeasset.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CreativeAsset field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CreativeAssetMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.version != nil {
+		edges = append(edges, creativeasset.EdgeVersion)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CreativeAssetMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case creativeasset.EdgeVersion:
+		if id := m.version; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CreativeAssetMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CreativeAssetMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CreativeAssetMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedversion {
+		edges = append(edges, creativeasset.EdgeVersion)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CreativeAssetMutation) EdgeCleared(name string) bool {
+	switch name {
+	case creativeasset.EdgeVersion:
+		return m.clearedversion
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CreativeAssetMutation) ClearEdge(name string) error {
+	switch name {
+	case creativeasset.EdgeVersion:
+		m.ClearVersion()
+		return nil
+	}
+	return fmt.Errorf("unknown CreativeAsset unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CreativeAssetMutation) ResetEdge(name string) error {
+	switch name {
+	case creativeasset.EdgeVersion:
+		m.ResetVersion()
+		return nil
+	}
+	return fmt.Errorf("unknown CreativeAsset edge %s", name)
+}
+
+// CreativeBriefMutation represents an operation that mutates the CreativeBrief nodes in the graph.
+type CreativeBriefMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *uuid.UUID
+	tenant_id       *uuid.UUID
+	title           *string
+	offering        *map[string]interface{}
+	objective       *string
+	audience        *string
+	language        *string
+	status          *string
+	created_by      *uuid.UUID
+	metadata        *map[string]interface{}
+	created_at      *time.Time
+	updated_at      *time.Time
+	clearedFields   map[string]struct{}
+	versions        map[uuid.UUID]struct{}
+	removedversions map[uuid.UUID]struct{}
+	clearedversions bool
+	done            bool
+	oldValue        func(context.Context) (*CreativeBrief, error)
+	predicates      []predicate.CreativeBrief
+}
+
+var _ ent.Mutation = (*CreativeBriefMutation)(nil)
+
+// creativebriefOption allows management of the mutation configuration using functional options.
+type creativebriefOption func(*CreativeBriefMutation)
+
+// newCreativeBriefMutation creates new mutation for the CreativeBrief entity.
+func newCreativeBriefMutation(c config, op Op, opts ...creativebriefOption) *CreativeBriefMutation {
+	m := &CreativeBriefMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCreativeBrief,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCreativeBriefID sets the ID field of the mutation.
+func withCreativeBriefID(id uuid.UUID) creativebriefOption {
+	return func(m *CreativeBriefMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CreativeBrief
+		)
+		m.oldValue = func(ctx context.Context) (*CreativeBrief, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CreativeBrief.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCreativeBrief sets the old CreativeBrief of the mutation.
+func withCreativeBrief(node *CreativeBrief) creativebriefOption {
+	return func(m *CreativeBriefMutation) {
+		m.oldValue = func(context.Context) (*CreativeBrief, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CreativeBriefMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CreativeBriefMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of CreativeBrief entities.
+func (m *CreativeBriefMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CreativeBriefMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CreativeBriefMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CreativeBrief.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *CreativeBriefMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *CreativeBriefMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the CreativeBrief entity.
+// If the CreativeBrief object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeBriefMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *CreativeBriefMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetTitle sets the "title" field.
+func (m *CreativeBriefMutation) SetTitle(s string) {
+	m.title = &s
+}
+
+// Title returns the value of the "title" field in the mutation.
+func (m *CreativeBriefMutation) Title() (r string, exists bool) {
+	v := m.title
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTitle returns the old "title" field's value of the CreativeBrief entity.
+// If the CreativeBrief object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeBriefMutation) OldTitle(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTitle is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTitle requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTitle: %w", err)
+	}
+	return oldValue.Title, nil
+}
+
+// ResetTitle resets all changes to the "title" field.
+func (m *CreativeBriefMutation) ResetTitle() {
+	m.title = nil
+}
+
+// SetOffering sets the "offering" field.
+func (m *CreativeBriefMutation) SetOffering(value map[string]interface{}) {
+	m.offering = &value
+}
+
+// Offering returns the value of the "offering" field in the mutation.
+func (m *CreativeBriefMutation) Offering() (r map[string]interface{}, exists bool) {
+	v := m.offering
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOffering returns the old "offering" field's value of the CreativeBrief entity.
+// If the CreativeBrief object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeBriefMutation) OldOffering(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOffering is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOffering requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOffering: %w", err)
+	}
+	return oldValue.Offering, nil
+}
+
+// ClearOffering clears the value of the "offering" field.
+func (m *CreativeBriefMutation) ClearOffering() {
+	m.offering = nil
+	m.clearedFields[creativebrief.FieldOffering] = struct{}{}
+}
+
+// OfferingCleared returns if the "offering" field was cleared in this mutation.
+func (m *CreativeBriefMutation) OfferingCleared() bool {
+	_, ok := m.clearedFields[creativebrief.FieldOffering]
+	return ok
+}
+
+// ResetOffering resets all changes to the "offering" field.
+func (m *CreativeBriefMutation) ResetOffering() {
+	m.offering = nil
+	delete(m.clearedFields, creativebrief.FieldOffering)
+}
+
+// SetObjective sets the "objective" field.
+func (m *CreativeBriefMutation) SetObjective(s string) {
+	m.objective = &s
+}
+
+// Objective returns the value of the "objective" field in the mutation.
+func (m *CreativeBriefMutation) Objective() (r string, exists bool) {
+	v := m.objective
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldObjective returns the old "objective" field's value of the CreativeBrief entity.
+// If the CreativeBrief object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeBriefMutation) OldObjective(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldObjective is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldObjective requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldObjective: %w", err)
+	}
+	return oldValue.Objective, nil
+}
+
+// ResetObjective resets all changes to the "objective" field.
+func (m *CreativeBriefMutation) ResetObjective() {
+	m.objective = nil
+}
+
+// SetAudience sets the "audience" field.
+func (m *CreativeBriefMutation) SetAudience(s string) {
+	m.audience = &s
+}
+
+// Audience returns the value of the "audience" field in the mutation.
+func (m *CreativeBriefMutation) Audience() (r string, exists bool) {
+	v := m.audience
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAudience returns the old "audience" field's value of the CreativeBrief entity.
+// If the CreativeBrief object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeBriefMutation) OldAudience(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAudience is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAudience requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAudience: %w", err)
+	}
+	return oldValue.Audience, nil
+}
+
+// ClearAudience clears the value of the "audience" field.
+func (m *CreativeBriefMutation) ClearAudience() {
+	m.audience = nil
+	m.clearedFields[creativebrief.FieldAudience] = struct{}{}
+}
+
+// AudienceCleared returns if the "audience" field was cleared in this mutation.
+func (m *CreativeBriefMutation) AudienceCleared() bool {
+	_, ok := m.clearedFields[creativebrief.FieldAudience]
+	return ok
+}
+
+// ResetAudience resets all changes to the "audience" field.
+func (m *CreativeBriefMutation) ResetAudience() {
+	m.audience = nil
+	delete(m.clearedFields, creativebrief.FieldAudience)
+}
+
+// SetLanguage sets the "language" field.
+func (m *CreativeBriefMutation) SetLanguage(s string) {
+	m.language = &s
+}
+
+// Language returns the value of the "language" field in the mutation.
+func (m *CreativeBriefMutation) Language() (r string, exists bool) {
+	v := m.language
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLanguage returns the old "language" field's value of the CreativeBrief entity.
+// If the CreativeBrief object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeBriefMutation) OldLanguage(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLanguage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLanguage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLanguage: %w", err)
+	}
+	return oldValue.Language, nil
+}
+
+// ResetLanguage resets all changes to the "language" field.
+func (m *CreativeBriefMutation) ResetLanguage() {
+	m.language = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *CreativeBriefMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *CreativeBriefMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the CreativeBrief entity.
+// If the CreativeBrief object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeBriefMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *CreativeBriefMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (m *CreativeBriefMutation) SetCreatedBy(u uuid.UUID) {
+	m.created_by = &u
+}
+
+// CreatedBy returns the value of the "created_by" field in the mutation.
+func (m *CreativeBriefMutation) CreatedBy() (r uuid.UUID, exists bool) {
+	v := m.created_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedBy returns the old "created_by" field's value of the CreativeBrief entity.
+// If the CreativeBrief object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeBriefMutation) OldCreatedBy(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedBy: %w", err)
+	}
+	return oldValue.CreatedBy, nil
+}
+
+// ClearCreatedBy clears the value of the "created_by" field.
+func (m *CreativeBriefMutation) ClearCreatedBy() {
+	m.created_by = nil
+	m.clearedFields[creativebrief.FieldCreatedBy] = struct{}{}
+}
+
+// CreatedByCleared returns if the "created_by" field was cleared in this mutation.
+func (m *CreativeBriefMutation) CreatedByCleared() bool {
+	_, ok := m.clearedFields[creativebrief.FieldCreatedBy]
+	return ok
+}
+
+// ResetCreatedBy resets all changes to the "created_by" field.
+func (m *CreativeBriefMutation) ResetCreatedBy() {
+	m.created_by = nil
+	delete(m.clearedFields, creativebrief.FieldCreatedBy)
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *CreativeBriefMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *CreativeBriefMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the CreativeBrief entity.
+// If the CreativeBrief object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeBriefMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (m *CreativeBriefMutation) ClearMetadata() {
+	m.metadata = nil
+	m.clearedFields[creativebrief.FieldMetadata] = struct{}{}
+}
+
+// MetadataCleared returns if the "metadata" field was cleared in this mutation.
+func (m *CreativeBriefMutation) MetadataCleared() bool {
+	_, ok := m.clearedFields[creativebrief.FieldMetadata]
+	return ok
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *CreativeBriefMutation) ResetMetadata() {
+	m.metadata = nil
+	delete(m.clearedFields, creativebrief.FieldMetadata)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CreativeBriefMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CreativeBriefMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CreativeBrief entity.
+// If the CreativeBrief object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeBriefMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CreativeBriefMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *CreativeBriefMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *CreativeBriefMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the CreativeBrief entity.
+// If the CreativeBrief object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeBriefMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *CreativeBriefMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// AddVersionIDs adds the "versions" edge to the CreativeVersion entity by ids.
+func (m *CreativeBriefMutation) AddVersionIDs(ids ...uuid.UUID) {
+	if m.versions == nil {
+		m.versions = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.versions[ids[i]] = struct{}{}
+	}
+}
+
+// ClearVersions clears the "versions" edge to the CreativeVersion entity.
+func (m *CreativeBriefMutation) ClearVersions() {
+	m.clearedversions = true
+}
+
+// VersionsCleared reports if the "versions" edge to the CreativeVersion entity was cleared.
+func (m *CreativeBriefMutation) VersionsCleared() bool {
+	return m.clearedversions
+}
+
+// RemoveVersionIDs removes the "versions" edge to the CreativeVersion entity by IDs.
+func (m *CreativeBriefMutation) RemoveVersionIDs(ids ...uuid.UUID) {
+	if m.removedversions == nil {
+		m.removedversions = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.versions, ids[i])
+		m.removedversions[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedVersions returns the removed IDs of the "versions" edge to the CreativeVersion entity.
+func (m *CreativeBriefMutation) RemovedVersionsIDs() (ids []uuid.UUID) {
+	for id := range m.removedversions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// VersionsIDs returns the "versions" edge IDs in the mutation.
+func (m *CreativeBriefMutation) VersionsIDs() (ids []uuid.UUID) {
+	for id := range m.versions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetVersions resets all changes to the "versions" edge.
+func (m *CreativeBriefMutation) ResetVersions() {
+	m.versions = nil
+	m.clearedversions = false
+	m.removedversions = nil
+}
+
+// Where appends a list predicates to the CreativeBriefMutation builder.
+func (m *CreativeBriefMutation) Where(ps ...predicate.CreativeBrief) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CreativeBriefMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CreativeBriefMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CreativeBrief, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CreativeBriefMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CreativeBriefMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CreativeBrief).
+func (m *CreativeBriefMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CreativeBriefMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.tenant_id != nil {
+		fields = append(fields, creativebrief.FieldTenantID)
+	}
+	if m.title != nil {
+		fields = append(fields, creativebrief.FieldTitle)
+	}
+	if m.offering != nil {
+		fields = append(fields, creativebrief.FieldOffering)
+	}
+	if m.objective != nil {
+		fields = append(fields, creativebrief.FieldObjective)
+	}
+	if m.audience != nil {
+		fields = append(fields, creativebrief.FieldAudience)
+	}
+	if m.language != nil {
+		fields = append(fields, creativebrief.FieldLanguage)
+	}
+	if m.status != nil {
+		fields = append(fields, creativebrief.FieldStatus)
+	}
+	if m.created_by != nil {
+		fields = append(fields, creativebrief.FieldCreatedBy)
+	}
+	if m.metadata != nil {
+		fields = append(fields, creativebrief.FieldMetadata)
+	}
+	if m.created_at != nil {
+		fields = append(fields, creativebrief.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, creativebrief.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CreativeBriefMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case creativebrief.FieldTenantID:
+		return m.TenantID()
+	case creativebrief.FieldTitle:
+		return m.Title()
+	case creativebrief.FieldOffering:
+		return m.Offering()
+	case creativebrief.FieldObjective:
+		return m.Objective()
+	case creativebrief.FieldAudience:
+		return m.Audience()
+	case creativebrief.FieldLanguage:
+		return m.Language()
+	case creativebrief.FieldStatus:
+		return m.Status()
+	case creativebrief.FieldCreatedBy:
+		return m.CreatedBy()
+	case creativebrief.FieldMetadata:
+		return m.Metadata()
+	case creativebrief.FieldCreatedAt:
+		return m.CreatedAt()
+	case creativebrief.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CreativeBriefMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case creativebrief.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case creativebrief.FieldTitle:
+		return m.OldTitle(ctx)
+	case creativebrief.FieldOffering:
+		return m.OldOffering(ctx)
+	case creativebrief.FieldObjective:
+		return m.OldObjective(ctx)
+	case creativebrief.FieldAudience:
+		return m.OldAudience(ctx)
+	case creativebrief.FieldLanguage:
+		return m.OldLanguage(ctx)
+	case creativebrief.FieldStatus:
+		return m.OldStatus(ctx)
+	case creativebrief.FieldCreatedBy:
+		return m.OldCreatedBy(ctx)
+	case creativebrief.FieldMetadata:
+		return m.OldMetadata(ctx)
+	case creativebrief.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case creativebrief.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown CreativeBrief field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CreativeBriefMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case creativebrief.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case creativebrief.FieldTitle:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTitle(v)
+		return nil
+	case creativebrief.FieldOffering:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOffering(v)
+		return nil
+	case creativebrief.FieldObjective:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetObjective(v)
+		return nil
+	case creativebrief.FieldAudience:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAudience(v)
+		return nil
+	case creativebrief.FieldLanguage:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLanguage(v)
+		return nil
+	case creativebrief.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case creativebrief.FieldCreatedBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedBy(v)
+		return nil
+	case creativebrief.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	case creativebrief.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case creativebrief.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CreativeBrief field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CreativeBriefMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CreativeBriefMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CreativeBriefMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown CreativeBrief numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CreativeBriefMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(creativebrief.FieldOffering) {
+		fields = append(fields, creativebrief.FieldOffering)
+	}
+	if m.FieldCleared(creativebrief.FieldAudience) {
+		fields = append(fields, creativebrief.FieldAudience)
+	}
+	if m.FieldCleared(creativebrief.FieldCreatedBy) {
+		fields = append(fields, creativebrief.FieldCreatedBy)
+	}
+	if m.FieldCleared(creativebrief.FieldMetadata) {
+		fields = append(fields, creativebrief.FieldMetadata)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CreativeBriefMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CreativeBriefMutation) ClearField(name string) error {
+	switch name {
+	case creativebrief.FieldOffering:
+		m.ClearOffering()
+		return nil
+	case creativebrief.FieldAudience:
+		m.ClearAudience()
+		return nil
+	case creativebrief.FieldCreatedBy:
+		m.ClearCreatedBy()
+		return nil
+	case creativebrief.FieldMetadata:
+		m.ClearMetadata()
+		return nil
+	}
+	return fmt.Errorf("unknown CreativeBrief nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CreativeBriefMutation) ResetField(name string) error {
+	switch name {
+	case creativebrief.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case creativebrief.FieldTitle:
+		m.ResetTitle()
+		return nil
+	case creativebrief.FieldOffering:
+		m.ResetOffering()
+		return nil
+	case creativebrief.FieldObjective:
+		m.ResetObjective()
+		return nil
+	case creativebrief.FieldAudience:
+		m.ResetAudience()
+		return nil
+	case creativebrief.FieldLanguage:
+		m.ResetLanguage()
+		return nil
+	case creativebrief.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case creativebrief.FieldCreatedBy:
+		m.ResetCreatedBy()
+		return nil
+	case creativebrief.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	case creativebrief.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case creativebrief.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CreativeBrief field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CreativeBriefMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.versions != nil {
+		edges = append(edges, creativebrief.EdgeVersions)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CreativeBriefMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case creativebrief.EdgeVersions:
+		ids := make([]ent.Value, 0, len(m.versions))
+		for id := range m.versions {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CreativeBriefMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removedversions != nil {
+		edges = append(edges, creativebrief.EdgeVersions)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CreativeBriefMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case creativebrief.EdgeVersions:
+		ids := make([]ent.Value, 0, len(m.removedversions))
+		for id := range m.removedversions {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CreativeBriefMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedversions {
+		edges = append(edges, creativebrief.EdgeVersions)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CreativeBriefMutation) EdgeCleared(name string) bool {
+	switch name {
+	case creativebrief.EdgeVersions:
+		return m.clearedversions
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CreativeBriefMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown CreativeBrief unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CreativeBriefMutation) ResetEdge(name string) error {
+	switch name {
+	case creativebrief.EdgeVersions:
+		m.ResetVersions()
+		return nil
+	}
+	return fmt.Errorf("unknown CreativeBrief edge %s", name)
+}
+
+// CreativeVersionMutation represents an operation that mutates the CreativeVersion nodes in the graph.
+type CreativeVersionMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *uuid.UUID
+	tenant_id         *uuid.UUID
+	parent_version_id *uuid.UUID
+	version_no        *int
+	addversion_no     *int
+	kind              *string
+	tier              *string
+	format            *string
+	copy              *map[string]interface{}
+	status            *string
+	credits           *int
+	addcredits        *int
+	error             *string
+	approved_by       *uuid.UUID
+	approved_at       *time.Time
+	metadata          *map[string]interface{}
+	created_at        *time.Time
+	updated_at        *time.Time
+	clearedFields     map[string]struct{}
+	brief             *uuid.UUID
+	clearedbrief      bool
+	assets            map[uuid.UUID]struct{}
+	removedassets     map[uuid.UUID]struct{}
+	clearedassets     bool
+	done              bool
+	oldValue          func(context.Context) (*CreativeVersion, error)
+	predicates        []predicate.CreativeVersion
+}
+
+var _ ent.Mutation = (*CreativeVersionMutation)(nil)
+
+// creativeversionOption allows management of the mutation configuration using functional options.
+type creativeversionOption func(*CreativeVersionMutation)
+
+// newCreativeVersionMutation creates new mutation for the CreativeVersion entity.
+func newCreativeVersionMutation(c config, op Op, opts ...creativeversionOption) *CreativeVersionMutation {
+	m := &CreativeVersionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCreativeVersion,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCreativeVersionID sets the ID field of the mutation.
+func withCreativeVersionID(id uuid.UUID) creativeversionOption {
+	return func(m *CreativeVersionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CreativeVersion
+		)
+		m.oldValue = func(ctx context.Context) (*CreativeVersion, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CreativeVersion.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCreativeVersion sets the old CreativeVersion of the mutation.
+func withCreativeVersion(node *CreativeVersion) creativeversionOption {
+	return func(m *CreativeVersionMutation) {
+		m.oldValue = func(context.Context) (*CreativeVersion, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CreativeVersionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CreativeVersionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of CreativeVersion entities.
+func (m *CreativeVersionMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CreativeVersionMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CreativeVersionMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CreativeVersion.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *CreativeVersionMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *CreativeVersionMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the CreativeVersion entity.
+// If the CreativeVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeVersionMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *CreativeVersionMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetBriefID sets the "brief_id" field.
+func (m *CreativeVersionMutation) SetBriefID(u uuid.UUID) {
+	m.brief = &u
+}
+
+// BriefID returns the value of the "brief_id" field in the mutation.
+func (m *CreativeVersionMutation) BriefID() (r uuid.UUID, exists bool) {
+	v := m.brief
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBriefID returns the old "brief_id" field's value of the CreativeVersion entity.
+// If the CreativeVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeVersionMutation) OldBriefID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBriefID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBriefID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBriefID: %w", err)
+	}
+	return oldValue.BriefID, nil
+}
+
+// ResetBriefID resets all changes to the "brief_id" field.
+func (m *CreativeVersionMutation) ResetBriefID() {
+	m.brief = nil
+}
+
+// SetParentVersionID sets the "parent_version_id" field.
+func (m *CreativeVersionMutation) SetParentVersionID(u uuid.UUID) {
+	m.parent_version_id = &u
+}
+
+// ParentVersionID returns the value of the "parent_version_id" field in the mutation.
+func (m *CreativeVersionMutation) ParentVersionID() (r uuid.UUID, exists bool) {
+	v := m.parent_version_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldParentVersionID returns the old "parent_version_id" field's value of the CreativeVersion entity.
+// If the CreativeVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeVersionMutation) OldParentVersionID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldParentVersionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldParentVersionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldParentVersionID: %w", err)
+	}
+	return oldValue.ParentVersionID, nil
+}
+
+// ClearParentVersionID clears the value of the "parent_version_id" field.
+func (m *CreativeVersionMutation) ClearParentVersionID() {
+	m.parent_version_id = nil
+	m.clearedFields[creativeversion.FieldParentVersionID] = struct{}{}
+}
+
+// ParentVersionIDCleared returns if the "parent_version_id" field was cleared in this mutation.
+func (m *CreativeVersionMutation) ParentVersionIDCleared() bool {
+	_, ok := m.clearedFields[creativeversion.FieldParentVersionID]
+	return ok
+}
+
+// ResetParentVersionID resets all changes to the "parent_version_id" field.
+func (m *CreativeVersionMutation) ResetParentVersionID() {
+	m.parent_version_id = nil
+	delete(m.clearedFields, creativeversion.FieldParentVersionID)
+}
+
+// SetVersionNo sets the "version_no" field.
+func (m *CreativeVersionMutation) SetVersionNo(i int) {
+	m.version_no = &i
+	m.addversion_no = nil
+}
+
+// VersionNo returns the value of the "version_no" field in the mutation.
+func (m *CreativeVersionMutation) VersionNo() (r int, exists bool) {
+	v := m.version_no
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersionNo returns the old "version_no" field's value of the CreativeVersion entity.
+// If the CreativeVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeVersionMutation) OldVersionNo(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersionNo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersionNo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersionNo: %w", err)
+	}
+	return oldValue.VersionNo, nil
+}
+
+// AddVersionNo adds i to the "version_no" field.
+func (m *CreativeVersionMutation) AddVersionNo(i int) {
+	if m.addversion_no != nil {
+		*m.addversion_no += i
+	} else {
+		m.addversion_no = &i
+	}
+}
+
+// AddedVersionNo returns the value that was added to the "version_no" field in this mutation.
+func (m *CreativeVersionMutation) AddedVersionNo() (r int, exists bool) {
+	v := m.addversion_no
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetVersionNo resets all changes to the "version_no" field.
+func (m *CreativeVersionMutation) ResetVersionNo() {
+	m.version_no = nil
+	m.addversion_no = nil
+}
+
+// SetKind sets the "kind" field.
+func (m *CreativeVersionMutation) SetKind(s string) {
+	m.kind = &s
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *CreativeVersionMutation) Kind() (r string, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the CreativeVersion entity.
+// If the CreativeVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeVersionMutation) OldKind(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *CreativeVersionMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetTier sets the "tier" field.
+func (m *CreativeVersionMutation) SetTier(s string) {
+	m.tier = &s
+}
+
+// Tier returns the value of the "tier" field in the mutation.
+func (m *CreativeVersionMutation) Tier() (r string, exists bool) {
+	v := m.tier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTier returns the old "tier" field's value of the CreativeVersion entity.
+// If the CreativeVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeVersionMutation) OldTier(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTier: %w", err)
+	}
+	return oldValue.Tier, nil
+}
+
+// ResetTier resets all changes to the "tier" field.
+func (m *CreativeVersionMutation) ResetTier() {
+	m.tier = nil
+}
+
+// SetFormat sets the "format" field.
+func (m *CreativeVersionMutation) SetFormat(s string) {
+	m.format = &s
+}
+
+// Format returns the value of the "format" field in the mutation.
+func (m *CreativeVersionMutation) Format() (r string, exists bool) {
+	v := m.format
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFormat returns the old "format" field's value of the CreativeVersion entity.
+// If the CreativeVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeVersionMutation) OldFormat(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFormat is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFormat requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFormat: %w", err)
+	}
+	return oldValue.Format, nil
+}
+
+// ResetFormat resets all changes to the "format" field.
+func (m *CreativeVersionMutation) ResetFormat() {
+	m.format = nil
+}
+
+// SetCopy sets the "copy" field.
+func (m *CreativeVersionMutation) SetCopy(value map[string]interface{}) {
+	m.copy = &value
+}
+
+// Copy returns the value of the "copy" field in the mutation.
+func (m *CreativeVersionMutation) Copy() (r map[string]interface{}, exists bool) {
+	v := m.copy
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCopy returns the old "copy" field's value of the CreativeVersion entity.
+// If the CreativeVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeVersionMutation) OldCopy(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCopy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCopy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCopy: %w", err)
+	}
+	return oldValue.Copy, nil
+}
+
+// ClearCopy clears the value of the "copy" field.
+func (m *CreativeVersionMutation) ClearCopy() {
+	m.copy = nil
+	m.clearedFields[creativeversion.FieldCopy] = struct{}{}
+}
+
+// CopyCleared returns if the "copy" field was cleared in this mutation.
+func (m *CreativeVersionMutation) CopyCleared() bool {
+	_, ok := m.clearedFields[creativeversion.FieldCopy]
+	return ok
+}
+
+// ResetCopy resets all changes to the "copy" field.
+func (m *CreativeVersionMutation) ResetCopy() {
+	m.copy = nil
+	delete(m.clearedFields, creativeversion.FieldCopy)
+}
+
+// SetStatus sets the "status" field.
+func (m *CreativeVersionMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *CreativeVersionMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the CreativeVersion entity.
+// If the CreativeVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeVersionMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *CreativeVersionMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetCredits sets the "credits" field.
+func (m *CreativeVersionMutation) SetCredits(i int) {
+	m.credits = &i
+	m.addcredits = nil
+}
+
+// Credits returns the value of the "credits" field in the mutation.
+func (m *CreativeVersionMutation) Credits() (r int, exists bool) {
+	v := m.credits
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCredits returns the old "credits" field's value of the CreativeVersion entity.
+// If the CreativeVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeVersionMutation) OldCredits(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCredits is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCredits requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCredits: %w", err)
+	}
+	return oldValue.Credits, nil
+}
+
+// AddCredits adds i to the "credits" field.
+func (m *CreativeVersionMutation) AddCredits(i int) {
+	if m.addcredits != nil {
+		*m.addcredits += i
+	} else {
+		m.addcredits = &i
+	}
+}
+
+// AddedCredits returns the value that was added to the "credits" field in this mutation.
+func (m *CreativeVersionMutation) AddedCredits() (r int, exists bool) {
+	v := m.addcredits
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCredits resets all changes to the "credits" field.
+func (m *CreativeVersionMutation) ResetCredits() {
+	m.credits = nil
+	m.addcredits = nil
+}
+
+// SetError sets the "error" field.
+func (m *CreativeVersionMutation) SetError(s string) {
+	m.error = &s
+}
+
+// Error returns the value of the "error" field in the mutation.
+func (m *CreativeVersionMutation) Error() (r string, exists bool) {
+	v := m.error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldError returns the old "error" field's value of the CreativeVersion entity.
+// If the CreativeVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeVersionMutation) OldError(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldError: %w", err)
+	}
+	return oldValue.Error, nil
+}
+
+// ClearError clears the value of the "error" field.
+func (m *CreativeVersionMutation) ClearError() {
+	m.error = nil
+	m.clearedFields[creativeversion.FieldError] = struct{}{}
+}
+
+// ErrorCleared returns if the "error" field was cleared in this mutation.
+func (m *CreativeVersionMutation) ErrorCleared() bool {
+	_, ok := m.clearedFields[creativeversion.FieldError]
+	return ok
+}
+
+// ResetError resets all changes to the "error" field.
+func (m *CreativeVersionMutation) ResetError() {
+	m.error = nil
+	delete(m.clearedFields, creativeversion.FieldError)
+}
+
+// SetApprovedBy sets the "approved_by" field.
+func (m *CreativeVersionMutation) SetApprovedBy(u uuid.UUID) {
+	m.approved_by = &u
+}
+
+// ApprovedBy returns the value of the "approved_by" field in the mutation.
+func (m *CreativeVersionMutation) ApprovedBy() (r uuid.UUID, exists bool) {
+	v := m.approved_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApprovedBy returns the old "approved_by" field's value of the CreativeVersion entity.
+// If the CreativeVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeVersionMutation) OldApprovedBy(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApprovedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApprovedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApprovedBy: %w", err)
+	}
+	return oldValue.ApprovedBy, nil
+}
+
+// ClearApprovedBy clears the value of the "approved_by" field.
+func (m *CreativeVersionMutation) ClearApprovedBy() {
+	m.approved_by = nil
+	m.clearedFields[creativeversion.FieldApprovedBy] = struct{}{}
+}
+
+// ApprovedByCleared returns if the "approved_by" field was cleared in this mutation.
+func (m *CreativeVersionMutation) ApprovedByCleared() bool {
+	_, ok := m.clearedFields[creativeversion.FieldApprovedBy]
+	return ok
+}
+
+// ResetApprovedBy resets all changes to the "approved_by" field.
+func (m *CreativeVersionMutation) ResetApprovedBy() {
+	m.approved_by = nil
+	delete(m.clearedFields, creativeversion.FieldApprovedBy)
+}
+
+// SetApprovedAt sets the "approved_at" field.
+func (m *CreativeVersionMutation) SetApprovedAt(t time.Time) {
+	m.approved_at = &t
+}
+
+// ApprovedAt returns the value of the "approved_at" field in the mutation.
+func (m *CreativeVersionMutation) ApprovedAt() (r time.Time, exists bool) {
+	v := m.approved_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApprovedAt returns the old "approved_at" field's value of the CreativeVersion entity.
+// If the CreativeVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeVersionMutation) OldApprovedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApprovedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApprovedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApprovedAt: %w", err)
+	}
+	return oldValue.ApprovedAt, nil
+}
+
+// ClearApprovedAt clears the value of the "approved_at" field.
+func (m *CreativeVersionMutation) ClearApprovedAt() {
+	m.approved_at = nil
+	m.clearedFields[creativeversion.FieldApprovedAt] = struct{}{}
+}
+
+// ApprovedAtCleared returns if the "approved_at" field was cleared in this mutation.
+func (m *CreativeVersionMutation) ApprovedAtCleared() bool {
+	_, ok := m.clearedFields[creativeversion.FieldApprovedAt]
+	return ok
+}
+
+// ResetApprovedAt resets all changes to the "approved_at" field.
+func (m *CreativeVersionMutation) ResetApprovedAt() {
+	m.approved_at = nil
+	delete(m.clearedFields, creativeversion.FieldApprovedAt)
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *CreativeVersionMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *CreativeVersionMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the CreativeVersion entity.
+// If the CreativeVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeVersionMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (m *CreativeVersionMutation) ClearMetadata() {
+	m.metadata = nil
+	m.clearedFields[creativeversion.FieldMetadata] = struct{}{}
+}
+
+// MetadataCleared returns if the "metadata" field was cleared in this mutation.
+func (m *CreativeVersionMutation) MetadataCleared() bool {
+	_, ok := m.clearedFields[creativeversion.FieldMetadata]
+	return ok
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *CreativeVersionMutation) ResetMetadata() {
+	m.metadata = nil
+	delete(m.clearedFields, creativeversion.FieldMetadata)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CreativeVersionMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CreativeVersionMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CreativeVersion entity.
+// If the CreativeVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeVersionMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CreativeVersionMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *CreativeVersionMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *CreativeVersionMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the CreativeVersion entity.
+// If the CreativeVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreativeVersionMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *CreativeVersionMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// ClearBrief clears the "brief" edge to the CreativeBrief entity.
+func (m *CreativeVersionMutation) ClearBrief() {
+	m.clearedbrief = true
+	m.clearedFields[creativeversion.FieldBriefID] = struct{}{}
+}
+
+// BriefCleared reports if the "brief" edge to the CreativeBrief entity was cleared.
+func (m *CreativeVersionMutation) BriefCleared() bool {
+	return m.clearedbrief
+}
+
+// BriefIDs returns the "brief" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// BriefID instead. It exists only for internal usage by the builders.
+func (m *CreativeVersionMutation) BriefIDs() (ids []uuid.UUID) {
+	if id := m.brief; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetBrief resets all changes to the "brief" edge.
+func (m *CreativeVersionMutation) ResetBrief() {
+	m.brief = nil
+	m.clearedbrief = false
+}
+
+// AddAssetIDs adds the "assets" edge to the CreativeAsset entity by ids.
+func (m *CreativeVersionMutation) AddAssetIDs(ids ...uuid.UUID) {
+	if m.assets == nil {
+		m.assets = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.assets[ids[i]] = struct{}{}
+	}
+}
+
+// ClearAssets clears the "assets" edge to the CreativeAsset entity.
+func (m *CreativeVersionMutation) ClearAssets() {
+	m.clearedassets = true
+}
+
+// AssetsCleared reports if the "assets" edge to the CreativeAsset entity was cleared.
+func (m *CreativeVersionMutation) AssetsCleared() bool {
+	return m.clearedassets
+}
+
+// RemoveAssetIDs removes the "assets" edge to the CreativeAsset entity by IDs.
+func (m *CreativeVersionMutation) RemoveAssetIDs(ids ...uuid.UUID) {
+	if m.removedassets == nil {
+		m.removedassets = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.assets, ids[i])
+		m.removedassets[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedAssets returns the removed IDs of the "assets" edge to the CreativeAsset entity.
+func (m *CreativeVersionMutation) RemovedAssetsIDs() (ids []uuid.UUID) {
+	for id := range m.removedassets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// AssetsIDs returns the "assets" edge IDs in the mutation.
+func (m *CreativeVersionMutation) AssetsIDs() (ids []uuid.UUID) {
+	for id := range m.assets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetAssets resets all changes to the "assets" edge.
+func (m *CreativeVersionMutation) ResetAssets() {
+	m.assets = nil
+	m.clearedassets = false
+	m.removedassets = nil
+}
+
+// Where appends a list predicates to the CreativeVersionMutation builder.
+func (m *CreativeVersionMutation) Where(ps ...predicate.CreativeVersion) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CreativeVersionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CreativeVersionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CreativeVersion, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CreativeVersionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CreativeVersionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CreativeVersion).
+func (m *CreativeVersionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CreativeVersionMutation) Fields() []string {
+	fields := make([]string, 0, 16)
+	if m.tenant_id != nil {
+		fields = append(fields, creativeversion.FieldTenantID)
+	}
+	if m.brief != nil {
+		fields = append(fields, creativeversion.FieldBriefID)
+	}
+	if m.parent_version_id != nil {
+		fields = append(fields, creativeversion.FieldParentVersionID)
+	}
+	if m.version_no != nil {
+		fields = append(fields, creativeversion.FieldVersionNo)
+	}
+	if m.kind != nil {
+		fields = append(fields, creativeversion.FieldKind)
+	}
+	if m.tier != nil {
+		fields = append(fields, creativeversion.FieldTier)
+	}
+	if m.format != nil {
+		fields = append(fields, creativeversion.FieldFormat)
+	}
+	if m.copy != nil {
+		fields = append(fields, creativeversion.FieldCopy)
+	}
+	if m.status != nil {
+		fields = append(fields, creativeversion.FieldStatus)
+	}
+	if m.credits != nil {
+		fields = append(fields, creativeversion.FieldCredits)
+	}
+	if m.error != nil {
+		fields = append(fields, creativeversion.FieldError)
+	}
+	if m.approved_by != nil {
+		fields = append(fields, creativeversion.FieldApprovedBy)
+	}
+	if m.approved_at != nil {
+		fields = append(fields, creativeversion.FieldApprovedAt)
+	}
+	if m.metadata != nil {
+		fields = append(fields, creativeversion.FieldMetadata)
+	}
+	if m.created_at != nil {
+		fields = append(fields, creativeversion.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, creativeversion.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CreativeVersionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case creativeversion.FieldTenantID:
+		return m.TenantID()
+	case creativeversion.FieldBriefID:
+		return m.BriefID()
+	case creativeversion.FieldParentVersionID:
+		return m.ParentVersionID()
+	case creativeversion.FieldVersionNo:
+		return m.VersionNo()
+	case creativeversion.FieldKind:
+		return m.Kind()
+	case creativeversion.FieldTier:
+		return m.Tier()
+	case creativeversion.FieldFormat:
+		return m.Format()
+	case creativeversion.FieldCopy:
+		return m.Copy()
+	case creativeversion.FieldStatus:
+		return m.Status()
+	case creativeversion.FieldCredits:
+		return m.Credits()
+	case creativeversion.FieldError:
+		return m.Error()
+	case creativeversion.FieldApprovedBy:
+		return m.ApprovedBy()
+	case creativeversion.FieldApprovedAt:
+		return m.ApprovedAt()
+	case creativeversion.FieldMetadata:
+		return m.Metadata()
+	case creativeversion.FieldCreatedAt:
+		return m.CreatedAt()
+	case creativeversion.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CreativeVersionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case creativeversion.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case creativeversion.FieldBriefID:
+		return m.OldBriefID(ctx)
+	case creativeversion.FieldParentVersionID:
+		return m.OldParentVersionID(ctx)
+	case creativeversion.FieldVersionNo:
+		return m.OldVersionNo(ctx)
+	case creativeversion.FieldKind:
+		return m.OldKind(ctx)
+	case creativeversion.FieldTier:
+		return m.OldTier(ctx)
+	case creativeversion.FieldFormat:
+		return m.OldFormat(ctx)
+	case creativeversion.FieldCopy:
+		return m.OldCopy(ctx)
+	case creativeversion.FieldStatus:
+		return m.OldStatus(ctx)
+	case creativeversion.FieldCredits:
+		return m.OldCredits(ctx)
+	case creativeversion.FieldError:
+		return m.OldError(ctx)
+	case creativeversion.FieldApprovedBy:
+		return m.OldApprovedBy(ctx)
+	case creativeversion.FieldApprovedAt:
+		return m.OldApprovedAt(ctx)
+	case creativeversion.FieldMetadata:
+		return m.OldMetadata(ctx)
+	case creativeversion.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case creativeversion.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown CreativeVersion field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CreativeVersionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case creativeversion.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case creativeversion.FieldBriefID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBriefID(v)
+		return nil
+	case creativeversion.FieldParentVersionID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetParentVersionID(v)
+		return nil
+	case creativeversion.FieldVersionNo:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersionNo(v)
+		return nil
+	case creativeversion.FieldKind:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case creativeversion.FieldTier:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTier(v)
+		return nil
+	case creativeversion.FieldFormat:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFormat(v)
+		return nil
+	case creativeversion.FieldCopy:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCopy(v)
+		return nil
+	case creativeversion.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case creativeversion.FieldCredits:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCredits(v)
+		return nil
+	case creativeversion.FieldError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetError(v)
+		return nil
+	case creativeversion.FieldApprovedBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApprovedBy(v)
+		return nil
+	case creativeversion.FieldApprovedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApprovedAt(v)
+		return nil
+	case creativeversion.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	case creativeversion.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case creativeversion.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CreativeVersion field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CreativeVersionMutation) AddedFields() []string {
+	var fields []string
+	if m.addversion_no != nil {
+		fields = append(fields, creativeversion.FieldVersionNo)
+	}
+	if m.addcredits != nil {
+		fields = append(fields, creativeversion.FieldCredits)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CreativeVersionMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case creativeversion.FieldVersionNo:
+		return m.AddedVersionNo()
+	case creativeversion.FieldCredits:
+		return m.AddedCredits()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CreativeVersionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case creativeversion.FieldVersionNo:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersionNo(v)
+		return nil
+	case creativeversion.FieldCredits:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCredits(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CreativeVersion numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CreativeVersionMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(creativeversion.FieldParentVersionID) {
+		fields = append(fields, creativeversion.FieldParentVersionID)
+	}
+	if m.FieldCleared(creativeversion.FieldCopy) {
+		fields = append(fields, creativeversion.FieldCopy)
+	}
+	if m.FieldCleared(creativeversion.FieldError) {
+		fields = append(fields, creativeversion.FieldError)
+	}
+	if m.FieldCleared(creativeversion.FieldApprovedBy) {
+		fields = append(fields, creativeversion.FieldApprovedBy)
+	}
+	if m.FieldCleared(creativeversion.FieldApprovedAt) {
+		fields = append(fields, creativeversion.FieldApprovedAt)
+	}
+	if m.FieldCleared(creativeversion.FieldMetadata) {
+		fields = append(fields, creativeversion.FieldMetadata)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CreativeVersionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CreativeVersionMutation) ClearField(name string) error {
+	switch name {
+	case creativeversion.FieldParentVersionID:
+		m.ClearParentVersionID()
+		return nil
+	case creativeversion.FieldCopy:
+		m.ClearCopy()
+		return nil
+	case creativeversion.FieldError:
+		m.ClearError()
+		return nil
+	case creativeversion.FieldApprovedBy:
+		m.ClearApprovedBy()
+		return nil
+	case creativeversion.FieldApprovedAt:
+		m.ClearApprovedAt()
+		return nil
+	case creativeversion.FieldMetadata:
+		m.ClearMetadata()
+		return nil
+	}
+	return fmt.Errorf("unknown CreativeVersion nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CreativeVersionMutation) ResetField(name string) error {
+	switch name {
+	case creativeversion.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case creativeversion.FieldBriefID:
+		m.ResetBriefID()
+		return nil
+	case creativeversion.FieldParentVersionID:
+		m.ResetParentVersionID()
+		return nil
+	case creativeversion.FieldVersionNo:
+		m.ResetVersionNo()
+		return nil
+	case creativeversion.FieldKind:
+		m.ResetKind()
+		return nil
+	case creativeversion.FieldTier:
+		m.ResetTier()
+		return nil
+	case creativeversion.FieldFormat:
+		m.ResetFormat()
+		return nil
+	case creativeversion.FieldCopy:
+		m.ResetCopy()
+		return nil
+	case creativeversion.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case creativeversion.FieldCredits:
+		m.ResetCredits()
+		return nil
+	case creativeversion.FieldError:
+		m.ResetError()
+		return nil
+	case creativeversion.FieldApprovedBy:
+		m.ResetApprovedBy()
+		return nil
+	case creativeversion.FieldApprovedAt:
+		m.ResetApprovedAt()
+		return nil
+	case creativeversion.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	case creativeversion.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case creativeversion.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CreativeVersion field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CreativeVersionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.brief != nil {
+		edges = append(edges, creativeversion.EdgeBrief)
+	}
+	if m.assets != nil {
+		edges = append(edges, creativeversion.EdgeAssets)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CreativeVersionMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case creativeversion.EdgeBrief:
+		if id := m.brief; id != nil {
+			return []ent.Value{*id}
+		}
+	case creativeversion.EdgeAssets:
+		ids := make([]ent.Value, 0, len(m.assets))
+		for id := range m.assets {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CreativeVersionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.removedassets != nil {
+		edges = append(edges, creativeversion.EdgeAssets)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CreativeVersionMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case creativeversion.EdgeAssets:
+		ids := make([]ent.Value, 0, len(m.removedassets))
+		for id := range m.removedassets {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CreativeVersionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedbrief {
+		edges = append(edges, creativeversion.EdgeBrief)
+	}
+	if m.clearedassets {
+		edges = append(edges, creativeversion.EdgeAssets)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CreativeVersionMutation) EdgeCleared(name string) bool {
+	switch name {
+	case creativeversion.EdgeBrief:
+		return m.clearedbrief
+	case creativeversion.EdgeAssets:
+		return m.clearedassets
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CreativeVersionMutation) ClearEdge(name string) error {
+	switch name {
+	case creativeversion.EdgeBrief:
+		m.ClearBrief()
+		return nil
+	}
+	return fmt.Errorf("unknown CreativeVersion unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CreativeVersionMutation) ResetEdge(name string) error {
+	switch name {
+	case creativeversion.EdgeBrief:
+		m.ResetBrief()
+		return nil
+	case creativeversion.EdgeAssets:
+		m.ResetAssets()
+		return nil
+	}
+	return fmt.Errorf("unknown CreativeVersion edge %s", name)
 }
 
 // CustomAgentMutation represents an operation that mutates the CustomAgent nodes in the graph.

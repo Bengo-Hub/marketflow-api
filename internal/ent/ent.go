@@ -22,6 +22,9 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
+	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
+	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
+	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/bengobox/marketflow-api/internal/ent/customfielddef"
 	"github.com/bengobox/marketflow-api/internal/ent/customfieldvalue"
@@ -120,6 +123,9 @@ func checkColumn(t, c string) error {
 			chatsession.Table:          chatsession.ValidColumn,
 			connectedaccount.Table:     connectedaccount.ValidColumn,
 			contact.Table:              contact.ValidColumn,
+			creativeasset.Table:        creativeasset.ValidColumn,
+			creativebrief.Table:        creativebrief.ValidColumn,
+			creativeversion.Table:      creativeversion.ValidColumn,
 			customagent.Table:          customagent.ValidColumn,
 			customfielddef.Table:       customfielddef.ValidColumn,
 			customfieldvalue.Table:     customfieldvalue.ValidColumn,

@@ -15,6 +15,9 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
+	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
+	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
+	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/bengobox/marketflow-api/internal/ent/customfielddef"
 	"github.com/bengobox/marketflow-api/internal/ent/customfieldvalue"
@@ -424,6 +427,134 @@ func init() {
 	contactDescID := contactFields[0].Descriptor()
 	// contact.DefaultID holds the default value on creation for the id field.
 	contact.DefaultID = contactDescID.Default.(func() uuid.UUID)
+	creativeassetFields := schema.CreativeAsset{}.Fields()
+	_ = creativeassetFields
+	// creativeassetDescKind is the schema descriptor for kind field.
+	creativeassetDescKind := creativeassetFields[3].Descriptor()
+	// creativeasset.DefaultKind holds the default value on creation for the kind field.
+	creativeasset.DefaultKind = creativeassetDescKind.Default.(string)
+	// creativeassetDescStorageKey is the schema descriptor for storage_key field.
+	creativeassetDescStorageKey := creativeassetFields[4].Descriptor()
+	// creativeasset.StorageKeyValidator is a validator for the "storage_key" field. It is called by the builders before save.
+	creativeasset.StorageKeyValidator = creativeassetDescStorageKey.Validators[0].(func(string) error)
+	// creativeassetDescURL is the schema descriptor for url field.
+	creativeassetDescURL := creativeassetFields[5].Descriptor()
+	// creativeasset.URLValidator is a validator for the "url" field. It is called by the builders before save.
+	creativeasset.URLValidator = creativeassetDescURL.Validators[0].(func(string) error)
+	// creativeassetDescBytes is the schema descriptor for bytes field.
+	creativeassetDescBytes := creativeassetFields[6].Descriptor()
+	// creativeasset.DefaultBytes holds the default value on creation for the bytes field.
+	creativeasset.DefaultBytes = creativeassetDescBytes.Default.(int64)
+	// creativeassetDescWidth is the schema descriptor for width field.
+	creativeassetDescWidth := creativeassetFields[7].Descriptor()
+	// creativeasset.DefaultWidth holds the default value on creation for the width field.
+	creativeasset.DefaultWidth = creativeassetDescWidth.Default.(int)
+	// creativeassetDescHeight is the schema descriptor for height field.
+	creativeassetDescHeight := creativeassetFields[8].Descriptor()
+	// creativeasset.DefaultHeight holds the default value on creation for the height field.
+	creativeasset.DefaultHeight = creativeassetDescHeight.Default.(int)
+	// creativeassetDescDurationMs is the schema descriptor for duration_ms field.
+	creativeassetDescDurationMs := creativeassetFields[9].Descriptor()
+	// creativeasset.DefaultDurationMs holds the default value on creation for the duration_ms field.
+	creativeasset.DefaultDurationMs = creativeassetDescDurationMs.Default.(int)
+	// creativeassetDescCreatedAt is the schema descriptor for created_at field.
+	creativeassetDescCreatedAt := creativeassetFields[14].Descriptor()
+	// creativeasset.DefaultCreatedAt holds the default value on creation for the created_at field.
+	creativeasset.DefaultCreatedAt = creativeassetDescCreatedAt.Default.(func() time.Time)
+	// creativeassetDescID is the schema descriptor for id field.
+	creativeassetDescID := creativeassetFields[0].Descriptor()
+	// creativeasset.DefaultID holds the default value on creation for the id field.
+	creativeasset.DefaultID = creativeassetDescID.Default.(func() uuid.UUID)
+	creativebriefFields := schema.CreativeBrief{}.Fields()
+	_ = creativebriefFields
+	// creativebriefDescTitle is the schema descriptor for title field.
+	creativebriefDescTitle := creativebriefFields[2].Descriptor()
+	// creativebrief.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	creativebrief.TitleValidator = func() func(string) error {
+		validators := creativebriefDescTitle.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(title string) error {
+			for _, fn := range fns {
+				if err := fn(title); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// creativebriefDescObjective is the schema descriptor for objective field.
+	creativebriefDescObjective := creativebriefFields[4].Descriptor()
+	// creativebrief.DefaultObjective holds the default value on creation for the objective field.
+	creativebrief.DefaultObjective = creativebriefDescObjective.Default.(string)
+	// creativebriefDescAudience is the schema descriptor for audience field.
+	creativebriefDescAudience := creativebriefFields[5].Descriptor()
+	// creativebrief.AudienceValidator is a validator for the "audience" field. It is called by the builders before save.
+	creativebrief.AudienceValidator = creativebriefDescAudience.Validators[0].(func(string) error)
+	// creativebriefDescLanguage is the schema descriptor for language field.
+	creativebriefDescLanguage := creativebriefFields[6].Descriptor()
+	// creativebrief.DefaultLanguage holds the default value on creation for the language field.
+	creativebrief.DefaultLanguage = creativebriefDescLanguage.Default.(string)
+	// creativebriefDescStatus is the schema descriptor for status field.
+	creativebriefDescStatus := creativebriefFields[7].Descriptor()
+	// creativebrief.DefaultStatus holds the default value on creation for the status field.
+	creativebrief.DefaultStatus = creativebriefDescStatus.Default.(string)
+	// creativebriefDescCreatedAt is the schema descriptor for created_at field.
+	creativebriefDescCreatedAt := creativebriefFields[10].Descriptor()
+	// creativebrief.DefaultCreatedAt holds the default value on creation for the created_at field.
+	creativebrief.DefaultCreatedAt = creativebriefDescCreatedAt.Default.(func() time.Time)
+	// creativebriefDescUpdatedAt is the schema descriptor for updated_at field.
+	creativebriefDescUpdatedAt := creativebriefFields[11].Descriptor()
+	// creativebrief.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	creativebrief.DefaultUpdatedAt = creativebriefDescUpdatedAt.Default.(func() time.Time)
+	// creativebrief.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	creativebrief.UpdateDefaultUpdatedAt = creativebriefDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// creativebriefDescID is the schema descriptor for id field.
+	creativebriefDescID := creativebriefFields[0].Descriptor()
+	// creativebrief.DefaultID holds the default value on creation for the id field.
+	creativebrief.DefaultID = creativebriefDescID.Default.(func() uuid.UUID)
+	creativeversionFields := schema.CreativeVersion{}.Fields()
+	_ = creativeversionFields
+	// creativeversionDescVersionNo is the schema descriptor for version_no field.
+	creativeversionDescVersionNo := creativeversionFields[4].Descriptor()
+	// creativeversion.VersionNoValidator is a validator for the "version_no" field. It is called by the builders before save.
+	creativeversion.VersionNoValidator = creativeversionDescVersionNo.Validators[0].(func(int) error)
+	// creativeversionDescKind is the schema descriptor for kind field.
+	creativeversionDescKind := creativeversionFields[5].Descriptor()
+	// creativeversion.DefaultKind holds the default value on creation for the kind field.
+	creativeversion.DefaultKind = creativeversionDescKind.Default.(string)
+	// creativeversionDescTier is the schema descriptor for tier field.
+	creativeversionDescTier := creativeversionFields[6].Descriptor()
+	// creativeversion.DefaultTier holds the default value on creation for the tier field.
+	creativeversion.DefaultTier = creativeversionDescTier.Default.(string)
+	// creativeversionDescStatus is the schema descriptor for status field.
+	creativeversionDescStatus := creativeversionFields[9].Descriptor()
+	// creativeversion.DefaultStatus holds the default value on creation for the status field.
+	creativeversion.DefaultStatus = creativeversionDescStatus.Default.(string)
+	// creativeversionDescCredits is the schema descriptor for credits field.
+	creativeversionDescCredits := creativeversionFields[10].Descriptor()
+	// creativeversion.DefaultCredits holds the default value on creation for the credits field.
+	creativeversion.DefaultCredits = creativeversionDescCredits.Default.(int)
+	// creativeversionDescError is the schema descriptor for error field.
+	creativeversionDescError := creativeversionFields[11].Descriptor()
+	// creativeversion.ErrorValidator is a validator for the "error" field. It is called by the builders before save.
+	creativeversion.ErrorValidator = creativeversionDescError.Validators[0].(func(string) error)
+	// creativeversionDescCreatedAt is the schema descriptor for created_at field.
+	creativeversionDescCreatedAt := creativeversionFields[15].Descriptor()
+	// creativeversion.DefaultCreatedAt holds the default value on creation for the created_at field.
+	creativeversion.DefaultCreatedAt = creativeversionDescCreatedAt.Default.(func() time.Time)
+	// creativeversionDescUpdatedAt is the schema descriptor for updated_at field.
+	creativeversionDescUpdatedAt := creativeversionFields[16].Descriptor()
+	// creativeversion.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	creativeversion.DefaultUpdatedAt = creativeversionDescUpdatedAt.Default.(func() time.Time)
+	// creativeversion.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	creativeversion.UpdateDefaultUpdatedAt = creativeversionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// creativeversionDescID is the schema descriptor for id field.
+	creativeversionDescID := creativeversionFields[0].Descriptor()
+	// creativeversion.DefaultID holds the default value on creation for the id field.
+	creativeversion.DefaultID = creativeversionDescID.Default.(func() uuid.UUID)
 	customagentFields := schema.CustomAgent{}.Fields()
 	_ = customagentFields
 	// customagentDescName is the schema descriptor for name field.
