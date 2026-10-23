@@ -3,6 +3,8 @@ package shortlinks
 import (
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/Bengo-Hub/pagination"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
@@ -58,6 +60,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	if req.TargetURL == "" {
 		httpapi.Error(w, http.StatusBadRequest, "missing_target", "target_url is required", nil)
+		return
+	}
+	// /s/{code} redirects from our own domain, so only web links may be stored (no
+	// javascript:, data: or app schemes that would borrow our domain's trust).
+	if u, err := url.Parse(strings.TrimSpace(req.TargetURL)); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || len(req.TargetURL) > 2048 {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_target", "Use a full web link starting with https://", nil)
 		return
 	}
 
