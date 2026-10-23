@@ -33,6 +33,7 @@ type createFunnelRequest struct {
 	LandingPageHTML *string          `json:"landing_page_html"`
 	LandingPageCSS  map[string]any   `json:"landing_page_css"`
 	Metadata        map[string]any   `json:"metadata"`
+	legacyFields
 }
 
 type updateFunnelRequest struct {
@@ -44,6 +45,7 @@ type updateFunnelRequest struct {
 	LandingPageHTML *string          `json:"landing_page_html"`
 	LandingPageCSS  map[string]any   `json:"landing_page_css"`
 	Metadata        map[string]any   `json:"metadata"`
+	legacyFields
 }
 
 // Create handles POST /api/v1/funnels
@@ -76,6 +78,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "name and slug are required", nil)
 		return
 	}
+
+	req.Steps, req.Metadata = req.legacyFields.fold(req.Steps, req.Metadata)
 
 	result, err := h.service.Create(r.Context(), CreateInput{
 		TenantID:        tenantID,
@@ -204,6 +208,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid request body", nil)
 		return
 	}
+
+	req.Steps, req.Metadata = req.legacyFields.fold(req.Steps, req.Metadata)
 
 	result, err := h.service.Update(r.Context(), tenantID, funnelID, UpdateInput{
 		Name:            req.Name,

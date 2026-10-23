@@ -4745,8 +4745,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/funnels.PublicFunnel"
                         }
                     },
                     "404": {
@@ -7470,10 +7469,74 @@ const docTemplate = `{
                 }
             }
         },
+        "funnels.PublicFunnel": {
+            "type": "object",
+            "properties": {
+                "brand_color": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "funnel_type": {
+                    "type": "string"
+                },
+                "headline": {
+                    "type": "string"
+                },
+                "hero_image_url": {
+                    "type": "string"
+                },
+                "landing_page_html": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "steps": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                },
+                "subheadline": {
+                    "type": "string"
+                },
+                "tenant_slug": {
+                    "type": "string"
+                }
+            }
+        },
         "funnels.createFunnelRequest": {
             "type": "object",
             "properties": {
+                "content_json": {
+                    "type": "object",
+                    "properties": {
+                        "steps": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        },
+                        "theme": {
+                            "type": "object",
+                            "additionalProperties": {}
+                        }
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
                 "funnel_type": {
+                    "type": "string"
+                },
+                "headline": {
                     "type": "string"
                 },
                 "landing_page_css": {
@@ -7499,6 +7562,9 @@ const docTemplate = `{
                         "type": "object",
                         "additionalProperties": {}
                     }
+                },
+                "subheadline": {
+                    "type": "string"
                 }
             }
         },
@@ -7513,7 +7579,29 @@ const docTemplate = `{
         "funnels.updateFunnelRequest": {
             "type": "object",
             "properties": {
+                "content_json": {
+                    "type": "object",
+                    "properties": {
+                        "steps": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        },
+                        "theme": {
+                            "type": "object",
+                            "additionalProperties": {}
+                        }
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
                 "funnel_type": {
+                    "type": "string"
+                },
+                "headline": {
                     "type": "string"
                 },
                 "landing_page_css": {
@@ -7542,6 +7630,9 @@ const docTemplate = `{
                         "type": "object",
                         "additionalProperties": {}
                     }
+                },
+                "subheadline": {
+                    "type": "string"
                 }
             }
         },

@@ -186,7 +186,7 @@ func (h *PublicHandler) ListTestimonials(w http.ResponseWriter, r *http.Request)
 // @Tags Public
 // @Produce json
 // @Param slug path string true "Funnel URL slug"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} funnels.PublicFunnel
 // @Failure 404 {object} httpapi.ErrorResponse
 // @Router /public/funnels/{slug} [get]
 func (h *PublicHandler) GetFunnel(w http.ResponseWriter, r *http.Request) {
@@ -200,9 +200,14 @@ func (h *PublicHandler) GetFunnel(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusNotFound, "not_found", "funnel not found", nil)
 		return
 	}
-	// The UI renders this HTML as is; rows saved before the save-time check need it here.
-	result.LandingPageHTML = funnels.SanitizeLandingHTML(result.LandingPageHTML)
-	httpapi.JSON(w, http.StatusOK, result)
+	// The page posts leads to the tenant's slug, so the public view carries it. It never
+	// carries the tenant id, counters or internal metadata.
+	t, err := h.entClient.Tenant.Get(r.Context(), result.TenantID)
+	if err != nil {
+		httpapi.Error(w, http.StatusNotFound, "not_found", "funnel not found", nil)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, funnels.ToPublic(result, t.Slug))
 }
 
 // RenderFunnel handles GET /f/{slug} — server-rendered HTML landing page.
@@ -253,9 +258,15 @@ func renderDefaultFunnel(f *ent.Funnel, tenantSlug string) string {
 		brand = funnels.SafeColor(c, brand)
 	}
 	title := f.Name
+	if s, ok := f.Metadata[funnels.MetaHeadline].(string); ok && s != "" {
+		title = s
+	}
 	subtitle := "Tell us a bit about yourself and we'll reach out within 24 hours."
-	if s, ok := f.Metadata["subtitle"].(string); ok && s != "" {
-		subtitle = s
+	for _, k := range []string{funnels.MetaSubheadline, "subtitle"} {
+		if s, ok := f.Metadata[k].(string); ok && s != "" {
+			subtitle = s
+			break
+		}
 	}
 	return fmt.Sprintf(`<!doctype html>
 <html lang="en">

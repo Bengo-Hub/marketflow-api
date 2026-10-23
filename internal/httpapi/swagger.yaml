@@ -474,9 +474,52 @@ definitions:
       value:
         type: number
     type: object
+  funnels.PublicFunnel:
+    properties:
+      brand_color:
+        type: string
+      description:
+        type: string
+      funnel_type:
+        type: string
+      headline:
+        type: string
+      hero_image_url:
+        type: string
+      landing_page_html:
+        type: string
+      name:
+        type: string
+      slug:
+        type: string
+      steps:
+        items:
+          additionalProperties: {}
+          type: object
+        type: array
+      subheadline:
+        type: string
+      tenant_slug:
+        type: string
+    type: object
   funnels.createFunnelRequest:
     properties:
+      content_json:
+        properties:
+          steps:
+            items:
+              additionalProperties: {}
+              type: object
+            type: array
+          theme:
+            additionalProperties: {}
+            type: object
+        type: object
+      description:
+        type: string
       funnel_type:
+        type: string
+      headline:
         type: string
       landing_page_css:
         additionalProperties: {}
@@ -495,6 +538,8 @@ definitions:
           additionalProperties: {}
           type: object
         type: array
+      subheadline:
+        type: string
     type: object
   funnels.stepViewRequest:
     properties:
@@ -503,7 +548,22 @@ definitions:
     type: object
   funnels.updateFunnelRequest:
     properties:
+      content_json:
+        properties:
+          steps:
+            items:
+              additionalProperties: {}
+              type: object
+            type: array
+          theme:
+            additionalProperties: {}
+            type: object
+        type: object
+      description:
+        type: string
       funnel_type:
+        type: string
+      headline:
         type: string
       landing_page_css:
         additionalProperties: {}
@@ -524,6 +584,8 @@ definitions:
           additionalProperties: {}
           type: object
         type: array
+      subheadline:
+        type: string
     type: object
   httpapi.ErrorResponse:
     properties:
@@ -4041,8 +4103,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/funnels.PublicFunnel'
         "404":
           description: Not Found
           schema:

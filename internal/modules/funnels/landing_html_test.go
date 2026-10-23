@@ -33,3 +33,21 @@ func TestSafeColor(t *testing.T) {
 		}
 	}
 }
+
+func TestLegacyFieldsFold(t *testing.T) {
+	head, color := "Join the challenge", "#16a34a"
+	l := legacyFields{Headline: &head}
+	l.ContentJSON = &struct {
+		Steps []map[string]any `json:"steps"`
+		Theme map[string]any   `json:"theme"`
+	}{Steps: []map[string]any{{"block_type": "form"}}, Theme: map[string]any{"brand_color": color}}
+	steps, meta := l.fold(nil, nil)
+	if len(steps) != 1 || meta[MetaHeadline] != head || meta[MetaBrandColor] != color {
+		t.Fatalf("fold = %v %v", steps, meta)
+	}
+	// Canonical values win.
+	steps, meta = l.fold([]map[string]any{}, map[string]any{MetaHeadline: "Mine"})
+	if len(steps) != 0 || meta[MetaHeadline] != "Mine" {
+		t.Fatalf("canonical overwritten: %v %v", steps, meta)
+	}
+}
