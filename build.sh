@@ -184,6 +184,11 @@ source "${HOME}/devops-k8s/scripts/helm/update-values.sh" 2>/dev/null || {
 }
 if declare -f update_helm_values >/dev/null 2>&1; then
   update_helm_values "$APP_NAME" "$GIT_COMMIT_ID" "$IMAGE_REPO"
+  # The worker runs from the same image as its own deployment (MF_ROLE=worker), so it moves to
+  # the same tag. Skipped until that app exists in devops-k8s (the first call synced the clone).
+  if [ -f "${DEVOPS_DIR:-$HOME/devops-k8s}/apps/marketflow-worker/values.yaml" ]; then
+    update_helm_values "marketflow-worker" "$GIT_COMMIT_ID" "$IMAGE_REPO" || warn "marketflow-worker values not updated"
+  fi
 else
   warn "update_helm_values function not available - helm values not updated"
 fi
