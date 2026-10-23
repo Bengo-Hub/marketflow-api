@@ -24,8 +24,8 @@ const (
 	reviewDomain     = "marketflow/creative-review/v1"
 	reviewMACLen     = 16
 	reviewTokenLen   = 16 + 4 + 2 + reviewMACLen
-	DefaultReviewTTL = 7 * 24 * time.Hour
-	maxReviewTTL     = 30 * 24 * time.Hour
+	DefaultReviewTTL = 72 * time.Hour
+	maxReviewTTL     = 7 * 24 * time.Hour
 )
 
 // ErrReviewLink is any link that is malformed, forged, expired, revoked or

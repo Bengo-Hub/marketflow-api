@@ -157,12 +157,25 @@ func TestVersionNumbersAndReview(t *testing.T) {
 		t.Fatalf("approve other tenant: %v", err)
 	}
 
-	// Ready with a file: approve clears the file's expiry; discard sets a short one.
+	// One more fits; the 6th live draft for the tenant is refused.
+	if _, err := s.CreateVersion(ctx, tid, b.ID, VersionInput{Prompt: "fifth"}); err != nil {
+		t.Fatalf("5th draft: %v", err)
+	}
+	if _, err := s.CreateVersion(ctx, tid, b.ID, VersionInput{Prompt: "sixth"}); !errors.Is(err, ErrDraftLimit) {
+		t.Fatalf("6th draft: %v", err)
+	}
+
+	// Ready with a file each: discard expires the file now; approve clears its
+	// file's expiry and supersedes the brief's other ready draft (24 h).
 	exp := time.Now().Add(DraftTTL)
-	for _, x := range vs[:2] {
+	for _, x := range vs[:3] {
 		_ = s.db.CreativeVersion.UpdateOneID(x.ID).SetStatus(StatusReady).Exec(ctx)
 		s.db.CreativeAsset.Create().SetTenantID(tid).SetVersionID(x.ID).SetStorageKey("k/" + x.ID.String()).
 			SetURL("https://media.example.com/" + x.ID.String() + ".jpg").SetExpiresAt(exp).SaveX(ctx)
+	}
+	dc, err := s.Discard(ctx, tid, vs[1].ID)
+	if err != nil || dc.Status != StatusRejected || dc.Edges.Assets[0].ExpiresAt == nil || dc.Edges.Assets[0].ExpiresAt.After(time.Now()) {
+		t.Fatalf("discard: %v %+v", err, dc)
 	}
 	user := uuid.New()
 	ap, err := s.Approve(ctx, tid, vs[0].ID, &user)
@@ -175,13 +188,16 @@ func TestVersionNumbersAndReview(t *testing.T) {
 	if _, err := s.Approve(ctx, tid, vs[0].ID, &user); !errors.Is(err, ErrConflict) {
 		t.Fatalf("second approve: %v", err)
 	}
-	dc, err := s.Discard(ctx, tid, vs[1].ID)
-	if err != nil || dc.Status != StatusRejected || dc.Edges.Assets[0].ExpiresAt == nil || dc.Edges.Assets[0].ExpiresAt.After(time.Now().Add(25*time.Hour)) {
-		t.Fatalf("discard: %v %+v", err, dc)
+	sup, _ := s.GetVersion(ctx, tid, vs[2].ID)
+	if sup.Status != StatusSuperseded || sup.Edges.Assets[0].ExpiresAt.After(time.Now().Add(supersededTTL+time.Minute)) {
+		t.Fatalf("sibling: %s %v", sup.Status, sup.Edges.Assets[0].ExpiresAt)
+	}
+	if rj, _ := s.GetVersion(ctx, tid, vs[1].ID); rj.Status != StatusRejected {
+		t.Fatalf("a rejected draft must stay rejected: %s", rj.Status)
 	}
 
 	full, err := s.GetBrief(ctx, tid, b.ID)
-	if err != nil || len(full.Edges.Versions) != 4 || full.Edges.Versions[0].VersionNo != 4 {
+	if err != nil || len(full.Edges.Versions) != 5 || full.Edges.Versions[0].VersionNo != 5 {
 		t.Fatalf("get brief: %v", err)
 	}
 }
@@ -347,7 +363,7 @@ func TestReviewLinks(t *testing.T) {
 	}
 
 	token, exp, err := rv.Link(ctx, tid, v.ID, 0)
-	if err != nil || exp.Before(time.Now().Add(6*24*time.Hour)) {
+	if err != nil || exp.Before(time.Now().Add(71*time.Hour)) || exp.After(time.Now().Add(73*time.Hour)) {
 		t.Fatalf("link: %v %v", err, exp)
 	}
 	if url, err := rv.Open(ctx, token); err != nil || url != "https://media.example.com/p.jpg" {
@@ -385,6 +401,11 @@ func TestReviewLinks(t *testing.T) {
 	}
 	if _, err := rv.Open(ctx, token); err == nil {
 		t.Fatal("revoked token opened")
+	}
+	rec = httptest.NewRecorder()
+	h.OpenReview(rec, withURLParam(httptest.NewRequest(http.MethodGet, "/r/"+token, nil), "token", token))
+	if rec.Code != http.StatusGone {
+		t.Fatalf("revoked link through the handler: %d", rec.Code)
 	}
 	fresh, _, _ := rv.Link(ctx, tid, v.ID, 0)
 	if _, err := rv.Open(ctx, fresh); err != nil {

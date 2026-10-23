@@ -34,15 +34,16 @@ const (
 // Limits.
 const (
 	// maxLiveDrafts caps a tenant's versions that are queued, rendering or
-	// waiting for review, so a loop in a client cannot fill the render queue.
-	maxLiveDrafts = 50
+	// waiting for review (the free-tier guard in the sprint plan).
+	maxLiveDrafts = 5
 	// DraftTTL is how long an unapproved draft's files are kept.
-	DraftTTL = 30 * 24 * time.Hour
-	// rejectedTTL is how long a discarded draft's files are kept (undo window).
-	rejectedTTL  = 24 * time.Hour
-	maxPromptLen = 2000
-	maxCopyLen   = 200
-	maxPhotos    = 4
+	DraftTTL = 72 * time.Hour
+	// supersededTTL keeps the other drafts of a brief for a day after one of
+	// them is approved.
+	supersededTTL = 24 * time.Hour
+	maxPromptLen  = 2000
+	maxCopyLen    = 200
+	maxPhotos     = 4
 )
 
 var (
@@ -318,20 +319,21 @@ func (s *Service) GetVersion(ctx context.Context, tenantID, id uuid.UUID) (*ent.
 	return s.version(ctx, tenantID, id)
 }
 
-// Approve keeps a ready version: its files stop expiring.
+// Approve keeps a ready version: its files stop expiring, and the brief's other
+// drafts waiting for review are superseded (their files go after a day).
 func (s *Service) Approve(ctx context.Context, tenantID, id uuid.UUID, by *uuid.UUID) (*ent.CreativeVersion, error) {
-	return s.decide(ctx, tenantID, id, StatusApproved, by, nil)
+	return s.decide(ctx, tenantID, id, StatusApproved, by)
 }
 
-// Discard rejects a ready or failed version; its files go after a day.
+// Discard rejects a ready or failed version; the next hourly purge deletes its files.
 func (s *Service) Discard(ctx context.Context, tenantID, id uuid.UUID) (*ent.CreativeVersion, error) {
-	at := s.nowFn().Add(rejectedTTL)
-	return s.decide(ctx, tenantID, id, StatusRejected, nil, &at)
+	return s.decide(ctx, tenantID, id, StatusRejected, nil)
 }
 
 // decide moves a version out of review in one transaction: the status change is
 // conditional on the version still being in review, so two clicks agree.
-func (s *Service) decide(ctx context.Context, tenantID, id uuid.UUID, status string, by *uuid.UUID, expires *time.Time) (*ent.CreativeVersion, error) {
+func (s *Service) decide(ctx context.Context, tenantID, id uuid.UUID, status string, by *uuid.UUID) (*ent.CreativeVersion, error) {
+	now := s.nowFn()
 	from := []string{StatusReady}
 	if status == StatusRejected {
 		from = append(from, StatusFailed)
@@ -345,7 +347,7 @@ func (s *Service) decide(ctx context.Context, tenantID, id uuid.UUID, status str
 		Where(creativeversion.ID(id), creativeversion.TenantID(tenantID), creativeversion.StatusIn(from...)).
 		SetStatus(status)
 	if status == StatusApproved {
-		u.SetApprovedAt(s.nowFn()).SetNillableApprovedBy(by)
+		u.SetApprovedAt(now).SetNillableApprovedBy(by)
 	}
 	n, err := u.Save(ctx)
 	if err != nil {
@@ -362,16 +364,47 @@ func (s *Service) decide(ctx context.Context, tenantID, id uuid.UUID, status str
 		return nil, fmt.Errorf("%w: only a version waiting for review can be %s", ErrConflict, status)
 	}
 	a := tx.CreativeAsset.Update().Where(creativeasset.VersionID(id), creativeasset.PurgedAtIsNil())
-	if expires == nil {
+	if status == StatusApproved {
 		a.ClearExpiresAt()
 	} else {
-		a.SetExpiresAt(*expires)
+		a.SetExpiresAt(now)
 	}
 	if _, err := a.Save(ctx); err != nil {
 		return nil, err
+	}
+	if status == StatusApproved {
+		if err := supersedeSiblings(ctx, tx, id, now.Add(supersededTTL)); err != nil {
+			return nil, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 	return s.version(ctx, tenantID, id)
+}
+
+// supersedeSiblings retires the other drafts of the approved version's brief
+// and brings their files' expiry forward to until (never later than it was).
+func supersedeSiblings(ctx context.Context, tx *ent.Tx, approvedID uuid.UUID, until time.Time) error {
+	v, err := tx.CreativeVersion.Get(ctx, approvedID)
+	if err != nil {
+		return err
+	}
+	siblings, err := tx.CreativeVersion.Query().
+		Where(creativeversion.BriefID(v.BriefID), creativeversion.IDNEQ(approvedID), creativeversion.StatusEQ(StatusReady)).
+		IDs(ctx)
+	if err != nil || len(siblings) == 0 {
+		return err
+	}
+	if err := tx.CreativeVersion.Update().
+		Where(creativeversion.IDIn(siblings...), creativeversion.StatusEQ(StatusReady)).
+		SetStatus(StatusSuperseded).
+		Exec(ctx); err != nil {
+		return err
+	}
+	return tx.CreativeAsset.Update().
+		Where(creativeasset.VersionIDIn(siblings...), creativeasset.PurgedAtIsNil(),
+			creativeasset.Or(creativeasset.ExpiresAtIsNil(), creativeasset.ExpiresAtGT(until))).
+		SetExpiresAt(until).
+		Exec(ctx)
 }

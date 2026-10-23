@@ -2695,7 +2695,8 @@ paths:
             $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
-      summary: 'Approve a draft: its files are kept'
+      summary: 'Approve a draft: its files are kept and the brief''s other drafts
+        are superseded'
       tags:
       - Creative
   /creative/versions/{id}/discard:
@@ -2725,7 +2726,7 @@ paths:
             $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
-      summary: 'Discard a draft: its files are deleted after a day'
+      summary: 'Discard a draft: the next hourly purge deletes its files'
       tags:
       - Creative
   /creative/versions/{id}/review-link:
@@ -2782,7 +2783,7 @@ paths:
             $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
-      summary: Make a review link for a draft (default 7 days, max 30)
+      summary: Make a review link for a draft (default 72 hours, max 7 days)
       tags:
       - Creative
   /custom-fields/defs:

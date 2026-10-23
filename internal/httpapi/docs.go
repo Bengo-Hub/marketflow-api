@@ -2462,7 +2462,7 @@ const docTemplate = `{
                 "tags": [
                     "Creative"
                 ],
-                "summary": "Approve a draft: its files are kept",
+                "summary": "Approve a draft: its files are kept and the brief's other drafts are superseded",
                 "parameters": [
                     {
                         "type": "string",
@@ -2509,7 +2509,7 @@ const docTemplate = `{
                 "tags": [
                     "Creative"
                 ],
-                "summary": "Discard a draft: its files are deleted after a day",
+                "summary": "Discard a draft: the next hourly purge deletes its files",
                 "parameters": [
                     {
                         "type": "string",
@@ -2559,7 +2559,7 @@ const docTemplate = `{
                 "tags": [
                     "Creative"
                 ],
-                "summary": "Make a review link for a draft (default 7 days, max 30)",
+                "summary": "Make a review link for a draft (default 72 hours, max 7 days)",
                 "parameters": [
                     {
                         "type": "string",

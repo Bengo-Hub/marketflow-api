@@ -251,7 +251,7 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 }
 
 // Approve handles POST /api/v1/creative/versions/{id}/approve.
-// @Summary Approve a draft: its files are kept
+// @Summary Approve a draft: its files are kept and the brief's other drafts are superseded
 // @Tags Creative
 // @Produce json
 // @Param X-Tenant-ID header string true "Tenant UUID"
@@ -278,7 +278,7 @@ func (h *Handler) Approve(w http.ResponseWriter, r *http.Request) {
 }
 
 // Discard handles POST /api/v1/creative/versions/{id}/discard.
-// @Summary Discard a draft: its files are deleted after a day
+// @Summary Discard a draft: the next hourly purge deletes its files
 // @Tags Creative
 // @Produce json
 // @Param X-Tenant-ID header string true "Tenant UUID"
@@ -310,7 +310,7 @@ type reviewLinkRequest struct {
 }
 
 // CreateReviewLink handles POST /api/v1/creative/versions/{id}/review-link.
-// @Summary Make a review link for a draft (default 7 days, max 30)
+// @Summary Make a review link for a draft (default 72 hours, max 7 days)
 // @Tags Creative
 // @Accept json
 // @Produce json
@@ -374,14 +374,14 @@ func (h *Handler) RevokeReviewLinks(w http.ResponseWriter, r *http.Request) {
 }
 
 // OpenReview handles the public GET /r/{token}: a 302 to the draft's image.
-// Every failure is the same 404 so a token reveals nothing.
+// Every failure is the same 410 so a token reveals nothing.
 func (h *Handler) OpenReview(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Robots-Tag", "noindex, nofollow")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	url, err := h.reviews.Open(r.Context(), chi.URLParam(r, "token"))
 	if err != nil {
-		http.Error(w, "This review link has expired or was turned off.", http.StatusNotFound)
+		http.Error(w, "This review link has expired or was turned off.", http.StatusGone)
 		return
 	}
 	http.Redirect(w, r, url, http.StatusFound)
