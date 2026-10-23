@@ -236,17 +236,10 @@ func main() {
 		)
 		go slaCron.Run(ctx)
 
-		// MeetingPrepAgent: every 15 min, sends prep briefs 25–35 min before meetings.
-		meetingPrep := worker.NewMeetingPrepAgent(
-			entClient,
-			cfg.API.MarketFlowAIURL,
-			cfg.API.MarketFlowAPIURL,
-			cfg.API.InternalServiceKey,
-			cfg.Notifications.URL,
-			logger.Named("agent.meeting-prep"),
-			&http.Client{Timeout: 30 * time.Second},
-		)
-		go meetingPrep.Run(ctx)
+		// Meeting prep: every 5 min, emails the organizer a brief 25 to 35 min before
+		// each meeting, with AI talking points when marketflow-ai answers in time.
+		go worker.NewMeetingPrepAgent(entClient, tokenNotif, cfg.API.MarketFlowAIURL,
+			cfg.API.InternalServiceKey, cfg.API.PortalURL, logger.Named("agent.meeting-prep")).Run(ctx)
 	}
 
 	// ── Health endpoint ───────────────────────────────────────────────────

@@ -23,7 +23,6 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/agentrun"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
-	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
 	"github.com/google/uuid"
@@ -419,71 +418,6 @@ func (a *NurtureSequenceEnhancer) Handle(ctx context.Context, msg jetstream.Msg)
 		zap.String("sequence_id", seqResult.Data[0].ID),
 	)
 	return nil
-}
-
-// ── MeetingPrepAgent ─────────────────────────────────────────────────────────
-
-// MeetingPrepAgent runs every 15 minutes and sends meeting prep briefs for meetings
-// scheduled 25–35 minutes in the future that haven't been prepped yet.
-type MeetingPrepAgent struct {
-	db         *ent.Client
-	aiBaseURL  string
-	apiBaseURL string
-	serviceKey string
-	notifURL   string
-	logger     *zap.Logger
-	hc         *http.Client
-}
-
-// NewMeetingPrepAgent constructs a MeetingPrepAgent.
-func NewMeetingPrepAgent(db *ent.Client, aiBaseURL, apiBaseURL, serviceKey, notifURL string, logger *zap.Logger, hc *http.Client) *MeetingPrepAgent {
-	return &MeetingPrepAgent{db: db, aiBaseURL: aiBaseURL, apiBaseURL: apiBaseURL, serviceKey: serviceKey, notifURL: notifURL, logger: logger, hc: hc}
-}
-
-func (a *MeetingPrepAgent) Run(ctx context.Context) {
-	ticker := time.NewTicker(15 * time.Minute)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			a.run(ctx)
-		}
-	}
-}
-
-func (a *MeetingPrepAgent) run(ctx context.Context) {
-	// Runs on every replica's ticker; only the first replica in each period does the work.
-	if !sharedcache.ClaimPeriod(ctx, "marketflow:meeting-prep", 15*time.Minute) {
-		return
-	}
-	now := time.Now().UTC()
-	low := now.Add(25 * time.Minute)
-	high := now.Add(35 * time.Minute)
-
-	meetings, err := a.db.ScheduledMeeting.Query().
-		Where(
-			scheduledmeeting.ScheduledAtGTE(low),
-			scheduledmeeting.ScheduledAtLTE(high),
-		).
-		All(ctx)
-	if err != nil {
-		a.logger.Error("meeting prep: query failed", zap.Error(err))
-		return
-	}
-	for _, m := range meetings {
-		if prep, _ := m.Metadata["prep_sent"].(bool); prep {
-			continue
-		}
-		a.sendPrep(ctx, m)
-	}
-}
-
-func (a *MeetingPrepAgent) sendPrep(ctx context.Context, m *ent.ScheduledMeeting) {
-	// Calls marketflow-ai meeting_prep tool and dispatches via notifications-api.
-	_ = ctx
-	_ = m
 }
 
 // ── CustomAgentExecutionConsumer ─────────────────────────────────────────────
