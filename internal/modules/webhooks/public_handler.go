@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/integrations/gcal"
@@ -434,6 +435,15 @@ func (h *PublicHandler) PublicCreateLead(w http.ResponseWriter, r *http.Request)
 			"tenant_slug":  slug,
 			"funnel_slug":  in.FunnelSlug,
 		},
+	}
+	// Attribute the lead to its funnel. Funnel analytics count leads by funnel_id, and before
+	// this only the slug was kept in metadata, so every funnel reported zero submissions.
+	if in.FunnelSlug != "" {
+		if f, err := h.entClient.Funnel.Query().
+			Where(funnel.TenantIDEQ(t.ID), funnel.SlugEQ(in.FunnelSlug)).
+			Only(r.Context()); err == nil {
+			input.FunnelID = &f.ID
+		}
 	}
 	if in.Email != "" {
 		e := in.Email

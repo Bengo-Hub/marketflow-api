@@ -1,6 +1,7 @@
 package funnels
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -92,6 +93,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		LandingPageCSS:  req.LandingPageCSS,
 		Metadata:        req.Metadata,
 	})
+	if errors.Is(err, ErrSlugTaken) {
+		httpapi.Error(w, http.StatusConflict, "slug_taken", "That link is already used by another business. Choose a different one.", nil)
+		return
+	}
 	if err != nil {
 		h.logger.Error("failed to create funnel", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "create_failed", "failed to create funnel", nil)
@@ -222,6 +227,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		LandingPageCSS:  req.LandingPageCSS,
 		Metadata:        req.Metadata,
 	})
+	if errors.Is(err, ErrSlugTaken) {
+		httpapi.Error(w, http.StatusConflict, "slug_taken", "That link is already used by another business. Choose a different one.", nil)
+		return
+	}
 	if err != nil {
 		h.logger.Error("failed to update funnel", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "update_failed", "failed to update funnel", nil)

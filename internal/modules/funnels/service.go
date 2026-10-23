@@ -58,8 +58,23 @@ type ListInput struct {
 	Offset     int
 }
 
+// ErrSlugTaken means another tenant already uses the slug. Public funnel links are /f/{slug}
+// with no tenant in them, so a slug can belong to one tenant only.
+var ErrSlugTaken = fmt.Errorf("funnel slug is already used by another business")
+
+func (s *Service) slugTakenElsewhere(ctx context.Context, tenantID uuid.UUID, slug string) (bool, error) {
+	return s.client.Funnel.Query().
+		Where(funnel.SlugEQ(slug), funnel.TenantIDNEQ(tenantID)).
+		Exist(ctx)
+}
+
 // Create creates a new funnel.
 func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Funnel, error) {
+	if taken, err := s.slugTakenElsewhere(ctx, in.TenantID, in.Slug); err != nil {
+		return nil, fmt.Errorf("check funnel slug: %w", err)
+	} else if taken {
+		return nil, ErrSlugTaken
+	}
 	builder := s.client.Funnel.Create().
 		SetTenantID(in.TenantID).
 		SetName(in.Name).
@@ -171,7 +186,12 @@ func (s *Service) Update(ctx context.Context, tenantID, funnelID uuid.UUID, in U
 	if in.Name != nil {
 		builder.SetName(*in.Name)
 	}
-	if in.Slug != nil {
+	if in.Slug != nil && *in.Slug != existing.Slug {
+		if taken, err := s.slugTakenElsewhere(ctx, tenantID, *in.Slug); err != nil {
+			return nil, fmt.Errorf("check funnel slug: %w", err)
+		} else if taken {
+			return nil, ErrSlugTaken
+		}
 		builder.SetSlug(*in.Slug)
 	}
 	if in.FunnelType != nil {
