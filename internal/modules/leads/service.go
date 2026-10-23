@@ -7,6 +7,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/outbox"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -129,22 +130,9 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Lead, error)
 		return rollback(fmt.Errorf("create lead: %w", err))
 	}
 
-	event := leadCreatedEvent(result)
-	payload, err := event.ToJSON()
-	if err != nil {
-		return rollback(fmt.Errorf("marshal lead.created: %w", err))
-	}
-	if _, err := tx.OutboxEvent.Create().
-		SetID(event.ID).
-		SetTenantID(result.TenantID).
-		SetAggregateType(event.AggregateType).
-		SetAggregateID(event.AggregateID).
-		SetEventType(event.EventType).
-		SetPayload(payload).
-		SetStatus("PENDING").
-		Save(ctx); err != nil {
-		// In the transaction: a lead without its event would never be nurtured or scored.
-		return rollback(fmt.Errorf("enqueue lead.created: %w", err))
+	// In the transaction: a lead without its event would never be nurtured or scored.
+	if err := outbox.Enqueue(ctx, tx.OutboxEvent, leadCreatedEvent(result)); err != nil {
+		return rollback(err)
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("create lead: commit: %w", err)

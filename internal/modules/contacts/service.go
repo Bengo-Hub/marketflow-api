@@ -13,6 +13,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/deal"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
+	"github.com/bengobox/marketflow-api/internal/outbox"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -153,7 +154,13 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Contact, err
 		return existing, nil
 	}
 
-	builder := s.client.Contact.Create().
+	// The contact and its crm.contact.created event commit together, so an agent
+	// that runs on new contacts never misses one.
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("create contact: begin tx: %w", err)
+	}
+	builder := tx.Contact.Create().
 		SetTenantID(in.TenantID).
 		SetContactType(in.ContactType)
 
@@ -189,6 +196,14 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Contact, err
 	}
 
 	result, err := builder.Save(ctx)
+	if err == nil {
+		err = outbox.Enqueue(ctx, tx.OutboxEvent, contactCreatedEvent(result))
+	}
+	if err == nil {
+		err = tx.Commit()
+	} else {
+		_ = tx.Rollback()
+	}
 	if err != nil {
 		if ent.IsConstraintError(err) {
 			if existing, ferr := s.findExistingContact(ctx, in.TenantID, emailNorm, phoneDigits); ferr == nil && existing != nil {
@@ -402,10 +417,6 @@ func (s *Service) Merge(ctx context.Context, tenantID, survivorID uuid.UUID, dup
 		"survivor_id": survivorID.String(),
 		"merged_ids":  uuidsToStrings(merged),
 	})
-	payload, err := event.ToJSON()
-	if err != nil {
-		return nil, fmt.Errorf("marshal crm.contact.merged: %w", err)
-	}
 
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
@@ -440,18 +451,10 @@ func (s *Service) Merge(ctx context.Context, tenantID, survivorID uuid.UUID, dup
 		return rollback(fmt.Errorf("carry merged identity onto survivor: %w", err))
 	}
 
-	if _, err := tx.OutboxEvent.Create().
-		SetID(event.ID).
-		SetTenantID(tenantID).
-		SetAggregateType(event.AggregateType).
-		SetAggregateID(event.AggregateID).
-		SetEventType(event.EventType).
-		SetPayload(payload).
-		SetStatus("PENDING").
-		Save(ctx); err != nil {
-		// In the transaction: a merge treasury and pos never hear about leaves their rows pointing
-		// at a contact that no longer exists.
-		return rollback(fmt.Errorf("enqueue crm.contact.merged: %w", err))
+	// In the transaction: a merge treasury and pos never hear about leaves their rows pointing
+	// at a contact that no longer exists.
+	if err := outbox.Enqueue(ctx, tx.OutboxEvent, event); err != nil {
+		return rollback(err)
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("contact merge: commit: %w", err)

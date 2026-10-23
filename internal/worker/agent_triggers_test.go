@@ -94,6 +94,39 @@ func TestQualifiedEventFlatPayload(t *testing.T) {
 	}
 }
 
+// A deal can move many times: each move (move_id) starts the agent once, and a
+// redelivered move does not.
+func TestDealStageTriggerDedupesOnMove(t *testing.T) {
+	db := openWorkerTestDB(t)
+	ctx := context.Background()
+	tid := seedTenant(t, db, "agt-deal")
+	a := seedAgent(t, db, tid, true, custom_agents.TriggerEvent, map[string]any{"event": "crm.deal.stage_changed"})
+	svc := custom_agents.NewService(db, zap.NewNop())
+	var h Handler
+	for _, x := range NewAgentEventTriggers(svc, zap.NewNop()) {
+		if x.Subject() == "crm.deal.stage_changed" {
+			h = x
+		}
+	}
+	dealID := uuid.New()
+	move := func(moveID string) fakeMsg {
+		raw, _ := json.Marshal(map[string]any{
+			"event_type": "deal.stage_changed", "tenant_id": tid.String(),
+			"payload": map[string]any{"deal_id": dealID.String(), "move_id": moveID, "to_stage_id": uuid.NewString()},
+		})
+		return fakeMsg{data: raw}
+	}
+	m1, m2 := uuid.NewString(), uuid.NewString()
+	for _, m := range []fakeMsg{move(m1), move(m1), move(m2)} {
+		if err := h.Handle(ctx, m); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := len(runsOf(t, db, a.ID)); n != 2 {
+		t.Fatalf("want one run per move (2), got %d", n)
+	}
+}
+
 func TestDailyCapStopsAutomaticRunsOnly(t *testing.T) {
 	db := openWorkerTestDB(t)
 	ctx := context.Background()

@@ -24,11 +24,20 @@ const (
 	TriggerSchedule = "schedule"
 )
 
-// Events an agent can run on. Only events marketflow-api actually emits are
-// listed; deal stage changes and new contacts have no event yet.
-var Events = map[string]string{
-	"lead.created":       "A new lead arrives",
-	"crm.lead.qualified": "A lead becomes qualified (score reaches 70)",
+// Event is an event an agent can run on.
+type Event struct {
+	Label string
+	// Key is the payload field that identifies one occurrence: a redelivered
+	// event with the same value never starts the agent twice.
+	Key string
+}
+
+// Events lists the events marketflow-api emits that agents can run on.
+var Events = map[string]Event{
+	"lead.created":           {Label: "A new lead arrives", Key: "lead_id"},
+	"crm.lead.qualified":     {Label: "A lead becomes qualified (score reaches 70)", Key: "lead_id"},
+	"crm.contact.created":    {Label: "A new contact is added", Key: "contact_id"},
+	"crm.deal.stage_changed": {Label: "A deal moves to another stage", Key: "move_id"},
 }
 
 // AutoDailyCap is the most automatic (event or schedule) runs one agent may
@@ -86,7 +95,7 @@ func ValidateTrigger(triggerType string, cfg map[string]any) error {
 		return nil
 	case TriggerEvent:
 		if _, ok := Events[str(cfg["event"])]; !ok {
-			return fmt.Errorf("event triggers need trigger_config.event, one of: lead.created, crm.lead.qualified")
+			return fmt.Errorf("event triggers need trigger_config.event, one of: lead.created, crm.lead.qualified, crm.contact.created, crm.deal.stage_changed")
 		}
 		return nil
 	case TriggerSchedule:
@@ -139,17 +148,22 @@ func (s *Service) TriggerAuto(ctx context.Context, tenantID, agentID uuid.UUID, 
 	return s.TriggerRun(ctx, tenantID, agentID, triggeredBy, payload)
 }
 
-// RanForEvent reports whether the agent already has a run for this event and
-// lead, so a redelivered event never starts it twice. The runs table is the
-// record: a start that failed left no row and is retried.
-func (s *Service) RanForEvent(ctx context.Context, tenantID, agentID uuid.UUID, event, leadID string) (bool, error) {
+// RanForEvent reports whether the agent already has a run for this occurrence
+// of event (matched on the event's Key field, for example lead_id), so a
+// redelivered event never starts it twice. The runs table is the record: a
+// start that failed left no row and is retried.
+func (s *Service) RanForEvent(ctx context.Context, tenantID, agentID uuid.UUID, event, occurrence string) (bool, error) {
+	ev, ok := Events[event]
+	if !ok {
+		return false, fmt.Errorf("custom agent: unknown event %q", event)
+	}
 	return s.client.AgentRun.Query().
 		Where(
 			agentrun.TenantID(tenantID),
 			agentrun.CustomAgentID(agentID),
 			agentrun.TriggeredBy("event:"+event),
 			func(sel *sql.Selector) {
-				sel.Where(sqljson.ValueEQ(agentrun.FieldTriggerPayload, leadID, sqljson.Path("lead_id")))
+				sel.Where(sqljson.ValueEQ(agentrun.FieldTriggerPayload, occurrence, sqljson.Path(ev.Key)))
 			},
 		).
 		Exist(ctx)

@@ -14,7 +14,9 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
+	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
+	"github.com/bengobox/marketflow-api/internal/modules/deals"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
 )
 
@@ -34,51 +36,63 @@ type AgentEventTrigger struct {
 	logger  *zap.Logger
 }
 
-// NewAgentEventTriggers returns one handler per supported event.
+// agentEventDurables names each event's durable consumer.
+var agentEventDurables = map[string]string{
+	leads.LeadCreatedTopic:       "marketflow-worker-agent-trigger-lead-created",
+	"crm.lead.qualified":         "marketflow-worker-agent-trigger-lead-qualified",
+	contacts.ContactCreatedTopic: "marketflow-worker-agent-trigger-contact-created",
+	deals.DealStageChangedTopic:  "marketflow-worker-agent-trigger-deal-stage",
+}
+
+// NewAgentEventTriggers returns one handler per supported event, in a stable order.
 func NewAgentEventTriggers(agents *custom_agents.Service, logger *zap.Logger) []Handler {
-	return []Handler{
-		&AgentEventTrigger{subject: leads.LeadCreatedTopic, durable: "marketflow-worker-agent-trigger-lead-created",
-			agents: agents, logger: logger.Named("agent.trigger.lead-created")},
-		&AgentEventTrigger{subject: "crm.lead.qualified", durable: "marketflow-worker-agent-trigger-lead-qualified",
-			agents: agents, logger: logger.Named("agent.trigger.lead-qualified")},
+	order := []string{leads.LeadCreatedTopic, "crm.lead.qualified", contacts.ContactCreatedTopic, deals.DealStageChangedTopic}
+	out := make([]Handler, 0, len(order))
+	for _, subject := range order {
+		out = append(out, &AgentEventTrigger{subject: subject, durable: agentEventDurables[subject],
+			agents: agents, logger: logger.Named("agent.trigger." + subject)})
 	}
+	return out
 }
 
 func (h *AgentEventTrigger) Subject() string { return h.subject }
 func (h *AgentEventTrigger) Durable() string { return h.durable }
 
-// Handle starts every matching agent once for this event. The runs table is
-// the record of what started: an agent that already has a run for this event
-// and lead is skipped, so a redelivered message never runs it twice, and one
+// Handle starts every matching agent once for this occurrence of the event.
+// The runs table is the record of what started: an agent that already has a
+// run for this occurrence (the event's key field, for example lead_id or
+// move_id) is skipped, so a redelivered message never runs it twice, and one
 // whose start failed (a DB blip) has no run yet and is retried with the message.
 // Nothing depends on Redis, so a Redis outage never drops a trigger.
 func (h *AgentEventTrigger) Handle(ctx context.Context, msg jetstream.Msg) error {
-	var ev struct {
-		TenantID string `json:"tenant_id"`
-		LeadID   string `json:"lead_id"`
-		Score    int    `json:"score"`
-	}
-	if err := json.Unmarshal(eventBody(msg.Data()), &ev); err != nil {
+	var body map[string]any
+	if err := json.Unmarshal(eventBody(msg.Data()), &body); err != nil {
 		return dropPoison(h.logger, msg, "agent trigger: decode", err)
 	}
-	tenantID, err := uuid.Parse(ev.TenantID)
+	tenantID, err := uuid.Parse(fmt.Sprint(body["tenant_id"]))
 	if err != nil {
 		return dropPoison(h.logger, msg, "agent trigger: bad tenant_id", err)
 	}
-	if _, err := uuid.Parse(ev.LeadID); err != nil {
-		return dropPoison(h.logger, msg, "agent trigger: bad lead_id", err)
+	key := custom_agents.Events[h.subject].Key
+	occurrence, _ := body[key].(string)
+	if occurrence == "" {
+		return dropPoison(h.logger, msg, "agent trigger: no "+key, fmt.Errorf("subject %s", h.subject))
 	}
 	agents, err := h.agents.AgentsForEvent(ctx, tenantID, h.subject)
 	if err != nil {
 		return fmt.Errorf("agent trigger: list agents: %w", err)
 	}
-	payload := map[string]any{"event": h.subject, "lead_id": ev.LeadID}
-	if ev.Score > 0 {
-		payload["score"] = ev.Score
+	// The agent sees the event's ids (never personal data; events carry none)
+	// and loads details with its tools.
+	payload := map[string]any{"event": h.subject}
+	for k, v := range body {
+		if k != "tenant_id" {
+			payload[k] = v
+		}
 	}
 	var retry error
 	for _, a := range agents {
-		ran, err := h.agents.RanForEvent(ctx, tenantID, a.ID, h.subject, ev.LeadID)
+		ran, err := h.agents.RanForEvent(ctx, tenantID, a.ID, h.subject, occurrence)
 		if err != nil {
 			retry = err
 			continue

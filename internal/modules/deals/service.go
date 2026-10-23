@@ -7,6 +7,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/deal"
+	"github.com/bengobox/marketflow-api/internal/outbox"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -187,8 +188,43 @@ func (s *Service) Update(ctx context.Context, tenantID, dealID uuid.UUID, in Upd
 		return nil, err
 	}
 
+	stageChanged := in.StageID != nil && *in.StageID != existing.StageID
+	if stageChanged {
+		return s.saveStageMove(ctx, existing, func(b *ent.DealUpdateOne) { applyUpdate(b, in) })
+	}
 	builder := existing.Update()
+	applyUpdate(builder, in)
+	result, err := builder.Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("update deal: %w", err)
+	}
+	return result, nil
+}
 
+// saveStageMove saves a change that moves the deal to another stage together
+// with its crm.deal.stage_changed event, so automations never miss a move.
+func (s *Service) saveStageMove(ctx context.Context, existing *ent.Deal, apply func(*ent.DealUpdateOne)) (*ent.Deal, error) {
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("move deal stage: begin tx: %w", err)
+	}
+	b := tx.Deal.UpdateOneID(existing.ID)
+	apply(b)
+	result, err := b.Save(ctx)
+	if err == nil {
+		err = outbox.Enqueue(ctx, tx.OutboxEvent, dealStageChangedEvent(result, existing.StageID))
+	}
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, fmt.Errorf("move deal stage: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("move deal stage: commit: %w", err)
+	}
+	return result, nil
+}
+
+func applyUpdate(builder *ent.DealUpdateOne, in UpdateInput) {
 	if in.Title != nil {
 		builder.SetTitle(*in.Title)
 	}
@@ -219,12 +255,6 @@ func (s *Service) Update(ctx context.Context, tenantID, dealID uuid.UUID, in Upd
 	if in.Metadata != nil {
 		builder.SetMetadata(in.Metadata)
 	}
-
-	result, err := builder.Save(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("update deal: %w", err)
-	}
-	return result, nil
 }
 
 // Move moves a deal to a new pipeline stage.
@@ -233,9 +263,12 @@ func (s *Service) Move(ctx context.Context, tenantID, dealID, stageID uuid.UUID)
 	if err != nil {
 		return nil, err
 	}
-	result, err := existing.Update().SetStageID(stageID).Save(ctx)
+	if existing.StageID == stageID {
+		return existing, nil // already there: no move, no event
+	}
+	result, err := s.saveStageMove(ctx, existing, func(b *ent.DealUpdateOne) { b.SetStageID(stageID) })
 	if err != nil {
-		return nil, fmt.Errorf("move deal stage: %w", err)
+		return nil, err
 	}
 	s.logger.Info("deal moved",
 		zap.String("deal_id", dealID.String()),

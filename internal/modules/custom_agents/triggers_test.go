@@ -13,6 +13,8 @@ func TestValidateTrigger(t *testing.T) {
 		{TriggerManual, nil},
 		{TriggerEvent, map[string]any{"event": "lead.created"}},
 		{TriggerEvent, map[string]any{"event": "crm.lead.qualified"}},
+		{TriggerEvent, map[string]any{"event": "crm.contact.created"}},
+		{TriggerEvent, map[string]any{"event": "crm.deal.stage_changed"}},
 		{TriggerSchedule, map[string]any{"frequency": "daily", "time": "08:00"}},
 		{TriggerSchedule, map[string]any{"frequency": "weekly", "time": "23:59", "weekday": float64(0)}},
 	}
@@ -26,7 +28,7 @@ func TestValidateTrigger(t *testing.T) {
 		cfg map[string]any
 	}{
 		{"on_lead_created", nil},
-		{TriggerEvent, map[string]any{"event": "deal.stage_changed"}}, // not emitted yet
+		{TriggerEvent, map[string]any{"event": "deal.stage_changed"}}, // the subject is crm.deal.stage_changed
 		{TriggerEvent, nil},
 		{TriggerSchedule, map[string]any{"frequency": "hourly", "time": "08:00"}},
 		{TriggerSchedule, map[string]any{"frequency": "daily", "time": "8:00"}},
