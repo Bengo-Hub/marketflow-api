@@ -168,10 +168,10 @@ func TestConnectedTokenHealth(t *testing.T) {
 	}
 
 	mu.Lock()
-	if len(sent) != 1 || sent[0]["recipient"] != "owner@example.com" {
+	if len(sent) != 1 || firstTo(sent[0]) != "owner@example.com" {
 		t.Fatalf("only the admin is emailed, once: %+v", sent)
 	}
-	body, _ := sent[0]["body"].(string)
+	body := dataBody(sent[0])
 	if !strings.Contains(body, "Dead Page") || !strings.Contains(body, "Ads") || strings.Contains(body, "Shop") ||
 		!strings.Contains(body, "https://portal.example.com/health-"+tid.String()+"/settings/integrations") {
 		t.Errorf("notice lists the expired and expiring accounts with the reconnect link: %q", body)
@@ -188,7 +188,23 @@ func TestConnectedTokenHealth(t *testing.T) {
 	if len(keysSeen) != 2 || keysSeen[0] == "" {
 		t.Fatalf("second run notices: %v", keysSeen)
 	}
-	if b, _ := sent[1]["body"].(string); strings.Contains(b, "Dead Page") {
+	if b := dataBody(sent[1]); strings.Contains(b, "Dead Page") {
 		t.Error("an expired account is not checked again")
 	}
+}
+
+// firstTo and dataBody read notifications-api's request shape (to[], data.body).
+func firstTo(m map[string]any) string {
+	to, _ := m["to"].([]any)
+	if len(to) == 0 {
+		return ""
+	}
+	s, _ := to[0].(string)
+	return s
+}
+
+func dataBody(m map[string]any) string {
+	d, _ := m["data"].(map[string]any)
+	s, _ := d["body"].(string)
+	return s
 }

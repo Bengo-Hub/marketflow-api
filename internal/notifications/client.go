@@ -8,8 +8,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -22,16 +24,109 @@ const (
 	ChannelPush     = "push"
 )
 
-// Message is the payload POSTed to /api/v1/{tenantId}/notifications/messages.
+// Message is one notification for one recipient. Send maps it onto notifications-api's
+// request (see sendRequest).
+//
+// Either name a template (TemplateID, channel-relative, e.g. "shared/generic_notification",
+// with its variables in Data) or give the text in Subject and Body. A Body is sent through the
+// platform's "broadcast/message" template: email renders it as paragraphs (split on blank
+// lines), SMS and WhatsApp as the text itself. HTML is not supported (notifications-api escapes
+// it); tags are stripped so the text still goes out.
 type Message struct {
-	Channel        string            `json:"channel"`
-	TemplateID     string            `json:"template_id,omitempty"`
-	Recipient      string            `json:"recipient"`
-	Data           map[string]any    `json:"data,omitempty"`
-	Subject        string            `json:"subject,omitempty"`
-	Body           string            `json:"body,omitempty"`
-	Metadata       map[string]string `json:"metadata,omitempty"`
-	IdempotencyKey string            `json:"-"` // sent as header
+	Channel        string
+	TemplateID     string
+	Recipient      string
+	Data           map[string]any
+	Subject        string
+	Body           string
+	Metadata       map[string]string
+	IdempotencyKey string // sent as the Idempotency-Key header
+}
+
+// bodyTemplate renders a ready-made Body (email: data.paragraphs; sms, whatsapp: data.body).
+const bodyTemplate = "broadcast/message"
+
+// sendRequest is notifications-api's POST /api/v1/{tenantId}/notifications/messages body
+// (CreateMessageRequest). It decodes without strict fields, so a wrong name is dropped
+// silently: the old template_id and recipient names left template and to empty, and every
+// email failed with "no valid recipient addresses".
+type sendRequest struct {
+	Channel  string         `json:"channel"`
+	Tenant   string         `json:"tenant"`
+	Template string         `json:"template"`
+	Data     map[string]any `json:"data"`
+	To       []string       `json:"to"`
+	Metadata map[string]any `json:"metadata,omitempty"`
+}
+
+// toRequest builds the wire request for tenantID.
+func toRequest(tenantID string, msg Message) (sendRequest, error) {
+	if strings.TrimSpace(msg.Recipient) == "" {
+		return sendRequest{}, fmt.Errorf("notifications: recipient required")
+	}
+	req := sendRequest{
+		Channel:  msg.Channel,
+		Tenant:   tenantID,
+		Template: msg.TemplateID,
+		Data:     map[string]any{},
+		To:       []string{strings.TrimSpace(msg.Recipient)},
+		Metadata: map[string]any{},
+	}
+	for k, v := range msg.Data {
+		req.Data[k] = v
+	}
+	for k, v := range msg.Metadata {
+		req.Metadata[k] = v
+	}
+	if msg.Subject != "" {
+		req.Metadata["subject"] = msg.Subject
+		if msg.Channel == ChannelPush {
+			req.Metadata["push_title"] = msg.Subject
+		}
+	}
+	if msg.Body != "" {
+		text := plainText(msg.Body)
+		req.Template = bodyTemplate
+		req.Data["body"] = text
+		req.Data["paragraphs"] = paragraphs(text)
+	}
+	if req.Template == "" {
+		return sendRequest{}, fmt.Errorf("notifications: a template or a body is required")
+	}
+	return req, nil
+}
+
+var (
+	blockTagRe = regexp.MustCompile(`(?i)<\s*(br|/p|/div|/tr|/h[1-6]|/li)\s*/?>`)
+	anyTagRe   = regexp.MustCompile(`<[^>]*>`)
+	blankRunRe = regexp.MustCompile(`\n{3,}`)
+	paraRe     = regexp.MustCompile(`\n\s*\n`)
+)
+
+// plainText turns an HTML body into text (block ends become line breaks); plain text is kept.
+func plainText(s string) string {
+	if !strings.Contains(s, "<") {
+		return strings.TrimSpace(s)
+	}
+	s = blockTagRe.ReplaceAllString(s, "\n")
+	s = anyTagRe.ReplaceAllString(s, " ")
+	s = html.UnescapeString(s)
+	lines := strings.Split(s, "\n")
+	for i, l := range lines {
+		lines[i] = strings.Join(strings.Fields(l), " ")
+	}
+	return strings.TrimSpace(blankRunRe.ReplaceAllString(strings.Join(lines, "\n"), "\n\n"))
+}
+
+// paragraphs splits text on blank lines; single line breaks inside a paragraph become spaces.
+func paragraphs(text string) []string {
+	var out []string
+	for _, p := range paraRe.Split(text, -1) {
+		if p = strings.Join(strings.Fields(p), " "); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // Client is a thin HTTP client for notifications-api.
@@ -73,7 +168,11 @@ func (c *Client) Send(ctx context.Context, tenantID string, msg Message) error {
 	if tenantID == "" {
 		return fmt.Errorf("notifications: tenantID required")
 	}
-	body, err := json.Marshal(msg)
+	wire, err := toRequest(tenantID, msg)
+	if err != nil {
+		return err
+	}
+	body, err := json.Marshal(wire)
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)
 	}

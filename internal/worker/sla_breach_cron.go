@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
+	"github.com/bengobox/marketflow-api/internal/notifications"
 )
 
 // SLABreachCron queries ticketing-api every 5 minutes to detect SLA breaches and
@@ -17,6 +19,7 @@ import (
 type SLABreachCron struct {
 	ticketingURL string
 	notifURL     string
+	notif        *notifications.Client
 	serviceKey   string
 	logger       *zap.Logger
 	hc           *http.Client
@@ -28,6 +31,7 @@ func NewSLABreachCron(ticketingURL, notifURL, serviceKey string, logger *zap.Log
 	return &SLABreachCron{
 		ticketingURL: ticketingURL,
 		notifURL:     notifURL,
+		notif:        notifications.New(notifications.Config{BaseURL: notifURL, APIKey: serviceKey, Timeout: 5 * time.Second}),
 		serviceKey:   serviceKey,
 		logger:       logger.Named("sla-breach-cron"),
 		hc:           hc,
@@ -151,16 +155,17 @@ func (c *SLABreachCron) notifyBreach(ctx context.Context, ticket slaBreachedTick
 	subject := fmt.Sprintf("SLA %s breach: Ticket #%s", breachType, ticket.TicketNumber)
 	body := fmt.Sprintf("Ticket #%s (%s) has breached its %s SLA.", ticket.TicketNumber, ticket.Subject, breachType)
 
-	payload := map[string]any{
-		"tenant_id":   ticket.TenantID,
-		"recipient":   *ticket.AssignedAgentID,
-		"channel":     "push",
-		"subject":     subject,
-		"body":        body,
-		"entity_type": "ticket",
-		"entity_id":   ticket.ID,
-	}
-	if err := agentS2SPost(notifCtx, c.hc, c.notifURL+"/api/v1/notifications/send", c.serviceKey, payload); err != nil {
+	// Through the shared client: the old POST /api/v1/notifications/send is not a
+	// notifications-api route, so every breach alert answered 404.
+	err := c.notif.Send(notifCtx, ticket.TenantID, notifications.Message{
+		Channel:    notifications.ChannelPush,
+		TemplateID: "generic",
+		Recipient:  *ticket.AssignedAgentID,
+		Subject:    subject,
+		Data:       map[string]any{"title": subject, "body": body},
+		Metadata:   map[string]string{"entity_type": "ticket", "entity_id": ticket.ID, "source": "marketflow-worker"},
+	})
+	if err != nil {
 		c.logger.Warn("sla breach notification failed",
 			zap.String("ticket_id", ticket.ID),
 			zap.Error(err),

@@ -106,7 +106,7 @@ func TestDailyBriefSendsOncePerLocalDay(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("brief not sent: ok=%v err=%v", ok, err)
 	}
-	if len(sent) != 1 || sent[0]["recipient"] != "owner@example.com" || !strings.Contains(sent[0]["body"].(string), "Call the new lead today.") {
+	if len(sent) != 1 || firstTo(sent[0]) != "owner@example.com" || !strings.Contains(dataBody(sent[0]), "Call the new lead today.") {
 		t.Fatalf("sent = %+v", sent)
 	}
 	// Same local day again: claimed, nothing more is sent.
