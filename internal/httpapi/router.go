@@ -127,7 +127,8 @@ type RouterDeps struct {
 
 // tenantCheck pins the tenant headers (and the tenant path parameter urlParam, when set) to the
 // signed-in tenant. Handlers read X-Tenant-ID themselves, so without this any signed-in user
-// could name another tenant. Platform owners and calls without claims are not checked.
+// could name another tenant. Platform owners, platform service keys and calls without claims
+// are not checked.
 func tenantCheck(deps RouterDeps, urlParam string) func(http.Handler) http.Handler {
 	cfg := httpware.TenantConfig{
 		ClaimsExtractor: func(ctx context.Context) (string, string, bool, bool) {
@@ -135,7 +136,11 @@ func tenantCheck(deps RouterDeps, urlParam string) func(http.Handler) http.Handl
 			if !ok || c == nil {
 				return "", "", false, false
 			}
-			return c.TenantID, c.GetTenantSlug(), c.IsPlatformOwner, true
+			// A platform service key (IsService: marketflow-ai's agent tools, the worker) acts
+			// for any tenant by design, like a platform owner; its claims carry the key owner's
+			// tenant, so checking the header against them would refuse every tool call.
+			// Tenant-issued keys are not service keys and stay checked.
+			return c.TenantID, c.GetTenantSlug(), c.IsPlatformOwner || c.IsService, true
 		},
 		ReportOnly: !deps.EnforceTenantHeader,
 		OnMismatch: func(r *http.Request, source, supplied, claimed string) {
@@ -522,14 +527,27 @@ func NewRouter(deps RouterDeps) http.Handler {
 			if deps.TenantSyncer != nil {
 				r.Use(func(next http.Handler) http.Handler {
 					return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						claims, _ := authclient.ClaimsFromContext(r.Context())
 						slug := r.Header.Get("X-Tenant-Slug")
-						if slug == "" {
-							if claims, ok := authclient.ClaimsFromContext(r.Context()); ok {
-								slug = claims.GetTenantSlug()
-							}
+						if slug == "" && claims != nil {
+							slug = claims.GetTenantSlug()
 						}
+						var resolved uuid.UUID
 						if slug != "" {
-							_, _ = deps.TenantSyncer.SyncTenant(r.Context(), slug)
+							resolved, _ = deps.TenantSyncer.SyncTenant(r.Context(), slug)
+						}
+						// Handlers read the tenant from X-Tenant-ID. Clients that send only the slug
+						// (the UI for platform owners, or a page whose URL slug differs from the
+						// stored one) used to get 400 "missing X-Tenant-ID". Fill it in: a tenant
+						// user's own tenant from the token (never one named by a header), and the
+						// slug's tenant for platform owners and service keys, who act for any tenant.
+						if r.Header.Get("X-Tenant-ID") == "" {
+							switch {
+							case claims != nil && !claims.IsPlatformOwner && !claims.IsService && claims.TenantID != "":
+								r.Header.Set("X-Tenant-ID", claims.TenantID)
+							case resolved != uuid.Nil:
+								r.Header.Set("X-Tenant-ID", resolved.String())
+							}
 						}
 						next.ServeHTTP(w, r)
 					})

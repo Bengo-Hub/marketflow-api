@@ -46,6 +46,9 @@ func TestFeatureGateAllowsBlocksAndUsesTokenTenant(t *testing.T) {
 	if rec := gated(fg, &authclient.Claims{TenantID: "over"}, "rich"); rec.Code != http.StatusPaymentRequired || seenTenant.Load() != "over" {
 		t.Fatalf("the token's tenant is checked, not the header's: %d %v", rec.Code, seenTenant.Load())
 	}
+	if rec := gated(fg, &authclient.Claims{TenantID: "platform", IsService: true}, "over"); rec.Code != http.StatusPaymentRequired || seenTenant.Load() != "over" {
+		t.Fatalf("a platform service key is checked against the tenant it acts for: %d %v", rec.Code, seenTenant.Load())
+	}
 	if rec := gated(fg, nil, "rich"); rec.Code != http.StatusOK {
 		t.Fatalf("a service call keeps the header tenant: %d", rec.Code)
 	}

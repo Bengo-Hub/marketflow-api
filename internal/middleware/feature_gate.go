@@ -100,9 +100,10 @@ func (fg *FeatureGate) RequireFeature(featureCode, upgradeMsg string) func(http.
 				return
 			}
 			// The quota is the signed-in tenant's: a header naming another tenant must not
-			// spend (or dodge) someone else's limit. Calls without claims keep the header.
+			// spend (or dodge) someone else's limit. Platform service keys act for the tenant
+			// in the header by design, and calls without claims keep the header too.
 			tenantID := r.Header.Get("X-Tenant-ID")
-			if ok && claims != nil && claims.TenantID != "" {
+			if ok && claims != nil && !claims.IsService && claims.TenantID != "" {
 				tenantID = claims.TenantID
 			}
 			allowed, result := fg.Check(r.Context(), tenantID, featureCode)

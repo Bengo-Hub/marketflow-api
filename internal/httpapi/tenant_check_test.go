@@ -59,6 +59,8 @@ func TestTenantCheck(t *testing.T) {
 		{"own tenant in the path", true, user, "/" + tenantA + "/campaigns/c1/send-sms", nil, 200},
 		{"platform owner acting for a tenant", true, owner, "/leads", other, 200},
 		{"service call without claims", true, nil, "/leads", other, 200},
+		{"platform service key acting for a tenant", true, &authclient.Claims{TenantID: tenantA, TenantSlug: "codevertex", IsService: true}, "/leads", other, 200},
+		{"tenant-issued key naming another tenant", true, &authclient.Claims{TenantID: tenantA, TenantSlug: "acme"}, "/leads", other, 403},
 		{"other tenant id, report only", false, user, "/leads", other, 200},
 	}
 	for _, c := range cases {
@@ -66,9 +68,9 @@ func TestTenantCheck(t *testing.T) {
 			t.Errorf("%s: %d, want %d", c.name, got, c.want)
 		}
 	}
-	// Every mismatch by a tenant user is logged (three enforced, one report-only); platform owners
+	// Every mismatch by a tenant user is logged (four enforced, one report-only); platform owners
 	// and service calls are not.
-	if n := logs.FilterMessage("tenant in request does not match the token").Len(); n != 4 {
-		t.Errorf("mismatch logs = %d, want 4", n)
+	if n := logs.FilterMessage("tenant in request does not match the token").Len(); n != 5 {
+		t.Errorf("mismatch logs = %d, want 5", n)
 	}
 }
