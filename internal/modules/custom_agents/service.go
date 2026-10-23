@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
+
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/agentrun"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
+	"github.com/bengobox/marketflow-api/internal/ent/predicate"
 	"github.com/google/uuid"
 	nats "github.com/nats-io/nats.go"
 	"go.uber.org/zap"
@@ -100,10 +103,19 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.CustomAgent,
 	return result, nil
 }
 
+// notTeamMember excludes Marketing OS team-member overrides, which share the
+// custom_agents table (metadata.kind = "team_member") but are managed only through
+// /agents/team. COALESCE keeps rows whose metadata is NULL or has no kind.
+func notTeamMember() predicate.CustomAgent {
+	return func(s *sql.Selector) {
+		s.Where(sql.ExprP(fmt.Sprintf("COALESCE(%s->>'kind', '') <> 'team_member'", s.C(customagent.FieldMetadata))))
+	}
+}
+
 // Get retrieves a custom agent by ID.
 func (s *Service) Get(ctx context.Context, tenantID, agentID uuid.UUID) (*ent.CustomAgent, error) {
 	result, err := s.client.CustomAgent.Query().
-		Where(customagent.ID(agentID), customagent.TenantID(tenantID)).
+		Where(customagent.ID(agentID), customagent.TenantID(tenantID), notTeamMember()).
 		Only(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get custom agent: %w", err)
@@ -114,7 +126,7 @@ func (s *Service) Get(ctx context.Context, tenantID, agentID uuid.UUID) (*ent.Cu
 // List retrieves all custom agents for a tenant.
 func (s *Service) List(ctx context.Context, tenantID uuid.UUID) ([]*ent.CustomAgent, error) {
 	results, err := s.client.CustomAgent.Query().
-		Where(customagent.TenantID(tenantID)).
+		Where(customagent.TenantID(tenantID), notTeamMember()).
 		Order(ent.Asc(customagent.FieldCreatedAt)).
 		All(ctx)
 	if err != nil {
@@ -164,7 +176,7 @@ func (s *Service) Update(ctx context.Context, tenantID, agentID uuid.UUID, in Up
 // Delete hard-deletes a custom agent.
 func (s *Service) Delete(ctx context.Context, tenantID, agentID uuid.UUID) error {
 	n, err := s.client.CustomAgent.Delete().
-		Where(customagent.ID(agentID), customagent.TenantID(tenantID)).
+		Where(customagent.ID(agentID), customagent.TenantID(tenantID), notTeamMember()).
 		Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("delete custom agent: %w", err)
@@ -177,11 +189,7 @@ func (s *Service) Delete(ctx context.Context, tenantID, agentID uuid.UUID) error
 
 // TriggerRun creates a pending AgentRun record and publishes crm.agent.run_requested.
 func (s *Service) TriggerRun(ctx context.Context, tenantID, agentID uuid.UUID, triggeredBy string, payload map[string]any) (*ent.AgentRun, error) {
-	agent, err := s.client.CustomAgent.Get(ctx, agentID)
-	if err != nil {
-		return nil, fmt.Errorf("custom agent not found")
-	}
-	if agent.TenantID != tenantID {
+	if _, err := s.Get(ctx, tenantID, agentID); err != nil {
 		return nil, fmt.Errorf("custom agent not found")
 	}
 	if payload == nil {
