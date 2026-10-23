@@ -157,7 +157,8 @@ func (s *Service) Update(ctx context.Context, tenantID, agentID uuid.UUID, in Up
 	if in.SystemPrompt != nil {
 		builder.SetNillableSystemPrompt(in.SystemPrompt)
 	}
-	if len(in.AllowedTools) > 0 {
+	// nil means "not sent"; an empty list clears the tools (knowledge base only).
+	if in.AllowedTools != nil {
 		builder.SetAllowedTools(in.AllowedTools)
 	}
 	if in.MaxIterations != nil {

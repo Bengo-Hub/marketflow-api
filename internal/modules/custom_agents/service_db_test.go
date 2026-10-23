@@ -78,4 +78,16 @@ func TestCustomAgentsHideTeamMemberRows(t *testing.T) {
 	if err := svc.Delete(ctx, tid, team.ID); err == nil {
 		t.Fatal("Delete removed a team member row")
 	}
+
+	// An empty tool list clears the tools; an absent one leaves them alone.
+	if _, err := svc.Update(ctx, tid, plain.ID, UpdateInput{AllowedTools: []string{"kb_search", "create_task"}}); err != nil {
+		t.Fatal(err)
+	}
+	name := "renamed"
+	if got, _ := svc.Update(ctx, tid, plain.ID, UpdateInput{Name: &name}); len(got.AllowedTools) != 2 {
+		t.Fatalf("absent tools changed the list: %v", got.AllowedTools)
+	}
+	if got, _ := svc.Update(ctx, tid, plain.ID, UpdateInput{AllowedTools: []string{}}); len(got.AllowedTools) != 0 {
+		t.Fatalf("empty tools did not clear: %v", got.AllowedTools)
+	}
 }
