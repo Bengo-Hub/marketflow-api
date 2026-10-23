@@ -42,7 +42,8 @@ type CreateInput struct {
 	PerformedAt     *time.Time
 }
 
-// ListInput contains filtering for listing activities for an entity.
+// ListInput filters activities. EntityType and EntityID are optional: empty lists the whole
+// tenant's feed (the CRM Activities page), set lists one lead, contact or deal.
 type ListInput struct {
 	TenantID     uuid.UUID
 	EntityType   string
@@ -105,12 +106,13 @@ func (s *Service) Log(ctx context.Context, in CreateInput) (*ent.Activity, error
 
 // List retrieves activities for a specific entity (polymorphic timeline).
 func (s *Service) List(ctx context.Context, in ListInput) ([]*ent.Activity, int, error) {
-	query := s.client.Activity.Query().
-		Where(
-			activity.TenantID(in.TenantID),
-			activity.EntityTypeEQ(in.EntityType),
-			activity.EntityID(in.EntityID),
-		)
+	query := s.client.Activity.Query().Where(activity.TenantID(in.TenantID))
+	if in.EntityType != "" {
+		query = query.Where(activity.EntityTypeEQ(in.EntityType))
+	}
+	if in.EntityID != uuid.Nil {
+		query = query.Where(activity.EntityID(in.EntityID))
+	}
 
 	if in.ActivityType != nil {
 		query = query.Where(activity.ActivityTypeEQ(*in.ActivityType))

@@ -105,6 +105,11 @@ var (
 				Columns: []*schema.Column{ActivitiesColumns[15], ActivitiesColumns[3]},
 			},
 			{
+				Name:    "activity_tenant_id_performed_at",
+				Unique:  false,
+				Columns: []*schema.Column{ActivitiesColumns[15], ActivitiesColumns[12]},
+			},
+			{
 				Name:    "activity_external_ref",
 				Unique:  false,
 				Columns: []*schema.Column{ActivitiesColumns[11]},

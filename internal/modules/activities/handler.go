@@ -140,8 +140,8 @@ func (h *Handler) ListForEntity(entityType string) http.HandlerFunc {
 // @Tags Activities
 // @Produce json
 // @Param X-Tenant-ID header string true "Tenant UUID"
-// @Param entity_type query string true "lead | contact | deal"
-// @Param entity_id query string true "Entity UUID"
+// @Param entity_type query string false "lead | contact | deal (omit for the whole tenant)"
+// @Param entity_id query string false "Entity UUID"
 // @Param activity_type query string false "Filter by type"
 // @Param limit query int false "Page size"
 // @Param offset query int false "Offset"
@@ -155,16 +155,18 @@ func (h *Handler) GetTimeline(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Both filters are optional: without them this is the tenant-wide activity feed.
 	entityType := r.URL.Query().Get("entity_type")
-	entityIDStr := r.URL.Query().Get("entity_id")
-	if entityType == "" || entityIDStr == "" {
-		httpapi.Error(w, http.StatusBadRequest, "missing_params", "entity_type and entity_id query params required", nil)
+	if entityType != "" && entityType != "lead" && entityType != "contact" && entityType != "deal" {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_entity_type", "entity_type must be lead, contact or deal", nil)
 		return
 	}
-	entityID, err := uuid.Parse(entityIDStr)
-	if err != nil {
-		httpapi.Error(w, http.StatusBadRequest, "invalid_entity_id", "invalid entity_id", nil)
-		return
+	var entityID uuid.UUID
+	if s := r.URL.Query().Get("entity_id"); s != "" {
+		if entityID, err = uuid.Parse(s); err != nil {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_entity_id", "invalid entity_id", nil)
+			return
+		}
 	}
 
 	p := pagination.Parse(r)

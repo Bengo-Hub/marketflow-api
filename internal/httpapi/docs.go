@@ -300,17 +300,15 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "lead | contact | deal",
+                        "description": "lead | contact | deal (omit for the whole tenant)",
                         "name": "entity_type",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "string",
                         "description": "Entity UUID",
                         "name": "entity_id",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "string",

@@ -1232,15 +1232,13 @@ paths:
         name: X-Tenant-ID
         required: true
         type: string
-      - description: lead | contact | deal
+      - description: lead | contact | deal (omit for the whole tenant)
         in: query
         name: entity_type
-        required: true
         type: string
       - description: Entity UUID
         in: query
         name: entity_id
-        required: true
         type: string
       - description: Filter by type
         in: query

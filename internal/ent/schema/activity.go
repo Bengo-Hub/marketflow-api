@@ -95,6 +95,8 @@ func (Activity) Indexes() []ent.Index {
 		index.Fields("tenant_id", "entity_type", "entity_id"),
 		index.Fields("tenant_id", "entity_type", "entity_id", "performed_at"),
 		index.Fields("tenant_id", "activity_type"),
+		// The tenant-wide activity feed sorts one tenant newest first.
+		index.Fields("tenant_id", "performed_at"),
 		index.Fields("external_ref"),
 		index.Fields("performed_at"),
 	}
