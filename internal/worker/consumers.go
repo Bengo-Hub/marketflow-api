@@ -228,6 +228,10 @@ func retryDelay(n uint64) time.Duration {
 	return consumerRetryDelays[n-1]
 }
 
+// Add registers extra handlers built outside NewRegistry (they need clients the
+// registry does not hold, such as a NATS connection). Call it before RegisterAll.
+func (r *Registry) Add(hs ...Handler) { r.handlers = append(r.handlers, hs...) }
+
 // Count returns the number of registered handlers.
 func (r *Registry) Count() int { return len(r.handlers) }
 

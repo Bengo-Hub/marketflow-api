@@ -1,6 +1,7 @@
 package custom_agents
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -82,6 +83,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		MaxIterations: req.MaxIterations,
 	})
 	if err != nil {
+		if errors.Is(err, ErrInvalid) {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_agent", err.Error(), nil)
+			return
+		}
 		h.logger.Error("failed to create custom agent", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "create_failed", "failed to create custom agent", nil)
 		return
@@ -177,6 +182,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		IsActive:      req.IsActive,
 	})
 	if err != nil {
+		if errors.Is(err, ErrInvalid) {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_agent", err.Error(), nil)
+			return
+		}
 		h.logger.Error("failed to update custom agent", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "update_failed", "failed to update custom agent", nil)
 		return

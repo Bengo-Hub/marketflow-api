@@ -3,6 +3,7 @@ package custom_agents
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -65,8 +66,14 @@ type UpdateInput struct {
 	IsActive      *bool
 }
 
+// ErrInvalid wraps validation failures the handler reports as 400.
+var ErrInvalid = errors.New("invalid custom agent")
+
 // Create creates a new custom agent.
 func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.CustomAgent, error) {
+	if err := ValidateTrigger(in.TriggerType, in.TriggerConfig); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalid, err)
+	}
 	maxIter := in.MaxIterations
 	if maxIter <= 0 {
 		maxIter = 10
@@ -140,6 +147,20 @@ func (s *Service) Update(ctx context.Context, tenantID, agentID uuid.UUID, in Up
 	existing, err := s.Get(ctx, tenantID, agentID)
 	if err != nil {
 		return nil, err
+	}
+	// Validate the trigger only when it changes, so rows saved with older
+	// trigger values stay editable.
+	if in.TriggerType != nil || in.TriggerConfig != nil {
+		tt, cfg := existing.TriggerType, existing.TriggerConfig
+		if in.TriggerType != nil {
+			tt = *in.TriggerType
+		}
+		if in.TriggerConfig != nil {
+			cfg = in.TriggerConfig
+		}
+		if err := ValidateTrigger(tt, cfg); err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrInvalid, err)
+		}
 	}
 	builder := existing.Update()
 	if in.Name != nil {

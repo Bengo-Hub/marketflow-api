@@ -32,6 +32,7 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/bengobox/marketflow-api/internal/worker"
@@ -166,6 +167,12 @@ func main() {
 	// This worker runs in the API pod, so MF_SECURITY_ENCRYPTION_KEY is the API's own value.
 	keys := encryption.NewKeyProvider(entClient, os.Getenv("MF_SECURITY_ENCRYPTION_KEY"))
 	reg := worker.NewRegistry(cfg, entClient, rawDB, keys, logger)
+	// Custom agents that run on events (new lead, lead qualified) or a schedule.
+	var agentSvc *custom_agents.Service
+	if entClient != nil {
+		agentSvc = custom_agents.NewService(entClient, logger, custom_agents.WithNATS(nc))
+		reg.Add(worker.NewAgentEventTriggers(agentSvc, logger)...)
+	}
 	if err := reg.RegisterAll(ctx, js); err != nil {
 		log.Fatalf("register consumers: %v", err)
 	}
@@ -198,6 +205,9 @@ func main() {
 		// the tenant's admins. Numbers from marketflow-api, wording from marketflow-ai.
 		go worker.NewDailyBrief(entClient, marketingos.NewService(entClient, nil, logger), tokenNotif,
 			cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, cfg.API.PortalURL, logger).Run(ctx)
+
+		// Scheduled custom agents: daily or weekly at the tenant's local time.
+		go worker.NewAgentSchedules(entClient, agentSvc, logger).Run(ctx)
 
 		// Ad-insights polling cron (Meta campaigns only today). Resolver
 		// pulls the tenant's Meta page token from ProviderSetting at query

@@ -575,6 +575,9 @@ func (c *CustomAgentExecutionConsumer) Handle(ctx context.Context, msg jetstream
 		"max_iterations": agent.MaxIterations,
 		"tenant_id":      ev.TenantID,
 		"context":        ev.Payload,
+		// Automatic (event and schedule) runs cost the tenant one AI credit,
+		// charged by marketflow-ai; Run now stays free.
+		"billable": run.TriggeredBy != "manual",
 	}
 	callCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
