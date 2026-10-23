@@ -1,6 +1,7 @@
 package funnels
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
@@ -14,6 +15,13 @@ const (
 	MetaBrandColor  = "brand_color"
 	MetaHeroImage   = "hero_image_url"
 )
+
+var slugRE = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+
+// ValidSlug reports whether s works as the {slug} in a public /f/{slug} link.
+func ValidSlug(s string) bool {
+	return len(s) <= 60 && slugRE.MatchString(s)
+}
 
 // legacyFields is the older request shape still sent by marketflow-ai's create_funnel tool:
 // steps and theme nested in content_json, and the copy as top-level fields. Before 2026-10-23

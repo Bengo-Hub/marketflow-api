@@ -80,6 +80,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "name and slug are required", nil)
 		return
 	}
+	if !ValidSlug(req.Slug) {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_slug", "Use lowercase letters, numbers and dashes for the link (at most 60).", nil)
+		return
+	}
 
 	req.Steps, req.Metadata = req.legacyFields.fold(req.Steps, req.Metadata)
 
@@ -212,6 +216,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	var req updateFunnelRequest
 	if err := httpapi.DecodeJSON(r, &req); err != nil {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid request body", nil)
+		return
+	}
+	if req.Slug != nil && !ValidSlug(*req.Slug) {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_slug", "Use lowercase letters, numbers and dashes for the link (at most 60).", nil)
 		return
 	}
 
