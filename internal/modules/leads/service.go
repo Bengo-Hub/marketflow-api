@@ -218,8 +218,41 @@ func (s *Service) List(ctx context.Context, in ListInput) ([]*ent.Lead, int, err
 	return results, total, nil
 }
 
-// ListAll retrieves all leads matching the filter (no pagination). Used for CSV export.
-func (s *Service) ListAll(ctx context.Context, in ListInput) ([]*ent.Lead, error) {
+// exportPage is how many leads one export query reads (a variable so tests can
+// cross page boundaries with a few rows).
+var exportPage = 1000
+
+// ExportEach streams every lead matching the filter to fn, newest first, in
+// keyset pages on (created_at, id) over leads(tenant_id, created_at). Memory
+// stays at one page however many leads a tenant has.
+func (s *Service) ExportEach(ctx context.Context, in ListInput, fn func(*ent.Lead) error) error {
+	var cursor *ent.Lead
+	for {
+		query := s.exportQuery(in)
+		if cursor != nil {
+			c := cursor
+			query = query.Where(lead.Or(
+				lead.CreatedAtLT(c.CreatedAt),
+				lead.And(lead.CreatedAtEQ(c.CreatedAt), lead.IDLT(c.ID)),
+			))
+		}
+		page, err := query.Order(ent.Desc(lead.FieldCreatedAt), ent.Desc(lead.FieldID)).Limit(exportPage).All(ctx)
+		if err != nil {
+			return fmt.Errorf("export leads: %w", err)
+		}
+		for _, l := range page {
+			if err := fn(l); err != nil {
+				return err
+			}
+		}
+		if len(page) < exportPage {
+			return nil
+		}
+		cursor = page[len(page)-1]
+	}
+}
+
+func (s *Service) exportQuery(in ListInput) *ent.LeadQuery {
 	query := s.client.Lead.Query().
 		Where(lead.TenantID(in.TenantID))
 
@@ -238,15 +271,7 @@ func (s *Service) ListAll(ctx context.Context, in ListInput) ([]*ent.Lead, error
 	if in.To != nil {
 		query = query.Where(lead.CreatedAtLTE(*in.To))
 	}
-
-	results, err := query.
-		Order(ent.Desc(lead.FieldCreatedAt)).
-		All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list all leads: %w", err)
-	}
-
-	return results, nil
+	return query
 }
 
 // Update updates a lead.

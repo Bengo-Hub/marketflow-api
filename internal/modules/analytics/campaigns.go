@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
+	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/admetrics"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturedeliveryevent"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
@@ -133,12 +135,6 @@ func (h *Handler) SequenceMetrics(w http.ResponseWriter, r *http.Request) {
 
 	// Pull every enrollment for this sequence so we can correlate delivery
 	// events back without going through the enrollment FK in every query.
-	enrollmentIDs := h.db.NurtureEnrollment.Query().
-		Where(
-			nurtureenrollment.TenantIDEQ(tenantID),
-			nurtureenrollment.SequenceIDEQ(sequenceID),
-		).IDsX(r.Context())
-
 	enrolled, _ := h.db.NurtureEnrollment.Query().
 		Where(
 			nurtureenrollment.TenantIDEQ(tenantID),
@@ -151,19 +147,27 @@ func (h *Handler) SequenceMetrics(w http.ResponseWriter, r *http.Request) {
 			nurtureenrollment.StatusEQ("completed"),
 		).Count(r.Context())
 
+	// One grouped count in the database, joined to the sequence's enrollments by
+	// EXISTS; it used to load every enrollment id and then every event row.
 	counts := map[string]int{"sent": 0, "delivered": 0, "opened": 0, "clicked": 0, "bounced": 0, "replied": 0, "unsubscribed": 0, "failed": 0}
-	if len(enrollmentIDs) > 0 {
-		rows, err := h.db.NurtureDeliveryEvent.Query().
-			Where(
-				nurturedeliveryevent.TenantIDEQ(tenantID),
-				nurturedeliveryevent.EnrollmentIDIn(enrollmentIDs...),
-				nurturedeliveryevent.CreatedAtGTE(cutoff),
-			).
-			All(r.Context())
-		if err == nil {
-			for _, ev := range rows {
-				counts[ev.EventType]++
-			}
+	var grouped []struct {
+		EventType string `json:"event_type"`
+		Count     int    `json:"count"`
+	}
+	if err := h.db.NurtureDeliveryEvent.Query().
+		Where(
+			nurturedeliveryevent.TenantIDEQ(tenantID),
+			nurturedeliveryevent.CreatedAtGTE(cutoff),
+			nurturedeliveryevent.HasEnrollmentWith(
+				nurtureenrollment.TenantIDEQ(tenantID),
+				nurtureenrollment.SequenceIDEQ(sequenceID),
+			),
+		).
+		GroupBy(nurturedeliveryevent.FieldEventType).
+		Aggregate(ent.Count()).
+		Scan(r.Context(), &grouped); err == nil {
+		for _, g := range grouped {
+			counts[g.EventType] = g.Count
 		}
 	}
 	rate := func(num, den int) float64 {
@@ -216,28 +220,45 @@ func (h *Handler) ProfileMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 	cutoff := time.Now().UTC().Add(-time.Duration(days) * 24 * time.Hour)
 
-	rows, err := h.db.ProfileEvent.Query().
-		Where(
+	// Counted in the database (grouped count and COUNT DISTINCT); this used to load
+	// every event row of the window into memory.
+	window := func() *ent.ProfileEventQuery {
+		return h.db.ProfileEvent.Query().Where(
 			profileevent.TenantIDEQ(tenantID),
 			profileevent.CreatedAtGTE(cutoff),
-		).
-		All(r.Context())
-	if err != nil {
+		)
+	}
+	var grouped []struct {
+		EventType string `json:"event_type"`
+		Count     int    `json:"count"`
+	}
+	if err := window().GroupBy(profileevent.FieldEventType).Aggregate(ent.Count()).Scan(r.Context(), &grouped); err != nil {
+		httpapi.Error(w, http.StatusInternalServerError, "query_failed", err.Error(), nil)
+		return
+	}
+	var unique []struct {
+		V int `json:"v"`
+	}
+	if err := window().Where(profileevent.IPHashNEQ("")).Aggregate(func(s *sql.Selector) string {
+		return sql.As("COUNT(DISTINCT "+s.C(profileevent.FieldIPHash)+")", "v")
+	}).Scan(r.Context(), &unique); err != nil {
 		httpapi.Error(w, http.StatusInternalServerError, "query_failed", err.Error(), nil)
 		return
 	}
 	counts := map[string]int{}
-	uniqueVisitors := map[string]struct{}{}
-	for _, ev := range rows {
-		counts[ev.EventType]++
-		if ev.IPHash != "" {
-			uniqueVisitors[ev.IPHash] = struct{}{}
-		}
+	total := 0
+	for _, g := range grouped {
+		counts[g.EventType] = g.Count
+		total += g.Count
+	}
+	uniqueVisitors := 0
+	if len(unique) > 0 {
+		uniqueVisitors = unique[0].V
 	}
 	httpapi.JSON(w, http.StatusOK, map[string]any{
-		"days":              days,
-		"counts":            counts,
-		"unique_visitors":   len(uniqueVisitors),
-		"total_events":      len(rows),
+		"days":            days,
+		"counts":          counts,
+		"unique_visitors": uniqueVisitors,
+		"total_events":    total,
 	})
 }

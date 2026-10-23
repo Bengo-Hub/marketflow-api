@@ -3,6 +3,7 @@ package analytics
 
 import (
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
@@ -149,28 +150,39 @@ func (h *Handler) PlatformUsage(w http.ResponseWriter, r *http.Request) {
 		Slug       string `json:"slug"`
 		Leads      int    `json:"leads_this_week"`
 	}
-	tenants, _ := h.db.Tenant.Query().All(ctx)
-	leaderboard := make([]row, 0, len(tenants))
-	for _, t := range tenants {
-		n, _ := h.db.Lead.Query().
-			Where(lead.TenantIDEQ(t.ID), lead.CreatedAtGTE(weekAgo)).
-			Count(ctx)
-		if n > 0 {
-			leaderboard = append(leaderboard, row{
-				TenantID: t.ID.String(), TenantName: t.Name, Slug: t.Slug, Leads: n,
-			})
+	// One grouped query for the top ten, then one lookup for their names. This
+	// used to load every tenant and count each one's leads separately.
+	var top []struct {
+		TenantID uuid.UUID `json:"tenant_id"`
+		Count    int       `json:"count"`
+	}
+	_ = h.db.Lead.Query().
+		Where(lead.CreatedAtGTE(weekAgo)).
+		GroupBy(lead.FieldTenantID).
+		Aggregate(ent.Count()).
+		Scan(ctx, &top)
+	sort.Slice(top, func(i, j int) bool { return top[i].Count > top[j].Count })
+	if len(top) > 10 {
+		top = top[:10]
+	}
+	ids := make([]uuid.UUID, 0, len(top))
+	for _, t := range top {
+		ids = append(ids, t.TenantID)
+	}
+	names := map[uuid.UUID]*ent.Tenant{}
+	if len(ids) > 0 {
+		rows, _ := h.db.Tenant.Query().Where(tenant.IDIn(ids...)).All(ctx)
+		for _, t := range rows {
+			names[t.ID] = t
 		}
 	}
-	// bubble sort — fine for tiny N
-	for i := 0; i < len(leaderboard); i++ {
-		for j := i + 1; j < len(leaderboard); j++ {
-			if leaderboard[j].Leads > leaderboard[i].Leads {
-				leaderboard[i], leaderboard[j] = leaderboard[j], leaderboard[i]
-			}
+	leaderboard := make([]row, 0, len(top))
+	for _, t := range top {
+		r := row{TenantID: t.TenantID.String(), Leads: t.Count}
+		if tn := names[t.TenantID]; tn != nil {
+			r.TenantName, r.Slug = tn.Name, tn.Slug
 		}
-	}
-	if len(leaderboard) > 10 {
-		leaderboard = leaderboard[:10]
+		leaderboard = append(leaderboard, r)
 	}
 
 	httpapi.JSON(w, http.StatusOK, map[string]any{

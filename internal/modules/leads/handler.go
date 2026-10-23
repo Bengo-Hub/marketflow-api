@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Bengo-Hub/pagination"
+	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -340,27 +341,22 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	results, err := h.service.ListAll(r.Context(), input)
-	if err != nil {
-		h.logger.Error("failed to export leads", zap.Error(err))
-		httpapi.Error(w, http.StatusInternalServerError, "export_failed", "failed to export leads", nil)
-		return
-	}
-
 	w.Header().Set("Content-Type", "text/csv")
 	w.Header().Set("Content-Disposition", "attachment; filename=leads.csv")
 	w.WriteHeader(http.StatusOK)
 
 	writer := csv.NewWriter(w)
-	// Write header row
 	_ = writer.Write([]string{
 		"email", "phone", "first_name", "last_name", "source", "lead_type",
 		"utm_source", "utm_medium", "utm_campaign", "interest", "created_at",
 	})
 
-	// Stream rows directly
-	for _, l := range results {
-		row := []string{
+	// Rows stream page by page; the status line is already sent, so a failure
+	// mid-way is logged and the file simply ends early.
+	rows := 0
+	err = h.service.ExportEach(r.Context(), input, func(l *ent.Lead) error {
+		rows++
+		if err := writer.Write([]string{
 			derefStr(l.Email),
 			derefStr(l.Phone),
 			derefStr(l.FirstName),
@@ -372,11 +368,22 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 			derefStr(l.UtmCampaign),
 			derefStr(l.Interest),
 			l.CreatedAt.Format(time.RFC3339),
+		}); err != nil {
+			return err
 		}
-		_ = writer.Write(row)
-	}
+		if rows%exportFlushEvery == 0 {
+			writer.Flush()
+		}
+		return nil
+	})
 	writer.Flush()
+	if err != nil {
+		h.logger.Error("lead export stopped early", zap.Int("rows", rows), zap.Error(err))
+	}
 }
+
+// exportFlushEvery sends the CSV to the client in chunks while it is built.
+const exportFlushEvery = 500
 
 // ingestFromServiceRequest is the body accepted by POST /api/v1/internal/leads.
 // Called by Codevertex platform services (codevertex-website, ordering-backend, etc.)

@@ -29,12 +29,17 @@ func NewTenantsHandler(db *ent.Client, logger *zap.Logger) *TenantsHandler {
 // @Success 200 {object} map[string]interface{}
 // @Security bearerAuth
 // @Router /admin/tenants [get]
+// maxTenantDirectory caps the platform tenant directory.
+const maxTenantDirectory = 2000
+
 func (h *TenantsHandler) List(w http.ResponseWriter, r *http.Request) {
 	q := h.db.Tenant.Query()
 	if r.URL.Query().Get("active") == "true" {
 		q = q.Where(tenant.StatusEQ("active"))
 	}
-	rows, err := q.Order(ent.Asc(tenant.FieldName)).All(r.Context())
+	// The directory feeds the platform tenant list and switcher; it is bounded so
+	// a growing platform can never return an unbounded result.
+	rows, err := q.Order(ent.Asc(tenant.FieldName)).Limit(maxTenantDirectory).All(r.Context())
 	if err != nil {
 		httpapi.Error(w, http.StatusInternalServerError, "query_failed", err.Error(), nil)
 		return
