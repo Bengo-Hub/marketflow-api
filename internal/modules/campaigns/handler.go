@@ -7,6 +7,7 @@ import (
 
 	"github.com/Bengo-Hub/pagination"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/modules/audit"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -290,6 +291,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	audit.Tenant(r.Context(), h.service.client, h.logger, tenantID, "campaign.deleted", "campaign", &campaignID, nil)
 	httpapi.JSON(w, http.StatusOK, map[string]any{"status": "deleted"})
 }
 
@@ -324,6 +326,7 @@ func (h *Handler) Pause(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	audit.Tenant(r.Context(), h.service.client, h.logger, tenantID, "campaign.paused", "campaign", &campaignID, nil)
 	httpapi.JSON(w, http.StatusOK, result)
 }
 
@@ -358,6 +361,7 @@ func (h *Handler) Resume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	audit.Tenant(r.Context(), h.service.client, h.logger, tenantID, "campaign.resumed", "campaign", &campaignID, nil)
 	httpapi.JSON(w, http.StatusOK, result)
 }
 

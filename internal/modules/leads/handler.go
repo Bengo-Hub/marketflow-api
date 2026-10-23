@@ -9,6 +9,7 @@ import (
 	"github.com/Bengo-Hub/pagination"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/modules/audit"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -293,6 +294,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	audit.Tenant(r.Context(), h.service.client, h.logger, tenantID, "lead.deleted", "lead", &leadID, nil)
 	httpapi.JSON(w, http.StatusOK, map[string]any{"status": "deleted"})
 }
 
@@ -343,6 +345,8 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/csv")
 	w.Header().Set("Content-Disposition", "attachment; filename=leads.csv")
+	// Exports hand personal data to a file, so record who took one and with which filters.
+	audit.Tenant(r.Context(), h.service.client, h.logger, tenantID, "lead.exported", "lead", nil, map[string]any{"filters": r.URL.RawQuery})
 	w.WriteHeader(http.StatusOK)
 
 	writer := csv.NewWriter(w)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/modules/audit"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -134,6 +135,23 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusInternalServerError, "save_failed", err.Error(), nil)
 		return
 	}
+	changed := []string{}
+	for k := range req.Metadata {
+		changed = append(changed, "metadata."+k)
+	}
+	if req.Name != nil {
+		changed = append(changed, "name")
+	}
+	if req.WhatsappNumber != nil {
+		changed = append(changed, "whatsapp_number")
+	}
+	if req.FboDistribID != nil {
+		changed = append(changed, "fbo_distrib_id")
+	}
+	if req.BusinessType != nil {
+		changed = append(changed, "business_type")
+	}
+	audit.Tenant(r.Context(), h.db, h.logger, tenantID, "tenant.profile_updated", "tenant", &tenantID, map[string]any{"fields": changed})
 	httpapi.JSON(w, http.StatusOK, serializeTenant(updated))
 }
 
