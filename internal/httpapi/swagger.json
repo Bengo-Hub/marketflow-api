@@ -1124,6 +1124,98 @@
                 }
             }
         },
+        "/agents/team": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MarketingOS"
+                ],
+                "summary": "List the tenant's Marketing OS team overrides",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/agents/team/{key}": {
+            "put": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MarketingOS"
+                ],
+                "summary": "Update a Marketing OS team member",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Member key, for example ads_specialist",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Override",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/marketingos.MemberOverride"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/marketingos.MemberOverride"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/analytics/audit": {
             "get": {
                 "security": [
@@ -1806,6 +1898,96 @@
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/contacts/bulk-import": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contacts"
+                ],
+                "summary": "Bulk import/upsert contacts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Contacts to import",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/contacts.bulkImportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/contacts.BulkImportResult"
+                        }
+                    }
+                }
+            }
+        },
+        "/contacts/merge": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contacts"
+                ],
+                "summary": "Merge duplicate contacts into one survivor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Survivor + duplicate contact IDs",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/contacts.mergeContactsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/contacts.MergeResult"
                         }
                     }
                 }
@@ -5785,6 +5967,88 @@
                 }
             }
         },
+        "/tenant/marketing-context": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MarketingOS"
+                ],
+                "summary": "Get the tenant's brand context (Marketing OS)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/marketingos.BrandContext"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MarketingOS"
+                ],
+                "summary": "Save the tenant's brand context (Marketing OS)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Brand context",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/marketingos.BrandContext"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/marketingos.BrandContext"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/tenant/members": {
             "get": {
                 "security": [
@@ -5934,6 +6198,82 @@
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/tenant/os-settings": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MarketingOS"
+                ],
+                "summary": "Get the tenant's Marketing OS switches",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/marketingos.Settings"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MarketingOS"
+                ],
+                "summary": "Save the tenant's Marketing OS switches (daily brief on or off)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Switches",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/marketingos.Settings"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/marketingos.Settings"
                         }
                     }
                 }
@@ -6339,7 +6679,7 @@
                         "bearerAuth": []
                     }
                 ],
-                "description": "Resolves the target CRM contacts and queues one SMS event per contact via the outbox; notifications-api delivers them.",
+                "description": "Hands the send to notifications-api's broadcast engine (consent, opt-outs, pacing); it waits for approval in Broadcasts.",
                 "consumes": [
                     "application/json"
                 ],
@@ -6675,6 +7015,108 @@
                 }
             }
         },
+        "contacts.BulkImportResult": {
+            "type": "object",
+            "properties": {
+                "created": {
+                    "type": "integer"
+                },
+                "existing": {
+                    "type": "integer"
+                },
+                "failed": {
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/contacts.BulkImportRowResult"
+                    }
+                }
+            }
+        },
+        "contacts.BulkImportRowResult": {
+            "type": "object",
+            "properties": {
+                "contact_id": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "external_ref": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "created | existing | failed",
+                    "type": "string"
+                }
+            }
+        },
+        "contacts.MergeResult": {
+            "type": "object",
+            "properties": {
+                "chats_moved": {
+                    "type": "integer"
+                },
+                "deals_moved": {
+                    "type": "integer"
+                },
+                "merged_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "survivor_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "contacts.bulkImportRequest": {
+            "type": "object",
+            "properties": {
+                "contacts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/contacts.bulkImportRowRequest"
+                    }
+                }
+            }
+        },
+        "contacts.bulkImportRowRequest": {
+            "type": "object",
+            "properties": {
+                "contact_type": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "external_ref": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "lifecycle_stage": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
+        },
         "contacts.createContactRequest": {
             "type": "object",
             "properties": {
@@ -6708,6 +7150,20 @@
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "contacts.mergeContactsRequest": {
+            "type": "object",
+            "properties": {
+                "duplicate_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "survivor_id": {
+                    "type": "string"
                 }
             }
         },
@@ -7169,6 +7625,81 @@
                 },
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "marketingos.BrandContext": {
+            "type": "object",
+            "properties": {
+                "audience": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "banned_claims": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "learnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "offers": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "positioning": {
+                    "type": "string"
+                },
+                "proof": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "voice": {
+                    "type": "string"
+                },
+                "voice_examples": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "marketingos.MemberOverride": {
+            "type": "object",
+            "properties": {
+                "disabled": {
+                    "type": "boolean"
+                },
+                "instructions": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "model_class": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "marketingos.Settings": {
+            "type": "object",
+            "properties": {
+                "daily_brief": {
+                    "type": "boolean"
                 }
             }
         },

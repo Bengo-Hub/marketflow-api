@@ -19,6 +19,9 @@ func NewTenantsHandler(db *ent.Client, logger *zap.Logger) *TenantsHandler {
 	return &TenantsHandler{db: db, logger: logger.Named("admin.tenants")}
 }
 
+// maxTenantDirectory caps the platform tenant directory.
+const maxTenantDirectory = 2000
+
 // List returns a minimal tenant directory for the platform console and the
 // tenant switcher in the UI. Platform owners only (gated by route middleware).
 //
@@ -29,9 +32,6 @@ func NewTenantsHandler(db *ent.Client, logger *zap.Logger) *TenantsHandler {
 // @Success 200 {object} map[string]interface{}
 // @Security bearerAuth
 // @Router /admin/tenants [get]
-// maxTenantDirectory caps the platform tenant directory.
-const maxTenantDirectory = 2000
-
 func (h *TenantsHandler) List(w http.ResponseWriter, r *http.Request) {
 	q := h.db.Tenant.Query()
 	if r.URL.Query().Get("active") == "true" {

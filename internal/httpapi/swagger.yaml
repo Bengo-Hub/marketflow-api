@@ -179,6 +179,73 @@ definitions:
         additionalProperties: {}
         type: object
     type: object
+  contacts.BulkImportResult:
+    properties:
+      created:
+        type: integer
+      existing:
+        type: integer
+      failed:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/contacts.BulkImportRowResult'
+        type: array
+    type: object
+  contacts.BulkImportRowResult:
+    properties:
+      contact_id:
+        type: string
+      error:
+        type: string
+      external_ref:
+        type: string
+      status:
+        description: created | existing | failed
+        type: string
+    type: object
+  contacts.MergeResult:
+    properties:
+      chats_moved:
+        type: integer
+      deals_moved:
+        type: integer
+      merged_ids:
+        items:
+          type: string
+        type: array
+      survivor_id:
+        type: string
+    type: object
+  contacts.bulkImportRequest:
+    properties:
+      contacts:
+        items:
+          $ref: '#/definitions/contacts.bulkImportRowRequest'
+        type: array
+    type: object
+  contacts.bulkImportRowRequest:
+    properties:
+      contact_type:
+        type: string
+      email:
+        type: string
+      external_ref:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: string
+      last_name:
+        type: string
+      lifecycle_stage:
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      phone:
+        type: string
+    type: object
   contacts.createContactRequest:
     properties:
       contact_type:
@@ -202,6 +269,15 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  contacts.mergeContactsRequest:
+    properties:
+      duplicate_ids:
+        items:
+          type: string
+        type: array
+      survivor_id:
+        type: string
     type: object
   contacts.updateContactRequest:
     properties:
@@ -511,6 +587,55 @@ definitions:
       status:
         type: string
     type: object
+  marketingos.BrandContext:
+    properties:
+      audience:
+        items:
+          type: string
+        type: array
+      banned_claims:
+        items:
+          type: string
+        type: array
+      learnings:
+        items:
+          type: string
+        type: array
+      offers:
+        items:
+          type: string
+        type: array
+      positioning:
+        type: string
+      proof:
+        items:
+          type: string
+        type: array
+      voice:
+        type: string
+      voice_examples:
+        items:
+          type: string
+        type: array
+    type: object
+  marketingos.MemberOverride:
+    properties:
+      disabled:
+        type: boolean
+      instructions:
+        type: string
+      key:
+        type: string
+      model_class:
+        type: string
+      name:
+        type: string
+    type: object
+  marketingos.Settings:
+    properties:
+      daily_brief:
+        type: boolean
+    type: object
   meetings.createMeetingRequest:
     properties:
       attendee_email:
@@ -763,8 +888,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Resolves the target CRM contacts and queues one SMS event per contact
-        via the outbox; notifications-api delivers them.
+      description: Hands the send to notifications-api's broadcast engine (consent,
+        opt-outs, pacing); it waits for approval in Broadcasts.
       parameters:
       - description: Tenant UUID
         in: path
@@ -1518,6 +1643,64 @@ paths:
       summary: Get run history for a custom agent
       tags:
       - Custom Agents
+  /agents/team:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List the tenant's Marketing OS team overrides
+      tags:
+      - MarketingOS
+  /agents/team/{key}:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Member key, for example ads_specialist
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Override
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/marketingos.MemberOverride'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/marketingos.MemberOverride'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Update a Marketing OS team member
+      tags:
+      - MarketingOS
   /analytics/audit:
     get:
       parameters:
@@ -2044,6 +2227,62 @@ paths:
       security:
       - bearerAuth: []
       summary: Update a contact
+      tags:
+      - Contacts
+  /contacts/bulk-import:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Contacts to import
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/contacts.bulkImportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/contacts.BulkImportResult'
+      security:
+      - bearerAuth: []
+      summary: Bulk import/upsert contacts
+      tags:
+      - Contacts
+  /contacts/merge:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Survivor + duplicate contact IDs
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/contacts.mergeContactsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/contacts.MergeResult'
+      security:
+      - bearerAuth: []
+      summary: Merge duplicate contacts into one survivor
       tags:
       - Contacts
   /custom-fields/defs:
@@ -4533,6 +4772,57 @@ paths:
       summary: Mark a task as done
       tags:
       - Tasks
+  /tenant/marketing-context:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/marketingos.BrandContext'
+      security:
+      - bearerAuth: []
+      summary: Get the tenant's brand context (Marketing OS)
+      tags:
+      - MarketingOS
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Brand context
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/marketingos.BrandContext'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/marketingos.BrandContext'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Save the tenant's brand context (Marketing OS)
+      tags:
+      - MarketingOS
   /tenant/members:
     get:
       parameters:
@@ -4630,6 +4920,53 @@ paths:
       summary: Invite a new team member
       tags:
       - Tenant
+  /tenant/os-settings:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/marketingos.Settings'
+      security:
+      - bearerAuth: []
+      summary: Get the tenant's Marketing OS switches
+      tags:
+      - MarketingOS
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Switches
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/marketingos.Settings'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/marketingos.Settings'
+      security:
+      - bearerAuth: []
+      summary: Save the tenant's Marketing OS switches (daily brief on or off)
+      tags:
+      - MarketingOS
   /tenant/profile:
     get:
       parameters:
