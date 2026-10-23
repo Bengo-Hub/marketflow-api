@@ -3,7 +3,6 @@ package worker
 import (
 	"context"
 	"fmt"
-	"html"
 	"net/http"
 	"strings"
 	"sync"
@@ -210,34 +209,32 @@ func (j *DailyBrief) words(ctx context.Context, lang string, metrics []marketing
 
 // renderBrief builds the email. Every number comes from metrics; model text is
 // escaped and limited to the insight and action lines.
+// renderBrief writes the brief as plain-text paragraphs separated by blank
+// lines. notifications-api's broadcast/message template renders each one as an
+// email paragraph and escapes it, so the text stays raw here (no HTML: direct
+// messages have no raw-HTML path).
 func renderBrief(tenantName string, metrics []marketingos.BriefMetric, w briefWords, link string) string {
-	var b strings.Builder
-	b.WriteString(`<div style="font-family:Arial,Helvetica,sans-serif;color:#1f2933;max-width:560px">`)
-	fmt.Fprintf(&b, `<h2 style="margin:0 0 4px">Good morning, %s</h2>`, html.EscapeString(tenantName))
-	b.WriteString(`<p style="margin:0 0 16px;color:#52606d">Yesterday against your 7-day average.</p>`)
-	b.WriteString(`<table cellpadding="6" style="border-collapse:collapse;width:100%">`)
+	parts := []string{"Good morning, " + tenantName + ". Here is yesterday against your 7-day average."}
+	lines := make([]string, 0, len(metrics))
 	for _, m := range metrics {
-		fmt.Fprintf(&b, `<tr style="border-bottom:1px solid #e4e7eb"><td>%s</td><td style="text-align:right"><b>%s</b></td><td style="text-align:right;color:#52606d">%s</td></tr>`,
-			html.EscapeString(m.Label), html.EscapeString(fmtMetric(m.Value, m.Unit)), html.EscapeString(changeLabel(m.Value, m.Baseline)))
+		lines = append(lines, fmt.Sprintf("%s: %s (%s)", m.Label, fmtMetric(m.Value, m.Unit), changeLabel(m.Value, m.Baseline)))
 	}
-	b.WriteString(`</table>`)
+	if len(lines) > 0 {
+		parts = append(parts, strings.Join(lines, "\n"))
+	}
 	if len(w.Insights) > 0 {
-		b.WriteString(`<h3 style="margin:20px 0 6px">What changed</h3><ul>`)
-		for _, s := range w.Insights {
-			fmt.Fprintf(&b, `<li>%s</li>`, html.EscapeString(s))
-		}
-		b.WriteString(`</ul>`)
+		parts = append(parts, "What changed:\n- "+strings.Join(w.Insights, "\n- "))
 	}
 	if len(w.Actions) > 0 {
-		b.WriteString(`<h3 style="margin:16px 0 6px">Next actions</h3><ol>`)
-		for _, s := range w.Actions {
-			fmt.Fprintf(&b, `<li>%s</li>`, html.EscapeString(s))
+		numbered := make([]string, len(w.Actions))
+		for i, s := range w.Actions {
+			numbered[i] = fmt.Sprintf("%d. %s", i+1, s)
 		}
-		b.WriteString(`</ol>`)
+		parts = append(parts, "Next actions:\n"+strings.Join(numbered, "\n"))
 	}
-	fmt.Fprintf(&b, `<p style="margin-top:20px"><a href="%s">Open your dashboard</a></p>`, html.EscapeString(link))
-	b.WriteString(`<p style="color:#9aa5b1;font-size:12px">To stop these emails, switch off the daily brief in MarketFlow settings.</p></div>`)
-	return b.String()
+	parts = append(parts, "Open your dashboard: "+link,
+		"To stop these emails, switch off the morning brief in MarketFlow under Settings, Brand context.")
+	return strings.Join(parts, "\n\n")
 }
 
 func fmtMetric(v float64, unit string) string {

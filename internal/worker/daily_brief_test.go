@@ -26,13 +26,18 @@ func TestRenderBriefEscapesAndFormats(t *testing.T) {
 		{Key: "ad_spend", Label: "Ad spend", Value: 12500, Baseline: 12500, Unit: "KES"},
 		{Key: "leads", Label: "New leads", Value: 0, Baseline: 0},
 	}, briefWords{Insights: []string{"Orders doubled <script>"}, Actions: []string{"Reply to comments"}}, "https://x/t/dashboard")
-	for _, want := range []string{"Amani &lt;Beauty&gt;", "KES 12,500", "up 100%", "flat", "no change", "Orders doubled &lt;script&gt;", "Reply to comments"} {
+	// Plain text: notifications-api escapes it when rendering, so it must not be
+	// pre-escaped here (owners would see "&lt;").
+	for _, want := range []string{"Good morning, Amani <Beauty>.", "Ad spend: KES 12,500", "up 100%", "flat", "no change", "- Orders doubled <script>", "1. Reply to comments", "Open your dashboard: https://x/t/dashboard"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("body missing %q:\n%s", want, body)
 		}
 	}
-	if strings.Contains(body, "<script>") {
-		t.Fatal("model text must be escaped")
+	if strings.Contains(body, "&lt;") || strings.Contains(body, "<div") || strings.Contains(body, "<table") {
+		t.Fatalf("the brief must be plain text, not HTML or pre-escaped:\n%s", body)
+	}
+	if n := len(strings.Split(body, "\n\n")); n < 5 {
+		t.Fatalf("want blank-line separated paragraphs, got %d", n)
 	}
 	if commas("1234567") != "1,234,567" || commas("-1000") != "-1,000" || commas("999") != "999" {
 		t.Fatal("commas")
