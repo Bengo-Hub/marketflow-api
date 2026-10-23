@@ -269,7 +269,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	meetingHandler := meetings.NewHandler(meetingService, logger)
 	availabilitySvc := gcal.NewAvailabilityService(entClient, keyProvider, logger)
 
-	analyticsHandler := analytics.NewHandler(entClient, logger)
+	analyticsHandler := analytics.NewHandler(entClient, logger).WithCache(sharedcache.New(redisClient, logger))
 	auditHandler := audit.NewHandler(entClient, logger)
 
 	// CRM Sprint 9 modules

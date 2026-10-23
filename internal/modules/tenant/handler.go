@@ -112,18 +112,21 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		upd = upd.SetCountry(strings.TrimSpace(*req.Country))
 	}
 	if req.BusinessType != nil {
-		upd = upd.SetBusinessType(*req.BusinessType)
+		bt := strings.TrimSpace(*req.BusinessType)
+		if bt != BusinessTypeFLP && bt != BusinessTypeGeneric {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_business_type", "business_type must be flp or generic", nil)
+			return
+		}
+		upd = upd.SetBusinessType(bt)
 	}
 	if req.Metadata != nil {
-		// Merge with existing metadata
-		existing := t.Metadata
-		if existing == nil {
-			existing = map[string]any{}
+		if err := ValidateOfferings(req.Metadata["offerings"]); err != nil {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_offerings", err.Error(), nil)
+			return
 		}
-		for k, v := range req.Metadata {
-			existing[k] = v
-		}
-		upd = upd.SetMetadata(existing)
+		// Reserved keys (the Marketing OS brand context and switches) are skipped, so a
+		// form that sends the whole metadata object back cannot overwrite newer values.
+		upd = upd.SetMetadata(MergeProfileMetadata(t.Metadata, req.Metadata))
 	}
 
 	updated, err := upd.Save(r.Context())

@@ -72,7 +72,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Funnel, erro
 		builder.SetSteps(in.Steps)
 	}
 	if in.LandingPageHTML != nil {
-		builder.SetNillableLandingPageHTML(in.LandingPageHTML)
+		builder.SetNillableLandingPageHTML(sanitizeLandingPtr(in.LandingPageHTML))
 	}
 	if in.LandingPageCSS != nil {
 		builder.SetLandingPageCSS(in.LandingPageCSS)
@@ -184,7 +184,7 @@ func (s *Service) Update(ctx context.Context, tenantID, funnelID uuid.UUID, in U
 		builder.SetSteps(in.Steps)
 	}
 	if in.LandingPageHTML != nil {
-		builder.SetNillableLandingPageHTML(in.LandingPageHTML)
+		builder.SetNillableLandingPageHTML(sanitizeLandingPtr(in.LandingPageHTML))
 	}
 	if in.LandingPageCSS != nil {
 		builder.SetLandingPageCSS(in.LandingPageCSS)

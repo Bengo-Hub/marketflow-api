@@ -15,17 +15,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	// FBO Profile Defaults
-	DefaultFBOTagline      = "Forever Business Owner."
-	DefaultFBOBio          = "Forever Living Products is the largest grower, manufacturer and distributor of Aloe Vera products in the world. For over 46 years, we have been dedicated to seeking out the best sources from nature for health and vitality, and sharing them with the world."
-	DefaultFBOStory        = "Forever Living Products was founded in 1978 by Rex Maughan in Scottsdale, Arizona. We are the world's largest grower, manufacturer and distributor of aloe vera and bee products. Millions of people in over 160 countries have discovered the benefits of Forever’s aloe vera products to help them and their families look better and feel better. We own our own aloe fields, manufacturing and distribution facilities, and we utilize stabilized aloe vera gel because we control every step from plant to product to you."
-	DefaultFBOVideoURL     = "https://www.youtube.com/embed/YRvN_JkHSzQ"
-	DefaultFBOPrimaryColor = "#f59e0b"
-	DefaultFBOLogo         = "https://accounts.codevertexafrica.com/images/logo/codevertex.png"
-	DefaultFBOOpportunity  = "Forever Business Owners are everyday people who choose to share products they enjoy. Some may earn supplemental income by building a customer base or team, but participation and effort vary from person to person. Our business model rewards individuals for product sales and for supporting others who choose to do the same.\n\nForever’s reward structure, known as the Marketing Plan, outlines the various roles, incentives, and bonuses available. It is a roadmap that explains how the business works and the requirements associated with each level. It offers tools and resources designed to support your activity, allowing you to work at your own pace."
-)
-
 // Syncer handles JIT syncing of tenant data from auth-api.
 // On first encounter of a tenant slug (from JWT), it fetches the canonical
 // tenant record from auth-api and upserts locally using the SAME UUID so
@@ -115,34 +104,14 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 			}
 		}
 
-		// Update FBO metadata defaults
-		if looksLikeDistribID(remote.Slug) {
-			meta := remote.Metadata
-			if meta == nil {
-				meta = make(map[string]any)
+		// FBO defaults fill only missing keys. The local row's metadata is the base, so a
+		// slug rename never drops profile edits or the Marketing OS brand context.
+		if isFLPTenant(remote.Slug, remote.Metadata) {
+			meta := applyFBODefaults(mergeMissing(existingByID.Metadata, remote.Metadata))
+			upd = upd.SetMetadata(meta)
+			if looksLikeDistribID(remote.Slug) {
+				upd = upd.SetFboDistribID(remote.Slug)
 			}
-			if _, ok := meta["tagline"]; !ok {
-				meta["tagline"] = DefaultFBOTagline
-			}
-			if _, ok := meta["bio"]; !ok {
-				meta["bio"] = DefaultFBOBio
-			}
-			if _, ok := meta["story"]; !ok {
-				meta["story"] = DefaultFBOStory
-			}
-			if _, ok := meta["video_url"]; !ok {
-				meta["video_url"] = DefaultFBOVideoURL
-			}
-			if _, ok := meta["brand_primary_color"]; !ok {
-				meta["brand_primary_color"] = DefaultFBOPrimaryColor
-			}
-			if _, ok := meta["logo_url"]; !ok {
-				meta["logo_url"] = DefaultFBOLogo
-			}
-			if _, ok := meta["opportunity_text"]; !ok {
-				meta["opportunity_text"] = DefaultFBOOpportunity
-			}
-			upd = upd.SetMetadata(meta).SetFboDistribID(remote.Slug)
 		}
 
 		if _, err := upd.Save(ctx); err != nil {
@@ -158,41 +127,32 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 		meta = make(map[string]any)
 	}
 
+	// Only Forever distributors are FLP. The schema default is "flp", so it is set
+	// explicitly here; before 2026-10-23 every synced tenant was created as FLP.
+	flp := isFLPTenant(remote.Slug, remote.Metadata)
+	businessType := BusinessTypeGeneric
+	if flp {
+		businessType = BusinessTypeFLP
+	}
+
 	builder := s.client.Tenant.Create().
 		SetID(realID).
 		SetSlug(remote.Slug).
 		SetName(name).
 		SetStatus(remote.Status).
-		SetBusinessType("flp")
+		SetBusinessType(businessType)
 
 	if remote.Country != "" {
 		builder = builder.SetCountry(remote.Country)
 	}
 
-	// For FBO tenants, the slug IS the distrib_id. Apply defaults.
-	if looksLikeDistribID(remote.Slug) {
-		builder = builder.SetFboDistribID(remote.Slug)
-		if _, ok := meta["tagline"]; !ok {
-			meta["tagline"] = DefaultFBOTagline
+	// For FBO tenants, the slug IS the distrib_id. Apply defaults, including the
+	// featured Forever products.
+	if flp {
+		if looksLikeDistribID(remote.Slug) {
+			builder = builder.SetFboDistribID(remote.Slug)
 		}
-		if _, ok := meta["bio"]; !ok {
-			meta["bio"] = DefaultFBOBio
-		}
-		if _, ok := meta["story"]; !ok {
-			meta["story"] = DefaultFBOStory
-		}
-		if _, ok := meta["video_url"]; !ok {
-			meta["video_url"] = DefaultFBOVideoURL
-		}
-		if _, ok := meta["brand_primary_color"]; !ok {
-			meta["brand_primary_color"] = DefaultFBOPrimaryColor
-		}
-		if _, ok := meta["logo_url"]; !ok {
-			meta["logo_url"] = DefaultFBOLogo
-		}
-		if _, ok := meta["opportunity_text"]; !ok {
-			meta["opportunity_text"] = DefaultFBOOpportunity
-		}
+		meta = applyFBODefaults(meta)
 	}
 
 	builder = builder.SetMetadata(meta)

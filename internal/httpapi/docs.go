@@ -1330,7 +1330,7 @@ const docTemplate = `{
                         "bearerAuth": []
                     }
                 ],
-                "description": "Counts + week-over-week deltas for leads, contacts, chat sessions, campaigns, meetings, active nurture enrollments.",
+                "description": "Lead headline figures with week-over-week change, a daily lead series and leads by source over the window, plus chat, campaign, meeting and nurture counts.",
                 "produces": [
                     "application/json"
                 ],
@@ -1345,14 +1345,19 @@ const docTemplate = `{
                         "name": "X-Tenant-ID",
                         "in": "header",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Window for the series and sources: 7, 30 or 90 (default 30)",
+                        "name": "days",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/analytics.DashboardData"
                         }
                     }
                 }
@@ -6894,6 +6899,104 @@ const docTemplate = `{
                     "additionalProperties": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "analytics.DashboardData": {
+            "type": "object",
+            "properties": {
+                "by_source": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/analytics.SourceCount"
+                    }
+                },
+                "campaigns": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "chat_sessions": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "daily": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/analytics.DayCount"
+                    }
+                },
+                "days": {
+                    "type": "integer"
+                },
+                "generated_at": {
+                    "type": "string"
+                },
+                "leads": {
+                    "$ref": "#/definitions/analytics.LeadStats"
+                },
+                "meetings": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "nurture": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "analytics.DayCount": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "day": {
+                    "type": "string"
+                }
+            }
+        },
+        "analytics.LeadStats": {
+            "type": "object",
+            "properties": {
+                "conversion_rate": {
+                    "type": "number"
+                },
+                "converted": {
+                    "type": "integer"
+                },
+                "delta_percent": {
+                    "type": "number"
+                },
+                "in_window": {
+                    "type": "integer"
+                },
+                "prev_week": {
+                    "type": "integer"
+                },
+                "this_week": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "analytics.SourceCount": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "source": {
+                    "type": "string"
                 }
             }
         },

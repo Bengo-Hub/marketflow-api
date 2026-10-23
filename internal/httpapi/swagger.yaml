@@ -98,6 +98,70 @@ definitions:
           type: string
         type: object
     type: object
+  analytics.DashboardData:
+    properties:
+      by_source:
+        items:
+          $ref: '#/definitions/analytics.SourceCount'
+        type: array
+      campaigns:
+        additionalProperties:
+          type: integer
+        type: object
+      chat_sessions:
+        additionalProperties:
+          type: integer
+        type: object
+      daily:
+        items:
+          $ref: '#/definitions/analytics.DayCount'
+        type: array
+      days:
+        type: integer
+      generated_at:
+        type: string
+      leads:
+        $ref: '#/definitions/analytics.LeadStats'
+      meetings:
+        additionalProperties:
+          type: integer
+        type: object
+      nurture:
+        additionalProperties:
+          type: integer
+        type: object
+    type: object
+  analytics.DayCount:
+    properties:
+      count:
+        type: integer
+      day:
+        type: string
+    type: object
+  analytics.LeadStats:
+    properties:
+      conversion_rate:
+        type: number
+      converted:
+        type: integer
+      delta_percent:
+        type: number
+      in_window:
+        type: integer
+      prev_week:
+        type: integer
+      this_week:
+        type: integer
+      total:
+        type: integer
+    type: object
+  analytics.SourceCount:
+    properties:
+      count:
+        type: integer
+      source:
+        type: string
+    type: object
   campaigns.createCampaignRequest:
     properties:
       budget_daily:
@@ -1772,22 +1836,26 @@ paths:
       - Analytics
   /analytics/dashboard:
     get:
-      description: Counts + week-over-week deltas for leads, contacts, chat sessions,
-        campaigns, meetings, active nurture enrollments.
+      description: Lead headline figures with week-over-week change, a daily lead
+        series and leads by source over the window, plus chat, campaign, meeting and
+        nurture counts.
       parameters:
       - description: Tenant UUID
         in: header
         name: X-Tenant-ID
         required: true
         type: string
+      - description: 'Window for the series and sources: 7, 30 or 90 (default 30)'
+        in: query
+        name: days
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/analytics.DashboardData'
       security:
       - bearerAuth: []
       summary: Tenant dashboard aggregates

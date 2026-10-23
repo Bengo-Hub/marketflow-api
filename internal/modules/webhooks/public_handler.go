@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
 	"github.com/bengobox/marketflow-api/internal/modules/meetings"
+	tenantmod "github.com/bengobox/marketflow-api/internal/modules/tenant"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -128,9 +129,15 @@ func (h *PublicHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	if t.FboDistribID != nil {
 		profile["fbo_distrib_id"] = *t.FboDistribID
 	}
-	if t.Metadata != nil {
-		profile["metadata"] = t.Metadata
+	// The Forever shop links need the store and language; without them every link fell back to KEN/en.
+	if t.FlpStoreCode != nil {
+		profile["flp_store_code"] = *t.FlpStoreCode
 	}
+	if t.FlpLanguage != nil {
+		profile["flp_language"] = *t.FlpLanguage
+	}
+	// Only allow-listed keys: metadata also holds private data such as the Marketing OS brand context.
+	profile["metadata"] = tenantmod.PublicMetadata(t.Metadata)
 
 	httpapi.JSON(w, http.StatusOK, profile)
 }
@@ -193,6 +200,8 @@ func (h *PublicHandler) GetFunnel(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusNotFound, "not_found", "funnel not found", nil)
 		return
 	}
+	// The UI renders this HTML as is; rows saved before the save-time check need it here.
+	result.LandingPageHTML = funnels.SanitizeLandingHTML(result.LandingPageHTML)
 	httpapi.JSON(w, http.StatusOK, result)
 }
 
@@ -229,7 +238,8 @@ func (h *PublicHandler) RenderFunnel(w http.ResponseWriter, r *http.Request) {
 	// If the tenant supplied custom HTML via the builder, serve that. We still
 	// inject the lead-capture JS + widget script at the end.
 	if f.LandingPageHTML != "" {
-		_, _ = w.Write([]byte(f.LandingPageHTML))
+		// Sanitised again on render, so rows saved before the save-time check are safe too.
+		_, _ = w.Write([]byte(funnels.SanitizeLandingHTML(f.LandingPageHTML)))
 		_, _ = w.Write([]byte(funnelTail(t.Slug)))
 		return
 	}
@@ -239,8 +249,8 @@ func (h *PublicHandler) RenderFunnel(w http.ResponseWriter, r *http.Request) {
 
 func renderDefaultFunnel(f *ent.Funnel, tenantSlug string) string {
 	brand := "#16a34a"
-	if c, ok := f.Metadata["brand_color"].(string); ok && c != "" {
-		brand = c
+	if c, ok := f.Metadata["brand_color"].(string); ok {
+		brand = funnels.SafeColor(c, brand)
 	}
 	title := f.Name
 	subtitle := "Tell us a bit about yourself and we'll reach out within 24 hours."

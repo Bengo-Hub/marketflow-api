@@ -2,9 +2,13 @@
 package analytics
 
 import (
+	"context"
 	"net/http"
 	"sort"
 	"time"
+
+	sharedcache "github.com/Bengo-Hub/cache"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
@@ -21,6 +25,7 @@ import (
 // Handler serves tenant-scoped aggregate stats for the dashboard.
 type Handler struct {
 	db     *ent.Client
+	cache  *sharedcache.Aside
 	logger *zap.Logger
 }
 
@@ -28,88 +33,11 @@ func NewHandler(db *ent.Client, logger *zap.Logger) *Handler {
 	return &Handler{db: db, logger: logger.Named("analytics")}
 }
 
-// Dashboard returns aggregated counts + deltas for the tenant dashboard.
-// @Summary Tenant dashboard aggregates
-// @Description Counts + week-over-week deltas for leads, contacts, chat sessions, campaigns, meetings, active nurture enrollments.
-// @Tags Analytics
-// @Produce json
-// @Param X-Tenant-ID header string true "Tenant UUID"
-// @Success 200 {object} map[string]interface{}
-// @Security bearerAuth
-// @Router /analytics/dashboard [get]
-func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := extractTenant(r)
-	if err != nil {
-		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing X-Tenant-ID", nil)
-		return
-	}
-	ctx := r.Context()
-	now := time.Now().UTC()
-	weekAgo := now.Add(-7 * 24 * time.Hour)
-	prevWeek := now.Add(-14 * 24 * time.Hour)
-
-	// Leads
-	leadTotal, _ := h.db.Lead.Query().Where(lead.TenantIDEQ(tenantID)).Count(ctx)
-	leadsThisWeek, _ := h.db.Lead.Query().Where(lead.TenantIDEQ(tenantID), lead.CreatedAtGTE(weekAgo)).Count(ctx)
-	leadsPrevWeek, _ := h.db.Lead.Query().Where(lead.TenantIDEQ(tenantID), lead.CreatedAtGTE(prevWeek), lead.CreatedAtLT(weekAgo)).Count(ctx)
-	leadsConverted, _ := h.db.Lead.Query().Where(lead.TenantIDEQ(tenantID), lead.StatusEQ("converted")).Count(ctx)
-
-	// Chat sessions (this week)
-	sessionsThisWeek, _ := h.db.ChatSession.Query().
-		Where(chatsession.TenantIDEQ(tenantID), chatsession.StartedAtGTE(weekAgo)).
-		Count(ctx)
-
-	// Campaigns (active)
-	campaignsActive, _ := h.db.Campaign.Query().
-		Where(campaign.TenantIDEQ(tenantID), campaign.StatusEQ("active")).
-		Count(ctx)
-
-	// Meetings (scheduled + next 7 days)
-	meetingsUpcoming, _ := h.db.ScheduledMeeting.Query().
-		Where(
-			scheduledmeeting.TenantIDEQ(tenantID),
-			scheduledmeeting.StatusEQ("scheduled"),
-			scheduledmeeting.ScheduledAtGTE(now),
-			scheduledmeeting.ScheduledAtLT(now.Add(7*24*time.Hour)),
-		).
-		Count(ctx)
-
-	// Nurture enrollments (active)
-	enrollmentsActive, _ := h.db.NurtureEnrollment.Query().
-		Where(nurtureenrollment.TenantIDEQ(tenantID), nurtureenrollment.StatusEQ("active")).
-		Count(ctx)
-
-	conversionRate := 0.0
-	if leadTotal > 0 {
-		conversionRate = float64(leadsConverted) / float64(leadTotal) * 100
-	}
-	leadsDelta := 0.0
-	if leadsPrevWeek > 0 {
-		leadsDelta = (float64(leadsThisWeek) - float64(leadsPrevWeek)) / float64(leadsPrevWeek) * 100
-	}
-
-	httpapi.JSON(w, http.StatusOK, map[string]any{
-		"leads": map[string]any{
-			"total":            leadTotal,
-			"this_week":        leadsThisWeek,
-			"delta_percent":    leadsDelta,
-			"converted":        leadsConverted,
-			"conversion_rate":  conversionRate,
-		},
-		"chat_sessions": map[string]any{
-			"this_week": sessionsThisWeek,
-		},
-		"campaigns": map[string]any{
-			"active": campaignsActive,
-		},
-		"meetings": map[string]any{
-			"upcoming_week": meetingsUpcoming,
-		},
-		"nurture": map[string]any{
-			"active_enrollments": enrollmentsActive,
-		},
-		"generated_at": now.Format(time.RFC3339),
-	})
+// WithCache caches the dashboard per tenant for a minute. Without it every request
+// queries the database.
+func (h *Handler) WithCache(c *sharedcache.Aside) *Handler {
+	h.cache = c
+	return h
 }
 
 func extractTenant(r *http.Request) (uuid.UUID, error) {
@@ -128,20 +56,21 @@ func (h *Handler) PlatformUsage(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC()
 	weekAgo := now.Add(-7 * 24 * time.Hour)
 
-	tenantCount, _ := h.db.Tenant.Query().Count(ctx)
-	activeTenants, _ := h.db.Tenant.Query().Where(tenant.StatusEQ("active")).Count(ctx)
-	leadsTotal, _ := h.db.Lead.Query().Count(ctx)
-	leadsThisWeek, _ := h.db.Lead.Query().Where(lead.CreatedAtGTE(weekAgo)).Count(ctx)
-	chatThisWeek, _ := h.db.ChatSession.Query().Where(chatsession.StartedAtGTE(weekAgo)).Count(ctx)
-	meetingsUpcoming, _ := h.db.ScheduledMeeting.Query().
-		Where(scheduledmeeting.StatusEQ("scheduled"), scheduledmeeting.ScheduledAtGTE(now)).
-		Count(ctx)
-	enrollmentsActive, _ := h.db.NurtureEnrollment.Query().
-		Where(nurtureenrollment.StatusEQ("active")).
-		Count(ctx)
-	campaignsActive, _ := h.db.Campaign.Query().
-		Where(campaign.StatusEQ("active")).
-		Count(ctx)
+	var tenantCount, activeTenants, leadsTotal, leadsThisWeek, chatThisWeek, meetingsUpcoming, enrollmentsActive, campaignsActive int
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(4)
+	count := func(dst *int, q func(context.Context) (int, error)) {
+		g.Go(func() (err error) { *dst, err = q(gctx); return err })
+	}
+	count(&tenantCount, h.db.Tenant.Query().Count)
+	count(&activeTenants, h.db.Tenant.Query().Where(tenant.StatusEQ("active")).Count)
+	count(&leadsTotal, h.db.Lead.Query().Count)
+	count(&leadsThisWeek, h.db.Lead.Query().Where(lead.CreatedAtGTE(weekAgo)).Count)
+	count(&chatThisWeek, h.db.ChatSession.Query().Where(chatsession.StartedAtGTE(weekAgo)).Count)
+	count(&meetingsUpcoming, h.db.ScheduledMeeting.Query().
+		Where(scheduledmeeting.StatusEQ("scheduled"), scheduledmeeting.ScheduledAtGTE(now)).Count)
+	count(&enrollmentsActive, h.db.NurtureEnrollment.Query().Where(nurtureenrollment.StatusEQ("active")).Count)
+	count(&campaignsActive, h.db.Campaign.Query().Where(campaign.StatusEQ("active")).Count)
 
 	// Per-tenant top-10 leaderboard by lead count (last 7d).
 	type row struct {
@@ -156,11 +85,18 @@ func (h *Handler) PlatformUsage(w http.ResponseWriter, r *http.Request) {
 		TenantID uuid.UUID `json:"tenant_id"`
 		Count    int       `json:"count"`
 	}
-	_ = h.db.Lead.Query().
-		Where(lead.CreatedAtGTE(weekAgo)).
-		GroupBy(lead.FieldTenantID).
-		Aggregate(ent.Count()).
-		Scan(ctx, &top)
+	g.Go(func() error {
+		return h.db.Lead.Query().
+			Where(lead.CreatedAtGTE(weekAgo)).
+			GroupBy(lead.FieldTenantID).
+			Aggregate(ent.Count()).
+			Scan(gctx, &top)
+	})
+	if err := g.Wait(); err != nil {
+		h.logger.Error("platform usage query failed", zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "query_failed", "could not load platform usage", nil)
+		return
+	}
 	sort.Slice(top, func(i, j int) bool { return top[i].Count > top[j].Count })
 	if len(top) > 10 {
 		top = top[:10]
@@ -171,7 +107,10 @@ func (h *Handler) PlatformUsage(w http.ResponseWriter, r *http.Request) {
 	}
 	names := map[uuid.UUID]*ent.Tenant{}
 	if len(ids) > 0 {
-		rows, _ := h.db.Tenant.Query().Where(tenant.IDIn(ids...)).All(ctx)
+		rows, err := h.db.Tenant.Query().Where(tenant.IDIn(ids...)).All(ctx)
+		if err != nil {
+			h.logger.Warn("leaderboard tenant names failed", zap.Error(err))
+		}
 		for _, t := range rows {
 			names[t.ID] = t
 		}
