@@ -115,7 +115,7 @@ func runProbe(ctx context.Context, ptype, pname string, s map[string]string) (st
 	switch pname {
 	case "groq":
 		return probeOpenAIChat(ctx, c, firstNonEmpty(s["base_url"], "https://api.groq.com/openai/v1"),
-			s["api_key"], firstNonEmpty(s["router_model"], "llama-3.1-8b-instant"))
+			s["api_key"], firstNonEmpty(s["router_model"], "openai/gpt-oss-20b"))
 	case "openai":
 		return probeOpenAIChat(ctx, c, firstNonEmpty(s["base_url"], "https://api.openai.com/v1"),
 			s["api_key"], firstNonEmpty(s["main_model"], "gpt-4o-mini"))
