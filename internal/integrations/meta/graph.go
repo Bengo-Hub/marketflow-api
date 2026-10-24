@@ -39,6 +39,12 @@ func NewClient(version string) *Client {
 	}
 }
 
+// WithSecret makes every call carry appsecret_proof (see proof.go).
+func (c *Client) WithSecret(secret SecretSource) *Client {
+	c.httpClient.Transport = NewProofTransport(c.httpClient.Transport, secret)
+	return c
+}
+
 // CampaignInput is the minimal shape of a Meta campaign. Objective, special
 // ad categories and targeting live on AdSet; we expose only what marketflow
 // currently surfaces in the Campaign schema.

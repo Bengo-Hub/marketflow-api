@@ -31,6 +31,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
+	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	chirouter "github.com/go-chi/chi/v5"
@@ -56,12 +57,15 @@ func NewHandler(db *ent.Client, stateKey []byte, keys *encryption.KeyProvider, l
 		deletionStatusURL: "https://marketflow.codevertexafrica.com/data-deletion"}
 }
 
-// WithMeta sets the env fallback app secret and the deletion status page URL.
+// WithMeta sets the env fallback app secret and the deletion status page URL,
+// and makes the connect-time Graph reads carry appsecret_proof.
 func (h *Handler) WithMeta(appSecret, deletionStatusURL string) *Handler {
 	h.metaAppSecret = appSecret
 	if deletionStatusURL != "" {
 		h.deletionStatusURL = deletionStatusURL
 	}
+	graphClient = &http.Client{Timeout: graphClient.Timeout,
+		Transport: meta.NewProofTransport(nil, meta.PlatformSecret(h.db, h.keys, appSecret))}
 	return h
 }
 

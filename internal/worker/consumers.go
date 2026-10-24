@@ -7,10 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/encryption"
+	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
@@ -94,7 +96,10 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, keys *encryption.Ke
 			&LeadCreatedHandler{cfg: cfg, db: db, logger: logger.Named("lead")},
 			&ConversionsHandler{cfg: cfg, db: db, keys: keys, logger: logger.Named("conversions")},
 			&MetaLeadEnricher{
-				db:       db,
+				db: db,
+				// Lead reads use the Page token our app issued, so they carry appsecret_proof.
+				hc: &http.Client{Timeout: 15 * time.Second,
+					Transport: meta.NewProofTransport(nil, meta.PlatformSecret(db, keys, os.Getenv("MF_META_APP_SECRET")))},
 				tokens:   NewMetaTokenResolver(db, keys, logger),
 				contacts: contacts.NewService(db, logger),
 				logger:   logger.Named("meta-lead-enricher"),

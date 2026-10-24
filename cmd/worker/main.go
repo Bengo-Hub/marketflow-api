@@ -32,6 +32,7 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/Bengo-Hub/httpware/objectstore"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
@@ -216,7 +217,8 @@ func main() {
 		// time; falls back to the Tenant.meta_access_token legacy field
 		// when the ProviderSetting row is missing.
 		tokenResolver := worker.NewMetaTokenResolver(entClient, keys, logger)
-		insights := worker.NewAdInsights(entClient, 15*time.Minute, tokenResolver.Resolve, logger)
+		insights := worker.NewAdInsights(entClient, 15*time.Minute, tokenResolver.Resolve, logger).
+			WithMetaSecret(meta.PlatformSecret(entClient, keys, os.Getenv("MF_META_APP_SECRET")))
 		go insights.Run(ctx)
 
 		// CRM background agents: ProactiveFollowUpAgent (hourly) + DealStaleDetector (daily).

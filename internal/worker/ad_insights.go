@@ -42,6 +42,13 @@ func NewAdInsights(db *ent.Client, interval time.Duration, resolver func(ctx con
 	}
 }
 
+// WithMetaSecret makes the insights calls carry appsecret_proof (the Meta app
+// requires it when "Require app secret" is on).
+func (a *AdInsights) WithMetaSecret(secret meta.SecretSource) *AdInsights {
+	a.meta.WithSecret(secret)
+	return a
+}
+
 // Run blocks until ctx is cancelled, firing tick() every `interval`.
 func (a *AdInsights) Run(ctx context.Context) {
 	if a.db == nil || a.resolver == nil {
