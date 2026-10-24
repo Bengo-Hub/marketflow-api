@@ -479,7 +479,7 @@ func TestReviewLinks(t *testing.T) {
 	}
 
 	// Through the handler: 302, noindex.
-	h := NewHandler(s, rv, zap.NewNop())
+	h := NewHandler(s, rv, nil, zap.NewNop())
 	req := httptest.NewRequest(http.MethodGet, "/r/"+token, nil)
 	req = withURLParam(req, "token", token)
 	rec := httptest.NewRecorder()

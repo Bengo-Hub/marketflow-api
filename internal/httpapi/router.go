@@ -442,6 +442,7 @@ type MarketingOSHandlers struct {
 // versions, review links).
 type CreativeHandlers struct {
 	ListBriefs        http.HandlerFunc
+	SearchOfferings   http.HandlerFunc
 	CreateBrief       http.HandlerFunc
 	GetBrief          http.HandlerFunc
 	UpdateBrief       http.HandlerFunc
@@ -846,6 +847,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 			if deps.CreativeHandlers.ListBriefs != nil {
 				r.Route("/creative", func(r chi.Router) {
 					r.Get("/briefs", deps.CreativeHandlers.ListBriefs)
+					r.Get("/offerings", deps.CreativeHandlers.SearchOfferings)
 					r.Post("/briefs", deps.CreativeHandlers.CreateBrief)
 					r.Get("/briefs/{id}", deps.CreativeHandlers.GetBrief)
 					r.Put("/briefs/{id}", deps.CreativeHandlers.UpdateBrief)

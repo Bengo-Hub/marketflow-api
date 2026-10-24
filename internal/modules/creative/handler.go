@@ -17,14 +17,40 @@ import (
 
 // Handler serves the Creative Studio routes.
 type Handler struct {
-	svc     *Service
-	reviews *Reviews
-	logger  *zap.Logger
+	svc       *Service
+	reviews   *Reviews
+	offerings *Offerings
+	logger    *zap.Logger
 }
 
-// NewHandler builds the handler.
-func NewHandler(svc *Service, reviews *Reviews, logger *zap.Logger) *Handler {
-	return &Handler{svc: svc, reviews: reviews, logger: logger.Named("creative.handler")}
+// NewHandler builds the handler. offerings may be nil (the picker answers 503).
+func NewHandler(svc *Service, reviews *Reviews, offerings *Offerings, logger *zap.Logger) *Handler {
+	return &Handler{svc: svc, reviews: reviews, offerings: offerings, logger: logger.Named("creative.handler")}
+}
+
+// SearchOfferings handles GET /api/v1/creative/offerings?q=: sellable items from
+// the tenant's catalogue for a brief's offering. 503 when the catalogue is not
+// reachable; the UI then lets the user describe the offering as free text.
+// @Summary Search the tenant's catalogue for a brief's offering
+// @Tags Creative
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param q query string false "Name or SKU"
+// @Success 200 {object} map[string]interface{}
+// @Failure 503 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /creative/offerings [get]
+func (h *Handler) SearchOfferings(w http.ResponseWriter, r *http.Request) {
+	tid, ok := tenantOf(w, r)
+	if !ok {
+		return
+	}
+	items, err := h.offerings.Search(r.Context(), tid, r.URL.Query().Get("q"), 20)
+	if err != nil {
+		httpapi.Error(w, http.StatusServiceUnavailable, "catalogue_unavailable", err.Error(), nil)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, map[string]any{"data": items})
 }
 
 func tenantOf(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {

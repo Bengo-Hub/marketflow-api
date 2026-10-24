@@ -2649,6 +2649,35 @@ paths:
       summary: Queue a poster version of a brief
       tags:
       - Creative
+  /creative/offerings:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Name or SKU
+        in: query
+        name: q
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Search the tenant's catalogue for a brief's offering
+      tags:
+      - Creative
   /creative/versions/{id}:
     get:
       parameters:
