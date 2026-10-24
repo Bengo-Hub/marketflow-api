@@ -301,7 +301,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	marketingOSHandler := marketingos.NewHandler(marketingos.NewService(entClient, subsClient, logger), logger)
 	// Review links are signed with the env encryption key (stable, like the OAuth
 	// state), separated from it by the token's own HMAC domain.
-	creativeHandler := creative.NewHandler(creative.NewService(entClient, logger),
+	creativeHandler := creative.NewHandler(creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)),
 		creative.NewReviews(entClient, encryption.KeyFromEnv(cfg.Security.EncryptionKey)), logger)
 
 	segmentHandler := segments.NewHandler(segmentService, logger)
@@ -589,6 +589,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			GetVersion:        creativeHandler.GetVersion,
 			Approve:           creativeHandler.Approve,
 			Discard:           creativeHandler.Discard,
+			Revise:            creativeHandler.Revise,
+			Extend:            creativeHandler.Extend,
 			CreateReviewLink:  creativeHandler.CreateReviewLink,
 			RevokeReviewLinks: creativeHandler.RevokeReviewLinks,
 			OpenReview:        creativeHandler.OpenReview,

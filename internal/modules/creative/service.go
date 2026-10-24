@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	ratelimit "github.com/Bengo-Hub/shared-ratelimit"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
 	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
@@ -41,9 +42,14 @@ const (
 	// supersededTTL keeps the other drafts of a brief for a day after one of
 	// them is approved.
 	supersededTTL = 24 * time.Hour
-	maxPromptLen  = 2000
-	maxCopyLen    = 200
-	maxPhotos     = 4
+	// extendedTTL is a draft's lifetime after its one extension.
+	extendedTTL = 7 * 24 * time.Hour
+	// dailyRenderCap bounds paid renders per tenant per UTC day (text-only
+	// revisions are free and not counted).
+	dailyRenderCap = 20
+	maxPromptLen   = 2000
+	maxCopyLen     = 200
+	maxPhotos      = 4
 )
 
 var (
@@ -62,11 +68,22 @@ var ErrConflict = errors.New("conflict")
 // ErrDraftLimit is returned when the tenant has too many live drafts (429).
 var ErrDraftLimit = errors.New("too many drafts waiting")
 
+// ErrDailyCap is returned when the tenant has used today's paid renders (429).
+var ErrDailyCap = errors.New("daily render limit reached")
+
 func invalid(msg string) error { return fmt.Errorf("%w: %s", ErrInvalid, msg) }
+
+// Asset kinds.
+const (
+	AssetImage = "image"
+	// AssetScene is the poster's scene without text, kept for free text edits.
+	AssetScene = "scene"
+)
 
 // Service is the Creative Studio data layer.
 type Service struct {
 	db     *ent.Client
+	quota  *ratelimit.Quota // daily paid-render cap; nil turns it off
 	logger *zap.Logger
 	nowFn  func() time.Time
 }
@@ -74,6 +91,13 @@ type Service struct {
 // NewService builds the service.
 func NewService(db *ent.Client, logger *zap.Logger) *Service {
 	return &Service{db: db, logger: logger.Named("creative"), nowFn: time.Now}
+}
+
+// WithQuota turns on the per-tenant daily cap on paid renders (shared ratelimit,
+// Redis day buckets; it fails open when Redis is down).
+func (s *Service) WithQuota(q *ratelimit.Quota) *Service {
+	s.quota = q
+	return s
 }
 
 // BriefInput creates or changes a brief. Nil fields are left as they are.
@@ -262,22 +286,42 @@ func (s *Service) CreateVersion(ctx context.Context, tenantID, briefID uuid.UUID
 			return nil, invalid("parent_version_id is not a version of this brief")
 		}
 	}
-	live, err := s.db.CreativeVersion.Query().
-		Where(creativeversion.TenantID(tenantID), creativeversion.StatusIn(StatusQueued, StatusRendering, StatusReady)).
-		Count(ctx)
-	if err != nil {
+	if err := s.checkLiveDrafts(ctx, tenantID); err != nil {
 		return nil, err
 	}
-	if live >= maxLiveDrafts {
-		return nil, ErrDraftLimit
+	// Last check before the insert: it consumes one of today's paid renders.
+	if s.quota != nil {
+		if res, _ := s.quota.Check(ctx, tenantID.String(), "creative_renders", dailyRenderCap); res != nil && !res.Allowed {
+			return nil, ErrDailyCap
+		}
 	}
 	copyFields := map[string]any{"prompt": in.Prompt, "headline": in.Headline, "subline": in.Subline, "price": in.Price, "cta": in.CTA}
 	meta := map[string]any{}
 	if len(in.PhotoURLs) > 0 {
 		meta["photo_urls"] = in.PhotoURLs
 	}
-	// version_no is max+1; the unique (brief_id, version_no) index settles a race
-	// between two requests, and the loser takes the next number.
+	return s.insertVersion(ctx, tenantID, briefID, in.ParentVersionID, in.Tier, in.Format, copyFields, meta)
+}
+
+// checkLiveDrafts refuses a new version when the tenant already has
+// maxLiveDrafts queued, rendering or waiting for review.
+func (s *Service) checkLiveDrafts(ctx context.Context, tenantID uuid.UUID) error {
+	live, err := s.db.CreativeVersion.Query().
+		Where(creativeversion.TenantID(tenantID), creativeversion.StatusIn(StatusQueued, StatusRendering, StatusReady)).
+		Count(ctx)
+	if err != nil {
+		return err
+	}
+	if live >= maxLiveDrafts {
+		return ErrDraftLimit
+	}
+	return nil
+}
+
+// insertVersion adds a queued version. version_no is max+1; the unique
+// (brief_id, version_no) index settles a race between two requests, and the
+// loser takes the next number.
+func (s *Service) insertVersion(ctx context.Context, tenantID, briefID uuid.UUID, parent *uuid.UUID, tier, format string, copyFields, meta map[string]any) (*ent.CreativeVersion, error) {
 	for attempt := 0; ; attempt++ {
 		next := 1
 		last, err := s.db.CreativeVersion.Query().
@@ -293,11 +337,11 @@ func (s *Service) CreateVersion(ctx context.Context, tenantID, briefID uuid.UUID
 		v, err := s.db.CreativeVersion.Create().
 			SetTenantID(tenantID).
 			SetBriefID(briefID).
-			SetNillableParentVersionID(in.ParentVersionID).
+			SetNillableParentVersionID(parent).
 			SetVersionNo(next).
 			SetKind("poster").
-			SetTier(in.Tier).
-			SetFormat(in.Format).
+			SetTier(tier).
+			SetFormat(format).
 			SetCopy(copyFields).
 			SetMetadata(meta).
 			Save(ctx)
@@ -305,6 +349,83 @@ func (s *Service) CreateVersion(ctx context.Context, tenantID, briefID uuid.UUID
 			return v, err
 		}
 	}
+}
+
+// ReviseInput changes a poster's words only. Nil fields keep the source's.
+type ReviseInput struct {
+	Headline *string `json:"headline"`
+	Subline  *string `json:"subline"`
+	Price    *string `json:"price"`
+	CTA      *string `json:"cta"`
+}
+
+// Revise queues a text-only revision of a finished poster: the same scene with
+// new words, re-composed by marketflow-ai with no generation and no charge. It
+// needs the scene stored with the source poster.
+func (s *Service) Revise(ctx context.Context, tenantID, sourceID uuid.UUID, in ReviseInput) (*ent.CreativeVersion, error) {
+	src, err := s.version(ctx, tenantID, sourceID)
+	if err != nil {
+		return nil, err
+	}
+	if src.Status != StatusReady && src.Status != StatusApproved && src.Status != StatusSuperseded {
+		return nil, fmt.Errorf("%w: only a finished poster can be revised", ErrConflict)
+	}
+	scene := str(src.Metadata["scene_url"])
+	for _, a := range src.Edges.Assets {
+		if a.Kind == AssetScene {
+			scene = a.URL
+		}
+	}
+	if scene == "" {
+		return nil, fmt.Errorf("%w: this poster has no stored scene; make a new version instead", ErrConflict)
+	}
+	copyFields := copyMap(src.Copy)
+	for k, v := range map[string]*string{"headline": in.Headline, "subline": in.Subline, "price": in.Price, "cta": in.CTA} {
+		if v == nil {
+			continue
+		}
+		t := strings.TrimSpace(*v)
+		if len(t) > maxCopyLen {
+			return nil, invalid(fmt.Sprintf("poster text is limited to %d characters per line", maxCopyLen))
+		}
+		copyFields[k] = t
+	}
+	if err := s.checkLiveDrafts(ctx, tenantID); err != nil {
+		return nil, err
+	}
+	meta := map[string]any{"recompose": true, "scene_url": scene}
+	return s.insertVersion(ctx, tenantID, src.BriefID, &src.ID, src.Tier, src.Format, copyFields, meta)
+}
+
+// Extend keeps a draft waiting for review for 7 days from when it was made,
+// once (the sprint plan's single extension).
+func (s *Service) Extend(ctx context.Context, tenantID, id uuid.UUID) (*ent.CreativeVersion, error) {
+	v, err := s.version(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if v.Status != StatusReady {
+		return nil, fmt.Errorf("%w: only a draft waiting for review can be extended", ErrConflict)
+	}
+	if _, done := v.Metadata["extended_at"]; done {
+		return nil, fmt.Errorf("%w: a draft can be extended once", ErrConflict)
+	}
+	until := v.CreatedAt.Add(extendedTTL)
+	err = withTx(ctx, s.db, func(tx *ent.Tx) error {
+		meta := copyMap(v.Metadata)
+		meta["extended_at"] = s.nowFn().UTC().Format(time.RFC3339)
+		if err := tx.CreativeVersion.UpdateOneID(v.ID).SetMetadata(meta).Exec(ctx); err != nil {
+			return err
+		}
+		return tx.CreativeAsset.Update().
+			Where(creativeasset.VersionID(v.ID), creativeasset.PurgedAtIsNil(), creativeasset.ExpiresAtNotNil()).
+			SetExpiresAt(until).
+			Exec(ctx)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.version(ctx, tenantID, id)
 }
 
 func (s *Service) version(ctx context.Context, tenantID, id uuid.UUID) (*ent.CreativeVersion, error) {

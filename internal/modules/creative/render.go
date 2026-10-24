@@ -145,6 +145,8 @@ type posterCall struct {
 	Price     string   `json:"price,omitempty"`
 	CTA       string   `json:"cta,omitempty"`
 	Charge    bool     `json:"charge"`
+	// SceneURL makes it a text-only revision over that stored scene (free).
+	SceneURL string `json:"scene_url,omitempty"`
 }
 
 // posterReply is its 200 answer.
@@ -159,6 +161,8 @@ type posterReply struct {
 		Route     string  `json:"route"`
 		CostUSD   float64 `json:"cost_usd"`
 		SourceURL string  `json:"source_url"`
+		SceneKey  string  `json:"scene_key"`
+		SceneURL  string  `json:"scene_url"`
 		Attempts  int     `json:"attempts"`
 	} `json:"poster"`
 	CreditsCharged int `json:"credits_charged"`
@@ -166,6 +170,9 @@ type posterReply struct {
 
 // errNoCredits is a 402 from marketflow-ai: not retried.
 var errNoCredits = errors.New("not enough AI credits for this poster")
+
+// errSceneGone is a 410 on a text-only revision: the scene was purged.
+var errSceneGone = errors.New("the original image is no longer stored; make a new poster")
 
 func (r *Renderer) render(ctx context.Context, v *ent.CreativeVersion) {
 	meta := copyMap(v.Metadata)
@@ -175,6 +182,9 @@ func (r *Renderer) render(ctx context.Context, v *ent.CreativeVersion) {
 	call := posterCall{TenantID: v.TenantID.String(), VersionID: v.ID.String(), Format: v.Format, Tier: v.Tier,
 		Prompt: str(v.Copy["prompt"]), Headline: str(v.Copy["headline"]), Subline: str(v.Copy["subline"]),
 		Price: str(v.Copy["price"]), CTA: str(v.Copy["cta"]), PhotoURLs: strs(meta["photo_urls"]), Charge: true}
+	if recompose, _ := meta["recompose"].(bool); recompose {
+		call.SceneURL, call.Charge = str(meta["scene_url"]), false
+	}
 	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
 		brand, _ := b.Metadata["brand"].(map[string]any)
 		call.Accent, call.LogoURL, call.Palette = str(brand["accent"]), str(brand["logo_url"]), strs(brand["palette"])
@@ -196,12 +206,21 @@ func (r *Renderer) render(ctx context.Context, v *ent.CreativeVersion) {
 	expires := r.nowFn().Add(DraftTTL)
 	err = withTx(ctx, r.db, func(tx *ent.Tx) error {
 		if _, err := tx.CreativeAsset.Create().
-			SetTenantID(v.TenantID).SetVersionID(v.ID).SetKind("image").
+			SetTenantID(v.TenantID).SetVersionID(v.ID).SetKind(AssetImage).
 			SetStorageKey(p.Key).SetURL(p.URL).SetBytes(int64(p.Bytes)).
 			SetWidth(p.Width).SetHeight(p.Height).SetSha256(p.SHA256).
 			SetExpiresAt(expires).
 			Save(ctx); err != nil {
 			return err
+		}
+		// The clean scene lives and is purged with the draft, like the poster.
+		if p.SceneKey != "" && p.SceneURL != "" {
+			if _, err := tx.CreativeAsset.Create().
+				SetTenantID(v.TenantID).SetVersionID(v.ID).SetKind(AssetScene).
+				SetStorageKey(p.SceneKey).SetURL(p.SceneURL).SetExpiresAt(expires).
+				Save(ctx); err != nil {
+				return err
+			}
 		}
 		return tx.CreativeVersion.UpdateOneID(v.ID).
 			SetStatus(StatusReady).SetCredits(reply.CreditsCharged).SetMetadata(meta).ClearError().
@@ -232,6 +251,8 @@ func (r *Renderer) call(ctx context.Context, body posterCall) (*posterReply, err
 	switch {
 	case resp.StatusCode == http.StatusPaymentRequired:
 		return nil, errNoCredits
+	case resp.StatusCode == http.StatusGone:
+		return nil, errSceneGone
 	case resp.StatusCode != http.StatusOK:
 		var e struct {
 			Error string `json:"error"`
@@ -252,8 +273,8 @@ func (r *Renderer) call(ctx context.Context, body posterCall) (*posterReply, err
 // fail records why a render did not finish. marketflow-ai already refunded.
 func (r *Renderer) fail(ctx context.Context, id uuid.UUID, meta map[string]any, err error) {
 	msg := "the poster could not be made right now; nothing was charged"
-	if errors.Is(err, errNoCredits) {
-		msg = errNoCredits.Error()
+	if errors.Is(err, errNoCredits) || errors.Is(err, errSceneGone) {
+		msg = err.Error()
 	}
 	r.logger.Warn("poster failed", zap.String("version_id", id.String()), zap.Error(err))
 	_ = r.db.CreativeVersion.UpdateOneID(id).SetStatus(StatusFailed).SetError(msg).SetMetadata(meta).Exec(ctx)

@@ -449,6 +449,8 @@ type CreativeHandlers struct {
 	GetVersion        http.HandlerFunc
 	Approve           http.HandlerFunc
 	Discard           http.HandlerFunc
+	Revise            http.HandlerFunc
+	Extend            http.HandlerFunc
 	CreateReviewLink  http.HandlerFunc
 	RevokeReviewLinks http.HandlerFunc
 	OpenReview        http.HandlerFunc // Public — GET /r/{token}
@@ -851,6 +853,8 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Get("/versions/{id}", deps.CreativeHandlers.GetVersion)
 					r.Post("/versions/{id}/approve", deps.CreativeHandlers.Approve)
 					r.Post("/versions/{id}/discard", deps.CreativeHandlers.Discard)
+					r.Post("/versions/{id}/revise", deps.CreativeHandlers.Revise)
+					r.Post("/versions/{id}/extend", deps.CreativeHandlers.Extend)
 					r.Post("/versions/{id}/review-link", deps.CreativeHandlers.CreateReviewLink)
 					r.Delete("/versions/{id}/review-link", deps.CreativeHandlers.RevokeReviewLinks)
 				})

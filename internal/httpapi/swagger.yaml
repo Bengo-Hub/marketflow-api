@@ -396,6 +396,17 @@ definitions:
       title:
         type: string
     type: object
+  creative.ReviseInput:
+    properties:
+      cta:
+        type: string
+      headline:
+        type: string
+      price:
+        type: string
+      subline:
+        type: string
+    type: object
   creative.VersionInput:
     properties:
       cta:
@@ -2729,6 +2740,36 @@ paths:
       summary: 'Discard a draft: the next hourly purge deletes its files'
       tags:
       - Creative
+  /creative/versions/{id}/extend:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Version UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Keep a draft for 7 days from when it was made (once)
+      tags:
+      - Creative
   /creative/versions/{id}/review-link:
     delete:
       parameters:
@@ -2784,6 +2825,44 @@ paths:
       security:
       - bearerAuth: []
       summary: Make a review link for a draft (default 72 hours, max 7 days)
+      tags:
+      - Creative
+  /creative/versions/{id}/revise:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Source version UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Words to change
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/creative.ReviseInput'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Revise a poster's words (free, same image)
       tags:
       - Creative
   /custom-fields/defs:
@@ -3628,6 +3707,10 @@ paths:
       - description: 'Filter: product, faq, compliance, business_opportunity, custom'
         in: query
         name: category
+        type: string
+      - description: Search title or content
+        in: query
+        name: q
         type: string
       - description: Page size
         in: query

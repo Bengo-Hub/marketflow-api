@@ -233,11 +233,28 @@ func (f *fakeAI) server(t *testing.T, key string) *httptest.Server {
 			return
 		}
 		vid := body["version_id"].(string)
+		if scene, _ := body["scene_url"].(string); scene != "" {
+			if strings.Contains(scene, "gone") {
+				w.WriteHeader(http.StatusGone)
+				_, _ = w.Write([]byte(`{"error":"the original image is no longer stored; make a new poster"}`))
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"poster": map[string]any{
+					"url": "https://media.example.com/" + vid + ".jpg", "key": "marketflow/t/creative-drafts/posters/" + vid + ".jpg",
+					"width": 1080, "height": 1350, "bytes": 99, "route": "recompose", "scene_url": scene, "attempts": 1,
+				},
+				"credits_charged": 0,
+			})
+			return
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"poster": map[string]any{
 				"url": "https://media.example.com/" + vid + ".jpg", "key": "marketflow/t/creative-drafts/posters/" + vid + ".jpg",
 				"width": 1080, "height": 1350, "bytes": 123456, "sha256": "abc", "route": "fal/seedream-v5-lite",
 				"cost_usd": 0.035, "source_url": "https://fal.media/scene.png", "attempts": 1,
+				"scene_key": "marketflow/t/creative-drafts/posters/" + vid + "-scene.jpg",
+				"scene_url": "https://media.example.com/" + vid + "-scene.jpg",
 			},
 			"credits_charged": 2,
 		})
@@ -266,10 +283,18 @@ func TestRendererMakesQueuedPosters(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Status != StatusReady || got.Credits != 2 || len(got.Edges.Assets) != 1 {
+	// The poster and its clean scene (kept for free text edits).
+	if got.Status != StatusReady || got.Credits != 2 || len(got.Edges.Assets) != 2 {
 		t.Fatalf("after render: status %s credits %d assets %d err %q", got.Status, got.Credits, len(got.Edges.Assets), got.Error)
 	}
-	a := got.Edges.Assets[0]
+	var a *ent.CreativeAsset
+	for _, x := range got.Edges.Assets {
+		if x.Kind == AssetImage {
+			a = x
+		} else if x.Kind != AssetScene || x.ExpiresAt == nil {
+			t.Fatalf("scene asset: %+v", x)
+		}
+	}
 	if a.Width != 1080 || a.ExpiresAt == nil || !strings.HasSuffix(a.StorageKey, v.ID.String()+".jpg") {
 		t.Fatalf("asset: %+v", a)
 	}
@@ -302,6 +327,60 @@ func TestRendererMakesQueuedPosters(t *testing.T) {
 	r.Tick(ctx)
 	if len(ai.got) != 1 {
 		t.Fatalf("a ready version was rendered again")
+	}
+
+	// A text-only revision: same scene, new words, never charged.
+	rev, err := s.Revise(ctx, tid, v.ID, ReviseInput{Price: ptr("KES 750")})
+	if err != nil || rev.ParentVersionID == nil || *rev.ParentVersionID != v.ID || rev.Copy["price"] != "KES 750" || rev.Copy["headline"] != "Soft skin" {
+		t.Fatalf("revise: %v %+v", err, rev)
+	}
+	r.Tick(ctx)
+	if len(ai.got) != 2 || ai.got[1]["charge"] != false || !strings.HasSuffix(ai.got[1]["scene_url"].(string), v.ID.String()+"-scene.jpg") {
+		t.Fatalf("revision request: %v", ai.got[len(ai.got)-1])
+	}
+	if done, _ := s.GetVersion(ctx, tid, rev.ID); done.Status != StatusReady || done.Credits != 0 {
+		t.Fatalf("revision: %s credits %d", done.Status, done.Credits)
+	}
+	// Revising the revision reuses the same scene.
+	rev2, err := s.Revise(ctx, tid, rev.ID, ReviseInput{CTA: ptr("Call now")})
+	if err != nil || rev2.Metadata["scene_url"] != ai.got[1]["scene_url"] {
+		t.Fatalf("second revision: %v %v", err, rev2)
+	}
+	// A purged scene fails the revision with a clear message.
+	_ = db.CreativeVersion.UpdateOneID(rev2.ID).SetMetadata(map[string]any{"recompose": true, "scene_url": "https://media.example.com/gone.jpg"}).Exec(ctx)
+	r.Tick(ctx)
+	if gone, _ := s.GetVersion(ctx, tid, rev2.ID); gone.Status != StatusFailed || gone.Error != errSceneGone.Error() {
+		t.Fatalf("gone scene: %s %q", gone.Status, gone.Error)
+	}
+	// A queued version cannot be revised.
+	q, _ := s.CreateVersion(ctx, tid, b.ID, VersionInput{Prompt: "x"})
+	if _, err := s.Revise(ctx, tid, q.ID, ReviseInput{}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("revise queued: %v", err)
+	}
+}
+
+func TestExtendOnce(t *testing.T) {
+	db := openDB(t)
+	s := NewService(db, zap.NewNop())
+	tid := newTenant(t, db)
+	ctx := context.Background()
+	b := newBrief(t, s, tid)
+	v, _ := s.CreateVersion(ctx, tid, b.ID, VersionInput{Prompt: "a"})
+	if _, err := s.Extend(ctx, tid, v.ID); !errors.Is(err, ErrConflict) {
+		t.Fatalf("a queued draft cannot be extended: %v", err)
+	}
+	_ = db.CreativeVersion.UpdateOneID(v.ID).SetStatus(StatusReady).Exec(ctx)
+	db.CreativeAsset.Create().SetTenantID(tid).SetVersionID(v.ID).SetStorageKey("k").SetURL("https://x/p.jpg").
+		SetExpiresAt(time.Now().Add(DraftTTL)).SaveX(ctx)
+	ext, err := s.Extend(ctx, tid, v.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exp := ext.Edges.Assets[0].ExpiresAt; exp == nil || exp.Before(v.CreatedAt.Add(extendedTTL-time.Minute)) {
+		t.Fatalf("extended expiry: %v", exp)
+	}
+	if _, err := s.Extend(ctx, tid, v.ID); !errors.Is(err, ErrConflict) {
+		t.Fatalf("second extension: %v", err)
 	}
 }
 

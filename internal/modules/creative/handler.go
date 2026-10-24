@@ -65,6 +65,8 @@ func (h *Handler) fail(w http.ResponseWriter, err error) {
 		httpapi.Error(w, http.StatusConflict, "conflict", err.Error(), nil)
 	case errors.Is(err, ErrDraftLimit):
 		httpapi.Error(w, http.StatusTooManyRequests, "draft_limit", "too many drafts are waiting; approve or discard some first", nil)
+	case errors.Is(err, ErrDailyCap):
+		httpapi.Error(w, http.StatusTooManyRequests, "daily_render_limit", "today's poster limit is reached; text edits still work, new posters again tomorrow", nil)
 	default:
 		h.logger.Error("creative request failed", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "internal_error", "something went wrong", nil)
@@ -297,6 +299,68 @@ func (h *Handler) Discard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v, err := h.svc.Discard(r.Context(), tid, id)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, v)
+}
+
+// Revise handles POST /api/v1/creative/versions/{id}/revise: a text-only
+// revision over the same scene. Free; it is made in a few seconds.
+// @Summary Revise a poster's words (free, same image)
+// @Tags Creative
+// @Accept json
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Source version UUID"
+// @Param request body ReviseInput true "Words to change"
+// @Success 202 {object} map[string]interface{}
+// @Failure 409 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /creative/versions/{id}/revise [post]
+func (h *Handler) Revise(w http.ResponseWriter, r *http.Request) {
+	tid, ok := tenantOf(w, r)
+	if !ok {
+		return
+	}
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	var in ReviseInput
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10)).Decode(&in); err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
+		return
+	}
+	v, err := h.svc.Revise(r.Context(), tid, id, in)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	httpapi.JSON(w, http.StatusAccepted, v)
+}
+
+// Extend handles POST /api/v1/creative/versions/{id}/extend.
+// @Summary Keep a draft for 7 days from when it was made (once)
+// @Tags Creative
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Version UUID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 409 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /creative/versions/{id}/extend [post]
+func (h *Handler) Extend(w http.ResponseWriter, r *http.Request) {
+	tid, ok := tenantOf(w, r)
+	if !ok {
+		return
+	}
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	v, err := h.svc.Extend(r.Context(), tid, id)
 	if err != nil {
 		h.fail(w, err)
 		return

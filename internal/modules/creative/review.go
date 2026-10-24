@@ -90,7 +90,7 @@ func (r *Reviews) Open(ctx context.Context, token string) (string, error) {
 	v, err := r.db.CreativeVersion.Query().
 		Where(creativeversion.ID(id), creativeversion.StatusIn(StatusReady, StatusApproved)).
 		WithAssets(func(q *ent.CreativeAssetQuery) {
-			q.Where(creativeasset.PurgedAtIsNil(), creativeasset.KindEQ("image")).Limit(1)
+			q.Where(creativeasset.PurgedAtIsNil(), creativeasset.KindEQ(AssetImage)).Limit(1)
 		}).
 		Only(ctx)
 	if err != nil || uint16(intOf(v.Metadata["review_epoch"])) != epoch || len(v.Edges.Assets) == 0 {
