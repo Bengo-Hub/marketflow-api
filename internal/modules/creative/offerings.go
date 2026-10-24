@@ -110,15 +110,7 @@ func (o *Offerings) Search(ctx context.Context, tenantID uuid.UUID, q string, li
 		if !it.IsActive || !sellableTypes[it.Type] || (it.NotForSale != nil && *it.NotForSale) {
 			continue
 		}
-		off := Offering{Source: "inventory", SourceID: it.ID.String(), Type: it.Type, Name: it.Name, SKU: it.SKU,
-			Description: excerpt(it.Description, 300), Price: it.SellingPrice}
-		// Only absolute links: marketflow-ai downloads them for the poster.
-		for _, u := range append([]string{it.ImageURL}, imageURLs(it)...) {
-			if (strings.HasPrefix(u, "https://") || strings.HasPrefix(u, "http://")) && !contains(off.PhotoURLs, u) && len(off.PhotoURLs) < maxPhotos {
-				off.PhotoURLs = append(off.PhotoURLs, u)
-			}
-		}
-		out = append(out, off)
+		out = append(out, itemOffering(it))
 		if len(out) == limit {
 			break
 		}
