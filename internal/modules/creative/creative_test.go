@@ -185,6 +185,9 @@ func TestVersionNumbersAndReview(t *testing.T) {
 	if ap.Edges.Assets[0].ExpiresAt != nil {
 		t.Fatal("approved file must not expire")
 	}
+	if ev, _ := ap.Metadata["approval"].(map[string]any); ev["user_id"] != user.String() || ev["asset_id"] != ap.Edges.Assets[0].ID.String() || ev["channel"] != "portal" {
+		t.Fatalf("approval evidence: %v", ap.Metadata["approval"])
+	}
 	if _, err := s.Approve(ctx, tid, vs[0].ID, &user); !errors.Is(err, ErrConflict) {
 		t.Fatalf("second approve: %v", err)
 	}
@@ -356,6 +359,32 @@ func TestRendererMakesQueuedPosters(t *testing.T) {
 	q, _ := s.CreateVersion(ctx, tid, b.ID, VersionInput{Prompt: "x"})
 	if _, err := s.Revise(ctx, tid, q.ID, ReviseInput{}); !errors.Is(err, ErrConflict) {
 		t.Fatalf("revise queued: %v", err)
+	}
+}
+
+func TestRestrictedCategories(t *testing.T) {
+	got := restrictedCategories("Weekend happy hour", "Lose weight in 7 days")
+	if strings.Join(got, ",") != "alcohol,health" {
+		t.Fatalf("got %v", got)
+	}
+	if got := restrictedCategories("Shea butter 250g", "Soft skin", "Order on WhatsApp"); len(got) != 0 {
+		t.Fatalf("plain product flagged: %v", got)
+	}
+	// Whole words only: "better" is not "bet", "credited" is not "credit".
+	if got := restrictedCategories("Feel better", "Payment credited instantly"); len(got) != 0 {
+		t.Fatalf("partial words flagged: %v", got)
+	}
+
+	db := openDB(t)
+	s := NewService(db, zap.NewNop())
+	tid := newTenant(t, db)
+	b := newBrief(t, s, tid)
+	v, err := s.CreateVersion(context.Background(), tid, b.ID, VersionInput{Prompt: "bottles on a bar", Headline: "Happy hour 5 to 7"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cats, _ := v.Metadata["restricted_categories"].([]string); len(cats) != 1 || cats[0] != "alcohol" {
+		t.Fatalf("version flags: %v", v.Metadata["restricted_categories"])
 	}
 }
 

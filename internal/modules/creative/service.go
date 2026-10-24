@@ -272,7 +272,8 @@ func (s *Service) CreateVersion(ctx context.Context, tenantID, briefID uuid.UUID
 	if err := in.validate(); err != nil {
 		return nil, err
 	}
-	if _, err := s.brief(ctx, tenantID, briefID); err != nil {
+	brief, err := s.brief(ctx, tenantID, briefID)
+	if err != nil {
 		return nil, err
 	}
 	if in.ParentVersionID != nil {
@@ -299,6 +300,9 @@ func (s *Service) CreateVersion(ctx context.Context, tenantID, briefID uuid.UUID
 	meta := map[string]any{}
 	if len(in.PhotoURLs) > 0 {
 		meta["photo_urls"] = in.PhotoURLs
+	}
+	if cats := restrictedCategories(brief.Title, str(brief.Offering["name"]), in.Prompt, in.Headline, in.Subline, in.CTA); len(cats) > 0 {
+		meta["restricted_categories"] = cats
 	}
 	return s.insertVersion(ctx, tenantID, briefID, in.ParentVersionID, in.Tier, in.Format, copyFields, meta)
 }
@@ -394,6 +398,9 @@ func (s *Service) Revise(ctx context.Context, tenantID, sourceID uuid.UUID, in R
 		return nil, err
 	}
 	meta := map[string]any{"recompose": true, "scene_url": scene}
+	if cats := restrictedCategories(str(src.Copy["prompt"]), str(copyFields["headline"]), str(copyFields["subline"]), str(copyFields["cta"])); len(cats) > 0 {
+		meta["restricted_categories"] = cats
+	}
 	return s.insertVersion(ctx, tenantID, src.BriefID, &src.ID, src.Tier, src.Format, copyFields, meta)
 }
 
@@ -494,6 +501,9 @@ func (s *Service) decide(ctx context.Context, tenantID, id uuid.UUID, status str
 		return nil, err
 	}
 	if status == StatusApproved {
+		if err := recordApproval(ctx, tx, id, by, now); err != nil {
+			return nil, err
+		}
 		if err := supersedeSiblings(ctx, tx, id, now.Add(supersededTTL)); err != nil {
 			return nil, err
 		}
@@ -502,6 +512,28 @@ func (s *Service) decide(ctx context.Context, tenantID, id uuid.UUID, status str
 		return nil, err
 	}
 	return s.version(ctx, tenantID, id)
+}
+
+// recordApproval keeps the approval evidence (gate G5): who approved, where,
+// when, and the checksum of exactly the file they saw, so a later dispute can
+// show which poster was approved.
+func recordApproval(ctx context.Context, tx *ent.Tx, id uuid.UUID, by *uuid.UUID, at time.Time) error {
+	v, err := tx.CreativeVersion.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	evidence := map[string]any{"channel": "portal", "at": at.UTC().Format(time.RFC3339)}
+	if by != nil {
+		evidence["user_id"] = by.String()
+	}
+	if img, err := tx.CreativeAsset.Query().
+		Where(creativeasset.VersionID(id), creativeasset.KindEQ(AssetImage), creativeasset.PurgedAtIsNil()).
+		First(ctx); err == nil {
+		evidence["asset_id"], evidence["sha256"] = img.ID.String(), img.Sha256
+	}
+	meta := copyMap(v.Metadata)
+	meta["approval"] = evidence
+	return tx.CreativeVersion.UpdateOneID(id).SetMetadata(meta).Exec(ctx)
 }
 
 // supersedeSiblings retires the other drafts of the approved version's brief
