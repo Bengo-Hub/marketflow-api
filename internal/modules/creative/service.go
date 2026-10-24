@@ -73,11 +73,20 @@ var ErrDailyCap = errors.New("daily render limit reached")
 
 func invalid(msg string) error { return fmt.Errorf("%w: %s", ErrInvalid, msg) }
 
+// Version kinds.
+const (
+	KindPoster = "poster"
+	// KindVideo is a motion poster: a short clip made from a finished poster's scene.
+	KindVideo = "video"
+)
+
 // Asset kinds.
 const (
 	AssetImage = "image"
 	// AssetScene is the poster's scene without text, kept for free text edits.
 	AssetScene = "scene"
+	// AssetVideo is a motion poster's clip.
+	AssetVideo = "video"
 )
 
 // Service is the Creative Studio data layer.
@@ -304,7 +313,7 @@ func (s *Service) CreateVersion(ctx context.Context, tenantID, briefID uuid.UUID
 	if cats := restrictedCategories(brief.Title, str(brief.Offering["name"]), in.Prompt, in.Headline, in.Subline, in.CTA); len(cats) > 0 {
 		meta["restricted_categories"] = cats
 	}
-	return s.insertVersion(ctx, tenantID, briefID, in.ParentVersionID, in.Tier, in.Format, copyFields, meta)
+	return s.insertVersion(ctx, tenantID, briefID, in.ParentVersionID, KindPoster, in.Tier, in.Format, copyFields, meta)
 }
 
 // checkLiveDrafts refuses a new version when the tenant already has
@@ -325,7 +334,7 @@ func (s *Service) checkLiveDrafts(ctx context.Context, tenantID uuid.UUID) error
 // insertVersion adds a queued version. version_no is max+1; the unique
 // (brief_id, version_no) index settles a race between two requests, and the
 // loser takes the next number.
-func (s *Service) insertVersion(ctx context.Context, tenantID, briefID uuid.UUID, parent *uuid.UUID, tier, format string, copyFields, meta map[string]any) (*ent.CreativeVersion, error) {
+func (s *Service) insertVersion(ctx context.Context, tenantID, briefID uuid.UUID, parent *uuid.UUID, kind, tier, format string, copyFields, meta map[string]any) (*ent.CreativeVersion, error) {
 	for attempt := 0; ; attempt++ {
 		next := 1
 		last, err := s.db.CreativeVersion.Query().
@@ -343,7 +352,7 @@ func (s *Service) insertVersion(ctx context.Context, tenantID, briefID uuid.UUID
 			SetBriefID(briefID).
 			SetNillableParentVersionID(parent).
 			SetVersionNo(next).
-			SetKind("poster").
+			SetKind(kind).
 			SetTier(tier).
 			SetFormat(format).
 			SetCopy(copyFields).
@@ -371,17 +380,9 @@ func (s *Service) Revise(ctx context.Context, tenantID, sourceID uuid.UUID, in R
 	if err != nil {
 		return nil, err
 	}
-	if src.Status != StatusReady && src.Status != StatusApproved && src.Status != StatusSuperseded {
-		return nil, fmt.Errorf("%w: only a finished poster can be revised", ErrConflict)
-	}
-	scene := str(src.Metadata["scene_url"])
-	for _, a := range src.Edges.Assets {
-		if a.Kind == AssetScene {
-			scene = a.URL
-		}
-	}
-	if scene == "" {
-		return nil, fmt.Errorf("%w: this poster has no stored scene; make a new version instead", ErrConflict)
+	scene, err := finishedScene(src, "revised")
+	if err != nil {
+		return nil, err
 	}
 	copyFields := copyMap(src.Copy)
 	for k, v := range map[string]*string{"headline": in.Headline, "subline": in.Subline, "price": in.Price, "cta": in.CTA} {
@@ -401,7 +402,25 @@ func (s *Service) Revise(ctx context.Context, tenantID, sourceID uuid.UUID, in R
 	if cats := restrictedCategories(str(src.Copy["prompt"]), str(copyFields["headline"]), str(copyFields["subline"]), str(copyFields["cta"])); len(cats) > 0 {
 		meta["restricted_categories"] = cats
 	}
-	return s.insertVersion(ctx, tenantID, src.BriefID, &src.ID, src.Tier, src.Format, copyFields, meta)
+	return s.insertVersion(ctx, tenantID, src.BriefID, &src.ID, KindPoster, src.Tier, src.Format, copyFields, meta)
+}
+
+// finishedScene returns the stored scene of a finished poster, the base of a
+// text-only revision and of a motion poster; use names the action for the error.
+func finishedScene(src *ent.CreativeVersion, use string) (string, error) {
+	if src.Kind != KindPoster || (src.Status != StatusReady && src.Status != StatusApproved && src.Status != StatusSuperseded) {
+		return "", fmt.Errorf("%w: only a finished poster can be %s", ErrConflict, use)
+	}
+	scene := str(src.Metadata["scene_url"])
+	for _, a := range src.Edges.Assets {
+		if a.Kind == AssetScene {
+			scene = a.URL
+		}
+	}
+	if scene == "" {
+		return "", fmt.Errorf("%w: this poster has no stored scene; make a new version instead", ErrConflict)
+	}
+	return scene, nil
 }
 
 // Extend keeps a draft waiting for review for 7 days from when it was made,
@@ -515,8 +534,8 @@ func (s *Service) decide(ctx context.Context, tenantID, id uuid.UUID, status str
 }
 
 // recordApproval keeps the approval evidence (gate G5): who approved, where,
-// when, and the checksum of exactly the file they saw, so a later dispute can
-// show which poster was approved.
+// when, and the checksum of exactly the file they saw (the poster image or the
+// motion poster clip), so a later dispute can show which one was approved.
 func recordApproval(ctx context.Context, tx *ent.Tx, id uuid.UUID, by *uuid.UUID, at time.Time) error {
 	v, err := tx.CreativeVersion.Get(ctx, id)
 	if err != nil {
@@ -527,7 +546,7 @@ func recordApproval(ctx context.Context, tx *ent.Tx, id uuid.UUID, by *uuid.UUID
 		evidence["user_id"] = by.String()
 	}
 	if img, err := tx.CreativeAsset.Query().
-		Where(creativeasset.VersionID(id), creativeasset.KindEQ(AssetImage), creativeasset.PurgedAtIsNil()).
+		Where(creativeasset.VersionID(id), creativeasset.KindIn(AssetImage, AssetVideo), creativeasset.PurgedAtIsNil()).
 		First(ctx); err == nil {
 		evidence["asset_id"], evidence["sha256"] = img.ID.String(), img.Sha256
 	}
@@ -536,15 +555,17 @@ func recordApproval(ctx context.Context, tx *ent.Tx, id uuid.UUID, by *uuid.UUID
 	return tx.CreativeVersion.UpdateOneID(id).SetMetadata(meta).Exec(ctx)
 }
 
-// supersedeSiblings retires the other drafts of the approved version's brief
-// and brings their files' expiry forward to until (never later than it was).
+// supersedeSiblings retires the other drafts of the same kind in the approved
+// version's brief and brings their files' expiry forward to until (never later
+// than it was). Approving a motion poster leaves the poster drafts alone.
 func supersedeSiblings(ctx context.Context, tx *ent.Tx, approvedID uuid.UUID, until time.Time) error {
 	v, err := tx.CreativeVersion.Get(ctx, approvedID)
 	if err != nil {
 		return err
 	}
 	siblings, err := tx.CreativeVersion.Query().
-		Where(creativeversion.BriefID(v.BriefID), creativeversion.IDNEQ(approvedID), creativeversion.StatusEQ(StatusReady)).
+		Where(creativeversion.BriefID(v.BriefID), creativeversion.IDNEQ(approvedID), creativeversion.KindEQ(v.Kind),
+			creativeversion.StatusEQ(StatusReady)).
 		IDs(ctx)
 	if err != nil || len(siblings) == 0 {
 		return err

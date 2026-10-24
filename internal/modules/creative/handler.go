@@ -25,6 +25,14 @@ type Handler struct {
 	// canApprove gates approval (gate G5: who may approve an ad); nil allows
 	// every signed-in tenant user.
 	canApprove func(ctx context.Context, tenantID uuid.UUID) bool
+	// clips settles motion poster jobs reported by marketflow-ai's callback.
+	clips *Renderer
+}
+
+// WithClips turns on the clip callback; r needs only the database here.
+func (h *Handler) WithClips(r *Renderer) *Handler {
+	h.clips = r
+	return h
 }
 
 // ApprovalRoles are the tenant roles that may approve an ad: the admin and the
@@ -383,6 +391,74 @@ func (h *Handler) Revise(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpapi.JSON(w, http.StatusAccepted, v)
+}
+
+// CreateMotion handles POST /api/v1/creative/versions/{id}/motion: queues a
+// motion poster of a finished poster. A clip takes a few minutes; the version
+// turns ready when marketflow-ai reports it done.
+// @Summary Make a motion poster (a short clip) of a finished poster
+// @Tags Creative
+// @Accept json
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Source poster version UUID"
+// @Param request body MotionInput false "Motion, length and tier"
+// @Success 202 {object} map[string]interface{}
+// @Failure 409 {object} httpapi.ErrorResponse
+// @Failure 429 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /creative/versions/{id}/motion [post]
+func (h *Handler) CreateMotion(w http.ResponseWriter, r *http.Request) {
+	tid, ok := tenantOf(w, r)
+	if !ok {
+		return
+	}
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	var in MotionInput
+	if r.ContentLength != 0 {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10)).Decode(&in); err != nil {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
+			return
+		}
+	}
+	v, err := h.svc.CreateMotion(r.Context(), tid, id, in)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	httpapi.JSON(w, http.StatusAccepted, v)
+}
+
+// ClipCallback handles the S2S POST /api/v1/internal/creative/clips/{id}:
+// marketflow-ai reporting a finished or failed clip job (service key only).
+// A 5xx makes it try again; a report for a settled version is a no-op 204.
+func (h *Handler) ClipCallback(w http.ResponseWriter, r *http.Request) {
+	if h.clips == nil {
+		httpapi.Error(w, http.StatusServiceUnavailable, "unavailable", "clips are not handled here", nil)
+		return
+	}
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	var job ClipJob
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&job); err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
+		return
+	}
+	if err := h.clips.SettleClip(r.Context(), id, job); err != nil {
+		if ent.IsNotFound(err) {
+			httpapi.Error(w, http.StatusNotFound, "not_found", "no video version with this id", nil)
+			return
+		}
+		h.logger.Error("clip callback not recorded", zap.String("version_id", id.String()), zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "internal_error", "not recorded; try again", nil)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // Extend handles POST /api/v1/creative/versions/{id}/extend.

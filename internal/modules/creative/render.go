@@ -69,9 +69,11 @@ func (r *Renderer) Run(ctx context.Context) {
 	}
 }
 
-// Tick recovers stale renders, then renders up to one batch.
+// Tick recovers stale renders, checks clips with no news, then renders up to
+// one batch (a video version only starts its clip job).
 func (r *Renderer) Tick(ctx context.Context) {
 	r.recoverStale(ctx)
+	r.pollClips(ctx)
 	queued, err := r.db.CreativeVersion.Query().
 		Where(creativeversion.StatusEQ(StatusQueued)).
 		Order(ent.Asc(creativeversion.FieldCreatedAt)).
@@ -87,7 +89,12 @@ func (r *Renderer) Tick(ctx context.Context) {
 		sem <- struct{}{}
 		go func(v *ent.CreativeVersion) {
 			defer func() { <-sem; done <- struct{}{} }()
-			if r.claim(ctx, v.ID) {
+			if !r.claim(ctx, v.ID) {
+				return
+			}
+			if v.Kind == KindVideo {
+				r.startClip(ctx, v)
+			} else {
 				r.render(ctx, v)
 			}
 		}(v)
@@ -106,11 +113,13 @@ func (r *Renderer) claim(ctx context.Context, id uuid.UUID) bool {
 	return err == nil && n == 1
 }
 
-// recoverStale re-queues renders left behind by a replica that stopped, and
-// fails those that already used their attempts.
+// recoverStale re-queues poster renders left behind by a replica that stopped,
+// and fails those that already used their attempts. Clips run as jobs in
+// marketflow-ai and are settled by pollClips instead.
 func (r *Renderer) recoverStale(ctx context.Context) {
 	stale, err := r.db.CreativeVersion.Query().
-		Where(creativeversion.StatusEQ(StatusRendering), creativeversion.UpdatedAtLT(r.nowFn().Add(-staleAfter))).
+		Where(creativeversion.StatusEQ(StatusRendering), creativeversion.KindEQ(KindPoster),
+			creativeversion.UpdatedAtLT(r.nowFn().Add(-staleAfter))).
 		Limit(50).
 		All(ctx)
 	if err != nil {

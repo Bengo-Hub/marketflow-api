@@ -463,6 +463,8 @@ type CreativeHandlers struct {
 	Discard           http.HandlerFunc
 	Revise            http.HandlerFunc
 	Extend            http.HandlerFunc
+	CreateMotion      http.HandlerFunc
+	ClipCallback      http.HandlerFunc // S2S: POST /internal/creative/clips/{id} from marketflow-ai
 	CreateReviewLink  http.HandlerFunc
 	RevokeReviewLinks http.HandlerFunc
 	OpenReview        http.HandlerFunc // Public — GET /r/{token}
@@ -875,6 +877,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Post("/versions/{id}/discard", deps.CreativeHandlers.Discard)
 					r.Post("/versions/{id}/revise", deps.CreativeHandlers.Revise)
 					r.Post("/versions/{id}/extend", deps.CreativeHandlers.Extend)
+					r.Post("/versions/{id}/motion", deps.CreativeHandlers.CreateMotion)
 					r.Post("/versions/{id}/review-link", deps.CreativeHandlers.CreateReviewLink)
 					r.Delete("/versions/{id}/review-link", deps.CreativeHandlers.RevokeReviewLinks)
 				})
@@ -969,6 +972,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 					// Marketing OS context for marketflow-ai (tenant in the query, service key only).
 					if deps.MarketingOSHandlers.InternalContext != nil {
 						r.Get("/os/context", deps.MarketingOSHandlers.InternalContext)
+					}
+					// marketflow-ai reports a finished or failed motion poster clip.
+					if deps.CreativeHandlers.ClipCallback != nil {
+						r.Post("/creative/clips/{id}", deps.CreativeHandlers.ClipCallback)
 					}
 					if deps.ContactHandlers.GetByEmail != nil {
 						r.Get("/contacts/by-email", deps.ContactHandlers.GetByEmail)
