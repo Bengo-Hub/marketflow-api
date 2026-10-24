@@ -13,8 +13,10 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/chatsession"
+	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
+	"github.com/bengobox/marketflow-api/internal/ent/predicate"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
@@ -104,6 +106,20 @@ func (h *Handler) platformUsage(ctx context.Context) (map[string]any, error) {
 			Aggregate(ent.Count()).
 			Scan(gctx, &top)
 	})
+	// Creative Studio files not yet purged, by kind: drafts still expire, kept
+	// files belong to approved versions.
+	var drafts, kept []storageRow
+	storage := func(dst *[]storageRow, state predicate.CreativeAsset) {
+		g.Go(func() error {
+			return h.db.CreativeAsset.Query().
+				Where(creativeasset.PurgedAtIsNil(), state).
+				GroupBy(creativeasset.FieldKind).
+				Aggregate(ent.As(ent.Sum(creativeasset.FieldBytes), "bytes"), ent.As(ent.Count(), "files")).
+				Scan(gctx, dst)
+		})
+	}
+	storage(&drafts, creativeasset.ExpiresAtNotNil())
+	storage(&kept, creativeasset.ExpiresAtIsNil())
 	if err := g.Wait(); err != nil {
 		return nil, err
 	}
@@ -155,7 +171,8 @@ func (h *Handler) platformUsage(ctx context.Context) (map[string]any, error) {
 		"nurture": map[string]any{
 			"active_enrollments": enrollmentsActive,
 		},
-		"leaderboard":  leaderboard,
-		"generated_at": now.Format(time.RFC3339),
+		"creative_storage": creativeStorage(drafts, kept),
+		"leaderboard":      leaderboard,
+		"generated_at":     now.Format(time.RFC3339),
 	}, nil
 }
