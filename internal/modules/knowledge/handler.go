@@ -108,6 +108,7 @@ func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param X-Tenant-ID header string true "Tenant UUID"
 // @Param category query string false "Filter: product, faq, compliance, business_opportunity, custom"
+// @Param q query string false "Search title or content"
 // @Param limit query int false "Page size"
 // @Param offset query int false "Offset"
 // @Success 200 {object} map[string]interface{}
@@ -124,6 +125,7 @@ func (h *Handler) ListEntries(w http.ResponseWriter, r *http.Request) {
 	p := pagination.Parse(r)
 	input := ListEntriesInput{
 		TenantID: tenantID,
+		Search:   r.URL.Query().Get("q"),
 		Limit:    p.Limit,
 		Offset:   p.Offset,
 	}

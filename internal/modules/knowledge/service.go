@@ -60,8 +60,10 @@ type ListEntriesInput struct {
 	TenantID uuid.UUID
 	Category *string
 	Embedded *bool
-	Limit    int
-	Offset   int
+	// Search matches the title or content (case-insensitive substring), at most 100 characters.
+	Search string
+	Limit  int
+	Offset int
 }
 
 // CreateEntry creates a new knowledge base entry.
@@ -134,6 +136,15 @@ func (s *Service) ListEntries(ctx context.Context, in ListEntriesInput) ([]*ent.
 	}
 	if in.Embedded != nil {
 		query = query.Where(knowledgebaseentry.EmbeddedEQ(*in.Embedded))
+	}
+	if q := strings.TrimSpace(in.Search); q != "" {
+		if len(q) > 100 {
+			q = q[:100]
+		}
+		query = query.Where(knowledgebaseentry.Or(
+			knowledgebaseentry.TitleContainsFold(q),
+			knowledgebaseentry.ContentContainsFold(q),
+		))
 	}
 
 	total, err := query.Clone().Count(ctx)
