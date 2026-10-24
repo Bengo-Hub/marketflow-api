@@ -71,7 +71,10 @@ func (t *TopOfferings) Top(ctx context.Context, tenantID uuid.UUID, limit int) (
 			return out, nil
 		}
 	}
-	items, err := t.offerings.Search(ctx, tenantID, "", limit)
+	if t.offerings == nil {
+		return nil, ErrOfferingsOff
+	}
+	items, err := t.offerings.items(ctx, tenantID, "", limit) // catalogue only: promotions are not best sellers
 	if err != nil {
 		return nil, err
 	}

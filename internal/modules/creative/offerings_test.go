@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/Bengo-Hub/httpware"
 	"github.com/google/uuid"
@@ -58,5 +59,62 @@ func TestOfferingsSearch(t *testing.T) {
 	}
 	if _, err := NewOfferings(srv.URL, "wrong", zap.NewNop()).Search(context.Background(), tid, "x", 5); !errors.Is(err, ErrOfferingsOff) {
 		t.Fatalf("refused: %v", err)
+	}
+}
+
+// Running pos-api promotions come first, described from their rule; ended ones
+// are dropped; pos alone still answers when inventory is down.
+func TestOfferingsSearchWithPromotions(t *testing.T) {
+	tid := uuid.New()
+	var gotPath, gotQ string
+	pos := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !httpware.ValidServiceKey(r, "k") {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		gotPath, gotQ = r.URL.Path, r.URL.Query().Get("q")
+		ends := time.Now().Add(48 * time.Hour)
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{
+			{"id": uuid.NewString(), "name": "Shea weekend", "description": "On all lotions", "promo_code": "SHEA20",
+				"status": "active", "end_at": ends,
+				"metadata": map[string]any{"banner": map[string]any{"banner_image_url": "https://cdn.example.com/banner.jpg"}},
+				"rule":     map[string]any{"discount_type": "percentage", "discount_value": 20}},
+			{"id": uuid.NewString(), "name": "Shea last month", "status": "active", "end_at": time.Now().Add(-time.Hour),
+				"rule": map[string]any{"discount_type": "percentage", "discount_value": 10}},
+			{"id": uuid.NewString(), "name": "Shea duo", "status": "active",
+				"rule": map[string]any{"discount_type": "fixed_price", "discount_value": 1500}},
+		}, "total": 3})
+	}))
+	t.Cleanup(pos.Close)
+	inv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{
+			{"id": uuid.NewString(), "name": "Shea butter 250g", "type": "GOODS", "is_active": true},
+		}})
+	}))
+	t.Cleanup(inv.Close)
+
+	got, err := NewOfferings(inv.URL, "k", zap.NewNop()).WithPromotions(pos.URL).Search(context.Background(), tid, "shea", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotPath != "/api/v1/s2s/"+tid.String()+"/discounts" || gotQ != "shea" {
+		t.Fatalf("pos called %s ?q=%s", gotPath, gotQ)
+	}
+	if len(got) != 3 || got[0].Source != SourcePOSPromotion || got[2].Source != "inventory" {
+		t.Fatalf("offerings: %+v", got)
+	}
+	p := got[0]
+	if p.Type != TypePromotion || p.PromoCode != "SHEA20" || p.EndsAt == nil || p.Description != "20% off. On all lotions" ||
+		len(p.PhotoURLs) != 1 || p.PhotoURLs[0] != "https://cdn.example.com/banner.jpg" {
+		t.Fatalf("promotion: %+v", p)
+	}
+	if got[1].Name != "Shea duo" || got[1].Price == nil || *got[1].Price != 1500 {
+		t.Fatalf("fixed price promotion: %+v", got[1])
+	}
+
+	// Inventory not configured: promotions alone.
+	only, err := NewOfferings("", "k", zap.NewNop()).WithPromotions(pos.URL).Search(context.Background(), tid, "", 10)
+	if err != nil || len(only) != 2 {
+		t.Fatalf("promotions only: %v %+v", err, only)
 	}
 }

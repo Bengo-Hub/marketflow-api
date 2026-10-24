@@ -17,21 +17,26 @@ import (
 // catalogue. The brief keeps a snapshot (CreativeBrief.offering); inventory-api
 // stays the owner of the item.
 type Offering struct {
-	Source      string   `json:"source"` // inventory
+	Source      string   `json:"source"` // inventory | pos_promotion
 	SourceID    string   `json:"source_id"`
-	Type        string   `json:"type"` // GOODS | SERVICE | RECIPE
+	Type        string   `json:"type"` // GOODS | SERVICE | RECIPE | PROMOTION
 	Name        string   `json:"name"`
 	SKU         string   `json:"sku,omitempty"`
 	Description string   `json:"description,omitempty"`
 	Price       *float64 `json:"price,omitempty"`
 	PhotoURLs   []string `json:"photo_urls,omitempty"`
+	// A promotion's code and end, for the poster's words.
+	PromoCode string     `json:"promo_code,omitempty"`
+	EndsAt    *time.Time `json:"ends_at,omitempty"`
 }
 
 // Offerings searches the tenant's sellable catalogue over S2S. Only items that
 // can be sold are offered: active goods, services and menu recipes, not
-// ingredients, and never one marked not for sale.
+// ingredients, and never one marked not for sale. With WithPromotions the
+// tenant's running pos-api promotions are offered too.
 type Offerings struct {
 	inventory *serviceclient.Client
+	pos       *serviceclient.Client
 	key       string
 	logger    *zap.Logger
 }
@@ -76,9 +81,11 @@ type inventoryItem struct {
 
 var sellableTypes = map[string]bool{"GOODS": true, "SERVICE": true, "RECIPE": true}
 
-// Search returns up to limit sellable items whose name or SKU matches q.
+// Search returns up to limit offerings whose name (or an item's SKU) matches q:
+// running promotions first, then catalogue items. Both sources are asked at
+// once; ErrOfferingsOff only when neither answered.
 func (o *Offerings) Search(ctx context.Context, tenantID uuid.UUID, q string, limit int) ([]Offering, error) {
-	if o == nil || o.inventory == nil {
+	if o == nil || (o.inventory == nil && o.pos == nil) {
 		return nil, ErrOfferingsOff
 	}
 	if limit <= 0 || limit > 20 {
@@ -86,6 +93,32 @@ func (o *Offerings) Search(ctx context.Context, tenantID uuid.UUID, q string, li
 	}
 	ctx, cancel := context.WithTimeout(ctx, offeringsBudget)
 	defer cancel()
+	type promoResult struct {
+		list []Offering
+		ok   bool
+	}
+	promoCh := make(chan promoResult, 1)
+	go func() {
+		list, ok := o.promotions(ctx, tenantID, q, limit)
+		promoCh <- promoResult{list, ok}
+	}()
+	items, itemsErr := o.items(ctx, tenantID, q, limit)
+	promos := <-promoCh
+	if itemsErr != nil && !promos.ok {
+		return nil, ErrOfferingsOff
+	}
+	out := append(promos.list, items...)
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+// items returns up to limit sellable inventory items whose name or SKU matches q.
+func (o *Offerings) items(ctx context.Context, tenantID uuid.UUID, q string, limit int) ([]Offering, error) {
+	if o.inventory == nil {
+		return nil, ErrOfferingsOff
+	}
 	query := url.Values{}
 	query.Set("status", "active")
 	query.Set("limit", fmt.Sprint(limit*2)) // ingredients and not-for-sale items are dropped below

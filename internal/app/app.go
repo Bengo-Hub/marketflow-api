@@ -302,7 +302,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	customAgentHandler := custom_agents.NewHandler(customAgentService, logger)
 	marketingOSService := marketingos.NewService(entClient, subsClient, logger)
 	marketingOSHandler := marketingos.NewHandler(marketingOSService, logger)
-	catalogueOfferings := creative.NewOfferings(cfg.CrossService.InventoryURL, cfg.CrossService.InternalServiceKey, logger)
+	catalogueOfferings := creative.NewOfferings(cfg.CrossService.InventoryURL, cfg.CrossService.InternalServiceKey, logger).
+		WithPromotions(cfg.CrossService.POSURL)
 	// Onboarding: setup checklist and a brand context draft from the business's own data
 	// (account details, best sellers, website catalogue for the platform tenant).
 	onboardingHandler := onboarding.NewHandler(onboarding.NewService(entClient, marketingOSService, tenantSyncer,
