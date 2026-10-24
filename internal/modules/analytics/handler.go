@@ -52,7 +52,19 @@ func extractTenant(r *http.Request) (uuid.UUID, error) {
 // @Security bearerAuth
 // @Router /admin/usage [get]
 func (h *Handler) PlatformUsage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	// The platform page polls every minute and lead counts grow with every tenant, so the
+	// aggregate is computed at most once a minute, shared by every platform-owner session.
+	data, err := sharedcache.GetOrSet(r.Context(), h.cache, sharedcache.Key("mf", "analytics", "platform-usage"), dashboardCacheTTL, h.platformUsage)
+	if err != nil {
+		h.logger.Error("platform usage query failed", zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "query_failed", "could not load platform usage", nil)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, data)
+}
+
+// platformUsage counts across every tenant in parallel and ranks this week's top ten by leads.
+func (h *Handler) platformUsage(ctx context.Context) (map[string]any, error) {
 	now := time.Now().UTC()
 	weekAgo := now.Add(-7 * 24 * time.Hour)
 
@@ -93,9 +105,7 @@ func (h *Handler) PlatformUsage(w http.ResponseWriter, r *http.Request) {
 			Scan(gctx, &top)
 	})
 	if err := g.Wait(); err != nil {
-		h.logger.Error("platform usage query failed", zap.Error(err))
-		httpapi.Error(w, http.StatusInternalServerError, "query_failed", "could not load platform usage", nil)
-		return
+		return nil, err
 	}
 	sort.Slice(top, func(i, j int) bool { return top[i].Count > top[j].Count })
 	if len(top) > 10 {
@@ -124,7 +134,7 @@ func (h *Handler) PlatformUsage(w http.ResponseWriter, r *http.Request) {
 		leaderboard = append(leaderboard, r)
 	}
 
-	httpapi.JSON(w, http.StatusOK, map[string]any{
+	return map[string]any{
 		"tenants": map[string]any{
 			"total":  tenantCount,
 			"active": activeTenants,
@@ -147,5 +157,5 @@ func (h *Handler) PlatformUsage(w http.ResponseWriter, r *http.Request) {
 		},
 		"leaderboard":  leaderboard,
 		"generated_at": now.Format(time.RFC3339),
-	})
+	}, nil
 }
