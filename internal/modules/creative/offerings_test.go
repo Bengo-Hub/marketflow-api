@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -110,6 +111,27 @@ func TestOfferingsSearchWithPromotions(t *testing.T) {
 	}
 	if got[1].Name != "Shea duo" || got[1].Price == nil || *got[1].Price != 1500 {
 		t.Fatalf("fixed price promotion: %+v", got[1])
+	}
+
+	// An extra source (the website for the platform tenant) sits between the two,
+	// filtered by the query; nil for a tenant means it has nothing for it.
+	platform := uuid.New()
+	extra := func(_ context.Context, id uuid.UUID) ([]Offering, error) {
+		if id != platform {
+			return nil, nil
+		}
+		return []Offering{
+			{Source: "website", Type: "COURSE", Name: "Shea soap making", Description: strings.Repeat("x", 400)},
+			{Source: "website", Type: "PRODUCT", Name: "Retail POS"},
+		}, nil
+	}
+	withExtra := NewOfferings(inv.URL, "k", zap.NewNop()).WithPromotions(pos.URL).WithSource(extra)
+	mixed, err := withExtra.Search(context.Background(), platform, "shea", 10)
+	if err != nil || len(mixed) != 4 || mixed[2].Type != "COURSE" || mixed[3].Source != "inventory" || len([]rune(mixed[2].Description)) > 301 {
+		t.Fatalf("with the website: %v %+v", err, mixed)
+	}
+	if other, _ := withExtra.Search(context.Background(), tid, "shea", 10); len(other) != 3 {
+		t.Fatalf("another tenant must not see the website offerings: %+v", other)
 	}
 
 	// Inventory not configured: promotions alone.

@@ -302,14 +302,17 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	customAgentHandler := custom_agents.NewHandler(customAgentService, logger)
 	marketingOSService := marketingos.NewService(entClient, subsClient, logger)
 	marketingOSHandler := marketingos.NewHandler(marketingOSService, logger)
+	// One cached reader of codevertex-website's catalogue and courses serves both the
+	// onboarding draft and the platform tenant's offering picker.
+	websiteCatalog := onboarding.NewWebsiteCatalog(cfg.CrossService.WebsiteURL, sharedcache.New(redisClient, logger))
 	catalogueOfferings := creative.NewOfferings(cfg.CrossService.InventoryURL, cfg.CrossService.InternalServiceKey, logger).
-		WithPromotions(cfg.CrossService.POSURL)
+		WithPromotions(cfg.CrossService.POSURL).
+		WithSource(websiteOfferings(entClient, websiteCatalog, cfg.Security.PlatformTenant))
 	// Onboarding: setup checklist and a brand context draft from the business's own data
 	// (account details, best sellers, website catalogue for the platform tenant).
 	onboardingHandler := onboarding.NewHandler(onboarding.NewService(entClient, marketingOSService, tenantSyncer,
 		creative.NewTopOfferings(catalogueOfferings, cfg.CrossService.POSURL, cfg.CrossService.InternalServiceKey, logger),
-		onboarding.NewWebsiteCatalog(cfg.CrossService.WebsiteURL, sharedcache.New(redisClient, logger)),
-		cfg.Security.PlatformTenant, logger), logger)
+		websiteCatalog, cfg.Security.PlatformTenant, logger), logger)
 	// Review links are signed with the env encryption key (stable, like the OAuth
 	// state), separated from it by the token's own HMAC domain.
 	creativeHandler := creative.NewHandler(creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)),

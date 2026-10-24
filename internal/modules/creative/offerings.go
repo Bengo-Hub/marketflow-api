@@ -37,8 +37,48 @@ type Offering struct {
 type Offerings struct {
 	inventory *serviceclient.Client
 	pos       *serviceclient.Client
+	extra     ExtraSource
 	key       string
 	logger    *zap.Logger
+}
+
+// ExtraSource lists offerings another owner keeps for some tenants (the
+// website's products and Digitika courses for the platform tenant). It returns
+// nil, nil for a tenant it has nothing for; the picker filters by the query.
+type ExtraSource func(ctx context.Context, tenantID uuid.UUID) ([]Offering, error)
+
+// WithSource adds an ExtraSource to the picker.
+func (o *Offerings) WithSource(src ExtraSource) *Offerings {
+	o.extra = src
+	return o
+}
+
+// extraMatching returns the extra source's offerings whose name matches q.
+// ok is false when there is no source or it failed.
+func (o *Offerings) extraMatching(ctx context.Context, tenantID uuid.UUID, q string, limit int) ([]Offering, bool) {
+	if o.extra == nil {
+		return nil, false
+	}
+	all, err := o.extra(ctx, tenantID)
+	if err != nil {
+		o.logger.Warn("extra offerings unavailable", zap.Error(err))
+		return nil, false
+	}
+	if all == nil {
+		return nil, false
+	}
+	q = strings.ToLower(strings.TrimSpace(q))
+	out := make([]Offering, 0, limit)
+	for _, off := range all {
+		if q == "" || strings.Contains(strings.ToLower(off.Name), q) {
+			off.Description = excerpt(off.Description, 300)
+			out = append(out, off)
+			if len(out) == limit {
+				break
+			}
+		}
+	}
+	return out, true
 }
 
 // offeringsBudget keeps the picker responsive: past it the user types free text.
@@ -82,10 +122,10 @@ type inventoryItem struct {
 var sellableTypes = map[string]bool{"GOODS": true, "SERVICE": true, "RECIPE": true}
 
 // Search returns up to limit offerings whose name (or an item's SKU) matches q:
-// running promotions first, then catalogue items. Both sources are asked at
-// once; ErrOfferingsOff only when neither answered.
+// running promotions first, then the extra source, then catalogue items. The
+// sources are asked at once; ErrOfferingsOff only when none answered.
 func (o *Offerings) Search(ctx context.Context, tenantID uuid.UUID, q string, limit int) ([]Offering, error) {
-	if o == nil || (o.inventory == nil && o.pos == nil) {
+	if o == nil || (o.inventory == nil && o.pos == nil && o.extra == nil) {
 		return nil, ErrOfferingsOff
 	}
 	if limit <= 0 || limit > 20 {
@@ -93,21 +133,26 @@ func (o *Offerings) Search(ctx context.Context, tenantID uuid.UUID, q string, li
 	}
 	ctx, cancel := context.WithTimeout(ctx, offeringsBudget)
 	defer cancel()
-	type promoResult struct {
+	type result struct {
 		list []Offering
 		ok   bool
 	}
-	promoCh := make(chan promoResult, 1)
+	promoCh, extraCh := make(chan result, 1), make(chan result, 1)
 	go func() {
 		list, ok := o.promotions(ctx, tenantID, q, limit)
-		promoCh <- promoResult{list, ok}
+		promoCh <- result{list, ok}
+	}()
+	go func() {
+		list, ok := o.extraMatching(ctx, tenantID, q, limit)
+		extraCh <- result{list, ok}
 	}()
 	items, itemsErr := o.items(ctx, tenantID, q, limit)
-	promos := <-promoCh
-	if itemsErr != nil && !promos.ok {
+	promos, extra := <-promoCh, <-extraCh
+	if itemsErr != nil && !promos.ok && !extra.ok {
 		return nil, ErrOfferingsOff
 	}
-	out := append(promos.list, items...)
+	out := make([]Offering, 0, len(promos.list)+len(extra.list)+len(items))
+	out = append(append(append(out, promos.list...), extra.list...), items...)
 	if len(out) > limit {
 		out = out[:limit]
 	}
