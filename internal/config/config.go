@@ -87,8 +87,7 @@ type MetaConfig struct {
 	AppID       string `env:"APP_ID"`
 	AppSecret   string `env:"APP_SECRET"`
 	VerifyToken string `env:"VERIFY_TOKEN"` // GET subscription verification
-	// GraphAPIVersion is the version of the Graph API to use.
-	GraphAPIVersion string `env:"GRAPH_API_VERSION" envDefault:"v21.0"`
+	// The Graph API version is not configurable: meta.GraphVersion is the one source.
 	// DeletionStatusURL is the public page a person lands on to check a data
 	// deletion request (Meta's data deletion callback returns it with the code).
 	DeletionStatusURL string `env:"DELETION_STATUS_URL" envDefault:"https://marketflow.codevertexafrica.com/data-deletion"`
