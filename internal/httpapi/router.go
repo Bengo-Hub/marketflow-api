@@ -297,6 +297,9 @@ type IntegrationsHandlers struct {
 	UpdateGoogleCalendarBusinessHours http.HandlerFunc
 	MetaAuthorize                     http.HandlerFunc
 	MetaCallback                      http.HandlerFunc
+	MetaDataDeletion                  http.HandlerFunc // Public, signed_request
+	MetaDeauthorize                   http.HandlerFunc // Public, signed_request
+	MetaDeletionStatus                http.HandlerFunc // Public
 	TikTokAuthorize                   http.HandlerFunc
 	TikTokCallback                    http.HandlerFunc
 	ListTenant                        http.HandlerFunc
@@ -983,6 +986,13 @@ func NewRouter(deps RouterDeps) http.Handler {
 		// 10-minute state names the tenant. The paths are registered with Meta, TikTok and Google.
 		r.Get("/integrations/google/callback", deps.IntegrationsHandlers.GoogleCallback)
 		r.Get("/integrations/meta/callback", deps.IntegrationsHandlers.MetaCallback)
+		// Meta's required data deletion and deauthorize callbacks (signed_request,
+		// verified with the app secret) and the public status of a deletion request.
+		if deps.IntegrationsHandlers.MetaDataDeletion != nil {
+			r.Post("/integrations/meta/data-deletion", deps.IntegrationsHandlers.MetaDataDeletion)
+			r.Post("/integrations/meta/deauthorize", deps.IntegrationsHandlers.MetaDeauthorize)
+			r.Get("/public/data-deletion/{code}", deps.IntegrationsHandlers.MetaDeletionStatus)
+		}
 		r.Get("/integrations/tiktok/callback", deps.IntegrationsHandlers.TikTokCallback)
 
 		// Webhook routes (public, no auth — signature-verified by each handler)

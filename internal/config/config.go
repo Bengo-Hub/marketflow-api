@@ -89,6 +89,9 @@ type MetaConfig struct {
 	VerifyToken string `env:"VERIFY_TOKEN"` // GET subscription verification
 	// GraphAPIVersion is the version of the Graph API to use.
 	GraphAPIVersion string `env:"GRAPH_API_VERSION" envDefault:"v21.0"`
+	// DeletionStatusURL is the public page a person lands on to check a data
+	// deletion request (Meta's data deletion callback returns it with the code).
+	DeletionStatusURL string `env:"DELETION_STATUS_URL" envDefault:"https://marketflow.codevertexafrica.com/data-deletion"`
 }
 
 // TikTokConfig holds TikTok Business API settings.

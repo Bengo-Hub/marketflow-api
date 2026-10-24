@@ -44,11 +44,25 @@ type Handler struct {
 	stateKey []byte                  // signs the `state` round-trip; reuses encryption key
 	keys     *encryption.KeyProvider // encrypts OAuth tokens at rest, decrypts platform secrets
 	logger   *zap.Logger
+	// Meta callbacks (meta_deletion.go): the env app secret when the platform
+	// provider row has none, and the public deletion status page.
+	metaAppSecret     string
+	deletionStatusURL string
 }
 
 // NewHandler constructs a Handler.
 func NewHandler(db *ent.Client, stateKey []byte, keys *encryption.KeyProvider, logger *zap.Logger) *Handler {
-	return &Handler{db: db, stateKey: stateKey, keys: keys, logger: logger.Named("integrations")}
+	return &Handler{db: db, stateKey: stateKey, keys: keys, logger: logger.Named("integrations"),
+		deletionStatusURL: "https://marketflow.codevertexafrica.com/data-deletion"}
+}
+
+// WithMeta sets the env fallback app secret and the deletion status page URL.
+func (h *Handler) WithMeta(appSecret, deletionStatusURL string) *Handler {
+	h.metaAppSecret = appSecret
+	if deletionStatusURL != "" {
+		h.deletionStatusURL = deletionStatusURL
+	}
+	return h
 }
 
 // resolveTenantID picks a tenant context using, in order of priority:
@@ -350,12 +364,17 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := pages[0]
-	if err := h.upsertTenantKV(r.Context(), tenantID, "meta_ads", "page", map[string]string{
+	fbUserID := metaUserID(r.Context(), userToken)
+	pageKV := map[string]string{
 		"page_id":    p.ID,
 		"page_name":  p.Name,
 		"page_token": p.AccessToken,
 		"user_token": userToken,
-	}, []string{"page_token", "user_token"}); err != nil {
+	}
+	if fbUserID != "" {
+		pageKV[MetaFBUserKey] = fbUserID
+	}
+	if err := h.upsertTenantKV(r.Context(), tenantID, "meta_ads", "page", pageKV, []string{"page_token", "user_token"}); err != nil {
 		httpapi.Error(w, http.StatusInternalServerError, "persist_failed", err.Error(), nil)
 		return
 	}
@@ -375,7 +394,7 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.logger.Info("meta connect: ad accounts not listed", zap.String("tenant", tenantID), zap.Error(err))
 	}
-	accounts := metaAccounts(pages, adAccounts, userToken, metaGrantedScopes(r.Context(), userToken))
+	accounts := metaAccounts(pages, adAccounts, userToken, metaGrantedScopes(r.Context(), userToken), fbUserID)
 	if err := h.saveAccounts(r.Context(), tenantID, userID, accounts); err != nil {
 		// The default Page is already saved above, so the connect still works; the full list
 		// is stored again on the next connect.

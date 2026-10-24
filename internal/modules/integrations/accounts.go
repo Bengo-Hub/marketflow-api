@@ -210,6 +210,28 @@ func graphList[T any](ctx context.Context, path string, q url.Values, maxPages i
 	return out, nil
 }
 
+// metaUserID returns the app-scoped id of the person who granted the token (best
+// effort: "" on failure). Meta's deletion and deauthorize callbacks name people by it.
+func metaUserID(ctx context.Context, userToken string) string {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		metaGraphURL+"/me?"+url.Values{"fields": {"id"}, "access_token": {userToken}}.Encode(), nil)
+	if err != nil {
+		return ""
+	}
+	resp, err := graphClient.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	var me struct {
+		ID string `json:"id"`
+	}
+	if json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&me) != nil {
+		return ""
+	}
+	return me.ID
+}
+
 // metaGrantedScopes lists the permissions the user granted (best effort: nil on failure).
 func metaGrantedScopes(ctx context.Context, userToken string) []string {
 	perms, err := graphList[struct {
@@ -231,20 +253,27 @@ func metaGrantedScopes(ctx context.Context, userToken string) []string {
 // metaAccounts turns the granted Pages, their Instagram business accounts and the user's ad
 // accounts into ConnectedAccount rows. Pages and Instagram accounts act with the Page token; ad
 // accounts with the user token.
-func metaAccounts(pages []metaPage, adAccounts []metaAdAccount, userToken string, scopes []string) []account {
+func metaAccounts(pages []metaPage, adAccounts []metaAdAccount, userToken string, scopes []string, fbUserID string) []account {
 	out := make([]account, 0, len(pages)*2+len(adAccounts))
+	// Every row records who granted it, for Meta's deletion callback (meta_deletion.go).
+	meta := func(m map[string]any) map[string]any {
+		if fbUserID != "" {
+			m[MetaFBUserKey] = fbUserID
+		}
+		return m
+	}
 	for _, p := range pages {
 		if p.ID == "" {
 			continue
 		}
 		out = append(out, account{
 			Platform: PlatformMeta, Type: AccountFacebookPage, ExternalID: p.ID, DisplayName: p.Name,
-			Token: p.AccessToken, Scopes: scopes, Metadata: map[string]any{},
+			Token: p.AccessToken, Scopes: scopes, Metadata: meta(map[string]any{}),
 		})
 		if p.Instagram != nil && p.Instagram.ID != "" {
 			out = append(out, account{
 				Platform: PlatformMeta, Type: AccountInstagramBusiness, ExternalID: p.Instagram.ID, DisplayName: p.Instagram.Username,
-				Token: p.AccessToken, Scopes: scopes, Metadata: map[string]any{"page_id": p.ID},
+				Token: p.AccessToken, Scopes: scopes, Metadata: meta(map[string]any{"page_id": p.ID}),
 			})
 		}
 	}
@@ -255,7 +284,7 @@ func metaAccounts(pages []metaPage, adAccounts []metaAdAccount, userToken string
 		out = append(out, account{
 			Platform: PlatformMeta, Type: AccountMetaAdAccount, ExternalID: a.ID, DisplayName: a.Name,
 			Token: userToken, Scopes: scopes,
-			Metadata: map[string]any{"currency": a.Currency, "account_status": a.AccountStatus},
+			Metadata: meta(map[string]any{"currency": a.Currency, "account_status": a.AccountStatus}),
 		})
 	}
 	return out

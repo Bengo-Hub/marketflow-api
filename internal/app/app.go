@@ -319,7 +319,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// key for signing `state`; no separate secret needed. This is the OAuth
 	// state-signing key (must stay stable across the redirect round-trip) and is
 	// deliberately kept on the env value rather than the rotatable DB key.
-	integrationsHandler := integrations.NewHandler(entClient, encryption.KeyFromEnv(cfg.Security.EncryptionKey), keyProvider, logger)
+	integrationsHandler := integrations.NewHandler(entClient, encryption.KeyFromEnv(cfg.Security.EncryptionKey), keyProvider, logger).
+		WithMeta(cfg.Meta.AppSecret, cfg.Meta.DeletionStatusURL)
 
 	// Webhook handlers — Meta app credentials are platform-level (MF_META_*),
 	// shared across all tenants; per-tenant link is Tenant.meta_page_id.
@@ -477,6 +478,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			UpdateGoogleCalendarBusinessHours: integrationsHandler.UpdateGoogleCalendarBusinessHours,
 			MetaAuthorize:                     integrationsHandler.MetaAuthorize,
 			MetaCallback:                      integrationsHandler.MetaCallback,
+			MetaDataDeletion:                  integrationsHandler.MetaDataDeletion,
+			MetaDeauthorize:                   integrationsHandler.MetaDeauthorize,
+			MetaDeletionStatus:                integrationsHandler.MetaDeletionStatus,
 			TikTokAuthorize:                   integrationsHandler.TikTokAuthorize,
 			TikTokCallback:                    integrationsHandler.TikTokCallback,
 			ListTenant:                        integrationsHandler.ListTenant,

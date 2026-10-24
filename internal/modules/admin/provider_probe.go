@@ -3,6 +3,8 @@ package admin
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -130,9 +132,23 @@ func runProbe(ctx context.Context, ptype, pname string, s map[string]string) (st
 	case "custom_search":
 		return probeGoogleCSE(ctx, c, s["api_key"], s["cse_id"])
 	}
+	// Media generation (Creative Studio): a free, authenticated read per provider
+	// tells a valid key from a bad one (checked against each API 2026-10-24).
+	if ptype == "media" {
+		return probeMedia(ctx, c, pname, s["api_key"])
+	}
 	// Ad / OAuth-first providers: we can only validate the static app-level bits.
 	switch ptype {
 	case "meta_ads":
+		if pname == "capi" {
+			return probeMetaCAPI(ctx, c, s)
+		}
+		if pname == "threads" {
+			if s["app_id"] == "" || s["app_secret"] == "" {
+				return "Threads app ID or secret missing", false
+			}
+			return "Threads app credentials present; the OAuth test runs when a tenant connects Threads", true
+		}
 		return probeMetaApp(ctx, c, s["app_id"], s["app_secret"])
 	case "google_ads", "google_calendar":
 		return probeGoogleOAuthClient(ctx, c, s["client_id"])
@@ -277,6 +293,100 @@ func probeMetaApp(ctx context.Context, c *http.Client, appID, appSecret string) 
 		return fmt.Sprintf("%s: %s", resp.Status, truncate(string(b), 160)), false
 	}
 	return "App access token issued", true
+}
+
+// probeMedia makes one free authenticated read per media provider.
+func probeMedia(ctx context.Context, c *http.Client, provider, key string) (string, bool) {
+	if key == "" {
+		return "api_key missing", false
+	}
+	var (
+		u      string
+		header = map[string]string{}
+	)
+	switch provider {
+	case "fal":
+		u = "https://api.fal.ai/v1/models/pricing?endpoint_id=fal-ai/bytedance/seedream/v5/lite/edit"
+		header["Authorization"] = "Key " + key
+	case "higgsfield":
+		u = "https://api.higgsfield.ai/models"
+		header["Authorization"] = "Key " + key
+	case "elevenlabs":
+		u = "https://api.elevenlabs.io/v1/user/subscription"
+		header["xi-api-key"] = key
+	case "creatomate":
+		u = "https://api.creatomate.com/v1/templates"
+		header["Authorization"] = "Bearer " + key
+	default:
+		return fmt.Sprintf("no test probe implemented for media/%s", provider), false
+	}
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	for k, v := range header {
+		req.Header.Set(k, v)
+	}
+	resp, err := c.Do(req)
+	if err != nil {
+		return err.Error(), false
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Sprintf("%s: %s", resp.Status, truncate(string(b), 160)), false
+	}
+	if provider == "elevenlabs" {
+		var sub struct {
+			Tier string `json:"tier"`
+		}
+		_ = json.Unmarshal(b, &sub)
+		if sub.Tier == "free" {
+			return "Key valid, but the plan is free: its voices may not be used in ads (non-commercial). Upgrade before rendering voice-overs.", true
+		}
+		return "Key valid (" + sub.Tier + " plan)", true
+	}
+	return "Key valid", true
+}
+
+// probeMetaCAPI sends one event to the dataset with the test event code, so it
+// shows on the dataset's Test events tab in Events Manager and is never counted
+// as a real conversion. Without a test code nothing is sent.
+func probeMetaCAPI(ctx context.Context, c *http.Client, s map[string]string) (string, bool) {
+	dataset, token, code := s["dataset_id"], s["access_token"], s["test_event_code"]
+	if dataset == "" || token == "" {
+		return "dataset_id or access_token missing", false
+	}
+	if code == "" {
+		return "Set a test event code (Events Manager > dataset > Test events) to run the test; nothing was sent", false
+	}
+	email := sha256.Sum256([]byte("capi-test@codevertexafrica.com"))
+	body, _ := json.Marshal(map[string]any{
+		"data": []map[string]any{{
+			"event_name":    "TestEvent",
+			"event_time":    time.Now().Unix(),
+			"event_id":      fmt.Sprintf("mf-probe-%d", time.Now().UnixNano()),
+			"action_source": "website",
+			"user_data":     map[string]any{"em": []string{hex.EncodeToString(email[:])}},
+		}},
+		"test_event_code": code,
+	})
+	ver := firstNonEmpty(s["graph_version"], "v21.0")
+	u := fmt.Sprintf("https://graph.facebook.com/%s/%s/events", ver, url.PathEscape(dataset))
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := c.Do(req)
+	if err != nil {
+		return err.Error(), false
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Sprintf("%s: %s", resp.Status, truncate(string(b), 200)), false
+	}
+	var out struct {
+		EventsReceived int `json:"events_received"`
+	}
+	_ = json.Unmarshal(b, &out)
+	return fmt.Sprintf("Test event accepted (%d received); check Events Manager > Test events", out.EventsReceived), out.EventsReceived > 0
 }
 
 // probeGoogleOAuthClient only verifies the client_id format; the real OAuth

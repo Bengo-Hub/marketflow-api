@@ -40,9 +40,15 @@ func TestMetaAccounts(t *testing.T) {
 	}{ID: "ig2", Username: "clinic_ke"}
 	ads := []metaAdAccount{{ID: "act_9", Name: "Ads", Currency: "KES", AccountStatus: 1}, {ID: ""}}
 
-	got := metaAccounts(pages, ads, "user-tok", []string{"pages_show_list"})
+	got := metaAccounts(pages, ads, "user-tok", []string{"pages_show_list"}, "fbu-1")
 	if len(got) != 4 {
 		t.Fatalf("want 2 pages, 1 instagram, 1 ad account; got %d: %+v", len(got), got)
+	}
+	// Each row records who granted it, for Meta's deletion callback.
+	for _, a := range got {
+		if a.Metadata[MetaFBUserKey] != "fbu-1" {
+			t.Fatalf("%s has no fb_user_id: %v", a.ExternalID, a.Metadata)
+		}
 	}
 	byID := map[string]account{}
 	for _, a := range got {

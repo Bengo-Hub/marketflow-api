@@ -3690,6 +3690,52 @@ paths:
       summary: Meta OAuth callback
       tags:
       - Integrations
+  /integrations/meta/data-deletion:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      parameters:
+      - description: Meta signed_request
+        in: formData
+        name: signed_request
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      summary: Meta data deletion request callback
+      tags:
+      - Integrations
+  /integrations/meta/deauthorize:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      parameters:
+      - description: Meta signed_request
+        in: formData
+        name: signed_request
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      summary: Meta deauthorize callback
+      tags:
+      - Integrations
   /integrations/tiktok/authorize:
     get:
       parameters:
@@ -4580,6 +4626,29 @@ paths:
       summary: Public booking creation
       tags:
       - Public
+  /public/data-deletion/{code}:
+    get:
+      parameters:
+      - description: Confirmation code
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      summary: Status of a data deletion request
+      tags:
+      - Integrations
   /public/funnels/{slug}:
     get:
       parameters:
@@ -5530,8 +5599,8 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "201":
+          description: Created
           schema:
             additionalProperties: true
             type: object

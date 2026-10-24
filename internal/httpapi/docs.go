@@ -3986,6 +3986,77 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/integrations/meta/data-deletion": {
+            "post": {
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Meta data deletion request callback",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Meta signed_request",
+                        "name": "signed_request",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/integrations/meta/deauthorize": {
+            "post": {
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Meta deauthorize callback",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Meta signed_request",
+                        "name": "signed_request",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/integrations/tiktok/authorize": {
             "get": {
                 "tags": [
@@ -5393,6 +5464,41 @@ const docTemplate = `{
                 }
             }
         },
+        "/public/data-deletion/{code}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Status of a data deletion request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Confirmation code",
+                        "name": "code",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/public/funnels/{slug}": {
             "get": {
                 "produces": [
@@ -6786,8 +6892,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
