@@ -388,6 +388,35 @@ func TestRestrictedCategories(t *testing.T) {
 	}
 }
 
+// Approving needs an approver role; the check runs before anything changes.
+func TestApproveNeedsApprover(t *testing.T) {
+	db := openDB(t)
+	s := NewService(db, zap.NewNop())
+	tid := newTenant(t, db)
+	ctx := context.Background()
+	b := newBrief(t, s, tid)
+	v, _ := s.CreateVersion(ctx, tid, b.ID, VersionInput{Prompt: "a"})
+	_ = db.CreativeVersion.UpdateOneID(v.ID).SetStatus(StatusReady).Exec(ctx)
+
+	call := func(allow bool) int {
+		h := NewHandler(s, nil, nil, zap.NewNop()).WithApprover(func(context.Context, uuid.UUID) bool { return allow })
+		req := withURLParam(httptest.NewRequest(http.MethodPost, "/", nil), "id", v.ID.String())
+		req.Header.Set("X-Tenant-ID", tid.String())
+		rec := httptest.NewRecorder()
+		h.Approve(rec, req)
+		return rec.Code
+	}
+	if code := call(false); code != http.StatusForbidden {
+		t.Fatalf("viewer approve = %d", code)
+	}
+	if got, _ := s.GetVersion(ctx, tid, v.ID); got.Status != StatusReady {
+		t.Fatalf("a refused approval changed the version: %s", got.Status)
+	}
+	if code := call(true); code != http.StatusOK {
+		t.Fatalf("owner approve = %d", code)
+	}
+}
+
 func TestExtendOnce(t *testing.T) {
 	db := openDB(t)
 	s := NewService(db, zap.NewNop())

@@ -7,6 +7,7 @@ import (
 	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/Bengo-Hub/httpware/tenantexport"
 	ratelimit "github.com/Bengo-Hub/shared-ratelimit"
+	"github.com/google/uuid"
 	"net/http"
 	"time"
 
@@ -303,7 +304,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// state), separated from it by the token's own HMAC domain.
 	creativeHandler := creative.NewHandler(creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)),
 		creative.NewReviews(entClient, encryption.KeyFromEnv(cfg.Security.EncryptionKey)),
-		creative.NewOfferings(cfg.CrossService.InventoryURL, cfg.CrossService.InternalServiceKey, logger), logger)
+		creative.NewOfferings(cfg.CrossService.InventoryURL, cfg.CrossService.InternalServiceKey, logger), logger).
+		WithApprover(func(ctx context.Context, tenantID uuid.UUID) bool {
+			return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
+		})
 
 	segmentHandler := segments.NewHandler(segmentService, logger)
 

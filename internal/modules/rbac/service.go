@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -236,6 +237,39 @@ var AssignableRoles = []string{RoleTenantAdmin, "fbo_owner", "viewer"}
 // UserByAuthID returns the tenant's local user for an SSO user id, or an error when there is none.
 func (s *Service) UserByAuthID(ctx context.Context, tenantID, authUserID uuid.UUID) (*MarketflowUser, error) {
 	return s.repo.GetUserByAuthServiceID(ctx, tenantID, authUserID)
+}
+
+// CallerHasAnyRole reports whether the signed-in caller holds one of roles in
+// the tenant. Platform owners and service callers always pass. A caller whose
+// MarketFlow user is not synced yet has no roles.
+func (s *Service) CallerHasAnyRole(ctx context.Context, tenantID uuid.UUID, roles ...string) bool {
+	claims, ok := authclient.ClaimsFromContext(ctx)
+	if !ok || claims == nil {
+		return false
+	}
+	if claims.IsPlatformOwner || claims.IsService {
+		return true
+	}
+	authID, err := claims.UserID()
+	if err != nil {
+		return false
+	}
+	u, err := s.repo.GetUserByAuthServiceID(ctx, tenantID, authID)
+	if err != nil || u == nil {
+		return false
+	}
+	have, err := s.repo.GetUserRoles(ctx, tenantID, u.ID)
+	if err != nil {
+		return false
+	}
+	for _, h := range have {
+		for _, want := range roles {
+			if h.RoleCode == want {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // DeactivateUser marks a tenant user as deactivated.

@@ -1,6 +1,7 @@
 package creative
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -21,6 +22,19 @@ type Handler struct {
 	reviews   *Reviews
 	offerings *Offerings
 	logger    *zap.Logger
+	// canApprove gates approval (gate G5: who may approve an ad); nil allows
+	// every signed-in tenant user.
+	canApprove func(ctx context.Context, tenantID uuid.UUID) bool
+}
+
+// ApprovalRoles are the tenant roles that may approve an ad: the admin and the
+// business owner. Viewers may look and share review links, not approve.
+var ApprovalRoles = []string{"marketflow_admin", "fbo_owner"}
+
+// WithApprover sets who may approve; see ApprovalRoles.
+func (h *Handler) WithApprover(check func(ctx context.Context, tenantID uuid.UUID) bool) *Handler {
+	h.canApprove = check
+	return h
 }
 
 // NewHandler builds the handler. offerings may be nil (the picker answers 503).
@@ -295,6 +309,10 @@ func (h *Handler) Approve(w http.ResponseWriter, r *http.Request) {
 	}
 	id, ok := idParam(w, r)
 	if !ok {
+		return
+	}
+	if h.canApprove != nil && !h.canApprove(r.Context(), tid) {
+		httpapi.Error(w, http.StatusForbidden, "approval_not_allowed", "only the business owner or an admin can approve an ad", nil)
 		return
 	}
 	v, err := h.svc.Approve(r.Context(), tid, id, userOf(r))
