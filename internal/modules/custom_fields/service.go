@@ -3,6 +3,8 @@ package custom_fields
 import (
 	"context"
 	"fmt"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/customfielddef"
@@ -47,6 +49,9 @@ type UpdateDefInput struct {
 
 // CreateDef creates a custom field definition.
 func (s *Service) CreateDef(ctx context.Context, in CreateDefInput) (*ent.CustomFieldDef, error) {
+	if err := validateCreate(&in); err != nil {
+		return nil, err
+	}
 	builder := s.client.CustomFieldDef.Create().
 		SetTenantID(in.TenantID).
 		SetEntityType(in.EntityType).
@@ -61,6 +66,9 @@ func (s *Service) CreateDef(ctx context.Context, in CreateDefInput) (*ent.Custom
 	}
 
 	result, err := builder.Save(ctx)
+	if ent.IsConstraintError(err) {
+		return nil, ErrDuplicate
+	}
 	if err != nil {
 		return nil, fmt.Errorf("create custom field def: %w", err)
 	}
@@ -103,15 +111,30 @@ func (s *Service) ListDefs(ctx context.Context, tenantID uuid.UUID, entityType *
 // UpdateDef updates a custom field definition.
 func (s *Service) UpdateDef(ctx context.Context, tenantID, defID uuid.UUID, in UpdateDefInput) (*ent.CustomFieldDef, error) {
 	existing, err := s.GetDef(ctx, tenantID, defID)
+	if ent.IsNotFound(err) {
+		return nil, ErrNotFound
+	}
 	if err != nil {
 		return nil, err
 	}
 	builder := existing.Update()
 	if in.FieldLabel != nil {
-		builder.SetFieldLabel(*in.FieldLabel)
+		label := strings.TrimSpace(*in.FieldLabel)
+		if label == "" || utf8.RuneCountInString(label) > maxLabelLen {
+			return nil, invalid("field_label is required and must be %d characters or fewer", maxLabelLen)
+		}
+		builder.SetFieldLabel(label)
 	}
-	if len(in.Options) > 0 {
-		builder.SetOptions(in.Options)
+	// The key, type and record type are fixed once values may exist; only the choices change.
+	if in.Options != nil && isChoice(existing.FieldType) {
+		opts, err := cleanOptions(in.Options)
+		if err != nil {
+			return nil, err
+		}
+		if len(opts) == 0 {
+			return nil, invalid("a choice field needs at least one choice")
+		}
+		builder.SetOptions(opts)
 	}
 	if in.IsRequired != nil {
 		builder.SetIsRequired(*in.IsRequired)
@@ -126,18 +149,35 @@ func (s *Service) UpdateDef(ctx context.Context, tenantID, defID uuid.UUID, in U
 	return result, nil
 }
 
-// DeleteDef hard-deletes a custom field definition.
-func (s *Service) DeleteDef(ctx context.Context, tenantID, defID uuid.UUID) error {
-	n, err := s.client.CustomFieldDef.Delete().
-		Where(customfielddef.ID(defID), customfielddef.TenantID(tenantID)).
+// DeleteDef hard-deletes a definition and the values saved for it, in one transaction.
+// The values' foreign key is ON DELETE NO ACTION, so deleting the definition alone failed
+// for every field that had ever been filled in. Returns how many values were removed.
+func (s *Service) DeleteDef(ctx context.Context, tenantID, defID uuid.UUID) (int, error) {
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	exists, err := tx.CustomFieldDef.Query().Where(customfielddef.ID(defID), customfielddef.TenantID(tenantID)).Exist(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("find custom field def: %w", err)
+	}
+	if !exists {
+		return 0, ErrNotFound
+	}
+	removed, err := tx.CustomFieldValue.Delete().
+		Where(customfieldvalue.FieldDefID(defID), customfieldvalue.TenantID(tenantID)).
 		Exec(ctx)
 	if err != nil {
-		return fmt.Errorf("delete custom field def: %w", err)
+		return 0, fmt.Errorf("delete custom field values: %w", err)
 	}
-	if n == 0 {
-		return fmt.Errorf("custom field def not found")
+	if err := tx.CustomFieldDef.DeleteOneID(defID).Exec(ctx); err != nil {
+		return 0, fmt.Errorf("delete custom field def: %w", err)
 	}
-	return nil
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return removed, nil
 }
 
 // SetValueInput contains data to set a custom field value on an entity.

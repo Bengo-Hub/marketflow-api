@@ -1,11 +1,13 @@
 package custom_fields
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/modules/audit"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -85,10 +87,11 @@ func (h *Handler) CreateDef(w http.ResponseWriter, r *http.Request) {
 		SortOrder:  req.SortOrder,
 	})
 	if err != nil {
-		h.logger.Error("failed to create custom field def", zap.Error(err))
-		httpapi.Error(w, http.StatusInternalServerError, "create_failed", "failed to create custom field definition", nil)
+		h.writeErr(w, err, "create_failed", "failed to create custom field definition")
 		return
 	}
+	audit.Tenant(r.Context(), h.service.client, h.logger, tenantID, "custom_field.created", "custom_field", &result.ID,
+		map[string]any{"entity_type": result.EntityType, "field_key": result.FieldKey})
 	httpapi.JSON(w, http.StatusCreated, result)
 }
 
@@ -153,8 +156,7 @@ func (h *Handler) UpdateDef(w http.ResponseWriter, r *http.Request) {
 		SortOrder:  req.SortOrder,
 	})
 	if err != nil {
-		h.logger.Error("failed to update custom field def", zap.Error(err))
-		httpapi.Error(w, http.StatusInternalServerError, "update_failed", "failed to update custom field definition", nil)
+		h.writeErr(w, err, "update_failed", "failed to update custom field definition")
 		return
 	}
 	httpapi.JSON(w, http.StatusOK, result)
@@ -180,12 +182,13 @@ func (h *Handler) DeleteDef(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_id", "invalid definition ID", nil)
 		return
 	}
-	if err := h.service.DeleteDef(r.Context(), tenantID, id); err != nil {
-		h.logger.Error("failed to delete custom field def", zap.Error(err))
-		httpapi.Error(w, http.StatusInternalServerError, "delete_failed", "failed to delete custom field definition", nil)
+	removed, err := h.service.DeleteDef(r.Context(), tenantID, id)
+	if err != nil {
+		h.writeErr(w, err, "delete_failed", "failed to delete custom field definition")
 		return
 	}
-	httpapi.JSON(w, http.StatusOK, map[string]any{"status": "deleted"})
+	audit.Tenant(r.Context(), h.service.client, h.logger, tenantID, "custom_field.deleted", "custom_field", &id, map[string]any{"values_removed": removed})
+	httpapi.JSON(w, http.StatusOK, map[string]any{"status": "deleted", "values_removed": removed})
 }
 
 // SetValues handles PUT /api/v1/{entityType}/{entityId}/custom-fields
@@ -248,6 +251,22 @@ func (h *Handler) GetValues(entityType string) http.HandlerFunc {
 			return
 		}
 		httpapi.JSON(w, http.StatusOK, map[string]any{"data": results})
+	}
+}
+
+// writeErr answers a definition error: 400 for bad input, 409 for a taken key, 404 for an
+// unknown id, and a generic 500 (logged, never echoed) for anything else.
+func (h *Handler) writeErr(w http.ResponseWriter, err error, code, msg string) {
+	switch {
+	case errors.Is(err, ErrInvalid):
+		httpapi.Error(w, http.StatusBadRequest, "invalid_field", err.Error(), nil)
+	case errors.Is(err, ErrDuplicate):
+		httpapi.Error(w, http.StatusConflict, "duplicate_field", err.Error(), nil)
+	case errors.Is(err, ErrNotFound):
+		httpapi.Error(w, http.StatusNotFound, "not_found", "custom field not found", nil)
+	default:
+		h.logger.Error(msg, zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, code, msg, nil)
 	}
 }
 
