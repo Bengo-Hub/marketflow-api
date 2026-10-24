@@ -19,6 +19,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
@@ -73,7 +74,7 @@ func NewConnectedTokenHealth(db *ent.Client, keys *encryption.KeyProvider, notif
 	j := &ConnectedTokenHealth{
 		db: db, keys: keys, notif: notif,
 		hc:        &http.Client{Timeout: 15 * time.Second},
-		graphBase: "https://graph.facebook.com/v21.0",
+		graphBase: meta.GraphURL,
 		appURL:    strings.TrimRight(appURL, "/"),
 		interval:  24 * time.Hour,
 		logger:    logger.Named("connected-token-health"),

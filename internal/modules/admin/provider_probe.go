@@ -15,6 +15,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"go.uber.org/zap"
 )
 
@@ -368,7 +369,7 @@ func probeMetaCAPI(ctx context.Context, c *http.Client, s map[string]string) (st
 		}},
 		"test_event_code": code,
 	})
-	ver := firstNonEmpty(s["graph_version"], "v21.0")
+	ver := firstNonEmpty(s["graph_version"], meta.GraphVersion)
 	u := fmt.Sprintf("https://graph.facebook.com/%s/%s/events", ver, url.PathEscape(dataset))
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")

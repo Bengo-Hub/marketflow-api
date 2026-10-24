@@ -14,6 +14,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/nats-io/nats.go/jetstream"
 	"go.uber.org/zap"
@@ -98,7 +99,7 @@ func (h *ConversionsHandler) dispatchMetaCAPI(ctx context.Context, ev *Conversio
 	}
 	apiVer := settings["graph_version"]
 	if apiVer == "" {
-		apiVer = "v21.0"
+		apiVer = meta.GraphVersion
 	}
 
 	eventTime := time.Now().Unix()

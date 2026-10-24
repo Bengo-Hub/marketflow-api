@@ -12,6 +12,7 @@ import (
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
+	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -150,7 +151,7 @@ func truncate(s string, n int) string {
 
 // ── Meta Graph reads at connect time ─────────────────────────────────────────
 
-const metaGraphURL = "https://graph.facebook.com/v21.0"
+const metaGraphURL = meta.GraphURL
 
 var graphClient = &http.Client{Timeout: 20 * time.Second}
 

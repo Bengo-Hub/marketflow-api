@@ -16,11 +16,12 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 )
 
 // metaGraphBase is the Graph API root the enricher calls. Tests point it at a fake server.
-const metaGraphBase = "https://graph.facebook.com/v21.0"
+const metaGraphBase = meta.GraphURL
 
 // MetaLeadEnricher fills in a Meta Lead Ads lead after the webhook stored it with ids only.
 // The webhook must answer Meta fast, so the Graph call happens here, off the request path:

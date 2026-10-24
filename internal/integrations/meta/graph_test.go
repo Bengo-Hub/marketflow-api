@@ -41,7 +41,7 @@ func TestCreateCampaign(t *testing.T) {
 	if err != nil || got.ID != "120" {
 		t.Fatalf("create: %+v %v", got, err)
 	}
-	if f.method != http.MethodPost || f.path != "/v21.0/act_42/campaigns" {
+	if f.method != http.MethodPost || f.path != "/"+GraphVersion+"/act_42/campaigns" {
 		t.Errorf("the act_ prefix is added once: %s %s", f.method, f.path)
 	}
 	if f.form.Get("access_token") != "tok" || f.form.Get("daily_budget") != "50000" || f.form.Get("special_ad_categories") != "[]" || f.form.Get("lifetime_budget") != "" {
@@ -58,7 +58,7 @@ func TestUpdateDeleteAndErrors(t *testing.T) {
 	if _, err := c.UpdateCampaign(context.Background(), "tok", "120", CampaignInput{Status: "ACTIVE"}); err != nil {
 		t.Fatal(err)
 	}
-	if f.path != "/v21.0/120" || f.form.Get("status") != "ACTIVE" || f.form.Has("name") {
+	if f.path != "/"+GraphVersion+"/120" || f.form.Get("status") != "ACTIVE" || f.form.Has("name") {
 		t.Errorf("update sends only the set fields: %s %v", f.path, f.form)
 	}
 	if err := c.DeleteCampaign(context.Background(), "tok", "120"); err != nil || f.method != http.MethodDelete {
@@ -66,7 +66,7 @@ func TestUpdateDeleteAndErrors(t *testing.T) {
 	}
 	// An id can never climb out of its path segment.
 	_ = c.DeleteCampaign(context.Background(), "tok", "../act_1")
-	if !strings.HasPrefix(f.path, "/v21.0/..%2Fact_1") {
+	if !strings.HasPrefix(f.path, "/"+GraphVersion+"/..%2Fact_1") {
 		t.Errorf("campaign id must be escaped: %s", f.path)
 	}
 
@@ -86,7 +86,7 @@ func TestGetCampaignInsights(t *testing.T) {
 	if err != nil || got.Impressions != "1000" || got.Spend != "12.50" {
 		t.Fatalf("insights: %+v %v", got, err)
 	}
-	if f.path != "/v21.0/120/insights" || f.query.Get("date_preset") != "today" {
+	if f.path != "/"+GraphVersion+"/120/insights" || f.query.Get("date_preset") != "today" {
 		t.Errorf("request: %s %v", f.path, f.query)
 	}
 	f.body = `{"data":[]}`

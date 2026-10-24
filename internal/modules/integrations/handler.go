@@ -218,8 +218,8 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 // ── Meta ────────────────────────────────────────────────────────────────────
 
 const (
-	metaAuthURL  = "https://www.facebook.com/v21.0/dialog/oauth"
-	metaTokenURL = "https://graph.facebook.com/v21.0/oauth/access_token"
+	metaAuthURL  = meta.DialogURL
+	metaTokenURL = meta.GraphURL + "/oauth/access_token"
 	metaScope    = "pages_show_list,pages_read_engagement,leads_retrieval,pages_manage_metadata"
 )
 

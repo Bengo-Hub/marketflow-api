@@ -16,7 +16,16 @@ import (
 	"time"
 )
 
-const defaultGraphVersion = "v21.0"
+// GraphVersion is the one Graph API version MarketFlow calls (the Meta app is
+// set to v26.0; v21.0 reached the end of Meta's two-year window). GraphURL and
+// DialogURL are its bases; every Meta call site uses them.
+const (
+	GraphVersion = "v26.0"
+	GraphURL     = "https://graph.facebook.com/" + GraphVersion
+	DialogURL    = "https://www.facebook.com/" + GraphVersion + "/dialog/oauth"
+)
+
+const defaultGraphVersion = GraphVersion
 
 // Client talks to graph.facebook.com with a tenant-specific page or ad
 // account access token. Platform credentials (app_id / app_secret) are NOT
@@ -27,7 +36,7 @@ type Client struct {
 	baseURL    string
 }
 
-// NewClient builds a client with sane timeouts. version="" defaults to v21.0.
+// NewClient builds a client with sane timeouts. version="" defaults to GraphVersion.
 func NewClient(version string) *Client {
 	if version == "" {
 		version = defaultGraphVersion
