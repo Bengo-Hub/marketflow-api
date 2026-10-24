@@ -86,3 +86,9 @@ func TestDashboardLeadFiguresInDatabase(t *testing.T) {
 		t.Fatalf("by source = %+v", data.BySource)
 	}
 }
+
+func TestTopNEmptyIsNotNil(t *testing.T) {
+	if got := topN(nil, 8); got == nil || len(got) != 0 {
+		t.Fatalf("topN(nil) = %#v, want an empty non-nil slice", got)
+	}
+}

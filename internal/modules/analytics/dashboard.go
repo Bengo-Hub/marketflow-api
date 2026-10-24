@@ -271,6 +271,10 @@ func topN(rows []SourceCount, n int) []SourceCount {
 		}
 		return rows[i].Source < rows[j].Source
 	})
+	if len(rows) == 0 {
+		// An empty array, never null: clients read .length on it.
+		return []SourceCount{}
+	}
 	if len(rows) <= n {
 		return rows
 	}
