@@ -8,6 +8,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
+	"github.com/bengobox/marketflow-api/internal/modules/tenant/metastore"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -83,7 +84,29 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	upd := t.Update()
+	if req.Metadata != nil {
+		if err := ValidateOfferings(req.Metadata["offerings"]); err != nil {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_offerings", err.Error(), nil)
+			return
+		}
+	}
+
+	// Columns and metadata keys change together or not at all. Metadata is merged in the
+	// database (only the sent, non-reserved keys), never rewritten whole, so a concurrent
+	// brand context or settings save is not lost.
+	tx, err := h.db.Tx(r.Context())
+	if err != nil {
+		httpapi.Error(w, http.StatusInternalServerError, "save_failed", "could not save the profile", nil)
+		return
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	upd := tx.Tenant.UpdateOneID(tenantID)
 	if req.Name != nil && strings.TrimSpace(*req.Name) != "" {
 		upd = upd.SetName(strings.TrimSpace(*req.Name))
 	}
@@ -120,19 +143,28 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		}
 		upd = upd.SetBusinessType(bt)
 	}
-	if req.Metadata != nil {
-		if err := ValidateOfferings(req.Metadata["offerings"]); err != nil {
-			httpapi.Error(w, http.StatusBadRequest, "invalid_offerings", err.Error(), nil)
+
+	if _, err := upd.Save(r.Context()); err != nil {
+		h.logger.Error("save profile", zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "save_failed", "could not save the profile", nil)
+		return
+	}
+	if patch := ProfileMetadataPatch(req.Metadata); len(patch) > 0 {
+		if err := metastore.SetKeys(r.Context(), tx.Client(), tenantID, patch); err != nil {
+			h.logger.Error("save profile metadata", zap.Error(err))
+			httpapi.Error(w, http.StatusInternalServerError, "save_failed", "could not save the profile", nil)
 			return
 		}
-		// Reserved keys (the Marketing OS brand context and switches) are skipped, so a
-		// form that sends the whole metadata object back cannot overwrite newer values.
-		upd = upd.SetMetadata(MergeProfileMetadata(t.Metadata, req.Metadata))
 	}
-
-	updated, err := upd.Save(r.Context())
+	if err := tx.Commit(); err != nil {
+		h.logger.Error("commit profile", zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "save_failed", "could not save the profile", nil)
+		return
+	}
+	committed = true
+	updated, err := h.db.Tenant.Get(r.Context(), tenantID)
 	if err != nil {
-		httpapi.Error(w, http.StatusInternalServerError, "save_failed", err.Error(), nil)
+		httpapi.Error(w, http.StatusInternalServerError, "save_failed", "saved, but could not read the profile back", nil)
 		return
 	}
 	changed := []string{}

@@ -1,4 +1,7 @@
-package tenant
+// Package metastore writes tenant metadata keys atomically. It is a leaf package (ent and
+// uuid only) so every module that owns a metadata key (tenant profile, marketingos brand
+// context and switches, onboarding) can use it without import cycles.
+package metastore
 
 import (
 	"context"
@@ -12,11 +15,11 @@ import (
 	enttenant "github.com/bengobox/marketflow-api/internal/ent/tenant"
 )
 
-// SetMetadataKeys merges values into a tenant's metadata in one UPDATE
-// (metadata || patch), so concurrent writers of different keys (profile, brand
-// context, onboarding, switches) never overwrite each other the way a
-// read-modify-write of the whole map does. A key set to nil is removed.
-func SetMetadataKeys(ctx context.Context, db *ent.Client, tenantID uuid.UUID, values map[string]any) error {
+// SetKeys merges values into a tenant's metadata in one UPDATE (metadata || patch), so
+// concurrent writers of different keys never overwrite each other the way a
+// read-modify-write of the whole map does. A key set to nil is removed. db may be a
+// transaction's client (tx.Client()).
+func SetKeys(ctx context.Context, db *ent.Client, tenantID uuid.UUID, values map[string]any) error {
 	if len(values) == 0 {
 		return nil
 	}

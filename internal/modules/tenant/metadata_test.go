@@ -28,21 +28,19 @@ func TestPublicMetadataDropsPrivateKeys(t *testing.T) {
 	}
 }
 
-func TestMergeProfileMetadataSkipsReserved(t *testing.T) {
-	existing := map[string]any{marketingos.MetadataKey: "newer", "bio": "old"}
-	update := map[string]any{marketingos.MetadataKey: "stale", "bio": "new", marketingos.DailyBriefKey: true}
-	got := MergeProfileMetadata(existing, update)
-	if got[marketingos.MetadataKey] != "newer" {
-		t.Fatalf("brand context overwritten: %v", got[marketingos.MetadataKey])
-	}
-	if _, ok := got[marketingos.DailyBriefKey]; ok {
-		t.Fatal("reserved switch written through the profile")
+func TestProfileMetadataPatchSkipsReserved(t *testing.T) {
+	update := map[string]any{marketingos.MetadataKey: "stale", "bio": "new", marketingos.DailyBriefKey: true, OnboardingMetadataKey: map[string]any{}, "story": nil}
+	got := ProfileMetadataPatch(update)
+	for _, k := range []string{marketingos.MetadataKey, marketingos.DailyBriefKey, OnboardingMetadataKey} {
+		if _, ok := got[k]; ok {
+			t.Fatalf("reserved key %q written through the profile", k)
+		}
 	}
 	if got["bio"] != "new" {
-		t.Fatal("normal key not merged")
+		t.Fatal("normal key dropped")
 	}
-	if existing["bio"] != "old" {
-		t.Fatal("stored map changed in place")
+	if v, ok := got["story"]; !ok || v != nil {
+		t.Fatal("a null value must pass through so the key is removed")
 	}
 }
 

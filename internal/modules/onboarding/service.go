@@ -24,6 +24,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant"
+	"github.com/bengobox/marketflow-api/internal/modules/tenant/metastore"
 )
 
 // BrandStore reads the saved brand context (marketingos.Service is the only writer).
@@ -117,7 +118,7 @@ func (s *Service) SetDismissed(ctx context.Context, tenantID uuid.UUID, dismisse
 	if dismissed {
 		state["dismissed_at"] = time.Now().UTC().Format(time.RFC3339)
 	}
-	return tenant.SetMetadataKeys(ctx, s.db, tenantID, map[string]any{tenant.OnboardingMetadataKey: state})
+	return metastore.SetKeys(ctx, s.db, tenantID, map[string]any{tenant.OnboardingMetadataKey: state})
 }
 
 // ProfileDefaults are values for the profile form taken from auth-api, used only where the

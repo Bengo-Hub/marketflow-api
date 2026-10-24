@@ -19,6 +19,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant"
+	"github.com/bengobox/marketflow-api/internal/modules/tenant/metastore"
 )
 
 func ptr[T any](v T) *T { return &v }
@@ -147,7 +148,7 @@ func TestChecklistAndDismissInDatabase(t *testing.T) {
 	}
 
 	// Profile, offerings and brand context written by their own paths; a published funnel.
-	if err := tenant.SetMetadataKeys(ctx, db, tid, map[string]any{
+	if err := metastore.SetKeys(ctx, db, tid, map[string]any{
 		"bio": "Groceries in Thika", "contact_email": "a@b.co",
 		"offerings": []any{map[string]any{"name": "Sukuma"}},
 	}); err != nil {
@@ -187,26 +188,5 @@ func TestChecklistAndDismissInDatabase(t *testing.T) {
 	ten, _ := db.Tenant.Get(ctx, tid)
 	if ten.Metadata["keep"] != "me" || ten.Metadata["tagline"] != "Fresh daily" || ten.Metadata[marketingos.MetadataKey] == nil {
 		t.Fatalf("metadata lost keys: %v", ten.Metadata)
-	}
-}
-
-func TestSetMetadataKeysRemovesNil(t *testing.T) {
-	db := openDB(t)
-	ctx := context.Background()
-	tid := uuid.New()
-	if _, err := db.Tenant.Create().SetID(tid).SetName("M " + tid.String()).SetSlug("m-" + tid.String()).
-		SetMetadata(map[string]any{"a": 1, "b": 2}).Save(ctx); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = db.Tenant.DeleteOneID(tid).Exec(ctx) })
-	if err := tenant.SetMetadataKeys(ctx, db, tid, map[string]any{"a": nil, "c": "x"}); err != nil {
-		t.Fatal(err)
-	}
-	ten, _ := db.Tenant.Get(ctx, tid)
-	if _, has := ten.Metadata["a"]; has || ten.Metadata["b"] != float64(2) || ten.Metadata["c"] != "x" {
-		t.Fatalf("metadata = %v", ten.Metadata)
-	}
-	if err := tenant.SetMetadataKeys(ctx, db, uuid.New(), map[string]any{"x": 1}); err == nil {
-		t.Fatal("unknown tenant must error")
 	}
 }

@@ -56,13 +56,12 @@ func PublicMetadata(meta map[string]any) map[string]any {
 	return out
 }
 
-// MergeProfileMetadata merges a profile update into the stored metadata, skipping
-// reserved keys. The stored map is copied, never changed in place.
-func MergeProfileMetadata(existing, update map[string]any) map[string]any {
-	out := make(map[string]any, len(existing)+len(update))
-	for k, v := range existing {
-		out[k] = v
-	}
+// ProfileMetadataPatch is the part of a profile update that may be written: the sent keys
+// minus the reserved ones. It is merged in the database (metastore.SetKeys), so a profile
+// form that sends the whole metadata object back can neither overwrite a newer brand context
+// nor drop keys another writer saved meanwhile. A null value removes the key.
+func ProfileMetadataPatch(update map[string]any) map[string]any {
+	out := make(map[string]any, len(update))
 	for k, v := range update {
 		if isReserved(k) {
 			continue
