@@ -332,7 +332,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// Testimonial CRUD + public reader for /p/{slug}
 	testimonialHandler := testimonials.NewHandler(entClient, logger)
 	tenantProfileHandler := tenant.NewHandler(entClient, logger)
-	tenantMembersHandler := tenant.NewMembersHandler(rbacService, cfg.Security.AuthServiceURL, cfg.CrossService.InternalServiceKey, logger)
+	tenantMembersHandler := tenant.NewMembersHandler(rbacService, entClient, cfg.Security.AuthServiceURL, cfg.CrossService.InternalServiceKey, logger)
 
 	// Public handlers
 	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, leadService, meetingService, availabilitySvc, testimonialHandler, tenantSyncer, logger)

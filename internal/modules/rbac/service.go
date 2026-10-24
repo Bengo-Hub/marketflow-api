@@ -227,6 +227,17 @@ func (s *Service) UpdateUserRole(ctx context.Context, tenantID uuid.UUID, userID
 	})
 }
 
+// RoleTenantAdmin is the MarketFlow role that may manage the team.
+const RoleTenantAdmin = "marketflow_admin"
+
+// AssignableRoles are the system roles a tenant admin can give a member.
+var AssignableRoles = []string{RoleTenantAdmin, "fbo_owner", "viewer"}
+
+// UserByAuthID returns the tenant's local user for an SSO user id, or an error when there is none.
+func (s *Service) UserByAuthID(ctx context.Context, tenantID, authUserID uuid.UUID) (*MarketflowUser, error) {
+	return s.repo.GetUserByAuthServiceID(ctx, tenantID, authUserID)
+}
+
 // DeactivateUser marks a tenant user as deactivated.
 func (s *Service) DeactivateUser(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID) error {
 	return s.repo.DeactivateUser(ctx, tenantID, userID)
