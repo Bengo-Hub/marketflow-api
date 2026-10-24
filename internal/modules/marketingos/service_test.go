@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/deal"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/modules/tenant/metastore"
 )
 
 const testOSPostgresDSN = "postgres://postgres:postgres@localhost:5432/marketflow?sslmode=disable"
@@ -93,6 +95,46 @@ func TestBrandContextValidationAndStorage(t *testing.T) {
 	tn, _ := db.Tenant.Get(ctx, tid)
 	if tn.Metadata["keep"] != "me" {
 		t.Fatal("other metadata was lost")
+	}
+}
+
+// The brand context, the switches and another module's key saved at the same
+// time all survive: each save merges only its own key.
+func TestConcurrentMetadataSavesKeepEveryKey(t *testing.T) {
+	db := openDB(t)
+	ctx := context.Background()
+	tid := seedTenant(t, db)
+	svc := NewService(db, nil, zap.NewNop())
+	var wg sync.WaitGroup
+	errs := make(chan error, 3)
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		_, err := svc.SaveBrandContext(ctx, tid, BrandContext{Positioning: "Shea butter from Kisumu"})
+		errs <- err
+	}()
+	go func() {
+		defer wg.Done()
+		_, err := svc.SaveSettings(ctx, tid, Settings{DailyBrief: false})
+		errs <- err
+	}()
+	go func() {
+		defer wg.Done()
+		errs <- metastore.SetKeys(ctx, db, tid, map[string]any{"profile_city": "Kisumu"})
+	}()
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	tn, _ := db.Tenant.Get(ctx, tid)
+	if tn.Metadata[MetadataKey] == nil || tn.Metadata[DailyBriefKey] != false || tn.Metadata["profile_city"] != "Kisumu" {
+		t.Fatalf("a key was lost: %+v", tn.Metadata)
+	}
+	if _, err := svc.SaveSettings(ctx, uuid.New(), Settings{}); !ent.IsNotFound(err) {
+		t.Fatalf("unknown tenant: %v", err)
 	}
 }
 

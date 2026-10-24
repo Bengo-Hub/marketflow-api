@@ -18,6 +18,8 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
+	"github.com/bengobox/marketflow-api/internal/ent/tenant"
+	"github.com/bengobox/marketflow-api/internal/modules/tenant/metastore"
 	"github.com/bengobox/marketflow-api/internal/platform/subscriptions"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -150,28 +152,28 @@ func (s *Service) GetBrandContext(ctx context.Context, tenantID uuid.UUID) (Bran
 	return bc, nil
 }
 
-// SaveBrandContext validates and stores the context, keeping the rest of the
-// tenant metadata untouched.
+// SaveBrandContext validates and stores the context. Only its own key is
+// written (one atomic merge), so a profile or onboarding save running at the
+// same time keeps its keys.
 func (s *Service) SaveBrandContext(ctx context.Context, tenantID uuid.UUID, bc BrandContext) (BrandContext, error) {
 	if err := bc.Validate(); err != nil {
 		return bc, err
 	}
-	t, err := s.db.Tenant.Get(ctx, tenantID)
-	if err != nil {
-		return bc, err
-	}
-	meta := map[string]any{}
-	for k, v := range t.Metadata {
-		meta[k] = v
-	}
 	b, _ := json.Marshal(bc)
 	var asMap map[string]any
 	_ = json.Unmarshal(b, &asMap)
-	meta[MetadataKey] = asMap
-	if _, err := t.Update().SetMetadata(meta).Save(ctx); err != nil {
-		return bc, err
+	return bc, s.setKeys(ctx, tenantID, map[string]any{MetadataKey: asMap})
+}
+
+// setKeys merges tenant metadata keys; an unknown tenant is a not-found error.
+func (s *Service) setKeys(ctx context.Context, tenantID uuid.UUID, values map[string]any) error {
+	err := metastore.SetKeys(ctx, s.db, tenantID, values)
+	if err != nil {
+		if ok, xerr := s.db.Tenant.Query().Where(tenant.ID(tenantID)).Exist(ctx); xerr == nil && !ok {
+			return &ent.NotFoundError{}
+		}
 	}
-	return bc, nil
+	return err
 }
 
 // GetSettings reads the tenant's Marketing OS switches.
@@ -184,21 +186,9 @@ func (s *Service) GetSettings(ctx context.Context, tenantID uuid.UUID) (Settings
 	return Settings{DailyBrief: !ok || on}, nil
 }
 
-// SaveSettings stores the switches, keeping the rest of the tenant metadata.
+// SaveSettings stores the switches, merging only their keys.
 func (s *Service) SaveSettings(ctx context.Context, tenantID uuid.UUID, in Settings) (Settings, error) {
-	t, err := s.db.Tenant.Get(ctx, tenantID)
-	if err != nil {
-		return in, err
-	}
-	meta := map[string]any{}
-	for k, v := range t.Metadata {
-		meta[k] = v
-	}
-	meta[DailyBriefKey] = in.DailyBrief
-	if _, err := t.Update().SetMetadata(meta).Save(ctx); err != nil {
-		return in, err
-	}
-	return in, nil
+	return in, s.setKeys(ctx, tenantID, map[string]any{DailyBriefKey: in.DailyBrief})
 }
 
 // overrideName is the name the owner gave a member, empty when they kept the
