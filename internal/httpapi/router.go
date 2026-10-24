@@ -114,6 +114,7 @@ type RouterDeps struct {
 	CustomFieldHandlers CustomFieldHandlers
 	CustomAgentHandlers CustomAgentHandlers
 	MarketingOSHandlers MarketingOSHandlers
+	OnboardingHandlers  OnboardingHandlers
 	CreativeHandlers    CreativeHandlers
 	SuggestionHandlers  SuggestionHandlers
 	SegmentHandlers     SegmentHandlers
@@ -439,6 +440,13 @@ type MarketingOSHandlers struct {
 	GetSettings     http.HandlerFunc
 	PutSettings     http.HandlerFunc
 	InternalContext http.HandlerFunc
+}
+
+// OnboardingHandlers groups the setup checklist and the brand context draft.
+type OnboardingHandlers struct {
+	Checklist http.HandlerFunc
+	Dismiss   http.HandlerFunc
+	Draft     http.HandlerFunc
 }
 
 // CreativeHandlers groups the Creative Studio endpoints (briefs, poster
@@ -833,6 +841,13 @@ func NewRouter(deps RouterDeps) http.Handler {
 						r.Post("/{id}/run", deps.CustomAgentHandlers.TriggerRun)
 					}
 				})
+			}
+
+			// Onboarding: setup checklist and a brand context draft (nothing saved by the draft).
+			if deps.OnboardingHandlers.Checklist != nil {
+				r.Get("/tenant/onboarding", deps.OnboardingHandlers.Checklist)
+				r.Post("/tenant/onboarding/dismiss", deps.OnboardingHandlers.Dismiss)
+				r.Get("/tenant/marketing-context/draft", deps.OnboardingHandlers.Draft)
 			}
 
 			// Marketing OS: brand context and team member overrides. The tenant

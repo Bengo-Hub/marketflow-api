@@ -109,6 +109,9 @@ type CrossServiceConfig struct {
 	InventoryURL string `env:"INVENTORY_URL" envDefault:"http://inventory-api.inventory.svc.cluster.local:4000"`
 	// NotificationsURL: campaign sends are handed to notifications-api's broadcast engine.
 	NotificationsURL string `env:"NOTIFICATIONS_URL" envDefault:"http://notifications-api.notifications.svc.cluster.local:4000"`
+	// WebsiteURL: codevertex-website's public catalogue and courses, read to pre-fill the
+	// platform tenant's brand context during onboarding.
+	WebsiteURL string `env:"CODEVERTEX_WEBSITE_URL" envDefault:"http://codevertex-website.codevertex.svc.cluster.local"`
 }
 
 // AIConfig holds AI/LLM integration settings.

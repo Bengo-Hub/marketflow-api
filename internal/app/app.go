@@ -32,6 +32,7 @@ import (
 	custom_agents "github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
+	"github.com/bengobox/marketflow-api/internal/modules/onboarding"
 	custom_fields "github.com/bengobox/marketflow-api/internal/modules/custom_fields"
 	"github.com/bengobox/marketflow-api/internal/modules/deals"
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
@@ -299,12 +300,20 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	}
 	customAgentService := custom_agents.NewService(entClient, logger, customAgentServiceOpts...)
 	customAgentHandler := custom_agents.NewHandler(customAgentService, logger)
-	marketingOSHandler := marketingos.NewHandler(marketingos.NewService(entClient, subsClient, logger), logger)
+	marketingOSService := marketingos.NewService(entClient, subsClient, logger)
+	marketingOSHandler := marketingos.NewHandler(marketingOSService, logger)
+	catalogueOfferings := creative.NewOfferings(cfg.CrossService.InventoryURL, cfg.CrossService.InternalServiceKey, logger)
+	// Onboarding: setup checklist and a brand context draft from the business's own data
+	// (account details, best sellers, website catalogue for the platform tenant).
+	onboardingHandler := onboarding.NewHandler(onboarding.NewService(entClient, marketingOSService, tenantSyncer,
+		creative.NewTopOfferings(catalogueOfferings, cfg.CrossService.POSURL, cfg.CrossService.InternalServiceKey, logger),
+		onboarding.NewWebsiteCatalog(cfg.CrossService.WebsiteURL, sharedcache.New(redisClient, logger)),
+		cfg.Security.PlatformTenant, logger), logger)
 	// Review links are signed with the env encryption key (stable, like the OAuth
 	// state), separated from it by the token's own HMAC domain.
 	creativeHandler := creative.NewHandler(creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)),
 		creative.NewReviews(entClient, encryption.KeyFromEnv(cfg.Security.EncryptionKey)),
-		creative.NewOfferings(cfg.CrossService.InventoryURL, cfg.CrossService.InternalServiceKey, logger), logger).
+		catalogueOfferings, logger).
 		WithApprover(func(ctx context.Context, tenantID uuid.UUID) bool {
 			return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
 		})
@@ -579,6 +588,11 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Delete:     customAgentHandler.Delete,
 			ListRuns:   customAgentHandler.ListRuns,
 			TriggerRun: customAgentHandler.TriggerRun,
+		},
+		OnboardingHandlers: httpapi.OnboardingHandlers{
+			Checklist: onboardingHandler.Checklist,
+			Dismiss:   onboardingHandler.Dismiss,
+			Draft:     onboardingHandler.Draft,
 		},
 		MarketingOSHandlers: httpapi.MarketingOSHandlers{
 			GetBrandContext: marketingOSHandler.GetBrandContext,

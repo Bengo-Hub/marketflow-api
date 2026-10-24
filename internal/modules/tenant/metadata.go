@@ -38,7 +38,12 @@ var PublicMetadataKeys = []string{
 var ReservedMetadataKeys = []string{
 	marketingos.MetadataKey,
 	marketingos.DailyBriefKey,
+	OnboardingMetadataKey,
 }
+
+// OnboardingMetadataKey holds the setup checklist state ({dismissed_at, completed_at}),
+// written only by the onboarding endpoints.
+const OnboardingMetadataKey = "onboarding"
 
 // PublicMetadata returns only the allow-listed keys of a tenant's metadata.
 func PublicMetadata(meta map[string]any) map[string]any {

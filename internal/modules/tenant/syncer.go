@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
@@ -48,13 +51,20 @@ func NewSyncer(client *ent.Client, logger *zap.Logger) *Syncer {
 
 // authTenant is the shape returned by auth-api /api/v1/tenants/by-slug/{slug}.
 type authTenant struct {
-	ID       string         `json:"id"`
-	Name     string         `json:"name"`
-	Slug     string         `json:"slug"`
-	Status   string         `json:"status"`
-	Country  string         `json:"country"`
-	LogoURL  string         `json:"logo_url"`
-	Metadata map[string]any `json:"metadata"`
+	ID           string         `json:"id"`
+	Name         string         `json:"name"`
+	Slug         string         `json:"slug"`
+	Status       string         `json:"status"`
+	Country      string         `json:"country"`
+	LogoURL      string         `json:"logo_url"`
+	Website      string         `json:"website"`
+	ContactEmail string         `json:"contact_email"`
+	ContactPhone string         `json:"contact_phone"`
+	UseCase      string         `json:"use_case"`
+	UseCases     []string       `json:"use_cases"`
+	OrgSize      string         `json:"org_size"`
+	BrandColors  map[string]any `json:"brand_colors"`
+	Metadata     map[string]any `json:"metadata"`
 	// Auth-api may include the owner user's profile in the response.
 	Owner *struct {
 		FirstName string `json:"first_name"`
@@ -328,6 +338,53 @@ func (s *Syncer) fetchFromAuth(slug string) (*authTenant, error) {
 		return nil, fmt.Errorf("decode auth-api response: %w", err)
 	}
 	return &remote, nil
+}
+
+// AuthProfile is the business identity auth-api holds for a tenant, read to pre-fill
+// MarketFlow's profile and brand context. auth-api stays its owner; nothing here is stored.
+type AuthProfile struct {
+	Name         string   `json:"name"`
+	Country      string   `json:"country,omitempty"`
+	LogoURL      string   `json:"logo_url,omitempty"`
+	Website      string   `json:"website,omitempty"`
+	ContactEmail string   `json:"contact_email,omitempty"`
+	ContactPhone string   `json:"contact_phone,omitempty"`
+	UseCases     []string `json:"use_cases,omitempty"`
+	OrgSize      string   `json:"org_size,omitempty"`
+	PrimaryColor string   `json:"primary_color,omitempty"`
+}
+
+// AuthProfile reads a tenant's business details from auth-api, bounded by ctx.
+func (s *Syncer) AuthProfile(ctx context.Context, slug string) (*AuthProfile, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/v1/tenants/by-slug/%s", s.authAPIURL, url.PathEscape(slug)), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetch tenant from auth-api: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("auth-api returned %d for tenant %q", resp.StatusCode, slug)
+	}
+	var t authTenant
+	if err := json.NewDecoder(resp.Body).Decode(&t); err != nil {
+		return nil, fmt.Errorf("decode auth-api response: %w", err)
+	}
+	p := &AuthProfile{
+		Name: t.Name, Country: t.Country, LogoURL: t.LogoURL, Website: t.Website,
+		ContactEmail: t.ContactEmail, ContactPhone: t.ContactPhone, OrgSize: t.OrgSize,
+	}
+	for _, u := range append([]string{t.UseCase}, t.UseCases...) {
+		if u = strings.TrimSpace(u); u != "" && !slices.Contains(p.UseCases, u) {
+			p.UseCases = append(p.UseCases, u)
+		}
+	}
+	if c, ok := t.BrandColors["primary"].(string); ok {
+		p.PrimaryColor = c
+	}
+	return p, nil
 }
 
 // GetOrSync returns a tenant by ID, syncing by slug if not found locally.
