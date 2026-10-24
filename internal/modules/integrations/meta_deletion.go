@@ -89,15 +89,28 @@ func (h *Handler) metaSignedUser(w http.ResponseWriter, r *http.Request) (string
 		httpapi.Error(w, http.StatusBadRequest, "invalid_request", "form body expected", nil)
 		return "", false
 	}
-	creds, err := h.loadPlatform(r.Context(), "meta_ads", "oauth")
-	secret := ""
-	if err == nil {
-		secret = creds["app_secret"]
+	// The Facebook app and its Threads app sign with different secrets (Threads
+	// has its own uninstall and delete callbacks), so either may verify.
+	var secrets []string
+	if creds, err := h.loadPlatform(r.Context(), "meta_ads", "oauth"); err == nil {
+		secrets = append(secrets, creds["app_secret"])
 	}
-	if secret == "" {
-		secret = h.metaAppSecret
+	secrets = append(secrets, h.metaAppSecret)
+	if creds, err := h.loadPlatform(r.Context(), "meta_ads", "threads"); err == nil {
+		secrets = append(secrets, creds["app_secret"])
 	}
-	payload, err := parseSignedRequest(r.PostFormValue("signed_request"), secret)
+	var (
+		payload map[string]any
+		err     error = errBadSignedRequest
+	)
+	for _, s := range secrets {
+		if s == "" {
+			continue
+		}
+		if payload, err = parseSignedRequest(r.PostFormValue("signed_request"), s); err == nil {
+			break
+		}
+	}
 	if err != nil {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_signed_request", "the signed_request could not be verified", nil)
 		return "", false
