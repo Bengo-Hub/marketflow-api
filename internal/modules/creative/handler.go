@@ -127,8 +127,9 @@ func (h *Handler) fail(w http.ResponseWriter, err error) {
 // @Produce json
 // @Param X-Tenant-ID header string true "Tenant UUID"
 // @Param status query string false "active (default) or archived"
-// @Param page query int false "Page"
-// @Param page_size query int false "Page size"
+// @Param limit query int false "Page size"
+// @Param page query int false "Page, from 1 (or use offset)"
+// @Param offset query int false "Rows to skip, when page is not given"
 // @Success 200 {object} map[string]interface{}
 // @Security bearerAuth
 // @Router /creative/briefs [get]
