@@ -15,12 +15,22 @@ import (
 // delete their keys from this service.
 const TypeCreativeDrafts = "creative-drafts"
 
+// TypeAudioDrafts mirrors marketflow-ai's voice-over type (video ads).
+const TypeAudioDrafts = "audio-drafts"
+
 func init() {
 	objectstore.Register(objectstore.MediaType{
 		Name:         TypeCreativeDrafts,
 		Public:       true,
 		MaxBytes:     15 << 20,
 		Allowed:      []string{"image/jpeg", "image/png"},
+		CacheControl: "public, max-age=300",
+	})
+	objectstore.Register(objectstore.MediaType{
+		Name:         TypeAudioDrafts,
+		Public:       true,
+		MaxBytes:     32 << 20,
+		Allowed:      []string{"audio/mpeg"},
 		CacheControl: "public, max-age=300",
 	})
 }
