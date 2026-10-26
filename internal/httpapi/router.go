@@ -464,7 +464,10 @@ type CreativeHandlers struct {
 	Revise            http.HandlerFunc
 	Extend            http.HandlerFunc
 	CreateMotion      http.HandlerFunc
-	ClipCallback      http.HandlerFunc // S2S: POST /internal/creative/clips/{id} from marketflow-ai
+	CreateVideoAd     http.HandlerFunc
+	UpdateScript      http.HandlerFunc
+	RenderVideoAd     http.HandlerFunc
+	JobCallback       http.HandlerFunc // S2S: POST /internal/creative/jobs/{id} from marketflow-ai
 	CreateReviewLink  http.HandlerFunc
 	RevokeReviewLinks http.HandlerFunc
 	OpenReview        http.HandlerFunc // Public — GET /r/{token}
@@ -872,12 +875,15 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Get("/briefs/{id}", deps.CreativeHandlers.GetBrief)
 					r.Put("/briefs/{id}", deps.CreativeHandlers.UpdateBrief)
 					r.Post("/briefs/{id}/versions", deps.CreativeHandlers.CreateVersion)
+					r.Post("/briefs/{id}/video-ads", deps.CreativeHandlers.CreateVideoAd)
 					r.Get("/versions/{id}", deps.CreativeHandlers.GetVersion)
 					r.Post("/versions/{id}/approve", deps.CreativeHandlers.Approve)
 					r.Post("/versions/{id}/discard", deps.CreativeHandlers.Discard)
 					r.Post("/versions/{id}/revise", deps.CreativeHandlers.Revise)
 					r.Post("/versions/{id}/extend", deps.CreativeHandlers.Extend)
 					r.Post("/versions/{id}/motion", deps.CreativeHandlers.CreateMotion)
+					r.Put("/versions/{id}/script", deps.CreativeHandlers.UpdateScript)
+					r.Post("/versions/{id}/render", deps.CreativeHandlers.RenderVideoAd)
 					r.Post("/versions/{id}/review-link", deps.CreativeHandlers.CreateReviewLink)
 					r.Delete("/versions/{id}/review-link", deps.CreativeHandlers.RevokeReviewLinks)
 				})
@@ -973,9 +979,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					if deps.MarketingOSHandlers.InternalContext != nil {
 						r.Get("/os/context", deps.MarketingOSHandlers.InternalContext)
 					}
-					// marketflow-ai reports a finished or failed motion poster clip.
-					if deps.CreativeHandlers.ClipCallback != nil {
-						r.Post("/creative/clips/{id}", deps.CreativeHandlers.ClipCallback)
+					// marketflow-ai pushes a finished or failed media job (motion poster, video ad).
+					if deps.CreativeHandlers.JobCallback != nil {
+						r.Post("/creative/jobs/{id}", deps.CreativeHandlers.JobCallback)
 					}
 					if deps.ContactHandlers.GetByEmail != nil {
 						r.Get("/contacts/by-email", deps.ContactHandlers.GetByEmail)

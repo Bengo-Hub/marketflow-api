@@ -25,13 +25,13 @@ type Handler struct {
 	// canApprove gates approval (gate G5: who may approve an ad); nil allows
 	// every signed-in tenant user.
 	canApprove func(ctx context.Context, tenantID uuid.UUID) bool
-	// clips settles motion poster jobs reported by marketflow-ai's callback.
-	clips *Renderer
+	// jobs settles the media jobs (motion posters, video ads) marketflow-ai pushes.
+	jobs *Renderer
 }
 
-// WithClips turns on the clip callback; r needs only the database here.
-func (h *Handler) WithClips(r *Renderer) *Handler {
-	h.clips = r
+// WithJobs turns on the media job callback; r needs only the database here.
+func (h *Handler) WithJobs(r *Renderer) *Handler {
+	h.jobs = r
 	return h
 }
 
@@ -433,33 +433,138 @@ func (h *Handler) CreateMotion(w http.ResponseWriter, r *http.Request) {
 	httpapi.JSON(w, http.StatusAccepted, v)
 }
 
-// ClipCallback handles the S2S POST /api/v1/internal/creative/clips/{id}:
-// marketflow-ai reporting a finished or failed clip job (service key only).
+// JobCallback handles the S2S POST /api/v1/internal/creative/jobs/{id}:
+// marketflow-ai pushing a finished or failed media job (service key only).
 // A 5xx makes it try again; a report for a settled version is a no-op 204.
-func (h *Handler) ClipCallback(w http.ResponseWriter, r *http.Request) {
-	if h.clips == nil {
-		httpapi.Error(w, http.StatusServiceUnavailable, "unavailable", "clips are not handled here", nil)
+func (h *Handler) JobCallback(w http.ResponseWriter, r *http.Request) {
+	if h.jobs == nil {
+		httpapi.Error(w, http.StatusServiceUnavailable, "unavailable", "media jobs are not handled here", nil)
 		return
 	}
 	id, ok := idParam(w, r)
 	if !ok {
 		return
 	}
-	var job ClipJob
+	var job Job
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&job); err != nil {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
 		return
 	}
-	if err := h.clips.SettleClip(r.Context(), id, job); err != nil {
+	if err := h.jobs.SettleJob(r.Context(), id, job); err != nil {
 		if ent.IsNotFound(err) {
 			httpapi.Error(w, http.StatusNotFound, "not_found", "no video version with this id", nil)
 			return
 		}
-		h.logger.Error("clip callback not recorded", zap.String("version_id", id.String()), zap.Error(err))
+		h.logger.Error("job callback not recorded", zap.String("version_id", id.String()), zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "internal_error", "not recorded; try again", nil)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// CreateVideoAd handles POST /api/v1/creative/briefs/{id}/video-ads: queues a
+// template video ad's script (1 credit). The version turns script_ready in
+// about a minute; the owner reviews and edits it, then asks for the render.
+// @Summary Start a video ad: the script is written first, for review
+// @Tags Creative
+// @Accept json
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Brief UUID"
+// @Param request body VideoAdInput false "Format, length, voice and the photos and clips to use"
+// @Success 202 {object} map[string]interface{}
+// @Failure 400 {object} httpapi.ErrorResponse
+// @Failure 429 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /creative/briefs/{id}/video-ads [post]
+func (h *Handler) CreateVideoAd(w http.ResponseWriter, r *http.Request) {
+	tid, ok := tenantOf(w, r)
+	if !ok {
+		return
+	}
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	var in VideoAdInput
+	if r.ContentLength != 0 {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&in); err != nil {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
+			return
+		}
+	}
+	v, err := h.svc.CreateVideoAd(r.Context(), tid, id, in)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	httpapi.JSON(w, http.StatusAccepted, v)
+}
+
+// UpdateScript handles PUT /api/v1/creative/versions/{id}/script: the owner's
+// edits of a video ad script waiting for review. Free.
+// @Summary Edit a video ad's script and end card before rendering
+// @Tags Creative
+// @Accept json
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Video ad version UUID"
+// @Param request body ScriptInput true "Script and end card"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} httpapi.ErrorResponse
+// @Failure 409 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /creative/versions/{id}/script [put]
+func (h *Handler) UpdateScript(w http.ResponseWriter, r *http.Request) {
+	tid, ok := tenantOf(w, r)
+	if !ok {
+		return
+	}
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	var in ScriptInput
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&in); err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
+		return
+	}
+	v, err := h.svc.UpdateScript(r.Context(), tid, id, in)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, v)
+}
+
+// RenderVideoAd handles POST /api/v1/creative/versions/{id}/render: queues the
+// paid render of a reviewed video ad script. A video takes a few minutes; the
+// version turns ready with a video asset when marketflow-ai pushes it back.
+// @Summary Render a reviewed video ad script
+// @Tags Creative
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Video ad version UUID"
+// @Success 202 {object} map[string]interface{}
+// @Failure 409 {object} httpapi.ErrorResponse
+// @Failure 429 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /creative/versions/{id}/render [post]
+func (h *Handler) RenderVideoAd(w http.ResponseWriter, r *http.Request) {
+	tid, ok := tenantOf(w, r)
+	if !ok {
+		return
+	}
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	v, err := h.svc.RenderVideoAd(r.Context(), tid, id)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	httpapi.JSON(w, http.StatusAccepted, v)
 }
 
 // Extend handles POST /api/v1/creative/versions/{id}/extend.

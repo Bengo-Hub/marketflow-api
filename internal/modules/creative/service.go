@@ -30,6 +30,9 @@ const (
 	StatusApproved   = "approved"
 	StatusRejected   = "rejected"
 	StatusSuperseded = "superseded"
+	// StatusScriptReady is a video ad whose script waits for the owner's review
+	// (and edits) before any render is paid for.
+	StatusScriptReady = "script_ready"
 )
 
 // Limits.
@@ -78,6 +81,9 @@ const (
 	KindPoster = "poster"
 	// KindVideo is a motion poster: a short clip made from a finished poster's scene.
 	KindVideo = "video"
+	// KindVideoAd is a template video ad: a script, then the owner's photos and
+	// footage with a voice-over, captions and an end card (video_ad.go).
+	KindVideoAd = "video_ad"
 )
 
 // Asset kinds.
@@ -300,10 +306,8 @@ func (s *Service) CreateVersion(ctx context.Context, tenantID, briefID uuid.UUID
 		return nil, err
 	}
 	// Last check before the insert: it consumes one of today's paid renders.
-	if s.quota != nil {
-		if res, _ := s.quota.Check(ctx, tenantID.String(), "creative_renders", dailyRenderCap); res != nil && !res.Allowed {
-			return nil, ErrDailyCap
-		}
+	if err := s.checkDailyCap(ctx, tenantID); err != nil {
+		return nil, err
 	}
 	copyFields := map[string]any{"prompt": in.Prompt, "headline": in.Headline, "subline": in.Subline, "price": in.Price, "cta": in.CTA}
 	meta := map[string]any{}
@@ -316,11 +320,25 @@ func (s *Service) CreateVersion(ctx context.Context, tenantID, briefID uuid.UUID
 	return s.insertVersion(ctx, tenantID, briefID, in.ParentVersionID, KindPoster, in.Tier, in.Format, copyFields, meta)
 }
 
+// checkDailyCap takes one of today's paid renders for the tenant (shared
+// ratelimit Quota, Redis day buckets; it fails open when Redis is down). Call
+// it last before the paid render is queued.
+func (s *Service) checkDailyCap(ctx context.Context, tenantID uuid.UUID) error {
+	if s.quota == nil {
+		return nil
+	}
+	if res, _ := s.quota.Check(ctx, tenantID.String(), "creative_renders", dailyRenderCap); res != nil && !res.Allowed {
+		return ErrDailyCap
+	}
+	return nil
+}
+
 // checkLiveDrafts refuses a new version when the tenant already has
-// maxLiveDrafts queued, rendering or waiting for review.
+// maxLiveDrafts queued, rendering or waiting for review (a video ad's script
+// waiting for the owner counts).
 func (s *Service) checkLiveDrafts(ctx context.Context, tenantID uuid.UUID) error {
 	live, err := s.db.CreativeVersion.Query().
-		Where(creativeversion.TenantID(tenantID), creativeversion.StatusIn(StatusQueued, StatusRendering, StatusReady)).
+		Where(creativeversion.TenantID(tenantID), creativeversion.StatusIn(StatusQueued, StatusRendering, StatusReady, StatusScriptReady)).
 		Count(ctx)
 	if err != nil {
 		return err
@@ -483,7 +501,7 @@ func (s *Service) decide(ctx context.Context, tenantID, id uuid.UUID, status str
 	now := s.nowFn()
 	from := []string{StatusReady}
 	if status == StatusRejected {
-		from = append(from, StatusFailed)
+		from = append(from, StatusFailed, StatusScriptReady)
 	}
 	tx, err := s.db.Tx(ctx)
 	if err != nil {

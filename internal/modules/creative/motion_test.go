@@ -20,15 +20,23 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
 )
 
-// fakeClips answers like marketflow-ai's clip job routes: POST starts a job
-// (202 running), GET reports the state set in jobs.
-type fakeClips struct {
-	mu      sync.Mutex
-	started []map[string]any
-	jobs    map[string]string // version id -> GET reply body; missing is a 404
+// fakeJobs answers like marketflow-ai's media job routes: POST /clip or /ad
+// starts a job (202 running, or the status set in startStatus), GET
+// /jobs/{id} reports the state set in jobs, and POST /script answers with
+// scriptStatus and scriptBody.
+type fakeJobs struct {
+	mu          sync.Mutex
+	started     []map[string]any
+	paths       []string
+	jobs        map[string]string // version id -> GET reply body; missing is a 404
+	startStatus int
+	startBody   string
+	scripts     []map[string]any
+	scriptCode  int
+	scriptBody  string
 }
 
-func (f *fakeClips) server(t *testing.T, key string) *httptest.Server {
+func (f *fakeJobs) server(t *testing.T, key string) *httptest.Server {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !httpware.ValidServiceKey(r, key) {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -38,14 +46,29 @@ func (f *fakeClips) server(t *testing.T, key string) *httptest.Server {
 		defer f.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		switch {
-		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/internal/creative/clip":
+		case r.Method == http.MethodPost && (r.URL.Path == "/api/v1/internal/creative/clip" || r.URL.Path == "/api/v1/internal/creative/ad"):
 			var body map[string]any
 			_ = json.NewDecoder(r.Body).Decode(&body)
-			f.started = append(f.started, body)
+			f.started, f.paths = append(f.started, body), append(f.paths, r.URL.Path)
+			if f.startStatus != 0 {
+				w.WriteHeader(f.startStatus)
+				_, _ = w.Write([]byte(f.startBody))
+				return
+			}
 			w.WriteHeader(http.StatusAccepted)
 			_, _ = w.Write([]byte(`{"status":"running","credits_charged":14,"attempt":1}`))
-		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/internal/creative/clip/"):
-			body, ok := f.jobs[strings.TrimPrefix(r.URL.Path, "/api/v1/internal/creative/clip/")]
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/internal/creative/script":
+			var body map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			f.scripts = append(f.scripts, body)
+			code := f.scriptCode
+			if code == 0 {
+				code = http.StatusOK
+			}
+			w.WriteHeader(code)
+			_, _ = w.Write([]byte(f.scriptBody))
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/internal/creative/jobs/"):
+			body, ok := f.jobs[strings.TrimPrefix(r.URL.Path, "/api/v1/internal/creative/jobs/")]
 			if !ok {
 				w.WriteHeader(http.StatusNotFound)
 				_, _ = w.Write([]byte(`{"error":"no video job for this version"}`))
@@ -79,9 +102,9 @@ func finishedPoster(t *testing.T, s *Service, tid uuid.UUID, b *ent.CreativeBrie
 
 func callback(t *testing.T, h *Handler, id uuid.UUID, body string) int {
 	t.Helper()
-	req := withURLParam(httptest.NewRequest(http.MethodPost, "/api/v1/internal/creative/clips/"+id.String(), bytes.NewBufferString(body)), "id", id.String())
+	req := withURLParam(httptest.NewRequest(http.MethodPost, "/api/v1/internal/creative/jobs/"+id.String(), bytes.NewBufferString(body)), "id", id.String())
 	rec := httptest.NewRecorder()
-	h.ClipCallback(rec, req)
+	h.JobCallback(rec, req)
 	return rec.Code
 }
 
@@ -122,7 +145,7 @@ func TestMotionPosterThroughCallback(t *testing.T) {
 	}
 	_ = db.CreativeVersion.UpdateOneID(queued.ID).SetStatus(StatusRejected).Exec(ctx) // keep it out of the poster renderer
 
-	clips := &fakeClips{jobs: map[string]string{}}
+	clips := &fakeJobs{jobs: map[string]string{}}
 	srv := clips.server(t, "svc-key")
 	r := NewRenderer(db, srv.URL, "svc-key", zap.NewNop())
 	r.Tick(ctx)
@@ -144,8 +167,8 @@ func TestMotionPosterThroughCallback(t *testing.T) {
 		t.Fatal("a running clip must not be started again")
 	}
 
-	h := NewHandler(s, nil, nil, zap.NewNop()).WithClips(NewRenderer(db, "", "", zap.NewNop()))
-	done := `{"status":"done","credits_charged":14,"clip":{"url":"https://media.example.com/c.mp4","key":"marketflow/t/clips/c.mp4",
+	h := NewHandler(s, nil, nil, zap.NewNop()).WithJobs(NewRenderer(db, "", "", zap.NewNop()))
+	done := `{"status":"done","credits_charged":14,"result":{"url":"https://media.example.com/c.mp4","key":"marketflow/t/clips/c.mp4",
 		"bytes":2048000,"seconds":5,"width":1080,"height":1920,"sha256":"cliphash","route":"fal/seedance","cost_usd":0.3,"attempts":1}}`
 	if code := callback(t, h, mv.ID, done); code != http.StatusNoContent {
 		t.Fatalf("callback: %d", code)
@@ -186,17 +209,17 @@ func TestMotionPosterFallbackPoll(t *testing.T) {
 	b := newBrief(t, s, tid)
 	src := finishedPoster(t, s, tid, b)
 
-	clips := &fakeClips{jobs: map[string]string{}}
+	clips := &fakeJobs{jobs: map[string]string{}}
 	srv := clips.server(t, "svc-key")
 	r := NewRenderer(db, srv.URL, "svc-key", zap.NewNop())
-	quiet := time.Now().Add(-clipPollAfter - time.Minute)
+	quiet := time.Now().Add(-jobPollAfter - time.Minute)
 	rendering := func() *ent.CreativeVersion {
 		v, err := s.CreateMotion(ctx, tid, src.ID, MotionInput{})
 		if err != nil {
 			t.Fatal(err)
 		}
 		meta := copyMap(v.Metadata)
-		meta["attempts"], meta["clip_started_at"] = 1, time.Now().UTC().Format(time.RFC3339)
+		meta["attempts"], meta["job_started_at"] = 1, time.Now().UTC().Format(time.RFC3339)
 		db.CreativeVersion.UpdateOneID(v.ID).SetStatus(StatusRendering).SetMetadata(meta).SetUpdatedAt(quiet).ExecX(ctx)
 		return v
 	}
@@ -205,7 +228,7 @@ func TestMotionPosterFallbackPoll(t *testing.T) {
 	clips.jobs[running.ID.String()] = `{"status":"running","credits_charged":14}`
 	// lost has no job at marketflow-ai: back in the queue.
 
-	r.pollClips(ctx)
+	r.pollJobs(ctx)
 
 	if v, _ := s.GetVersion(ctx, tid, refunded.ID); v.Status != StatusFailed || !strings.Contains(v.Error, "nothing was charged") {
 		t.Fatalf("refunded: %s %q", v.Status, v.Error)

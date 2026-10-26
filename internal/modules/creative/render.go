@@ -69,11 +69,12 @@ func (r *Renderer) Run(ctx context.Context) {
 	}
 }
 
-// Tick recovers stale renders, checks clips with no news, then renders up to
-// one batch (a video version only starts its clip job).
+// Tick recovers stale renders, checks media jobs with no news, then works
+// through one batch: a poster is made here; a motion poster or a video ad's
+// render only starts its job in marketflow-ai; a video ad's script is written.
 func (r *Renderer) Tick(ctx context.Context) {
 	r.recoverStale(ctx)
-	r.pollClips(ctx)
+	r.pollJobs(ctx)
 	queued, err := r.db.CreativeVersion.Query().
 		Where(creativeversion.StatusEQ(StatusQueued)).
 		Order(ent.Asc(creativeversion.FieldCreatedAt)).
@@ -92,9 +93,14 @@ func (r *Renderer) Tick(ctx context.Context) {
 			if !r.claim(ctx, v.ID) {
 				return
 			}
-			if v.Kind == KindVideo {
+			switch {
+			case v.Kind == KindVideo:
 				r.startClip(ctx, v)
-			} else {
+			case v.Kind == KindVideoAd && stage(v) == StageRender:
+				r.startAd(ctx, v)
+			case v.Kind == KindVideoAd:
+				r.writeScript(ctx, v)
+			default:
 				r.render(ctx, v)
 			}
 		}(v)
@@ -113,12 +119,12 @@ func (r *Renderer) claim(ctx context.Context, id uuid.UUID) bool {
 	return err == nil && n == 1
 }
 
-// recoverStale re-queues poster renders left behind by a replica that stopped,
-// and fails those that already used their attempts. Clips run as jobs in
-// marketflow-ai and are settled by pollClips instead.
+// recoverStale re-queues the synchronous steps (a poster, a video ad's script)
+// left behind by a replica that stopped, and fails those that already used
+// their attempts. Media jobs run in marketflow-ai and are settled by pollJobs.
 func (r *Renderer) recoverStale(ctx context.Context) {
 	stale, err := r.db.CreativeVersion.Query().
-		Where(creativeversion.StatusEQ(StatusRendering), creativeversion.KindEQ(KindPoster),
+		Where(creativeversion.StatusEQ(StatusRendering), creativeversion.KindIn(KindPoster, KindVideoAd),
 			creativeversion.UpdatedAtLT(r.nowFn().Add(-staleAfter))).
 		Limit(50).
 		All(ctx)
@@ -126,11 +132,14 @@ func (r *Renderer) recoverStale(ctx context.Context) {
 		return
 	}
 	for _, v := range stale {
+		if v.Kind == KindVideoAd && stage(v) == StageRender {
+			continue // a media job: pollJobs has it
+		}
 		attempts := intOf(v.Metadata["attempts"])
 		u := r.db.CreativeVersion.Update().
 			Where(creativeversion.ID(v.ID), creativeversion.StatusEQ(StatusRendering), creativeversion.UpdatedAt(v.UpdatedAt))
 		if attempts >= maxAttempts {
-			u.SetStatus(StatusFailed).SetError("the poster took too long; try again")
+			u.SetStatus(StatusFailed).SetError("it took too long; try again")
 		} else {
 			u.SetStatus(StatusQueued)
 		}

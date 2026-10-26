@@ -321,9 +321,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		WithApprover(func(ctx context.Context, tenantID uuid.UUID) bool {
 			return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
 		}).
-		// marketflow-ai's clip callback settles motion posters here; the worker's
-		// renderer starts them and polls only when a callback is overdue.
-		WithClips(creative.NewRenderer(entClient, "", "", logger))
+		// marketflow-ai's job callback settles motion posters and video ads here;
+		// the worker's renderer starts them and polls only when a push is overdue.
+		WithJobs(creative.NewRenderer(entClient, "", "", logger))
 
 	segmentHandler := segments.NewHandler(segmentService, logger)
 
@@ -623,7 +623,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Revise:            creativeHandler.Revise,
 			Extend:            creativeHandler.Extend,
 			CreateMotion:      creativeHandler.CreateMotion,
-			ClipCallback:      creativeHandler.ClipCallback,
+			CreateVideoAd:     creativeHandler.CreateVideoAd,
+			UpdateScript:      creativeHandler.UpdateScript,
+			RenderVideoAd:     creativeHandler.RenderVideoAd,
+			JobCallback:       creativeHandler.JobCallback,
 			CreateReviewLink:  creativeHandler.CreateReviewLink,
 			RevokeReviewLinks: creativeHandler.RevokeReviewLinks,
 			OpenReview:        creativeHandler.OpenReview,
