@@ -80,6 +80,9 @@ func resolveNurtureVariables(
 		} else {
 			putIfEmpty(vars, "profile_link", "https://ordering.codevertexafrica.com/"+tn.Slug)
 		}
+		// Every tenant can be booked at /book/{slug}, the standalone booking page (Sprint 23's
+		// instant follow-up links its booking button here).
+		putIfEmpty(vars, "booking_link", "https://marketflow.codevertexafrica.com/book/"+tn.Slug)
 		if tn.WhatsappNumber != nil && *tn.WhatsappNumber != "" {
 			waNumber := onlyDigits(*tn.WhatsappNumber)
 			putIfEmpty(vars, "whatsapp_number", waNumber)

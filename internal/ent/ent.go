@@ -44,6 +44,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/pipelinestage"
 	"github.com/bengobox/marketflow-api/internal/ent/profileevent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
+	"github.com/bengobox/marketflow-api/internal/ent/publishjob"
 	"github.com/bengobox/marketflow-api/internal/ent/rolepermission"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/segment"
@@ -145,6 +146,7 @@ func checkColumn(t, c string) error {
 			pipelinestage.Table:        pipelinestage.ValidColumn,
 			profileevent.Table:         profileevent.ValidColumn,
 			providersetting.Table:      providersetting.ValidColumn,
+			publishjob.Table:           publishjob.ValidColumn,
 			rolepermission.Table:       rolepermission.ValidColumn,
 			scheduledmeeting.Table:     scheduledmeeting.ValidColumn,
 			segment.Table:              segment.ValidColumn,

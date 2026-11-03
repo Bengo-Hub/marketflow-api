@@ -242,6 +242,9 @@ func fmtMetric(v float64, unit string) string {
 	if unit == "KES" {
 		return "KES " + commas(s)
 	}
+	if unit == "min" {
+		return s + " min"
+	}
 	return s
 }
 

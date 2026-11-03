@@ -116,6 +116,7 @@ type RouterDeps struct {
 	MarketingOSHandlers MarketingOSHandlers
 	OnboardingHandlers  OnboardingHandlers
 	CreativeHandlers    CreativeHandlers
+	PublishingHandlers  PublishingHandlers
 	SuggestionHandlers  SuggestionHandlers
 	SegmentHandlers     SegmentHandlers
 
@@ -467,10 +468,23 @@ type CreativeHandlers struct {
 	CreateVideoAd     http.HandlerFunc
 	UpdateScript      http.HandlerFunc
 	RenderVideoAd     http.HandlerFunc
+	MakeStoryboard    http.HandlerFunc
+	ApproveStoryboard http.HandlerFunc
+	ReviseVideoAd     http.HandlerFunc
+	QuoteVideoAd      http.HandlerFunc
 	JobCallback       http.HandlerFunc // S2S: POST /internal/creative/jobs/{id} from marketflow-ai
 	CreateReviewLink  http.HandlerFunc
 	RevokeReviewLinks http.HandlerFunc
 	OpenReview        http.HandlerFunc // Public — GET /r/{token}
+}
+
+// PublishingHandlers groups the organic publishing routes (Sprint 16).
+type PublishingHandlers struct {
+	Accounts http.HandlerFunc
+	Schedule http.HandlerFunc
+	List     http.HandlerFunc
+	Cancel   http.HandlerFunc
+	Retry    http.HandlerFunc
 }
 
 // CustomAgentHandlers groups custom agent HTTP handlers.
@@ -884,8 +898,23 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Post("/versions/{id}/motion", deps.CreativeHandlers.CreateMotion)
 					r.Put("/versions/{id}/script", deps.CreativeHandlers.UpdateScript)
 					r.Post("/versions/{id}/render", deps.CreativeHandlers.RenderVideoAd)
+					r.Post("/versions/{id}/storyboard", deps.CreativeHandlers.MakeStoryboard)
+					r.Post("/versions/{id}/storyboard/approve", deps.CreativeHandlers.ApproveStoryboard)
+					r.Post("/versions/{id}/revision", deps.CreativeHandlers.ReviseVideoAd)
+					r.Get("/versions/{id}/quote", deps.CreativeHandlers.QuoteVideoAd)
 					r.Post("/versions/{id}/review-link", deps.CreativeHandlers.CreateReviewLink)
 					r.Delete("/versions/{id}/review-link", deps.CreativeHandlers.RevokeReviewLinks)
+				})
+			}
+
+			// Organic publishing: approved videos to connected accounts, the calendar.
+			if deps.PublishingHandlers.Schedule != nil {
+				r.Route("/publishing", func(r chi.Router) {
+					r.Get("/accounts", deps.PublishingHandlers.Accounts)
+					r.Post("/jobs", deps.PublishingHandlers.Schedule)
+					r.Get("/jobs", deps.PublishingHandlers.List)
+					r.Post("/jobs/{id}/cancel", deps.PublishingHandlers.Cancel)
+					r.Post("/jobs/{id}/retry", deps.PublishingHandlers.Retry)
 				})
 			}
 

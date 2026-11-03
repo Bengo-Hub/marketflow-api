@@ -20,6 +20,8 @@ type Scheduler struct {
 	js     nats.JetStreamContext
 	cfg    SchedulerConfig
 	logger *zap.Logger
+	// kick asks for a tick now (see Kick); buffered 1, so many kicks fold into one tick.
+	kick chan struct{}
 }
 
 // NewScheduler constructs a Scheduler.
@@ -39,7 +41,7 @@ func NewScheduler(db *ent.Client, nc *nats.Conn, cfg SchedulerConfig, logger *za
 			js = j
 		}
 	}
-	return &Scheduler{db: db, nc: nc, js: js, cfg: cfg, logger: logger.Named("scheduler")}
+	return &Scheduler{db: db, nc: nc, js: js, cfg: cfg, logger: logger.Named("scheduler"), kick: make(chan struct{}, 1)}
 }
 
 // Run blocks until ctx is cancelled, ticking every IntervalSeconds.
@@ -58,6 +60,8 @@ func (s *Scheduler) Run(ctx context.Context) {
 			s.logger.Info("nurture scheduler stopped")
 			return
 		case <-tick.C:
+			s.tick(ctx)
+		case <-s.kick:
 			s.tick(ctx)
 		}
 	}
@@ -136,4 +140,15 @@ func (s *Scheduler) publish(subject string, body []byte) error {
 		return err
 	}
 	return s.nc.Publish(subject, body)
+}
+
+// Kick runs a tick now instead of at the next interval, without blocking the caller. The
+// lead.created handler calls it after enrolling a lead, so the first step of an instant
+// follow-up (delay 0) goes out within seconds rather than up to IntervalSeconds later. The claim
+// in tick keeps it single-send across replicas. Safe to call before Run starts.
+func (s *Scheduler) Kick() {
+	select {
+	case s.kick <- struct{}{}:
+	default:
+	}
 }

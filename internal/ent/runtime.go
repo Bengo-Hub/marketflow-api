@@ -37,6 +37,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/pipelinestage"
 	"github.com/bengobox/marketflow-api/internal/ent/profileevent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
+	"github.com/bengobox/marketflow-api/internal/ent/publishjob"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/schema"
 	"github.com/bengobox/marketflow-api/internal/ent/segment"
@@ -1231,6 +1232,34 @@ func init() {
 	providersettingDescID := providersettingFields[0].Descriptor()
 	// providersetting.DefaultID holds the default value on creation for the id field.
 	providersetting.DefaultID = providersettingDescID.Default.(func() uuid.UUID)
+	publishjobFields := schema.PublishJob{}.Fields()
+	_ = publishjobFields
+	// publishjobDescKind is the schema descriptor for kind field.
+	publishjobDescKind := publishjobFields[5].Descriptor()
+	// publishjob.DefaultKind holds the default value on creation for the kind field.
+	publishjob.DefaultKind = publishjobDescKind.Default.(string)
+	// publishjobDescStatus is the schema descriptor for status field.
+	publishjobDescStatus := publishjobFields[8].Descriptor()
+	// publishjob.DefaultStatus holds the default value on creation for the status field.
+	publishjob.DefaultStatus = publishjobDescStatus.Default.(string)
+	// publishjobDescAttempts is the schema descriptor for attempts field.
+	publishjobDescAttempts := publishjobFields[13].Descriptor()
+	// publishjob.DefaultAttempts holds the default value on creation for the attempts field.
+	publishjob.DefaultAttempts = publishjobDescAttempts.Default.(int)
+	// publishjobDescCreatedAt is the schema descriptor for created_at field.
+	publishjobDescCreatedAt := publishjobFields[17].Descriptor()
+	// publishjob.DefaultCreatedAt holds the default value on creation for the created_at field.
+	publishjob.DefaultCreatedAt = publishjobDescCreatedAt.Default.(func() time.Time)
+	// publishjobDescUpdatedAt is the schema descriptor for updated_at field.
+	publishjobDescUpdatedAt := publishjobFields[18].Descriptor()
+	// publishjob.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	publishjob.DefaultUpdatedAt = publishjobDescUpdatedAt.Default.(func() time.Time)
+	// publishjob.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	publishjob.UpdateDefaultUpdatedAt = publishjobDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// publishjobDescID is the schema descriptor for id field.
+	publishjobDescID := publishjobFields[0].Descriptor()
+	// publishjob.DefaultID holds the default value on creation for the id field.
+	publishjob.DefaultID = publishjobDescID.Default.(func() uuid.UUID)
 	scheduledmeetingFields := schema.ScheduledMeeting{}.Fields()
 	_ = scheduledmeetingFields
 	// scheduledmeetingDescDurationMinutes is the schema descriptor for duration_minutes field.

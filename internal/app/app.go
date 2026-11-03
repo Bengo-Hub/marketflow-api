@@ -31,6 +31,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	custom_agents "github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
+	"github.com/bengobox/marketflow-api/internal/modules/publishing"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/modules/onboarding"
 	custom_fields "github.com/bengobox/marketflow-api/internal/modules/custom_fields"
@@ -324,6 +325,11 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		// marketflow-ai's job callback settles motion posters and video ads here;
 		// the worker's renderer starts them and polls only when a push is overdue.
 		WithJobs(creative.NewRenderer(entClient, "", "", logger))
+	// Organic publishing: the same roles that approve an ad may post it or cancel a post.
+	publishingHandler := publishing.NewHandler(&publishing.EntStore{DB: entClient, Keys: keyProvider}, logger)
+	publishingHandler.CanPost = func(ctx context.Context, tenantID uuid.UUID) bool {
+		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
+	}
 
 	segmentHandler := segments.NewHandler(segmentService, logger)
 
@@ -626,10 +632,21 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			CreateVideoAd:     creativeHandler.CreateVideoAd,
 			UpdateScript:      creativeHandler.UpdateScript,
 			RenderVideoAd:     creativeHandler.RenderVideoAd,
+			MakeStoryboard:    creativeHandler.MakeStoryboard,
+			ApproveStoryboard: creativeHandler.ApproveStoryboard,
+			ReviseVideoAd:     creativeHandler.ReviseVideoAd,
+			QuoteVideoAd:      creativeHandler.QuoteVideoAd,
 			JobCallback:       creativeHandler.JobCallback,
 			CreateReviewLink:  creativeHandler.CreateReviewLink,
 			RevokeReviewLinks: creativeHandler.RevokeReviewLinks,
 			OpenReview:        creativeHandler.OpenReview,
+		},
+		PublishingHandlers: httpapi.PublishingHandlers{
+			Accounts: publishingHandler.Accounts,
+			Schedule: publishingHandler.Schedule,
+			List:     publishingHandler.List,
+			Cancel:   publishingHandler.Cancel,
+			Retry:    publishingHandler.Retry,
 		},
 		SegmentHandlers: httpapi.SegmentHandlers{
 			Create:   segmentHandler.Create,

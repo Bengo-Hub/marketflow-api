@@ -98,6 +98,8 @@ func (r *Renderer) Tick(ctx context.Context) {
 				r.startClip(ctx, v)
 			case v.Kind == KindVideoAd && stage(v) == StageRender:
 				r.startAd(ctx, v)
+			case v.Kind == KindVideoAd && stage(v) == StageStoryboard:
+				r.startStoryboard(ctx, v)
 			case v.Kind == KindVideoAd:
 				r.writeScript(ctx, v)
 			default:

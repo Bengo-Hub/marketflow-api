@@ -370,6 +370,9 @@ type publicLeadInput struct {
 	UTMCampaign string         `json:"utm_campaign"`
 	FunnelSlug  string         `json:"funnel_slug"`
 	Answers     map[string]any `json:"answers"`
+	// WhatsAppConsent is the lead's own "OK to contact me on WhatsApp" tick. Nurture sends
+	// WhatsApp only when it is true (Kenya Data Protection Act; owner, 2026-11-03).
+	WhatsAppConsent bool `json:"whatsapp_consent"`
 }
 
 // PublicCreateLead handles POST /api/v1/public/leads/{slug}
@@ -432,6 +435,9 @@ func (h *PublicHandler) PublicCreateLead(w http.ResponseWriter, r *http.Request)
 			"referer":      r.Referer(),
 			"tenant_slug":  slug,
 			"funnel_slug":  in.FunnelSlug,
+			// Recorded with when it was given, so the consent can be shown later.
+			"whatsapp_consent":    in.WhatsAppConsent,
+			"whatsapp_consent_at": consentAt(in.WhatsAppConsent),
 		},
 	}
 	// Attribute the lead to its funnel. Funnel analytics count leads by funnel_id, and before
@@ -486,4 +492,12 @@ func (h *PublicHandler) PublicCreateLead(w http.ResponseWriter, r *http.Request)
 		"status":     lead.Status,
 		"created_at": lead.CreatedAt,
 	})
+}
+
+// consentAt is when a consent tick was given, or nil when it was not.
+func consentAt(given bool) any {
+	if !given {
+		return nil
+	}
+	return time.Now().UTC().Format(time.RFC3339)
 }

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	entsql "entgo.io/ent/dialect/sql"
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/ent"
@@ -237,6 +238,16 @@ func retryDelay(n uint64) time.Duration {
 // registry does not hold, such as a NATS connection). Call it before RegisterAll.
 func (r *Registry) Add(hs ...Handler) { r.handlers = append(r.handlers, hs...) }
 
+// SetNurtureKick hands the nurture scheduler's Kick to the lead.created handler. Call it before
+// RegisterAll, so no consumer goroutine reads the field while it is set.
+func (r *Registry) SetNurtureKick(kick func()) {
+	for _, h := range r.handlers {
+		if lh, ok := h.(*LeadCreatedHandler); ok {
+			lh.kick = kick
+		}
+	}
+}
+
 // Count returns the number of registered handlers.
 func (r *Registry) Count() int { return len(r.handlers) }
 
@@ -316,6 +327,26 @@ func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 	if channel == "" {
 		channel = "email"
 	}
+	// WhatsApp only with the lead's own consent (owner, 2026-11-03; Kenya Data Protection Act):
+	// the "OK to contact me on WhatsApp" tick on forms, stored as metadata.whatsapp_consent.
+	// Without it the step goes by email when the lead has one, else it is skipped.
+	if channel == "whatsapp" && leadRow != nil && !whatsAppConsent(leadRow) {
+		if leadRow.Email != nil && *leadRow.Email != "" {
+			channel, recipient = "email", *leadRow.Email
+		} else {
+			// Nothing may reach this lead: end the enrollment as cancelled with its own reason,
+			// not as an error.
+			h.logger.Info("nurture cancelled: no WhatsApp consent and no email",
+				zap.String("enrollment", enrollmentID.String()), zap.Int("step", enrollment.CurrentStep))
+			_, err := h.db.NurtureEnrollment.UpdateOneID(enrollment.ID).
+				SetStatus("cancelled").
+				SetExitReason("no_contact_consent").
+				SetCompletedAt(time.Now().UTC()).
+				ClearNextStepAt().
+				Save(ctx)
+			return err
+		}
+	}
 	if recipient == "" {
 		h.logger.Warn("no recipient on lead; marking enrollment errored",
 			zap.String("enrollment", enrollmentID.String()), zap.String("channel", channel))
@@ -355,6 +386,14 @@ func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 	)
 	if err := h.notif.Send(ctx, enrollment.TenantID.String(), payload); err != nil {
 		return fmt.Errorf("notifications send: %w", err)
+	}
+	// The first automated message a lead gets is metadata.first_reply_at: lead created to first
+	// reply is the speed-to-lead figure (Sprint 23). contacted_at stays the person's own "contacted"
+	// status change. One atomic UPDATE that sets the key only when it is absent.
+	if leadRow != nil {
+		if err := recordFirstReply(ctx, h.db, leadRow.ID, time.Now().UTC()); err != nil {
+			h.logger.Warn("record first reply", zap.String("lead", leadRow.ID.String()), zap.Error(err))
+		}
 	}
 
 	// Advance: move to next step, compute its next_step_at from delay_hours,
@@ -556,6 +595,10 @@ type LeadCreatedHandler struct {
 	cfg    *Config
 	db     *ent.Client
 	logger *zap.Logger
+	// kick asks the nurture scheduler for a tick now, so a first step with no delay goes out
+	// within seconds of lead.created (Sprint 23's 60-second follow-up). Nil means wait for the
+	// next interval.
+	kick func()
 }
 
 func (h *LeadCreatedHandler) Subject() string { return "lead.created" }
@@ -575,8 +618,12 @@ func (h *LeadCreatedHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 
 	// Match the first active sequence with trigger_event="lead.created" whose
 	// lead_type_filter is either nil or equals the lead's type.
+	// Only the tenant's own sequences. Platform templates (scope platform) live under the
+	// platform tenant's id and are offered to every tenant to copy; before this filter the
+	// platform tenant's own leads were enrolled in them.
 	q := h.db.NurtureSequence.Query().Where(
 		nurturesequence.TenantIDEQ(tenantUUID),
+		nurturesequence.ScopeEQ("tenant"),
 		nurturesequence.TriggerEventEQ("lead.created"),
 		nurturesequence.ActiveEQ(true),
 	)
@@ -628,6 +675,9 @@ func (h *LeadCreatedHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 	_, _ = h.db.NurtureSequence.UpdateOneID(chosen.ID).
 		AddTotalEnrolled(1).
 		Save(ctx)
+	if h.kick != nil {
+		h.kick()
+	}
 
 	h.logger.Info("lead auto-enrolled",
 		zap.String("tenant", ev.TenantID.String()),
@@ -636,4 +686,31 @@ func (h *LeadCreatedHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 		zap.String("enrollment", enrollment.ID.String()),
 	)
 	return nil
+}
+
+// recordFirstReply merges metadata.first_reply_at into a lead once, in one UPDATE (metadata ||
+// patch, as tenant metastore does), so it never overwrites other metadata keys and a later step
+// never moves the first reply. jsonb_exists is used, not the ? operator, which the builder would
+// read as a placeholder.
+func recordFirstReply(ctx context.Context, db *ent.Client, leadID uuid.UUID, at time.Time) error {
+	patch, _ := json.Marshal(map[string]any{"first_reply_at": at.Format(time.RFC3339)})
+	value := entsql.ExprFunc(func(b *entsql.Builder) {
+		b.WriteString("(COALESCE(" + lead.FieldMetadata + ", '{}'::jsonb) || ")
+		b.Arg(string(patch))
+		b.WriteString("::jsonb)")
+	})
+	_, err := db.Lead.Update().
+		Where(lead.IDEQ(leadID), func(s *entsql.Selector) {
+			s.Where(entsql.Not(entsql.ExprP("jsonb_exists(COALESCE(" + s.C(lead.FieldMetadata) + ", '{}'::jsonb), 'first_reply_at')")))
+		}).
+		Modify(func(u *entsql.UpdateBuilder) { u.Set(lead.FieldMetadata, value) }).
+		Save(ctx)
+	return err
+}
+
+// whatsAppConsent reports the lead's own WhatsApp consent: metadata.whatsapp_consent true, set by
+// the consent tick on lead forms, funnels and the widget.
+func whatsAppConsent(l *ent.Lead) bool {
+	v, _ := l.Metadata["whatsapp_consent"].(bool)
+	return v
 }

@@ -261,6 +261,14 @@ func TestBriefMetricsMatchHandCount(t *testing.T) {
 		mkLead(day.AddDate(0, 0, -i).Add(9*time.Hour), true)
 	}
 	mkLead(day.Add(2*time.Hour), true) // today: outside both windows
+	// Two of yesterday's leads got an automated first reply after 1 and 3 minutes: median 2.
+	for _, mins := range []int{1, 3} {
+		at := yday.Add(time.Duration(mins) * time.Minute)
+		if _, err := db.Lead.Create().SetTenantID(tid).SetSource("website").SetLeadType("customer").SetStatus("new").SetFirstName("R").
+			SetCreatedAt(yday).SetMetadata(map[string]any{"first_reply_at": at.Format(time.RFC3339)}).Save(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
 
 	if _, err := db.AdMetrics.Create().SetTenantID(tid).SetCampaignID(camp.ID).SetPlatform("meta").SetDate(day.AddDate(0, 0, -1)).
 		SetSpend(900).SetLeads(2).SetCurrency("KES").Save(ctx); err != nil {
@@ -288,7 +296,8 @@ func TestBriefMetricsMatchHandCount(t *testing.T) {
 			t.Fatalf("%s = %v / %v, want %v / %v", key, got.Value, got.Baseline, value, baseline)
 		}
 	}
-	check("leads", 3, 1)
+	check("leads", 5, 1)
+	check("first_reply_minutes", 2, 0) // no replies in the baseline week
 	check("ad_leads", 2, 1)
 	check("ad_spend", 900, 200)
 	check("cpl", 450, 200) // 900/2 yesterday; baseline 200 KES a day over 1 lead a day

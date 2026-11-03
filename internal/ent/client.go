@@ -48,6 +48,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/pipelinestage"
 	"github.com/bengobox/marketflow-api/internal/ent/profileevent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
+	"github.com/bengobox/marketflow-api/internal/ent/publishjob"
 	"github.com/bengobox/marketflow-api/internal/ent/rolepermission"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/segment"
@@ -128,6 +129,8 @@ type Client struct {
 	ProfileEvent *ProfileEventClient
 	// ProviderSetting is the client for interacting with the ProviderSetting builders.
 	ProviderSetting *ProviderSettingClient
+	// PublishJob is the client for interacting with the PublishJob builders.
+	PublishJob *PublishJobClient
 	// RolePermission is the client for interacting with the RolePermission builders.
 	RolePermission *RolePermissionClient
 	// ScheduledMeeting is the client for interacting with the ScheduledMeeting builders.
@@ -189,6 +192,7 @@ func (c *Client) init() {
 	c.PipelineStage = NewPipelineStageClient(c.config)
 	c.ProfileEvent = NewProfileEventClient(c.config)
 	c.ProviderSetting = NewProviderSettingClient(c.config)
+	c.PublishJob = NewPublishJobClient(c.config)
 	c.RolePermission = NewRolePermissionClient(c.config)
 	c.ScheduledMeeting = NewScheduledMeetingClient(c.config)
 	c.Segment = NewSegmentClient(c.config)
@@ -322,6 +326,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		PipelineStage:        NewPipelineStageClient(cfg),
 		ProfileEvent:         NewProfileEventClient(cfg),
 		ProviderSetting:      NewProviderSettingClient(cfg),
+		PublishJob:           NewPublishJobClient(cfg),
 		RolePermission:       NewRolePermissionClient(cfg),
 		ScheduledMeeting:     NewScheduledMeetingClient(cfg),
 		Segment:              NewSegmentClient(cfg),
@@ -382,6 +387,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		PipelineStage:        NewPipelineStageClient(cfg),
 		ProfileEvent:         NewProfileEventClient(cfg),
 		ProviderSetting:      NewProviderSettingClient(cfg),
+		PublishJob:           NewPublishJobClient(cfg),
 		RolePermission:       NewRolePermissionClient(cfg),
 		ScheduledMeeting:     NewScheduledMeetingClient(cfg),
 		Segment:              NewSegmentClient(cfg),
@@ -426,7 +432,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.CustomFieldValue, c.Deal, c.Funnel, c.KnowledgeBaseEntry, c.Lead,
 		c.LeadScoringRule, c.MarketflowPermission, c.MarketflowRole, c.MarketflowUser,
 		c.NurtureDeliveryEvent, c.NurtureEnrollment, c.NurtureSequence, c.OutboxEvent,
-		c.Pipeline, c.PipelineStage, c.ProfileEvent, c.ProviderSetting,
+		c.Pipeline, c.PipelineStage, c.ProfileEvent, c.ProviderSetting, c.PublishJob,
 		c.RolePermission, c.ScheduledMeeting, c.Segment, c.ServiceConfig, c.ShortLink,
 		c.Task, c.Tenant, c.Testimonial, c.UserRoleAssignment,
 	} {
@@ -444,7 +450,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.CustomFieldValue, c.Deal, c.Funnel, c.KnowledgeBaseEntry, c.Lead,
 		c.LeadScoringRule, c.MarketflowPermission, c.MarketflowRole, c.MarketflowUser,
 		c.NurtureDeliveryEvent, c.NurtureEnrollment, c.NurtureSequence, c.OutboxEvent,
-		c.Pipeline, c.PipelineStage, c.ProfileEvent, c.ProviderSetting,
+		c.Pipeline, c.PipelineStage, c.ProfileEvent, c.ProviderSetting, c.PublishJob,
 		c.RolePermission, c.ScheduledMeeting, c.Segment, c.ServiceConfig, c.ShortLink,
 		c.Task, c.Tenant, c.Testimonial, c.UserRoleAssignment,
 	} {
@@ -519,6 +525,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ProfileEvent.mutate(ctx, m)
 	case *ProviderSettingMutation:
 		return c.ProviderSetting.mutate(ctx, m)
+	case *PublishJobMutation:
+		return c.PublishJob.mutate(ctx, m)
 	case *RolePermissionMutation:
 		return c.RolePermission.mutate(ctx, m)
 	case *ScheduledMeetingMutation:
@@ -5774,6 +5782,139 @@ func (c *ProviderSettingClient) mutate(ctx context.Context, m *ProviderSettingMu
 	}
 }
 
+// PublishJobClient is a client for the PublishJob schema.
+type PublishJobClient struct {
+	config
+}
+
+// NewPublishJobClient returns a client for the PublishJob from the given config.
+func NewPublishJobClient(c config) *PublishJobClient {
+	return &PublishJobClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `publishjob.Hooks(f(g(h())))`.
+func (c *PublishJobClient) Use(hooks ...Hook) {
+	c.hooks.PublishJob = append(c.hooks.PublishJob, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `publishjob.Intercept(f(g(h())))`.
+func (c *PublishJobClient) Intercept(interceptors ...Interceptor) {
+	c.inters.PublishJob = append(c.inters.PublishJob, interceptors...)
+}
+
+// Create returns a builder for creating a PublishJob entity.
+func (c *PublishJobClient) Create() *PublishJobCreate {
+	mutation := newPublishJobMutation(c.config, OpCreate)
+	return &PublishJobCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of PublishJob entities.
+func (c *PublishJobClient) CreateBulk(builders ...*PublishJobCreate) *PublishJobCreateBulk {
+	return &PublishJobCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PublishJobClient) MapCreateBulk(slice any, setFunc func(*PublishJobCreate, int)) *PublishJobCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PublishJobCreateBulk{err: fmt.Errorf("calling to PublishJobClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PublishJobCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PublishJobCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for PublishJob.
+func (c *PublishJobClient) Update() *PublishJobUpdate {
+	mutation := newPublishJobMutation(c.config, OpUpdate)
+	return &PublishJobUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PublishJobClient) UpdateOne(_m *PublishJob) *PublishJobUpdateOne {
+	mutation := newPublishJobMutation(c.config, OpUpdateOne, withPublishJob(_m))
+	return &PublishJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PublishJobClient) UpdateOneID(id uuid.UUID) *PublishJobUpdateOne {
+	mutation := newPublishJobMutation(c.config, OpUpdateOne, withPublishJobID(id))
+	return &PublishJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for PublishJob.
+func (c *PublishJobClient) Delete() *PublishJobDelete {
+	mutation := newPublishJobMutation(c.config, OpDelete)
+	return &PublishJobDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PublishJobClient) DeleteOne(_m *PublishJob) *PublishJobDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PublishJobClient) DeleteOneID(id uuid.UUID) *PublishJobDeleteOne {
+	builder := c.Delete().Where(publishjob.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PublishJobDeleteOne{builder}
+}
+
+// Query returns a query builder for PublishJob.
+func (c *PublishJobClient) Query() *PublishJobQuery {
+	return &PublishJobQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePublishJob},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a PublishJob entity by its id.
+func (c *PublishJobClient) Get(ctx context.Context, id uuid.UUID) (*PublishJob, error) {
+	return c.Query().Where(publishjob.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PublishJobClient) GetX(ctx context.Context, id uuid.UUID) *PublishJob {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PublishJobClient) Hooks() []Hook {
+	return c.hooks.PublishJob
+}
+
+// Interceptors returns the client interceptors.
+func (c *PublishJobClient) Interceptors() []Interceptor {
+	return c.inters.PublishJob
+}
+
+func (c *PublishJobClient) mutate(ctx context.Context, m *PublishJobMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PublishJobCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PublishJobUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PublishJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PublishJobDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown PublishJob mutation op: %q", m.Op())
+	}
+}
+
 // RolePermissionClient is a client for the RolePermission schema.
 type RolePermissionClient struct {
 	config
@@ -7524,8 +7665,9 @@ type (
 		KnowledgeBaseEntry, Lead, LeadScoringRule, MarketflowPermission,
 		MarketflowRole, MarketflowUser, NurtureDeliveryEvent, NurtureEnrollment,
 		NurtureSequence, OutboxEvent, Pipeline, PipelineStage, ProfileEvent,
-		ProviderSetting, RolePermission, ScheduledMeeting, Segment, ServiceConfig,
-		ShortLink, Task, Tenant, Testimonial, UserRoleAssignment []ent.Hook
+		ProviderSetting, PublishJob, RolePermission, ScheduledMeeting, Segment,
+		ServiceConfig, ShortLink, Task, Tenant, Testimonial,
+		UserRoleAssignment []ent.Hook
 	}
 	inters struct {
 		Account, Activity, AdMetrics, AgentRun, AuditLog, BehavioralTrigger, Campaign,
@@ -7534,7 +7676,8 @@ type (
 		KnowledgeBaseEntry, Lead, LeadScoringRule, MarketflowPermission,
 		MarketflowRole, MarketflowUser, NurtureDeliveryEvent, NurtureEnrollment,
 		NurtureSequence, OutboxEvent, Pipeline, PipelineStage, ProfileEvent,
-		ProviderSetting, RolePermission, ScheduledMeeting, Segment, ServiceConfig,
-		ShortLink, Task, Tenant, Testimonial, UserRoleAssignment []ent.Interceptor
+		ProviderSetting, PublishJob, RolePermission, ScheduledMeeting, Segment,
+		ServiceConfig, ShortLink, Task, Tenant, Testimonial,
+		UserRoleAssignment []ent.Interceptor
 	}
 )

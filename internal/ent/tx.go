@@ -76,6 +76,8 @@ type Tx struct {
 	ProfileEvent *ProfileEventClient
 	// ProviderSetting is the client for interacting with the ProviderSetting builders.
 	ProviderSetting *ProviderSettingClient
+	// PublishJob is the client for interacting with the PublishJob builders.
+	PublishJob *PublishJobClient
 	// RolePermission is the client for interacting with the RolePermission builders.
 	RolePermission *RolePermissionClient
 	// ScheduledMeeting is the client for interacting with the ScheduledMeeting builders.
@@ -257,6 +259,7 @@ func (tx *Tx) init() {
 	tx.PipelineStage = NewPipelineStageClient(tx.config)
 	tx.ProfileEvent = NewProfileEventClient(tx.config)
 	tx.ProviderSetting = NewProviderSettingClient(tx.config)
+	tx.PublishJob = NewPublishJobClient(tx.config)
 	tx.RolePermission = NewRolePermissionClient(tx.config)
 	tx.ScheduledMeeting = NewScheduledMeetingClient(tx.config)
 	tx.Segment = NewSegmentClient(tx.config)

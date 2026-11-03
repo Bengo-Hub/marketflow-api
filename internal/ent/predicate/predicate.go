@@ -102,6 +102,9 @@ type ProfileEvent func(*sql.Selector)
 // ProviderSetting is the predicate function for providersetting builders.
 type ProviderSetting func(*sql.Selector)
 
+// PublishJob is the predicate function for publishjob builders.
+type PublishJob func(*sql.Selector)
+
 // RolePermission is the predicate function for rolepermission builders.
 type RolePermission func(*sql.Selector)
 

@@ -35,6 +35,8 @@ const (
 // Job is marketflow-ai's media job state: the start reply, the pushed body and
 // the status poll all carry it.
 type Job struct {
+	// Kind is "render" (a motion poster or a video ad) or "storyboard".
+	Kind   string `json:"kind,omitempty"`
 	Status string `json:"status"` // running | done | failed
 	Result *struct {
 		URL          string  `json:"url"`
@@ -48,12 +50,39 @@ type Job struct {
 		CostUSD      float64 `json:"cost_usd"`
 		Attempts     int     `json:"attempts"`
 		CaptionLines int     `json:"caption_lines"`
+		// Video ads: the voice used and the scenes, kept for the scene cache.
+		Voice      string           `json:"voice"`
+		Scenes     []map[string]any `json:"scenes"`
+		Storyboard *struct {
+			Actor   *storyboardActor  `json:"actor"`
+			Stills  []storyboardStill `json:"stills"`
+			CostUSD float64           `json:"cost_usd"`
+		} `json:"storyboard"`
 	} `json:"result,omitempty"`
 	CreditsCharged int    `json:"credits_charged"`
 	Error          string `json:"error,omitempty"`
 	// Refunded is false on a failed job that was lost with its pod: its charge
 	// stands, so it is started again under the same charge key.
 	Refunded bool `json:"refunded"`
+}
+
+// storyboardActor is a presenter ad's actor still.
+type storyboardActor struct {
+	URL    string `json:"url"`
+	Key    string `json:"key,omitempty"`
+	Prompt string `json:"prompt"`
+	Seed   int64  `json:"seed"`
+	Route  string `json:"route,omitempty"`
+}
+
+// storyboardStill is one scene's storyboard frame.
+type storyboardStill struct {
+	SceneID string  `json:"scene_id"`
+	URL     string  `json:"url,omitempty"`
+	Key     string  `json:"key,omitempty"`
+	Source  string  `json:"source"`
+	Route   string  `json:"route,omitempty"`
+	CostUSD float64 `json:"cost_usd,omitempty"`
 }
 
 // jobKinds are the version kinds made by media jobs.
@@ -110,10 +139,14 @@ func (r *Renderer) pollJobs(ctx context.Context) {
 		return
 	}
 	for _, v := range waiting {
-		if v.Kind == KindVideoAd && stage(v) != StageRender {
+		path := "/api/v1/internal/creative/jobs/" + v.ID.String()
+		switch {
+		case v.Kind == KindVideoAd && stage(v) == StageStoryboard:
+			path += "?kind=storyboard"
+		case v.Kind == KindVideoAd && stage(v) != StageRender:
 			continue
 		}
-		job, err := r.jobRequest(ctx, http.MethodGet, "/api/v1/internal/creative/jobs/"+v.ID.String(), nil)
+		job, err := r.jobRequest(ctx, http.MethodGet, path, nil)
 		if err == nil {
 			if err := r.SettleJob(ctx, v.ID, *job); err != nil {
 				r.logger.Warn("job poll not recorded", zap.String("version_id", v.ID.String()), zap.Error(err))
@@ -135,6 +168,15 @@ func (r *Renderer) touchJob(ctx context.Context, v *ent.CreativeVersion, lost bo
 	meta := copyMap(v.Metadata)
 	switch {
 	case !started.IsZero() && r.nowFn().Sub(started) > jobDeadline, lost && intOf(meta["attempts"]) >= maxAttempts:
+		kind := "render"
+		if v.Kind == KindVideoAd && stage(v) == StageStoryboard {
+			kind = "storyboard"
+		}
+		r.refundLost(ctx, v, kind)
+		if kind == "storyboard" {
+			r.failStoryboard(ctx, v.ID, "the storyboard took too long; try again")
+			return
+		}
 		u.SetStatus(StatusFailed).SetError("the video took too long; try again")
 	case lost:
 		u.SetStatus(StatusQueued)
@@ -158,6 +200,14 @@ func (r *Renderer) SettleJob(ctx context.Context, id uuid.UUID, job Job) error {
 	if v.Status != StatusRendering {
 		return nil
 	}
+	// A storyboard and a render report to the same version; each settles only its own stage.
+	isBoard := v.Kind == KindVideoAd && stage(v) == StageStoryboard
+	if job.Kind != "" && (job.Kind == "storyboard") != isBoard {
+		return nil
+	}
+	if isBoard {
+		return r.settleStoryboard(ctx, v, job)
+	}
 	pending := r.db.CreativeVersion.Update().
 		Where(creativeversion.ID(id), creativeversion.StatusEQ(StatusRendering))
 	switch {
@@ -167,6 +217,16 @@ func (r *Renderer) SettleJob(ctx context.Context, id uuid.UUID, job Job) error {
 		meta["route"], meta["cost_usd"], meta["provider_attempts"] = res.Route, res.CostUSD, res.Attempts
 		if res.CaptionLines > 0 {
 			meta["caption_lines"] = res.CaptionLines
+		}
+		if len(res.Scenes) > 0 {
+			cache := make([]any, 0, len(res.Scenes))
+			for _, sc := range res.Scenes {
+				cache = append(cache, sc)
+			}
+			meta["scene_cache"] = cache
+		}
+		if res.Voice != "" {
+			meta["voice_used"] = res.Voice
 		}
 		return withTx(ctx, r.db, func(tx *ent.Tx) error {
 			n, err := tx.CreativeVersion.Update().
@@ -184,8 +244,26 @@ func (r *Renderer) SettleJob(ctx context.Context, id uuid.UUID, job Job) error {
 			if res.SHA256 != "" {
 				a.SetSha256(res.SHA256)
 			}
-			_, err = a.Save(ctx)
-			return err
+			if _, err = a.Save(ctx); err != nil {
+				return err
+			}
+			// The scenes' voice-overs and clips are this version's files too (a reused
+			// scene was copied under this version's name), so the purge removes them.
+			for _, sc := range res.Scenes {
+				for kind, key := range map[string]string{AssetAudio: str(sc["audio_key"]), AssetSceneClip: str(sc["video_key"])} {
+					if key == "" {
+						continue
+					}
+					url := str(sc["audio_url"])
+					if kind == AssetSceneClip {
+						url = str(sc["video_url"])
+					}
+					if err := r.recordAsset(ctx, tx, v, kind, key, url, map[string]any{"scene_id": str(sc["scene_id"])}); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
 		})
 	case job.Status == "failed" && job.Refunded:
 		msg := job.Error
@@ -197,6 +275,7 @@ func (r *Renderer) SettleJob(ctx context.Context, id uuid.UUID, job Job) error {
 	case job.Status == "failed":
 		// Lost with its pod and not refunded: start again under the same charge key.
 		if intOf(v.Metadata["attempts"]) >= maxAttempts {
+			r.refundLost(ctx, v, "render")
 			_, err := pending.SetStatus(StatusFailed).SetError("the video took too long; try again").Save(ctx)
 			return err
 		}

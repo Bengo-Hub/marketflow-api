@@ -29,9 +29,27 @@ import (
 
 // Video ad stages (metadata.stage).
 const (
-	StageScript = "script"
-	StageRender = "render"
+	StageScript     = "script"
+	StageStoryboard = "storyboard"
+	StageRender     = "render"
 )
+
+// Video ad kinds (metadata.video_kind): the studio's video tiers.
+const (
+	VideoTemplate         = "template"
+	VideoPresenter        = "presenter"
+	VideoPresenterPremium = "presenter_premium"
+)
+
+// videoKind is a video ad's kind; ads made before kinds are template ads.
+func videoKind(v *ent.CreativeVersion) string {
+	if k := str(v.Metadata["video_kind"]); k != "" {
+		return k
+	}
+	return VideoTemplate
+}
+
+func isPresenter(kind string) bool { return kind == VideoPresenter || kind == VideoPresenterPremium }
 
 // Video ad limits.
 const (
@@ -43,14 +61,17 @@ const (
 	maxAdVoiceChars   = 900 // marketflow-ai's limit for about 60 seconds
 	maxSceneVoice     = 400
 	maxSceneCaption   = 120
+	maxPresenterVoice = 200 // marketflow-ai's limit for one presenter scene (about 14 s)
+	maxSceneVisual    = 300
 	scriptCallTimeout = 110 * time.Second // marketflow-ai answers within 90 s
 )
 
 var (
 	adFormats    = map[string]bool{"1080x1080": true, "1080x1350": true, "1080x1920": true}
 	adDeliveries = map[string]bool{"": true, "ad": true, "ugc": true, "kids": true, "story": true, "info": true}
-	// adShots are the shots a template ad renders; marketflow-ai refuses others.
-	adShots = map[string]bool{"product_clip": true, "b_roll": true, "owner_footage": true, "end_card": true}
+	// adShots are the shots a template ad renders; a presenter ad adds "presenter".
+	adShots    = map[string]bool{"product_clip": true, "b_roll": true, "owner_footage": true, "end_card": true}
+	videoKinds = map[string]bool{"": true, VideoTemplate: true, VideoPresenter: true, VideoPresenterPremium: true}
 )
 
 // stage is a video ad version's step; a version made before stages counts as
@@ -72,7 +93,12 @@ type VideoAdInput struct {
 	Delivery    string   `json:"delivery"` // ad (default) | ugc | kids | story | info
 	VoiceGender string   `json:"voice_gender"`
 	VoiceAccent string   `json:"voice_accent"` // e.g. african, kenyan, nigerian
-	PhotoURLs   []string `json:"photo_urls"`   // default: the offering's photos
+	// Kind is the video type: template (default), presenter or presenter_premium.
+	Kind string `json:"kind"`
+	// ActorPrompt describes the presenter for a new actor (presenter types); the brief's
+	// actor is kept once it exists.
+	ActorPrompt string   `json:"actor_prompt"`
+	PhotoURLs   []string `json:"photo_urls"` // default: the offering's photos
 	FootageURLs []string `json:"footage_urls"` // the owner's clips
 	// The end card's words; empty fields come from the offering.
 	Headline string `json:"headline"`
@@ -105,6 +131,18 @@ func (in *VideoAdInput) validate(brief *ent.CreativeBrief) error {
 	}
 	if !tiers[in.Tier] {
 		return invalid("tier must be standard or premium")
+	}
+	if !videoKinds[in.Kind] {
+		return invalid("kind must be template, presenter or presenter_premium")
+	}
+	if in.Kind == "" {
+		in.Kind = VideoTemplate
+	}
+	if in.Kind == VideoPresenterPremium {
+		in.Tier = "premium"
+	}
+	if len([]rune(in.ActorPrompt)) > 300 {
+		return invalid("actor_prompt is up to 300 characters")
 	}
 	if !adDeliveries[in.Delivery] {
 		return invalid("delivery must be ad, ugc, kids, story or info")
@@ -158,8 +196,9 @@ func (s *Service) CreateVideoAd(ctx context.Context, tenantID, briefID uuid.UUID
 	card := map[string]any{"headline": firstNonEmpty(in.Headline, name), "subline": in.Subline,
 		"price": firstNonEmpty(in.Price, offeringPrice(brief.Offering)), "cta": in.CTA}
 	meta := map[string]any{"stage": StageScript, "seconds": in.Seconds, "language": in.Language,
-		"photo_urls": in.PhotoURLs, "footage_urls": in.FootageURLs}
-	for k, v := range map[string]string{"voice": in.Voice, "delivery": in.Delivery, "voice_gender": in.VoiceGender, "voice_accent": in.VoiceAccent} {
+		"photo_urls": in.PhotoURLs, "footage_urls": in.FootageURLs, "video_kind": in.Kind}
+	for k, v := range map[string]string{"voice": in.Voice, "delivery": in.Delivery, "voice_gender": in.VoiceGender,
+		"voice_accent": in.VoiceAccent, "actor_prompt": strings.TrimSpace(in.ActorPrompt)} {
 		if v != "" {
 			meta[k] = v
 		}
@@ -193,7 +232,7 @@ type ScriptScene struct {
 	Caption   string  `json:"caption"`
 }
 
-func (v *VideoScript) validate(photos, footage int) error {
+func (v *VideoScript) validate(photos, footage int, kind string) error {
 	if len(v.Scenes) < 2 || len(v.Scenes) > maxAdScenes {
 		return invalid(fmt.Sprintf("a script has 2 to %d scenes", maxAdScenes))
 	}
@@ -201,8 +240,28 @@ func (v *VideoScript) validate(photos, footage int) error {
 	for i := range v.Scenes {
 		sc := &v.Scenes[i]
 		sc.Voiceover, sc.Caption = strings.TrimSpace(sc.Voiceover), strings.TrimSpace(sc.Caption)
+		sc.Visual = strings.TrimSpace(sc.Visual)
+		if sc.Shot == "presenter" {
+			if !isPresenter(kind) {
+				return invalid(fmt.Sprintf("scene %d: a presenter scene needs the presenter video type", i+1))
+			}
+			if sc.Voiceover == "" || utf8.RuneCountInString(sc.Voiceover) > maxPresenterVoice {
+				return invalid(fmt.Sprintf("scene %d: a presenter scene says 1 to %d characters", i+1, maxPresenterVoice))
+			}
+			if utf8.RuneCountInString(sc.Visual) > maxSceneVisual {
+				return invalid(fmt.Sprintf("scene %d: the visual is up to %d characters", i+1, maxSceneVisual))
+			}
+			if sc.ID == "" {
+				sc.ID = fmt.Sprintf("s%d", i+1)
+			}
+			chars += utf8.RuneCountInString(sc.Voiceover)
+			continue
+		}
 		if !adShots[sc.Shot] {
-			return invalid(fmt.Sprintf("scene %d: shot must be product_clip, b_roll, owner_footage or end_card", i+1))
+			return invalid(fmt.Sprintf("scene %d: shot must be presenter, product_clip, b_roll, owner_footage or end_card", i+1))
+		}
+		if utf8.RuneCountInString(sc.Visual) > maxSceneVisual {
+			return invalid(fmt.Sprintf("scene %d: the visual is up to %d characters", i+1, maxSceneVisual))
 		}
 		limit := photos
 		if sc.Shot == "owner_footage" {
@@ -238,7 +297,7 @@ func (s *Service) UpdateScript(ctx context.Context, tenantID, id uuid.UUID, in S
 	}
 	copyFields := copyMap(v.Copy)
 	if in.Script != nil {
-		if err := in.Script.validate(len(strs(v.Metadata["photo_urls"])), len(strs(v.Metadata["footage_urls"]))); err != nil {
+		if err := in.Script.validate(len(strs(v.Metadata["photo_urls"])), len(strs(v.Metadata["footage_urls"])), videoKind(v)); err != nil {
 			return nil, err
 		}
 		copyFields["script"] = toMap(in.Script)
@@ -256,6 +315,13 @@ func (s *Service) UpdateScript(ctx context.Context, tenantID, id uuid.UUID, in S
 	}
 	meta := copyMap(v.Metadata)
 	meta["script_edited_at"] = s.nowFn().UTC().Format(time.RFC3339)
+	// New words or scenes need a fresh look at the storyboard before a presenter render.
+	if sb, ok := meta["storyboard"].(map[string]any); ok && in.Script != nil {
+		sb = copyMap(sb)
+		delete(sb, "approved_at")
+		delete(sb, "approved_by")
+		meta["storyboard"] = sb
+	}
 	if cats := restrictedCategories(scriptText(copyFields)...); len(cats) > 0 {
 		meta["restricted_categories"] = cats
 	} else {
@@ -286,6 +352,9 @@ func (s *Service) RenderVideoAd(ctx context.Context, tenantID, id uuid.UUID) (*e
 	}
 	if _, ok := v.Copy["script"]; !ok {
 		return nil, fmt.Errorf("%w: this video ad has no script", ErrConflict)
+	}
+	if isPresenter(videoKind(v)) && !storyboardApproved(v) {
+		return nil, fmt.Errorf("%w: approve the storyboard before rendering a presenter ad", ErrConflict)
 	}
 	if err := s.checkDailyCap(ctx, tenantID); err != nil {
 		return nil, err
@@ -318,6 +387,7 @@ type scriptCall struct {
 	Seconds   int    `json:"seconds"`
 	Photos    int    `json:"photos"`
 	Footage   int    `json:"footage"`
+	Kind      string `json:"kind"`
 	Charge    bool   `json:"charge"`
 }
 
@@ -339,7 +409,8 @@ func (r *Renderer) writeScript(ctx context.Context, v *ent.CreativeVersion) {
 	}
 	call := scriptCall{TenantID: v.TenantID.String(), VersionID: v.ID.String(), Offering: excerpt(name, 300),
 		Facts: offeringFacts(b.Offering), Objective: b.Objective, Audience: b.Audience, Language: str(meta["language"]),
-		Seconds: intOf(meta["seconds"]), Photos: len(strs(meta["photo_urls"])), Footage: len(strs(meta["footage_urls"])), Charge: true}
+		Seconds: intOf(meta["seconds"]), Photos: len(strs(meta["photo_urls"])), Footage: len(strs(meta["footage_urls"])),
+		Kind: videoKind(v), Charge: true}
 	data, status, err := r.aiCall(ctx, http.MethodPost, "/api/v1/internal/creative/script", call, scriptCallTimeout)
 	if err == nil && status != http.StatusOK {
 		err = aiStatusError(status, data)
@@ -410,6 +481,13 @@ type adCall struct {
 	Price       string        `json:"price,omitempty"`
 	CTA         string        `json:"cta,omitempty"`
 	Charge      bool          `json:"charge"`
+	// Presenter ads: the approved storyboard's actor and stills, and the scene cache of
+	// the version this one revises.
+	Kind       string            `json:"kind,omitempty"`
+	ActorURL   string            `json:"actor_url,omitempty"`
+	Seed       int64             `json:"seed,omitempty"`
+	Stills     map[string]string `json:"stills,omitempty"`
+	SceneCache []any             `json:"scene_cache,omitempty"`
 }
 
 // startAd starts a claimed video ad's render job in marketflow-ai.
@@ -420,18 +498,44 @@ func (r *Renderer) startAd(ctx context.Context, v *ent.CreativeVersion) {
 		r.failJob(ctx, v.ID, &aiError{msg: "this video ad has no script; write it again"})
 		return
 	}
+	call := r.adCallFor(ctx, v, script, true)
+	r.startJob(ctx, v, meta, "/api/v1/internal/creative/ad", call)
+}
+
+// adCallFor builds marketflow-ai's ad body for a version (the render, or its quote).
+func (r *Renderer) adCallFor(ctx context.Context, v *ent.CreativeVersion, script VideoScript, charge bool) adCall {
+	meta := v.Metadata
 	card, _ := v.Copy["end_card"].(map[string]any)
 	call := adCall{TenantID: v.TenantID.String(), VersionID: v.ID.String(), Format: v.Format, Tier: v.Tier,
 		Voice: str(meta["voice"]), Delivery: str(meta["delivery"]), VoiceGender: str(meta["voice_gender"]),
 		VoiceAccent: str(meta["voice_accent"]), Language: str(meta["language"]), Scenes: script.Scenes,
 		PhotoURLs: strs(meta["photo_urls"]), FootageURLs: strs(meta["footage_urls"]),
 		Headline: str(card["headline"]), Subline: str(card["subline"]), Price: str(card["price"]), CTA: str(card["cta"]),
-		Charge: true}
+		Charge: charge, Kind: videoKind(v)}
 	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
 		brand, _ := b.Metadata["brand"].(map[string]any)
 		call.Accent, call.LogoURL = str(brand["accent"]), str(brand["logo_url"])
 	}
-	r.startJob(ctx, v, meta, "/api/v1/internal/creative/ad", call)
+	if sb, ok := meta["storyboard"].(map[string]any); ok && isPresenter(call.Kind) {
+		if actor, ok := sb["actor"].(map[string]any); ok {
+			call.ActorURL = str(actor["url"])
+			if f, ok := actor["seed"].(float64); ok {
+				call.Seed = int64(f)
+			}
+		}
+		call.Stills = map[string]string{}
+		if stills, ok := sb["stills"].([]any); ok {
+			for _, x := range stills {
+				if st, ok := x.(map[string]any); ok && str(st["source"]) == "generated" && str(st["url"]) != "" {
+					call.Stills[str(st["scene_id"])] = str(st["url"])
+				}
+			}
+		}
+	}
+	if cache, ok := meta["scene_cache"].([]any); ok {
+		call.SceneCache = cache
+	}
+	return call
 }
 
 // offeringFacts is what the script may say about the offering: its own

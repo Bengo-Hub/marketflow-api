@@ -130,7 +130,47 @@ func (s *Service) BriefMetrics(ctx context.Context, tenantID uuid.UUID, dayStart
 	if adLeadsY > 0 && adLeadsB > 0 {
 		out = append(out, BriefMetric{Key: "cpl", Label: "Cost per ad lead", Value: spendY / adLeadsY, Baseline: spendB / (adLeadsB / 7), Unit: "KES"})
 	}
+	// Speed to lead (Sprint 23): the median minutes from a lead arriving to its first automated
+	// reply (lead.metadata.first_reply_at, written once by the nurture worker). Only shown when
+	// yesterday had replies; the baseline is the median of the seven days before, not an average.
+	replyY, okY, err := s.medianFirstReplyMinutes(ctx, tenantID, yday.a, yday.b)
+	if err != nil {
+		return nil, err
+	}
+	if okY {
+		replyB, _, err := s.medianFirstReplyMinutes(ctx, tenantID, base.a, base.b)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, BriefMetric{Key: "first_reply_minutes", Label: "Median time to first reply", Value: replyY, Baseline: replyB, Unit: "min"})
+	}
 	return out, nil
+}
+
+// medianFirstReplyMinutes is the median minutes from created_at to metadata.first_reply_at for
+// the tenant's leads created in [from, to). One aggregate over the leads(tenant_id, created_at)
+// range; ok is false when no lead in the window has a reply.
+func (s *Service) medianFirstReplyMinutes(ctx context.Context, tenantID uuid.UUID, from, to time.Time) (float64, bool, error) {
+	var rows []struct {
+		V *float64 `json:"v"`
+	}
+	err := s.db.Lead.Query().
+		Where(lead.TenantID(tenantID), lead.CreatedAtGTE(from), lead.CreatedAtLT(to),
+			func(sel *sql.Selector) {
+				sel.Where(sql.ExprP("jsonb_exists(COALESCE(" + sel.C(lead.FieldMetadata) + ", '{}'::jsonb), 'first_reply_at')"))
+			}).
+		Aggregate(func(sel *sql.Selector) string {
+			return sql.As("percentile_cont(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (("+
+				sel.C(lead.FieldMetadata)+"->>'first_reply_at')::timestamptz - "+sel.C(lead.FieldCreatedAt)+")) / 60.0)", "v")
+		}).
+		Scan(ctx, &rows)
+	if err != nil {
+		return 0, false, err
+	}
+	if len(rows) == 0 || rows[0].V == nil {
+		return 0, false, nil
+	}
+	return *rows[0].V, true, nil
 }
 
 // HasActivity reports whether a brief is worth sending: anything moved in the

@@ -93,6 +93,11 @@ const (
 	AssetScene = "scene"
 	// AssetVideo is a motion poster's clip.
 	AssetVideo = "video"
+	// AssetKeyframe is a storyboard still or a presenter ad's actor.
+	AssetKeyframe = "keyframe"
+	// AssetAudio is a scene's voice-over; AssetSceneClip a scene's generated clip.
+	AssetAudio     = "audio"
+	AssetSceneClip = "scene_clip"
 )
 
 // Service is the Creative Studio data layer.

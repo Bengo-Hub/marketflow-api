@@ -46,7 +46,16 @@ func (f *fakeJobs) server(t *testing.T, key string) *httptest.Server {
 		defer f.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		switch {
-		case r.Method == http.MethodPost && (r.URL.Path == "/api/v1/internal/creative/clip" || r.URL.Path == "/api/v1/internal/creative/ad"):
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/refund"):
+			f.paths = append(f.paths, r.URL.Path+"?"+r.URL.RawQuery)
+			_, _ = w.Write([]byte(`{"status":"failed","refunded":true}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/internal/creative/ad/quote":
+			var body map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			f.started, f.paths = append(f.started, body), append(f.paths, r.URL.Path)
+			_, _ = w.Write([]byte(`{"credits_needed":40,"balance":100,"enough":true,"plan":{"kind":"presenter","cached_scenes":1}}`))
+		case r.Method == http.MethodPost && (r.URL.Path == "/api/v1/internal/creative/clip" || r.URL.Path == "/api/v1/internal/creative/ad" ||
+			r.URL.Path == "/api/v1/internal/creative/storyboard"):
 			var body map[string]any
 			_ = json.NewDecoder(r.Body).Decode(&body)
 			f.started, f.paths = append(f.started, body), append(f.paths, r.URL.Path)

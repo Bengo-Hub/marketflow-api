@@ -1643,6 +1643,54 @@ var (
 			},
 		},
 	}
+	// PublishJobsColumns holds the columns for the "publish_jobs" table.
+	PublishJobsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "asset_id", Type: field.TypeUUID},
+		{Name: "connected_account_id", Type: field.TypeUUID},
+		{Name: "platform", Type: field.TypeString},
+		{Name: "kind", Type: field.TypeString, Default: "organic"},
+		{Name: "caption", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "scheduled_at", Type: field.TypeTime},
+		{Name: "status", Type: field.TypeString, Default: "pending"},
+		{Name: "dedupe_key", Type: field.TypeString, Unique: true},
+		{Name: "external_id", Type: field.TypeString, Nullable: true},
+		{Name: "permalink", Type: field.TypeString, Nullable: true},
+		{Name: "error", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "attempts", Type: field.TypeInt, Default: 0},
+		{Name: "created_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
+		{Name: "published_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// PublishJobsTable holds the schema information for the "publish_jobs" table.
+	PublishJobsTable = &schema.Table{
+		Name:       "publish_jobs",
+		Columns:    PublishJobsColumns,
+		PrimaryKey: []*schema.Column{PublishJobsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "publishjob_status_scheduled_at",
+				Unique:  false,
+				Columns: []*schema.Column{PublishJobsColumns[8], PublishJobsColumns[7]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "status IN ('pending', 'uploading', 'processing')",
+				},
+			},
+			{
+				Name:    "publishjob_tenant_id_scheduled_at_id",
+				Unique:  false,
+				Columns: []*schema.Column{PublishJobsColumns[1], PublishJobsColumns[7], PublishJobsColumns[0]},
+			},
+			{
+				Name:    "publishjob_tenant_id_asset_id",
+				Unique:  false,
+				Columns: []*schema.Column{PublishJobsColumns[1], PublishJobsColumns[2]},
+			},
+		},
+	}
 	// RolePermissionsColumns holds the columns for the "role_permissions" table.
 	RolePermissionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -2131,6 +2179,7 @@ var (
 		PipelineStagesTable,
 		ProfileEventsTable,
 		ProviderSettingsTable,
+		PublishJobsTable,
 		RolePermissionsTable,
 		ScheduledMeetingsTable,
 		SegmentsTable,

@@ -875,6 +875,22 @@ type seqDef struct {
 func defaultSequences() []seqDef {
 	return []seqDef{
 		{
+			// Sprint 23 (owner, 2026-11-03): opt-in per tenant. A tenant copies it from the
+			// templates in Nurture; nothing is sent until it does. WhatsApp only with the lead's
+			// consent tick (metadata.whatsapp_consent), else the worker sends the email instead.
+			Name:         "Instant follow-up",
+			TriggerEvent: "lead.created",
+			Description:  "Answer every new lead within a minute with a booking link, then remind them the next day.",
+			Steps: []seqStep{
+				{DelayHours: 0, Channel: "whatsapp", Template: "mf_lead_hello_btn",
+					Subject: "Thanks for getting in touch with {{fbo_name}}",
+					Body:    "Hi {{first_name}}, thanks for getting in touch with {{fbo_name}}. Pick a time for a short call: {{booking_link}}"},
+				{DelayHours: 24, Channel: "email",
+					Subject: "A time to talk, {{first_name}}?",
+					Body:    "Hi {{first_name}}, we would love to help. Choose a time that suits you: <a href=\"{{booking_link}}\">book a short call</a>, or <a href=\"{{whatsapp_link}}\">message us on WhatsApp</a>."},
+			},
+		},
+		{
 			Name:         "Welcome",
 			TriggerEvent: "lead.created",
 			Description:  "Convert new leads into first-order customers within 10 days.",

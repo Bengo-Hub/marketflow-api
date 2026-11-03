@@ -44,6 +44,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/predicate"
 	"github.com/bengobox/marketflow-api/internal/ent/profileevent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
+	"github.com/bengobox/marketflow-api/internal/ent/publishjob"
 	"github.com/bengobox/marketflow-api/internal/ent/rolepermission"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/segment"
@@ -97,6 +98,7 @@ const (
 	TypePipelineStage        = "PipelineStage"
 	TypeProfileEvent         = "ProfileEvent"
 	TypeProviderSetting      = "ProviderSetting"
+	TypePublishJob           = "PublishJob"
 	TypeRolePermission       = "RolePermission"
 	TypeScheduledMeeting     = "ScheduledMeeting"
 	TypeSegment              = "Segment"
@@ -39611,6 +39613,1428 @@ func (m *ProviderSettingMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *ProviderSettingMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown ProviderSetting edge %s", name)
+}
+
+// PublishJobMutation represents an operation that mutates the PublishJob nodes in the graph.
+type PublishJobMutation struct {
+	config
+	op                   Op
+	typ                  string
+	id                   *uuid.UUID
+	tenant_id            *uuid.UUID
+	asset_id             *uuid.UUID
+	connected_account_id *uuid.UUID
+	platform             *string
+	kind                 *string
+	caption              *string
+	scheduled_at         *time.Time
+	status               *string
+	dedupe_key           *string
+	external_id          *string
+	permalink            *string
+	error                *string
+	attempts             *int
+	addattempts          *int
+	created_by           *uuid.UUID
+	metadata             *map[string]interface{}
+	published_at         *time.Time
+	created_at           *time.Time
+	updated_at           *time.Time
+	clearedFields        map[string]struct{}
+	done                 bool
+	oldValue             func(context.Context) (*PublishJob, error)
+	predicates           []predicate.PublishJob
+}
+
+var _ ent.Mutation = (*PublishJobMutation)(nil)
+
+// publishjobOption allows management of the mutation configuration using functional options.
+type publishjobOption func(*PublishJobMutation)
+
+// newPublishJobMutation creates new mutation for the PublishJob entity.
+func newPublishJobMutation(c config, op Op, opts ...publishjobOption) *PublishJobMutation {
+	m := &PublishJobMutation{
+		config:        c,
+		op:            op,
+		typ:           TypePublishJob,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withPublishJobID sets the ID field of the mutation.
+func withPublishJobID(id uuid.UUID) publishjobOption {
+	return func(m *PublishJobMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *PublishJob
+		)
+		m.oldValue = func(ctx context.Context) (*PublishJob, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().PublishJob.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withPublishJob sets the old PublishJob of the mutation.
+func withPublishJob(node *PublishJob) publishjobOption {
+	return func(m *PublishJobMutation) {
+		m.oldValue = func(context.Context) (*PublishJob, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m PublishJobMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m PublishJobMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of PublishJob entities.
+func (m *PublishJobMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *PublishJobMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *PublishJobMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().PublishJob.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *PublishJobMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *PublishJobMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *PublishJobMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetAssetID sets the "asset_id" field.
+func (m *PublishJobMutation) SetAssetID(u uuid.UUID) {
+	m.asset_id = &u
+}
+
+// AssetID returns the value of the "asset_id" field in the mutation.
+func (m *PublishJobMutation) AssetID() (r uuid.UUID, exists bool) {
+	v := m.asset_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAssetID returns the old "asset_id" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldAssetID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAssetID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAssetID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAssetID: %w", err)
+	}
+	return oldValue.AssetID, nil
+}
+
+// ResetAssetID resets all changes to the "asset_id" field.
+func (m *PublishJobMutation) ResetAssetID() {
+	m.asset_id = nil
+}
+
+// SetConnectedAccountID sets the "connected_account_id" field.
+func (m *PublishJobMutation) SetConnectedAccountID(u uuid.UUID) {
+	m.connected_account_id = &u
+}
+
+// ConnectedAccountID returns the value of the "connected_account_id" field in the mutation.
+func (m *PublishJobMutation) ConnectedAccountID() (r uuid.UUID, exists bool) {
+	v := m.connected_account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConnectedAccountID returns the old "connected_account_id" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldConnectedAccountID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConnectedAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConnectedAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConnectedAccountID: %w", err)
+	}
+	return oldValue.ConnectedAccountID, nil
+}
+
+// ResetConnectedAccountID resets all changes to the "connected_account_id" field.
+func (m *PublishJobMutation) ResetConnectedAccountID() {
+	m.connected_account_id = nil
+}
+
+// SetPlatform sets the "platform" field.
+func (m *PublishJobMutation) SetPlatform(s string) {
+	m.platform = &s
+}
+
+// Platform returns the value of the "platform" field in the mutation.
+func (m *PublishJobMutation) Platform() (r string, exists bool) {
+	v := m.platform
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlatform returns the old "platform" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldPlatform(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlatform is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlatform requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlatform: %w", err)
+	}
+	return oldValue.Platform, nil
+}
+
+// ResetPlatform resets all changes to the "platform" field.
+func (m *PublishJobMutation) ResetPlatform() {
+	m.platform = nil
+}
+
+// SetKind sets the "kind" field.
+func (m *PublishJobMutation) SetKind(s string) {
+	m.kind = &s
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *PublishJobMutation) Kind() (r string, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldKind(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *PublishJobMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetCaption sets the "caption" field.
+func (m *PublishJobMutation) SetCaption(s string) {
+	m.caption = &s
+}
+
+// Caption returns the value of the "caption" field in the mutation.
+func (m *PublishJobMutation) Caption() (r string, exists bool) {
+	v := m.caption
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCaption returns the old "caption" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldCaption(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCaption is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCaption requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCaption: %w", err)
+	}
+	return oldValue.Caption, nil
+}
+
+// ClearCaption clears the value of the "caption" field.
+func (m *PublishJobMutation) ClearCaption() {
+	m.caption = nil
+	m.clearedFields[publishjob.FieldCaption] = struct{}{}
+}
+
+// CaptionCleared returns if the "caption" field was cleared in this mutation.
+func (m *PublishJobMutation) CaptionCleared() bool {
+	_, ok := m.clearedFields[publishjob.FieldCaption]
+	return ok
+}
+
+// ResetCaption resets all changes to the "caption" field.
+func (m *PublishJobMutation) ResetCaption() {
+	m.caption = nil
+	delete(m.clearedFields, publishjob.FieldCaption)
+}
+
+// SetScheduledAt sets the "scheduled_at" field.
+func (m *PublishJobMutation) SetScheduledAt(t time.Time) {
+	m.scheduled_at = &t
+}
+
+// ScheduledAt returns the value of the "scheduled_at" field in the mutation.
+func (m *PublishJobMutation) ScheduledAt() (r time.Time, exists bool) {
+	v := m.scheduled_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScheduledAt returns the old "scheduled_at" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldScheduledAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScheduledAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScheduledAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScheduledAt: %w", err)
+	}
+	return oldValue.ScheduledAt, nil
+}
+
+// ResetScheduledAt resets all changes to the "scheduled_at" field.
+func (m *PublishJobMutation) ResetScheduledAt() {
+	m.scheduled_at = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *PublishJobMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *PublishJobMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *PublishJobMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetDedupeKey sets the "dedupe_key" field.
+func (m *PublishJobMutation) SetDedupeKey(s string) {
+	m.dedupe_key = &s
+}
+
+// DedupeKey returns the value of the "dedupe_key" field in the mutation.
+func (m *PublishJobMutation) DedupeKey() (r string, exists bool) {
+	v := m.dedupe_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDedupeKey returns the old "dedupe_key" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldDedupeKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDedupeKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDedupeKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDedupeKey: %w", err)
+	}
+	return oldValue.DedupeKey, nil
+}
+
+// ResetDedupeKey resets all changes to the "dedupe_key" field.
+func (m *PublishJobMutation) ResetDedupeKey() {
+	m.dedupe_key = nil
+}
+
+// SetExternalID sets the "external_id" field.
+func (m *PublishJobMutation) SetExternalID(s string) {
+	m.external_id = &s
+}
+
+// ExternalID returns the value of the "external_id" field in the mutation.
+func (m *PublishJobMutation) ExternalID() (r string, exists bool) {
+	v := m.external_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExternalID returns the old "external_id" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldExternalID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExternalID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExternalID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExternalID: %w", err)
+	}
+	return oldValue.ExternalID, nil
+}
+
+// ClearExternalID clears the value of the "external_id" field.
+func (m *PublishJobMutation) ClearExternalID() {
+	m.external_id = nil
+	m.clearedFields[publishjob.FieldExternalID] = struct{}{}
+}
+
+// ExternalIDCleared returns if the "external_id" field was cleared in this mutation.
+func (m *PublishJobMutation) ExternalIDCleared() bool {
+	_, ok := m.clearedFields[publishjob.FieldExternalID]
+	return ok
+}
+
+// ResetExternalID resets all changes to the "external_id" field.
+func (m *PublishJobMutation) ResetExternalID() {
+	m.external_id = nil
+	delete(m.clearedFields, publishjob.FieldExternalID)
+}
+
+// SetPermalink sets the "permalink" field.
+func (m *PublishJobMutation) SetPermalink(s string) {
+	m.permalink = &s
+}
+
+// Permalink returns the value of the "permalink" field in the mutation.
+func (m *PublishJobMutation) Permalink() (r string, exists bool) {
+	v := m.permalink
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPermalink returns the old "permalink" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldPermalink(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPermalink is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPermalink requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPermalink: %w", err)
+	}
+	return oldValue.Permalink, nil
+}
+
+// ClearPermalink clears the value of the "permalink" field.
+func (m *PublishJobMutation) ClearPermalink() {
+	m.permalink = nil
+	m.clearedFields[publishjob.FieldPermalink] = struct{}{}
+}
+
+// PermalinkCleared returns if the "permalink" field was cleared in this mutation.
+func (m *PublishJobMutation) PermalinkCleared() bool {
+	_, ok := m.clearedFields[publishjob.FieldPermalink]
+	return ok
+}
+
+// ResetPermalink resets all changes to the "permalink" field.
+func (m *PublishJobMutation) ResetPermalink() {
+	m.permalink = nil
+	delete(m.clearedFields, publishjob.FieldPermalink)
+}
+
+// SetError sets the "error" field.
+func (m *PublishJobMutation) SetError(s string) {
+	m.error = &s
+}
+
+// Error returns the value of the "error" field in the mutation.
+func (m *PublishJobMutation) Error() (r string, exists bool) {
+	v := m.error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldError returns the old "error" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldError(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldError: %w", err)
+	}
+	return oldValue.Error, nil
+}
+
+// ClearError clears the value of the "error" field.
+func (m *PublishJobMutation) ClearError() {
+	m.error = nil
+	m.clearedFields[publishjob.FieldError] = struct{}{}
+}
+
+// ErrorCleared returns if the "error" field was cleared in this mutation.
+func (m *PublishJobMutation) ErrorCleared() bool {
+	_, ok := m.clearedFields[publishjob.FieldError]
+	return ok
+}
+
+// ResetError resets all changes to the "error" field.
+func (m *PublishJobMutation) ResetError() {
+	m.error = nil
+	delete(m.clearedFields, publishjob.FieldError)
+}
+
+// SetAttempts sets the "attempts" field.
+func (m *PublishJobMutation) SetAttempts(i int) {
+	m.attempts = &i
+	m.addattempts = nil
+}
+
+// Attempts returns the value of the "attempts" field in the mutation.
+func (m *PublishJobMutation) Attempts() (r int, exists bool) {
+	v := m.attempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAttempts returns the old "attempts" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldAttempts(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAttempts is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAttempts requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAttempts: %w", err)
+	}
+	return oldValue.Attempts, nil
+}
+
+// AddAttempts adds i to the "attempts" field.
+func (m *PublishJobMutation) AddAttempts(i int) {
+	if m.addattempts != nil {
+		*m.addattempts += i
+	} else {
+		m.addattempts = &i
+	}
+}
+
+// AddedAttempts returns the value that was added to the "attempts" field in this mutation.
+func (m *PublishJobMutation) AddedAttempts() (r int, exists bool) {
+	v := m.addattempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAttempts resets all changes to the "attempts" field.
+func (m *PublishJobMutation) ResetAttempts() {
+	m.attempts = nil
+	m.addattempts = nil
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (m *PublishJobMutation) SetCreatedBy(u uuid.UUID) {
+	m.created_by = &u
+}
+
+// CreatedBy returns the value of the "created_by" field in the mutation.
+func (m *PublishJobMutation) CreatedBy() (r uuid.UUID, exists bool) {
+	v := m.created_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedBy returns the old "created_by" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldCreatedBy(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedBy: %w", err)
+	}
+	return oldValue.CreatedBy, nil
+}
+
+// ClearCreatedBy clears the value of the "created_by" field.
+func (m *PublishJobMutation) ClearCreatedBy() {
+	m.created_by = nil
+	m.clearedFields[publishjob.FieldCreatedBy] = struct{}{}
+}
+
+// CreatedByCleared returns if the "created_by" field was cleared in this mutation.
+func (m *PublishJobMutation) CreatedByCleared() bool {
+	_, ok := m.clearedFields[publishjob.FieldCreatedBy]
+	return ok
+}
+
+// ResetCreatedBy resets all changes to the "created_by" field.
+func (m *PublishJobMutation) ResetCreatedBy() {
+	m.created_by = nil
+	delete(m.clearedFields, publishjob.FieldCreatedBy)
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *PublishJobMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *PublishJobMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (m *PublishJobMutation) ClearMetadata() {
+	m.metadata = nil
+	m.clearedFields[publishjob.FieldMetadata] = struct{}{}
+}
+
+// MetadataCleared returns if the "metadata" field was cleared in this mutation.
+func (m *PublishJobMutation) MetadataCleared() bool {
+	_, ok := m.clearedFields[publishjob.FieldMetadata]
+	return ok
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *PublishJobMutation) ResetMetadata() {
+	m.metadata = nil
+	delete(m.clearedFields, publishjob.FieldMetadata)
+}
+
+// SetPublishedAt sets the "published_at" field.
+func (m *PublishJobMutation) SetPublishedAt(t time.Time) {
+	m.published_at = &t
+}
+
+// PublishedAt returns the value of the "published_at" field in the mutation.
+func (m *PublishJobMutation) PublishedAt() (r time.Time, exists bool) {
+	v := m.published_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublishedAt returns the old "published_at" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldPublishedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublishedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublishedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublishedAt: %w", err)
+	}
+	return oldValue.PublishedAt, nil
+}
+
+// ClearPublishedAt clears the value of the "published_at" field.
+func (m *PublishJobMutation) ClearPublishedAt() {
+	m.published_at = nil
+	m.clearedFields[publishjob.FieldPublishedAt] = struct{}{}
+}
+
+// PublishedAtCleared returns if the "published_at" field was cleared in this mutation.
+func (m *PublishJobMutation) PublishedAtCleared() bool {
+	_, ok := m.clearedFields[publishjob.FieldPublishedAt]
+	return ok
+}
+
+// ResetPublishedAt resets all changes to the "published_at" field.
+func (m *PublishJobMutation) ResetPublishedAt() {
+	m.published_at = nil
+	delete(m.clearedFields, publishjob.FieldPublishedAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *PublishJobMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *PublishJobMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *PublishJobMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *PublishJobMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *PublishJobMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the PublishJob entity.
+// If the PublishJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PublishJobMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *PublishJobMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the PublishJobMutation builder.
+func (m *PublishJobMutation) Where(ps ...predicate.PublishJob) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the PublishJobMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *PublishJobMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.PublishJob, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *PublishJobMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *PublishJobMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (PublishJob).
+func (m *PublishJobMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *PublishJobMutation) Fields() []string {
+	fields := make([]string, 0, 18)
+	if m.tenant_id != nil {
+		fields = append(fields, publishjob.FieldTenantID)
+	}
+	if m.asset_id != nil {
+		fields = append(fields, publishjob.FieldAssetID)
+	}
+	if m.connected_account_id != nil {
+		fields = append(fields, publishjob.FieldConnectedAccountID)
+	}
+	if m.platform != nil {
+		fields = append(fields, publishjob.FieldPlatform)
+	}
+	if m.kind != nil {
+		fields = append(fields, publishjob.FieldKind)
+	}
+	if m.caption != nil {
+		fields = append(fields, publishjob.FieldCaption)
+	}
+	if m.scheduled_at != nil {
+		fields = append(fields, publishjob.FieldScheduledAt)
+	}
+	if m.status != nil {
+		fields = append(fields, publishjob.FieldStatus)
+	}
+	if m.dedupe_key != nil {
+		fields = append(fields, publishjob.FieldDedupeKey)
+	}
+	if m.external_id != nil {
+		fields = append(fields, publishjob.FieldExternalID)
+	}
+	if m.permalink != nil {
+		fields = append(fields, publishjob.FieldPermalink)
+	}
+	if m.error != nil {
+		fields = append(fields, publishjob.FieldError)
+	}
+	if m.attempts != nil {
+		fields = append(fields, publishjob.FieldAttempts)
+	}
+	if m.created_by != nil {
+		fields = append(fields, publishjob.FieldCreatedBy)
+	}
+	if m.metadata != nil {
+		fields = append(fields, publishjob.FieldMetadata)
+	}
+	if m.published_at != nil {
+		fields = append(fields, publishjob.FieldPublishedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, publishjob.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, publishjob.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *PublishJobMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case publishjob.FieldTenantID:
+		return m.TenantID()
+	case publishjob.FieldAssetID:
+		return m.AssetID()
+	case publishjob.FieldConnectedAccountID:
+		return m.ConnectedAccountID()
+	case publishjob.FieldPlatform:
+		return m.Platform()
+	case publishjob.FieldKind:
+		return m.Kind()
+	case publishjob.FieldCaption:
+		return m.Caption()
+	case publishjob.FieldScheduledAt:
+		return m.ScheduledAt()
+	case publishjob.FieldStatus:
+		return m.Status()
+	case publishjob.FieldDedupeKey:
+		return m.DedupeKey()
+	case publishjob.FieldExternalID:
+		return m.ExternalID()
+	case publishjob.FieldPermalink:
+		return m.Permalink()
+	case publishjob.FieldError:
+		return m.Error()
+	case publishjob.FieldAttempts:
+		return m.Attempts()
+	case publishjob.FieldCreatedBy:
+		return m.CreatedBy()
+	case publishjob.FieldMetadata:
+		return m.Metadata()
+	case publishjob.FieldPublishedAt:
+		return m.PublishedAt()
+	case publishjob.FieldCreatedAt:
+		return m.CreatedAt()
+	case publishjob.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *PublishJobMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case publishjob.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case publishjob.FieldAssetID:
+		return m.OldAssetID(ctx)
+	case publishjob.FieldConnectedAccountID:
+		return m.OldConnectedAccountID(ctx)
+	case publishjob.FieldPlatform:
+		return m.OldPlatform(ctx)
+	case publishjob.FieldKind:
+		return m.OldKind(ctx)
+	case publishjob.FieldCaption:
+		return m.OldCaption(ctx)
+	case publishjob.FieldScheduledAt:
+		return m.OldScheduledAt(ctx)
+	case publishjob.FieldStatus:
+		return m.OldStatus(ctx)
+	case publishjob.FieldDedupeKey:
+		return m.OldDedupeKey(ctx)
+	case publishjob.FieldExternalID:
+		return m.OldExternalID(ctx)
+	case publishjob.FieldPermalink:
+		return m.OldPermalink(ctx)
+	case publishjob.FieldError:
+		return m.OldError(ctx)
+	case publishjob.FieldAttempts:
+		return m.OldAttempts(ctx)
+	case publishjob.FieldCreatedBy:
+		return m.OldCreatedBy(ctx)
+	case publishjob.FieldMetadata:
+		return m.OldMetadata(ctx)
+	case publishjob.FieldPublishedAt:
+		return m.OldPublishedAt(ctx)
+	case publishjob.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case publishjob.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown PublishJob field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PublishJobMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case publishjob.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case publishjob.FieldAssetID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAssetID(v)
+		return nil
+	case publishjob.FieldConnectedAccountID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConnectedAccountID(v)
+		return nil
+	case publishjob.FieldPlatform:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlatform(v)
+		return nil
+	case publishjob.FieldKind:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case publishjob.FieldCaption:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCaption(v)
+		return nil
+	case publishjob.FieldScheduledAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScheduledAt(v)
+		return nil
+	case publishjob.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case publishjob.FieldDedupeKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDedupeKey(v)
+		return nil
+	case publishjob.FieldExternalID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExternalID(v)
+		return nil
+	case publishjob.FieldPermalink:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPermalink(v)
+		return nil
+	case publishjob.FieldError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetError(v)
+		return nil
+	case publishjob.FieldAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAttempts(v)
+		return nil
+	case publishjob.FieldCreatedBy:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedBy(v)
+		return nil
+	case publishjob.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	case publishjob.FieldPublishedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublishedAt(v)
+		return nil
+	case publishjob.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case publishjob.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown PublishJob field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *PublishJobMutation) AddedFields() []string {
+	var fields []string
+	if m.addattempts != nil {
+		fields = append(fields, publishjob.FieldAttempts)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *PublishJobMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case publishjob.FieldAttempts:
+		return m.AddedAttempts()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PublishJobMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case publishjob.FieldAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAttempts(v)
+		return nil
+	}
+	return fmt.Errorf("unknown PublishJob numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *PublishJobMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(publishjob.FieldCaption) {
+		fields = append(fields, publishjob.FieldCaption)
+	}
+	if m.FieldCleared(publishjob.FieldExternalID) {
+		fields = append(fields, publishjob.FieldExternalID)
+	}
+	if m.FieldCleared(publishjob.FieldPermalink) {
+		fields = append(fields, publishjob.FieldPermalink)
+	}
+	if m.FieldCleared(publishjob.FieldError) {
+		fields = append(fields, publishjob.FieldError)
+	}
+	if m.FieldCleared(publishjob.FieldCreatedBy) {
+		fields = append(fields, publishjob.FieldCreatedBy)
+	}
+	if m.FieldCleared(publishjob.FieldMetadata) {
+		fields = append(fields, publishjob.FieldMetadata)
+	}
+	if m.FieldCleared(publishjob.FieldPublishedAt) {
+		fields = append(fields, publishjob.FieldPublishedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *PublishJobMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *PublishJobMutation) ClearField(name string) error {
+	switch name {
+	case publishjob.FieldCaption:
+		m.ClearCaption()
+		return nil
+	case publishjob.FieldExternalID:
+		m.ClearExternalID()
+		return nil
+	case publishjob.FieldPermalink:
+		m.ClearPermalink()
+		return nil
+	case publishjob.FieldError:
+		m.ClearError()
+		return nil
+	case publishjob.FieldCreatedBy:
+		m.ClearCreatedBy()
+		return nil
+	case publishjob.FieldMetadata:
+		m.ClearMetadata()
+		return nil
+	case publishjob.FieldPublishedAt:
+		m.ClearPublishedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown PublishJob nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *PublishJobMutation) ResetField(name string) error {
+	switch name {
+	case publishjob.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case publishjob.FieldAssetID:
+		m.ResetAssetID()
+		return nil
+	case publishjob.FieldConnectedAccountID:
+		m.ResetConnectedAccountID()
+		return nil
+	case publishjob.FieldPlatform:
+		m.ResetPlatform()
+		return nil
+	case publishjob.FieldKind:
+		m.ResetKind()
+		return nil
+	case publishjob.FieldCaption:
+		m.ResetCaption()
+		return nil
+	case publishjob.FieldScheduledAt:
+		m.ResetScheduledAt()
+		return nil
+	case publishjob.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case publishjob.FieldDedupeKey:
+		m.ResetDedupeKey()
+		return nil
+	case publishjob.FieldExternalID:
+		m.ResetExternalID()
+		return nil
+	case publishjob.FieldPermalink:
+		m.ResetPermalink()
+		return nil
+	case publishjob.FieldError:
+		m.ResetError()
+		return nil
+	case publishjob.FieldAttempts:
+		m.ResetAttempts()
+		return nil
+	case publishjob.FieldCreatedBy:
+		m.ResetCreatedBy()
+		return nil
+	case publishjob.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	case publishjob.FieldPublishedAt:
+		m.ResetPublishedAt()
+		return nil
+	case publishjob.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case publishjob.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown PublishJob field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *PublishJobMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *PublishJobMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *PublishJobMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *PublishJobMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *PublishJobMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *PublishJobMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *PublishJobMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown PublishJob unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *PublishJobMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown PublishJob edge %s", name)
 }
 
 // RolePermissionMutation represents an operation that mutates the RolePermission nodes in the graph.

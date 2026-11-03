@@ -35,6 +35,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/Bengo-Hub/httpware/objectstore"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
+	"github.com/bengobox/marketflow-api/internal/modules/publishing"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/notifications"
@@ -176,6 +177,13 @@ func main() {
 		agentSvc = custom_agents.NewService(entClient, logger, custom_agents.WithNATS(nc))
 		reg.Add(worker.NewAgentEventTriggers(agentSvc, logger)...)
 	}
+	// The nurture scheduler is built before the consumers start, so the lead.created handler can
+	// kick it: an instant follow-up step (delay 0) then goes out within seconds, not a tick later.
+	var sched *worker.Scheduler
+	if entClient != nil {
+		sched = worker.NewScheduler(entClient, nc, cfg.Scheduler, logger)
+		reg.SetNurtureKick(sched.Kick)
+	}
 	if err := reg.RegisterAll(ctx, js); err != nil {
 		log.Fatalf("register consumers: %v", err)
 	}
@@ -183,7 +191,6 @@ func main() {
 
 	// ── Scheduler ─────────────────────────────────────────────────────────
 	if entClient != nil {
-		sched := worker.NewScheduler(entClient, nc, cfg.Scheduler, logger)
 		go sched.Run(ctx)
 		reeng := worker.NewReEngagement(entClient,
 			time.Duration(cfg.Scheduler.ReengagementIntervalHours)*time.Hour,
@@ -253,6 +260,19 @@ func main() {
 			logger.Warn("object storage unavailable; creative draft purge off", zap.Error(err))
 		}
 		go creative.NewPurger(entClient, mediaStore, logger).Run(ctx)
+
+		// Organic publishing (Sprint 16): posts approved videos to connected accounts. Each
+		// platform stays off until its ProviderSetting publishing/<platform>_enabled switch is
+		// set, after its app review passes.
+		pubStore := &publishing.EntStore{DB: entClient, Keys: keys}
+		pubRunner := publishing.NewRunner(pubStore, pubStore, pubStore,
+			publishing.NewFacebookReels(meta.GraphURL),
+			publishing.NewInstagramReels(meta.GraphURL),
+			publishing.NewYouTubeShorts("https://www.googleapis.com/upload/youtube/v3", "https://www.googleapis.com/youtube/v3",
+				os.Getenv("MF_PUBLISHING_YOUTUBE_PRIVACY")),
+			publishing.NewTikTokDirect("https://open.tiktokapis.com", os.Getenv("MF_PUBLISHING_TIKTOK_PRIVACY"),
+				os.Getenv("MF_PUBLISHING_TIKTOK_PULL") == "true"))
+		go publishing.NewWorker(pubStore, pubRunner, logger).Run(ctx)
 	}
 
 	// ── Health endpoint ───────────────────────────────────────────────────
