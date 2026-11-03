@@ -12,7 +12,7 @@ require (
 	github.com/Bengo-Hub/httpware v0.18.0
 	github.com/Bengo-Hub/pagination v0.3.0
 	github.com/Bengo-Hub/shared-auth-client v0.5.0
-	github.com/Bengo-Hub/shared-events v0.7.1
+	github.com/Bengo-Hub/shared-events v0.10.1
 	github.com/Bengo-Hub/shared-ratelimit v0.2.1
 	github.com/Bengo-Hub/shared-service-client v0.4.0
 	github.com/caarlos0/env/v11 v11.3.1

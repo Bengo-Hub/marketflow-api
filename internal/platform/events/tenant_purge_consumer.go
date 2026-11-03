@@ -31,7 +31,7 @@ const tenantPurgeQueue = "marketflow-tenant-purge"
 //   - the publisher (subscriptions-api) only emits after a platform owner confirms
 //     a dormancy purge on an already-suspended tenant, and
 //   - this consumer additionally requires payload.confirmed == true AND
-//     payload.reason == "dormancy" before deleting anything.
+//     payload.reason is a known purge reason (dormancy, registration_rejected, tenant_deleted; shared-events IsTenantPurgeReason) before deleting anything.
 //
 // Deletes run in a single transaction, child-before-parent (FKs are ON DELETE
 // NO ACTION), are strictly scoped by tenant_id, and are idempotent (a re-delivered
@@ -107,7 +107,7 @@ func (c *TenantPurgeConsumer) handle(msg *nats.Msg) {
 	}
 
 	// SAFETY GUARD 2: only act on a platform-owner-confirmed dormancy purge.
-	if !env.Payload.Confirmed || env.Payload.Reason != "dormancy" {
+	if !env.Payload.Confirmed || !eventslib.IsTenantPurgeReason(env.Payload.Reason) {
 		c.logger.Warn("tenant.purge: not a confirmed dormancy purge — skipping (no data deleted)",
 			zap.String("tenant_id", tenantID.String()),
 			zap.Bool("confirmed", env.Payload.Confirmed),
