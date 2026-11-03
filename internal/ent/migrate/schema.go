@@ -72,6 +72,7 @@ var (
 		{Name: "external_ref", Type: field.TypeString, Nullable: true},
 		{Name: "performed_at", Type: field.TypeTime},
 		{Name: "is_read", Type: field.TypeBool, Default: false},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "tenant_id", Type: field.TypeUUID},
 	}
@@ -83,7 +84,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "activities_tenants_activities",
-				Columns:    []*schema.Column{ActivitiesColumns[15]},
+				Columns:    []*schema.Column{ActivitiesColumns[16]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -92,22 +93,22 @@ var (
 			{
 				Name:    "activity_tenant_id_entity_type_entity_id",
 				Unique:  false,
-				Columns: []*schema.Column{ActivitiesColumns[15], ActivitiesColumns[1], ActivitiesColumns[2]},
+				Columns: []*schema.Column{ActivitiesColumns[16], ActivitiesColumns[1], ActivitiesColumns[2]},
 			},
 			{
 				Name:    "activity_tenant_id_entity_type_entity_id_performed_at",
 				Unique:  false,
-				Columns: []*schema.Column{ActivitiesColumns[15], ActivitiesColumns[1], ActivitiesColumns[2], ActivitiesColumns[12]},
+				Columns: []*schema.Column{ActivitiesColumns[16], ActivitiesColumns[1], ActivitiesColumns[2], ActivitiesColumns[12]},
 			},
 			{
 				Name:    "activity_tenant_id_activity_type",
 				Unique:  false,
-				Columns: []*schema.Column{ActivitiesColumns[15], ActivitiesColumns[3]},
+				Columns: []*schema.Column{ActivitiesColumns[16], ActivitiesColumns[3]},
 			},
 			{
 				Name:    "activity_tenant_id_performed_at",
 				Unique:  false,
-				Columns: []*schema.Column{ActivitiesColumns[15], ActivitiesColumns[12]},
+				Columns: []*schema.Column{ActivitiesColumns[16], ActivitiesColumns[12]},
 			},
 			{
 				Name:    "activity_external_ref",
@@ -118,6 +119,19 @@ var (
 				Name:    "activity_performed_at",
 				Unique:  false,
 				Columns: []*schema.Column{ActivitiesColumns[12]},
+			},
+			{
+				Name:    "activity_tenant_id_activity_type_performed_at",
+				Unique:  false,
+				Columns: []*schema.Column{ActivitiesColumns[16], ActivitiesColumns[3], ActivitiesColumns[12]},
+			},
+			{
+				Name:    "activities_inbox_pending",
+				Unique:  false,
+				Columns: []*schema.Column{ActivitiesColumns[12]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "activity_type IN ('comment', 'dm') AND metadata->>'intent_status' = 'pending'",
+				},
 			},
 		},
 	}
@@ -582,6 +596,14 @@ var (
 				Name:    "contact_account_id",
 				Unique:  false,
 				Columns: []*schema.Column{ContactsColumns[22]},
+			},
+			{
+				Name:    "contact_metadata",
+				Unique:  false,
+				Columns: []*schema.Column{ContactsColumns[19]},
+				Annotation: &entsql.IndexAnnotation{
+					Type: "GIN",
+				},
 			},
 			{
 				Name:    "contact_tenant_id_email_normalized",

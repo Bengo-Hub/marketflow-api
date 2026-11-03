@@ -18,6 +18,8 @@ type Worker struct {
 	Every    time.Duration
 	Batch    int
 	Parallel int
+	// OnFailed tells the owner when a job fails for good; nil skips it.
+	OnFailed func(ctx context.Context, j *Job)
 	kick     chan struct{}
 }
 
@@ -63,6 +65,9 @@ func (w *Worker) tick(ctx context.Context) {
 			defer func() { <-sem; wg.Done() }()
 			if err := w.Runner.Step(ctx, j); err != nil && !errors.Is(err, ErrCancelled) {
 				w.Logger.Error("publish step", zap.String("job", j.ID), zap.String("platform", j.Platform), zap.Error(err))
+			}
+			if j.Status == StatusFailed && w.OnFailed != nil {
+				w.OnFailed(ctx, j)
 			}
 			if j.Status == StatusPublished || j.Status == StatusFailed {
 				w.Logger.Info("publish job done", zap.String("job", j.ID), zap.String("platform", j.Platform),

@@ -176,6 +176,12 @@ func main() {
 	if entClient != nil {
 		agentSvc = custom_agents.NewService(entClient, logger, custom_agents.WithNATS(nc))
 		reg.Add(worker.NewAgentEventTriggers(agentSvc, logger)...)
+		// WhatsApp assistant on the platform number (Sprint 17): verified MarketFlow users only,
+		// and only messages marketflow-ai's gate confirms are marketing requests.
+		reg.Add(worker.NewWhatsAppAssistantHandler(entClient, rdb,
+			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
+			cfg.AuthServiceURL, cfg.CrossServiceKey,
+			cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, cfg.API.PortalURL, cfg.PlatformTenant, logger))
 	}
 	// The nurture scheduler is built before the consumers start, so the lead.created handler can
 	// kick it: an instant follow-up step (delay 0) then goes out within seconds, not a tick later.
@@ -272,7 +278,9 @@ func main() {
 				os.Getenv("MF_PUBLISHING_YOUTUBE_PRIVACY")),
 			publishing.NewTikTokDirect("https://open.tiktokapis.com", os.Getenv("MF_PUBLISHING_TIKTOK_PRIVACY"),
 				os.Getenv("MF_PUBLISHING_TIKTOK_PULL") == "true"))
-		go publishing.NewWorker(pubStore, pubRunner, logger).Run(ctx)
+		pubWorker := publishing.NewWorker(pubStore, pubRunner, logger)
+		pubWorker.OnFailed = worker.NewPublishFailureNotice(entClient, tokenNotif, cfg.API.PortalURL, logger).Notify
+		go pubWorker.Run(ctx)
 	}
 
 	// ── Health endpoint ───────────────────────────────────────────────────

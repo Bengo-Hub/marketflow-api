@@ -111,6 +111,9 @@ func countPrefixed(s string, mark byte) int {
 	return n
 }
 
+// Title is the platform's display name (Facebook, Instagram, YouTube, TikTok).
+func Title(platform string) string { return title(platform) }
+
 func title(platform string) string {
 	switch platform {
 	case YouTube:

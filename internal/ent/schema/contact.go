@@ -142,6 +142,9 @@ func (Contact) Indexes() []ent.Index {
 		index.Fields("tenant_id", "lifecycle_stage"),
 		index.Fields("tenant_id", "owner_user_id"),
 		index.Fields("account_id"),
+		// The social inbox finds a commenter by platform id: metadata @> {"social_ids": ["fb:<id>"]}.
+		index.Fields("metadata").
+			Annotations(entsql.IndexType("GIN")),
 		// Service.Create's dedup was historically a check-then-act (Query then Create, no DB
 		// constraint) — two concurrent upserts for the same phone/email (a POS double-submit, an
 		// S2S retry, a loyalty registration racing a checkout) could both pass the read and both

@@ -282,6 +282,18 @@ func (_u *ActivityUpdate) SetNillableIsRead(v *bool) *ActivityUpdate {
 	return _u
 }
 
+// SetMetadata sets the "metadata" field.
+func (_u *ActivityUpdate) SetMetadata(v map[string]interface{}) *ActivityUpdate {
+	_u.mutation.SetMetadata(v)
+	return _u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (_u *ActivityUpdate) ClearMetadata() *ActivityUpdate {
+	_u.mutation.ClearMetadata()
+	return _u
+}
+
 // SetTenant sets the "tenant" edge to the Tenant entity.
 func (_u *ActivityUpdate) SetTenant(v *Tenant) *ActivityUpdate {
 	return _u.SetTenantID(v.ID)
@@ -416,6 +428,12 @@ func (_u *ActivityUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.IsRead(); ok {
 		_spec.SetField(activity.FieldIsRead, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Metadata(); ok {
+		_spec.SetField(activity.FieldMetadata, field.TypeJSON, value)
+	}
+	if _u.mutation.MetadataCleared() {
+		_spec.ClearField(activity.FieldMetadata, field.TypeJSON)
 	}
 	if _u.mutation.TenantCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -719,6 +737,18 @@ func (_u *ActivityUpdateOne) SetNillableIsRead(v *bool) *ActivityUpdateOne {
 	return _u
 }
 
+// SetMetadata sets the "metadata" field.
+func (_u *ActivityUpdateOne) SetMetadata(v map[string]interface{}) *ActivityUpdateOne {
+	_u.mutation.SetMetadata(v)
+	return _u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (_u *ActivityUpdateOne) ClearMetadata() *ActivityUpdateOne {
+	_u.mutation.ClearMetadata()
+	return _u
+}
+
 // SetTenant sets the "tenant" edge to the Tenant entity.
 func (_u *ActivityUpdateOne) SetTenant(v *Tenant) *ActivityUpdateOne {
 	return _u.SetTenantID(v.ID)
@@ -883,6 +913,12 @@ func (_u *ActivityUpdateOne) sqlSave(ctx context.Context) (_node *Activity, err 
 	}
 	if value, ok := _u.mutation.IsRead(); ok {
 		_spec.SetField(activity.FieldIsRead, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Metadata(); ok {
+		_spec.SetField(activity.FieldMetadata, field.TypeJSON, value)
+	}
+	if _u.mutation.MetadataCleared() {
+		_spec.ClearField(activity.FieldMetadata, field.TypeJSON)
 	}
 	if _u.mutation.TenantCleared() {
 		edge := &sqlgraph.EdgeSpec{

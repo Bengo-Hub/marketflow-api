@@ -43,6 +43,8 @@ const (
 	FieldPerformedAt = "performed_at"
 	// FieldIsRead holds the string denoting the is_read field in the database.
 	FieldIsRead = "is_read"
+	// FieldMetadata holds the string denoting the metadata field in the database.
+	FieldMetadata = "metadata"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// EdgeTenant holds the string denoting the tenant edge name in mutations.
@@ -75,6 +77,7 @@ var Columns = []string{
 	FieldExternalRef,
 	FieldPerformedAt,
 	FieldIsRead,
+	FieldMetadata,
 	FieldCreatedAt,
 }
 

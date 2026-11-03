@@ -20,6 +20,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/httpapi/handlers"
 	"github.com/bengobox/marketflow-api/internal/integrations/gcal"
+	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	mfmiddleware "github.com/bengobox/marketflow-api/internal/middleware"
 	"github.com/bengobox/marketflow-api/internal/modules/accounts"
 	"github.com/bengobox/marketflow-api/internal/modules/activities"
@@ -348,12 +349,16 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// shared across all tenants; per-tenant link is Tenant.meta_page_id.
 	metaWebhookHandler := webhooks.NewMetaHandler(leadService, webhooks.MetaConfig{
 		DB:          sqlDB,
-		AppSecret:   cfg.Meta.AppSecret,
-		VerifyToken: cfg.Meta.VerifyToken,
+		AppSecret:     cfg.Meta.AppSecret,
+		VerifyToken:   cfg.Meta.VerifyToken,
+		AllowUnsigned: cfg.App.Environment == "development",
+		Secret:        meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret),
+		Inbox:         &webhooks.InboxStore{DB: entClient, Logger: logger.Named("webhooks.inbox")},
 	}, logger)
 	tiktokWebhookHandler := webhooks.NewTikTokHandler(leadService, webhooks.TikTokConfig{
 		DB:           sqlDB,
-		SharedSecret: cfg.TikTok.WebhookSecret,
+		SharedSecret:  cfg.TikTok.WebhookSecret,
+		AllowUnsigned: cfg.App.Environment == "development",
 	}, logger)
 
 	// Testimonial CRUD + public reader for /p/{slug}

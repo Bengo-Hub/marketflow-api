@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
@@ -31,7 +32,7 @@ func (Activity) Fields() []ent.Field {
 			Comment("Polymorphic FK to Lead, Contact, or Deal"),
 
 		field.String("activity_type").
-			Comment("email | call | note | meeting | sms | whatsapp | order | payment | ticket_opened | ticket_resolved | enrichment | appointment | pos_sale | suggestion"),
+			Comment("email | call | note | meeting | sms | whatsapp | order | payment | ticket_opened | ticket_resolved | enrichment | appointment | pos_sale | suggestion | comment | dm"),
 		field.String("direction").
 			Optional().
 			Nillable().
@@ -72,6 +73,9 @@ func (Activity) Fields() []ent.Field {
 		field.Bool("is_read").
 			Default(false).
 			Comment("Marks suggestion activities as dismissed/read"),
+		field.JSON("metadata", map[string]any{}).
+			Optional().
+			Comment("Social inbox (comment, dm): platform, account_id, post_id, parent_id, ad_id, thread_id, sender_id, sender_name, intent, intent_status (pending | tagged | skipped), handled_at, replied_at"),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),
@@ -99,5 +103,11 @@ func (Activity) Indexes() []ent.Index {
 		index.Fields("tenant_id", "performed_at"),
 		index.Fields("external_ref"),
 		index.Fields("performed_at"),
+		// The social inbox lists one tenant's comments and DMs newest first.
+		index.Fields("tenant_id", "activity_type", "performed_at"),
+		// The intent tagger reads only untagged inbox items, oldest first.
+		index.Fields("performed_at").
+			StorageKey("activities_inbox_pending").
+			Annotations(entsql.IndexWhere("activity_type IN ('comment', 'dm') AND metadata->>'intent_status' = 'pending'")),
 	}
 }

@@ -5,8 +5,9 @@ package worker
 
 import (
 	"fmt"
-	"github.com/bengobox/marketflow-api/internal/config"
+	"os"
 
+	"github.com/bengobox/marketflow-api/internal/config"
 	"github.com/caarlos0/env/v11"
 )
 
@@ -23,6 +24,12 @@ type Config struct {
 	// Redis (same REDIS_* env as the API; both run in one container) backs the
 	// once-per-period claims that stop every pod's worker repeating scheduled work.
 	Redis config.RedisConfig `envPrefix:"REDIS_"`
+	// AuthServiceURL is auth-api, for S2S lookups (the WhatsApp assistant's by-phone check).
+	AuthServiceURL string `env:"MF_SECURITY_AUTH_SERVICE_URL" envDefault:"https://sso.codevertexafrica.com"`
+	// CrossServiceKey is the S2S key the API pods use for auth-api and the other services.
+	CrossServiceKey string `env:"MF_CROSS_INTERNAL_SERVICE_KEY"`
+	// PlatformTenant is the platform owner's tenant slug (it sends platform-number replies).
+	PlatformTenant string `env:"MF_SECURITY_PLATFORM_TENANT" envDefault:"codevertex"`
 }
 
 type DatabaseConfig struct {
@@ -77,5 +84,23 @@ func LoadConfig() (*Config, error) {
 	if err := env.Parse(c); err != nil {
 		return nil, fmt.Errorf("parse env: %w", err)
 	}
+	// The worker deployment never set MF_WORKER_INTERNAL_SERVICE_KEY, so every S2S call it made
+	// (ticketing SLA checks, marketflow-ai jobs) went out without a key and got 401. It carries
+	// the same key as MF_CROSS_INTERNAL_SERVICE_KEY and INTERNAL_SERVICE_KEY, so fall back to them.
+	if c.API.InternalServiceKey == "" {
+		c.API.InternalServiceKey = firstSet(c.CrossServiceKey, os.Getenv("INTERNAL_SERVICE_KEY"))
+	}
+	if c.CrossServiceKey == "" {
+		c.CrossServiceKey = c.API.InternalServiceKey
+	}
 	return c, nil
+}
+
+func firstSet(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }

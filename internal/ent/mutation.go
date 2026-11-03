@@ -1504,6 +1504,7 @@ type ActivityMutation struct {
 	external_ref        *string
 	performed_at        *time.Time
 	is_read             *bool
+	metadata            *map[string]interface{}
 	created_at          *time.Time
 	clearedFields       map[string]struct{}
 	tenant              *uuid.UUID
@@ -2246,6 +2247,55 @@ func (m *ActivityMutation) ResetIsRead() {
 	m.is_read = nil
 }
 
+// SetMetadata sets the "metadata" field.
+func (m *ActivityMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *ActivityMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the Activity entity.
+// If the Activity object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ActivityMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (m *ActivityMutation) ClearMetadata() {
+	m.metadata = nil
+	m.clearedFields[activity.FieldMetadata] = struct{}{}
+}
+
+// MetadataCleared returns if the "metadata" field was cleared in this mutation.
+func (m *ActivityMutation) MetadataCleared() bool {
+	_, ok := m.clearedFields[activity.FieldMetadata]
+	return ok
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *ActivityMutation) ResetMetadata() {
+	m.metadata = nil
+	delete(m.clearedFields, activity.FieldMetadata)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *ActivityMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -2343,7 +2393,7 @@ func (m *ActivityMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ActivityMutation) Fields() []string {
-	fields := make([]string, 0, 15)
+	fields := make([]string, 0, 16)
 	if m.tenant != nil {
 		fields = append(fields, activity.FieldTenantID)
 	}
@@ -2386,6 +2436,9 @@ func (m *ActivityMutation) Fields() []string {
 	if m.is_read != nil {
 		fields = append(fields, activity.FieldIsRead)
 	}
+	if m.metadata != nil {
+		fields = append(fields, activity.FieldMetadata)
+	}
 	if m.created_at != nil {
 		fields = append(fields, activity.FieldCreatedAt)
 	}
@@ -2425,6 +2478,8 @@ func (m *ActivityMutation) Field(name string) (ent.Value, bool) {
 		return m.PerformedAt()
 	case activity.FieldIsRead:
 		return m.IsRead()
+	case activity.FieldMetadata:
+		return m.Metadata()
 	case activity.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -2464,6 +2519,8 @@ func (m *ActivityMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldPerformedAt(ctx)
 	case activity.FieldIsRead:
 		return m.OldIsRead(ctx)
+	case activity.FieldMetadata:
+		return m.OldMetadata(ctx)
 	case activity.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -2573,6 +2630,13 @@ func (m *ActivityMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetIsRead(v)
 		return nil
+	case activity.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
 	case activity.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -2649,6 +2713,9 @@ func (m *ActivityMutation) ClearedFields() []string {
 	if m.FieldCleared(activity.FieldExternalRef) {
 		fields = append(fields, activity.FieldExternalRef)
 	}
+	if m.FieldCleared(activity.FieldMetadata) {
+		fields = append(fields, activity.FieldMetadata)
+	}
 	return fields
 }
 
@@ -2686,6 +2753,9 @@ func (m *ActivityMutation) ClearField(name string) error {
 		return nil
 	case activity.FieldExternalRef:
 		m.ClearExternalRef()
+		return nil
+	case activity.FieldMetadata:
+		m.ClearMetadata()
 		return nil
 	}
 	return fmt.Errorf("unknown Activity nullable field %s", name)
@@ -2736,6 +2806,9 @@ func (m *ActivityMutation) ResetField(name string) error {
 		return nil
 	case activity.FieldIsRead:
 		m.ResetIsRead()
+		return nil
+	case activity.FieldMetadata:
+		m.ResetMetadata()
 		return nil
 	case activity.FieldCreatedAt:
 		m.ResetCreatedAt()

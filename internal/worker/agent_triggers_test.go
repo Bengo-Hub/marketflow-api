@@ -161,6 +161,11 @@ func TestScheduleStartsOncePerPeriodAtLocalTime(t *testing.T) {
 	nbo, _ := time.LoadLocation("Africa/Nairobi")
 	wall := time.Now().In(nbo)
 	today := time.Date(wall.Year(), wall.Month(), wall.Day(), 0, 0, 0, 0, nbo)
+	// The agents below are due at 00:01, and "now" must be past that; in the first two minutes
+	// after midnight the real clock is not, so the run would wrongly fail.
+	if wall.Before(today.Add(2 * time.Minute)) {
+		t.Skip("too close to midnight in Nairobi; the 00:01 schedule is not due yet")
+	}
 	daily := seedAgent(t, db, tid, true, custom_agents.TriggerSchedule, map[string]any{"frequency": "daily", "time": "00:01"})
 	weekly := seedAgent(t, db, tid, true, custom_agents.TriggerSchedule,
 		map[string]any{"frequency": "weekly", "time": "00:01", "weekday": float64(today.Weekday())})

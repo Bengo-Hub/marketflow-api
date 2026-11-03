@@ -1,6 +1,7 @@
 package webhooks
 
 import (
+	"crypto/subtle"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -24,13 +25,16 @@ type TikTokHandler struct {
 	leadService  *leads.Service
 	db           *sql.DB
 	sharedSecret string
+	allowOpen    bool
 	logger       *zap.Logger
 }
 
 // TikTokConfig holds configuration for the TikTok webhook handler.
 type TikTokConfig struct {
 	DB           *sql.DB
-	SharedSecret string // optional shared secret for verification
+	SharedSecret string // shared secret the TikTok webhook URL carries (?secret=)
+	// AllowUnsigned accepts events when SharedSecret is empty; set only in development.
+	AllowUnsigned bool
 }
 
 // NewTikTokHandler creates a new TikTok webhook handler.
@@ -39,6 +43,7 @@ func NewTikTokHandler(leadService *leads.Service, cfg TikTokConfig, logger *zap.
 		leadService:  leadService,
 		db:           cfg.DB,
 		sharedSecret: cfg.SharedSecret,
+		allowOpen:    cfg.AllowUnsigned,
 		logger:       logger.Named("webhooks.tiktok"),
 	}
 }
@@ -72,14 +77,18 @@ type tiktokLeadWebhook struct {
 // @Failure 401 {object} httpapi.ErrorResponse
 // @Router /webhooks/tiktok/leads [post]
 func (h *TikTokHandler) HandleLeads(w http.ResponseWriter, r *http.Request) {
-	// Optional shared secret verification via query param.
-	if h.sharedSecret != "" {
-		secret := r.URL.Query().Get("secret")
-		if secret != h.sharedSecret {
-			h.logger.Warn("tiktok webhook secret mismatch")
-			httpapi.JSON(w, http.StatusUnauthorized, map[string]any{"error": "invalid secret"})
+	// Shared secret in the query. With none configured the endpoint is closed (fail closed),
+	// except in local development: an open endpoint lets anyone create leads.
+	if h.sharedSecret == "" {
+		if !h.allowOpen {
+			h.logger.Error("tiktok webhook refused: no shared secret is configured")
+			httpapi.JSON(w, http.StatusUnauthorized, map[string]any{"error": "webhook not configured"})
 			return
 		}
+	} else if subtle.ConstantTimeCompare([]byte(r.URL.Query().Get("secret")), []byte(h.sharedSecret)) != 1 {
+		h.logger.Warn("tiktok webhook secret mismatch")
+		httpapi.JSON(w, http.StatusUnauthorized, map[string]any{"error": "invalid secret"})
+		return
 	}
 
 	body, err := io.ReadAll(r.Body)

@@ -158,6 +158,8 @@ func (r *Registry) streamFor(subject string) string {
 		return "pos"
 	case strings.HasPrefix(subject, "treasury."):
 		return "treasury"
+	case strings.HasPrefix(subject, "notifications."):
+		return "notifications"
 	default:
 		return r.cfg.NATS.Stream
 	}

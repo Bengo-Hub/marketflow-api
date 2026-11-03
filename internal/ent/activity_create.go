@@ -189,6 +189,12 @@ func (_c *ActivityCreate) SetNillableIsRead(v *bool) *ActivityCreate {
 	return _c
 }
 
+// SetMetadata sets the "metadata" field.
+func (_c *ActivityCreate) SetMetadata(v map[string]interface{}) *ActivityCreate {
+	_c.mutation.SetMetadata(v)
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *ActivityCreate) SetCreatedAt(v time.Time) *ActivityCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -388,6 +394,10 @@ func (_c *ActivityCreate) createSpec() (*Activity, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.IsRead(); ok {
 		_spec.SetField(activity.FieldIsRead, field.TypeBool, value)
 		_node.IsRead = value
+	}
+	if value, ok := _c.mutation.Metadata(); ok {
+		_spec.SetField(activity.FieldMetadata, field.TypeJSON, value)
+		_node.Metadata = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(activity.FieldCreatedAt, field.TypeTime, value)
@@ -681,6 +691,24 @@ func (u *ActivityUpsert) SetIsRead(v bool) *ActivityUpsert {
 // UpdateIsRead sets the "is_read" field to the value that was provided on create.
 func (u *ActivityUpsert) UpdateIsRead() *ActivityUpsert {
 	u.SetExcluded(activity.FieldIsRead)
+	return u
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *ActivityUpsert) SetMetadata(v map[string]interface{}) *ActivityUpsert {
+	u.Set(activity.FieldMetadata, v)
+	return u
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *ActivityUpsert) UpdateMetadata() *ActivityUpsert {
+	u.SetExcluded(activity.FieldMetadata)
+	return u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *ActivityUpsert) ClearMetadata() *ActivityUpsert {
+	u.SetNull(activity.FieldMetadata)
 	return u
 }
 
@@ -991,6 +1019,27 @@ func (u *ActivityUpsertOne) SetIsRead(v bool) *ActivityUpsertOne {
 func (u *ActivityUpsertOne) UpdateIsRead() *ActivityUpsertOne {
 	return u.Update(func(s *ActivityUpsert) {
 		s.UpdateIsRead()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *ActivityUpsertOne) SetMetadata(v map[string]interface{}) *ActivityUpsertOne {
+	return u.Update(func(s *ActivityUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *ActivityUpsertOne) UpdateMetadata() *ActivityUpsertOne {
+	return u.Update(func(s *ActivityUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *ActivityUpsertOne) ClearMetadata() *ActivityUpsertOne {
+	return u.Update(func(s *ActivityUpsert) {
+		s.ClearMetadata()
 	})
 }
 
@@ -1468,6 +1517,27 @@ func (u *ActivityUpsertBulk) SetIsRead(v bool) *ActivityUpsertBulk {
 func (u *ActivityUpsertBulk) UpdateIsRead() *ActivityUpsertBulk {
 	return u.Update(func(s *ActivityUpsert) {
 		s.UpdateIsRead()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *ActivityUpsertBulk) SetMetadata(v map[string]interface{}) *ActivityUpsertBulk {
+	return u.Update(func(s *ActivityUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *ActivityUpsertBulk) UpdateMetadata() *ActivityUpsertBulk {
+	return u.Update(func(s *ActivityUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *ActivityUpsertBulk) ClearMetadata() *ActivityUpsertBulk {
+	return u.Update(func(s *ActivityUpsert) {
+		s.ClearMetadata()
 	})
 }
 

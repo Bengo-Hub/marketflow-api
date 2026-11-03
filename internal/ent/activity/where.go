@@ -921,6 +921,16 @@ func IsReadNEQ(v bool) predicate.Activity {
 	return predicate.Activity(sql.FieldNEQ(FieldIsRead, v))
 }
 
+// MetadataIsNil applies the IsNil predicate on the "metadata" field.
+func MetadataIsNil() predicate.Activity {
+	return predicate.Activity(sql.FieldIsNull(FieldMetadata))
+}
+
+// MetadataNotNil applies the NotNil predicate on the "metadata" field.
+func MetadataNotNil() predicate.Activity {
+	return predicate.Activity(sql.FieldNotNull(FieldMetadata))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Activity {
 	return predicate.Activity(sql.FieldEQ(FieldCreatedAt, v))

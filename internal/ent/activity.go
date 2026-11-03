@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -25,7 +26,7 @@ type Activity struct {
 	EntityType string `json:"entity_type,omitempty"`
 	// Polymorphic FK to Lead, Contact, or Deal
 	EntityID uuid.UUID `json:"entity_id,omitempty"`
-	// email | call | note | meeting | sms | whatsapp | order | payment | ticket_opened | ticket_resolved | enrichment | appointment | pos_sale | suggestion
+	// email | call | note | meeting | sms | whatsapp | order | payment | ticket_opened | ticket_resolved | enrichment | appointment | pos_sale | suggestion | comment | dm
 	ActivityType string `json:"activity_type,omitempty"`
 	// inbound | outbound — for email/call/sms
 	Direction *string `json:"direction,omitempty"`
@@ -47,6 +48,8 @@ type Activity struct {
 	PerformedAt time.Time `json:"performed_at,omitempty"`
 	// Marks suggestion activities as dismissed/read
 	IsRead bool `json:"is_read,omitempty"`
+	// Social inbox (comment, dm): platform, account_id, post_id, parent_id, ad_id, thread_id, sender_id, sender_name, intent, intent_status (pending | tagged | skipped), handled_at, replied_at
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -82,6 +85,8 @@ func (*Activity) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case activity.FieldPerformedBy:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
+		case activity.FieldMetadata:
+			values[i] = new([]byte)
 		case activity.FieldIsRead:
 			values[i] = new(sql.NullBool)
 		case activity.FieldDurationMinutes:
@@ -205,6 +210,14 @@ func (_m *Activity) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.IsRead = value.Bool
 			}
+		case activity.FieldMetadata:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field metadata", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Metadata); err != nil {
+					return fmt.Errorf("unmarshal field metadata: %w", err)
+				}
+			}
 		case activity.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -309,6 +322,9 @@ func (_m *Activity) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("is_read=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsRead))
+	builder.WriteString(", ")
+	builder.WriteString("metadata=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

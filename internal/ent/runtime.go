@@ -85,7 +85,7 @@ func init() {
 	// activity.DefaultIsRead holds the default value on creation for the is_read field.
 	activity.DefaultIsRead = activityDescIsRead.Default.(bool)
 	// activityDescCreatedAt is the schema descriptor for created_at field.
-	activityDescCreatedAt := activityFields[15].Descriptor()
+	activityDescCreatedAt := activityFields[16].Descriptor()
 	// activity.DefaultCreatedAt holds the default value on creation for the created_at field.
 	activity.DefaultCreatedAt = activityDescCreatedAt.Default.(func() time.Time)
 	// activityDescID is the schema descriptor for id field.

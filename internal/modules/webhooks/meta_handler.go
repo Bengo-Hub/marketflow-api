@@ -35,7 +35,11 @@ type MetaHandler struct {
 	db          *sql.DB
 	appSecret   string
 	verifyToken string
-	logger      *zap.Logger
+	// allowUnsigned accepts events with no app secret set (local development only).
+	allowUnsigned bool
+	secret        func(ctx context.Context) string
+	inbox         *InboxStore
+	logger        *zap.Logger
 }
 
 // MetaConfig configures the MetaHandler with platform-level credentials.
@@ -43,16 +47,26 @@ type MetaConfig struct {
 	DB          *sql.DB
 	AppSecret   string // platform-level (X-Hub signature verification)
 	VerifyToken string // platform-level (subscription verification)
+	// AllowUnsigned lets events through when AppSecret is empty; set only in development.
+	AllowUnsigned bool
+	// Secret resolves the app secret per request (the platform provider row first, then the
+	// env value), like the worker and the OAuth flows; nil uses AppSecret alone.
+	Secret func(ctx context.Context) string
+	// Inbox stores Page and Instagram comments and DMs (Sprint 22); nil skips them.
+	Inbox *InboxStore
 }
 
 // NewMetaHandler creates a new Meta webhook handler.
 func NewMetaHandler(leadService *leads.Service, cfg MetaConfig, logger *zap.Logger) *MetaHandler {
 	return &MetaHandler{
-		leadService: leadService,
-		db:          cfg.DB,
-		appSecret:   cfg.AppSecret,
-		verifyToken: cfg.VerifyToken,
-		logger:      logger.Named("webhooks.meta"),
+		leadService:   leadService,
+		db:            cfg.DB,
+		appSecret:     cfg.AppSecret,
+		verifyToken:   cfg.VerifyToken,
+		allowUnsigned: cfg.AllowUnsigned,
+		secret:        cfg.Secret,
+		inbox:         cfg.Inbox,
+		logger:        logger.Named("webhooks.meta"),
 	}
 }
 
@@ -125,14 +139,23 @@ func (h *MetaHandler) HandleLeadgen(w http.ResponseWriter, r *http.Request) {
 		httpapi.JSON(w, http.StatusOK, map[string]any{"status": "received"})
 		return
 	}
-	// Signature verification — platform-level Meta app secret.
-	if h.appSecret != "" {
-		sig := r.Header.Get("X-Hub-Signature-256")
-		if !h.verifySignature(body, sig) {
-			h.logger.Warn("meta webhook signature invalid")
-			httpapi.JSON(w, http.StatusUnauthorized, map[string]any{"error": "invalid signature"})
+	// Signature verification with the platform Meta app secret. With no secret set the events
+	// are refused (fail closed), except in local development: unsigned events would let anyone
+	// create leads and inbox items for any tenant.
+	secret := h.appSecret
+	if h.secret != nil {
+		secret = h.secret(r.Context())
+	}
+	if secret == "" {
+		if !h.allowUnsigned {
+			h.logger.Error("meta webhook refused: no app secret is configured")
+			httpapi.JSON(w, http.StatusUnauthorized, map[string]any{"error": "webhook not configured"})
 			return
 		}
+	} else if !verifyMetaSignature(secret, body, r.Header.Get("X-Hub-Signature-256")) {
+		h.logger.Warn("meta webhook signature invalid")
+		httpapi.JSON(w, http.StatusUnauthorized, map[string]any{"error": "invalid signature"})
+		return
 	}
 
 	var payload metaLeadgenWebhook
@@ -164,13 +187,13 @@ func (h *MetaHandler) HandleLeadgen(w http.ResponseWriter, r *http.Request) {
 				Source:   "meta_ad",
 				LeadType: "customer",
 				Metadata: map[string]any{
-					"webhook_source":    "meta_leadgen",
-					"webhook_received":  time.Now().UTC().Format(time.RFC3339),
-					"meta_leadgen_id":   ch.Value.LeadgenID,
-					"meta_form_id":      ch.Value.FormID,
-					"meta_page_id":      pageID,
-					"meta_ad_id":        ch.Value.AdID,
-					"meta_campaign_id":  ch.Value.CampaignID,
+					"webhook_source":   "meta_leadgen",
+					"webhook_received": time.Now().UTC().Format(time.RFC3339),
+					"meta_leadgen_id":  ch.Value.LeadgenID,
+					"meta_form_id":     ch.Value.FormID,
+					"meta_page_id":     pageID,
+					"meta_ad_id":       ch.Value.AdID,
+					"meta_campaign_id": ch.Value.CampaignID,
 				},
 			}
 			// Meta redelivers webhooks; one leadgen id is one lead.
@@ -195,19 +218,27 @@ func (h *MetaHandler) HandleLeadgen(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	h.logger.Info("meta leadgen webhook processed",
+	// The Page and Instagram objects send every subscribed field to this one callback, so the
+	// same body may also carry comments and DMs.
+	inboxSaved := 0
+	if h.inbox != nil {
+		inboxSaved = h.inbox.Store(r.Context(), ParseInbox(body))
+	}
+	h.logger.Info("meta webhook processed",
 		zap.Int("leads", processed),
+		zap.Int("inbox", inboxSaved),
 		zap.Int("entries", len(payload.Entry)),
 	)
 	httpapi.JSON(w, http.StatusOK, map[string]any{"status": "ok", "processed": processed})
 }
 
-func (h *MetaHandler) verifySignature(body []byte, header string) bool {
-	if header == "" || len(header) < len("sha256=") {
+// verifyMetaSignature checks X-Hub-Signature-256 ("sha256=<hex>") over the raw body.
+func verifyMetaSignature(secret string, body []byte, header string) bool {
+	if secret == "" || len(header) < len("sha256=") {
 		return false
 	}
 	given := header[len("sha256="):]
-	mac := hmac.New(sha256.New, []byte(h.appSecret))
+	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write(body)
 	expected := hex.EncodeToString(mac.Sum(nil))
 	return hmac.Equal([]byte(expected), []byte(given))
