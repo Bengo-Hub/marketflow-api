@@ -89,12 +89,21 @@ func (s *Service) Checklist(ctx context.Context, tenantID uuid.UUID) (Checklist,
 
 	steps := []Step{
 		{Key: "profile", Done: str(meta, "tagline") != "" && str(meta, "bio") != "" && (hasChannel || str(meta, "contact_email") != "")},
-		{Key: "offerings", Done: listLen(meta, "offerings") > 0},
+	}
+	// No tenant declares products (owner, 2026-11-03). A Forever tenant sells the seeded Forever
+	// products, and its one requirement is a distributor ID, so every product links to its own
+	// Forever shop. Every other tenant's offerings come from its own catalogue (inventory, POS,
+	// the website), so it has no products step at all.
+	if strings.EqualFold(t.BusinessType, tenant.BusinessTypeFLP) {
+		_, linked := tenant.FLPLinks(t)
+		steps = append(steps, Step{Key: "forever_shop", Done: linked})
+	}
+	steps = append(steps, []Step{
 		{Key: "brand_context", Done: strings.TrimSpace(bc.Positioning) != "" && len(bc.Audience) > 0 && len(bc.Offers) > 0},
 		{Key: "channels", Done: hasChannel},
 		{Key: "lead_capture", Done: hasCapture},
 		{Key: "team", Done: team > 1, Optional: true},
-	}
+	}...)
 	out := Checklist{Steps: steps}
 	for _, st := range steps {
 		if st.Optional {
@@ -216,9 +225,4 @@ func (s *Service) Draft(ctx context.Context, tenantID uuid.UUID) (Draft, error) 
 func str(meta map[string]any, key string) string {
 	s, _ := meta[key].(string)
 	return strings.TrimSpace(s)
-}
-
-func listLen(meta map[string]any, key string) int {
-	l, _ := meta[key].([]any)
-	return len(l)
 }

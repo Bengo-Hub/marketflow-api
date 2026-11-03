@@ -8,6 +8,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
+	tenantmod "github.com/bengobox/marketflow-api/internal/modules/tenant"
 	"github.com/google/uuid"
 )
 
@@ -72,34 +73,23 @@ func resolveNurtureVariables(
 	if err == nil {
 		putIfEmpty(vars, "fbo_name", tn.Name)
 		putIfEmpty(vars, "tenant_slug", tn.Slug)
-		profileURL := "https://marketflow.codevertexafrica.com/p/" + tn.Slug
-		putIfEmpty(vars, "profile_link", profileURL)
+		// The public link follows the tenant type: FLP tenants have their MarketFlow page at
+		// /p/{slug}; every other tenant's public face is its ordering storefront.
+		if strings.EqualFold(tn.BusinessType, tenantmod.BusinessTypeFLP) {
+			putIfEmpty(vars, "profile_link", "https://marketflow.codevertexafrica.com/p/"+tn.Slug)
+		} else {
+			putIfEmpty(vars, "profile_link", "https://ordering.codevertexafrica.com/"+tn.Slug)
+		}
 		if tn.WhatsappNumber != nil && *tn.WhatsappNumber != "" {
 			waNumber := onlyDigits(*tn.WhatsappNumber)
 			putIfEmpty(vars, "whatsapp_number", waNumber)
 			putIfEmpty(vars, "whatsapp_link", buildWhatsAppLink(waNumber, tn.Name))
 		}
-		if tn.FboDistribID != nil && *tn.FboDistribID != "" {
-			store := "KEN"
-			if tn.FlpStoreCode != nil && *tn.FlpStoreCode != "" {
-				store = *tn.FlpStoreCode
-			}
-			lang := "en"
-			if tn.FlpLanguage != nil && *tn.FlpLanguage != "" {
-				lang = *tn.FlpLanguage
-			}
-			shopURL := fmt.Sprintf(
-				"https://shop.foreverliving.com/retail/entry/Shop.do?store=%s&language=%s&distribID=%s",
-				store, lang, *tn.FboDistribID,
-			)
-			recruitURL := fmt.Sprintf(
-				"https://join.foreverliving.com/marketing/joinnow/applicationForm.do?action=display&store=%s&distribID=%s&menuoff=n&langID=%s",
-				store, *tn.FboDistribID, lang,
-			)
-			putIfEmpty(vars, "product_link", shopURL)
-			putIfEmpty(vars, "shop_link", shopURL)
-			putIfEmpty(vars, "recruit_link", recruitURL)
-			putIfEmpty(vars, "join_link", recruitURL)
+		if b, ok := tenantmod.FLPLinks(tn); ok {
+			putIfEmpty(vars, "product_link", b.ShopURL())
+			putIfEmpty(vars, "shop_link", b.ShopURL())
+			putIfEmpty(vars, "recruit_link", b.RecruitURL())
+			putIfEmpty(vars, "join_link", b.RecruitURL())
 		}
 	}
 

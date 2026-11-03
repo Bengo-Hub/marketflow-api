@@ -3,6 +3,7 @@ package flp
 import (
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 // LinkBuilder constructs FLP-specific URLs for an FBO tenant.
@@ -84,6 +85,60 @@ func WhatsAppURL(phoneNumber string, prefilledMessage string) string {
 		u += "?text=" + url.QueryEscape(prefilledMessage)
 	}
 	return u
+}
+
+// ForTenant returns the link builder for an FLP tenant, the one place a Forever shop or join
+// link is formed. The distributor ID is the stored one, else the slug when the slug is a
+// distributor ID (FBO tenants are created under it). The store is the stored code, else the
+// Forever store for the tenant's country (ISO 3166 alpha-2), else KEN. The language is the
+// stored one, else en. ok is false when there is no distributor ID, so no link can be formed.
+func ForTenant(slug, distribID, storeCode, language, country string) (b LinkBuilder, ok bool) {
+	d := strings.TrimSpace(distribID)
+	if d == "" && IsDistribID(slug) {
+		d = slug
+	}
+	if d == "" {
+		return LinkBuilder{}, false
+	}
+	return LinkBuilder{
+		DistribID:  d,
+		StoreCode:  StoreCode(storeCode, country),
+		Language:   firstNonEmpty(strings.ToLower(strings.TrimSpace(language)), "en"),
+		TenantSlug: slug,
+	}, true
+}
+
+// StoreCode is the Forever store to use: the explicit code, else the country's store, else KEN.
+func StoreCode(explicit, country string) string {
+	if s := strings.ToUpper(strings.TrimSpace(explicit)); s != "" {
+		return s
+	}
+	if s, ok := StoreCodesByCountry[strings.ToUpper(strings.TrimSpace(country))]; ok {
+		return s
+	}
+	return "KEN"
+}
+
+// IsDistribID reports whether s looks like a Forever distributor ID: 8 or more digits.
+func IsDistribID(s string) bool {
+	if len(s) < 8 {
+		return false
+	}
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func firstNonEmpty(v ...string) string {
+	for _, s := range v {
+		if s != "" {
+			return s
+		}
+	}
+	return ""
 }
 
 // FLP product category names used in shop.foreverliving.com URLs.

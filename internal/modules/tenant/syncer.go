@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	enttenant "github.com/bengobox/marketflow-api/internal/ent/tenant"
+	"github.com/bengobox/marketflow-api/internal/flp"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -404,14 +405,4 @@ func (s *Syncer) GetOrSync(ctx context.Context, tenantID uuid.UUID, slug string)
 }
 
 // looksLikeDistribID checks if a slug is a numeric FBO distributor ID.
-func looksLikeDistribID(s string) bool {
-	if len(s) < 8 {
-		return false
-	}
-	for _, c := range s {
-		if c < '0' || c > '9' {
-			return false
-		}
-	}
-	return true
-}
+func looksLikeDistribID(s string) bool { return flp.IsDistribID(s) }

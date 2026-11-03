@@ -3,9 +3,11 @@ package onboarding
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
@@ -128,6 +130,7 @@ func TestChecklistAndDismissInDatabase(t *testing.T) {
 	ctx := context.Background()
 	tid := uuid.New()
 	if _, err := db.Tenant.Create().SetID(tid).SetName("Onb " + tid.String()).SetSlug("onb-" + tid.String()).
+		SetBusinessType("generic").
 		SetMetadata(map[string]any{"tagline": "Fresh daily", "keep": "me"}).Save(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -143,14 +146,20 @@ func TestChecklistAndDismissInDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Total != 5 || c.Done != 0 || c.Complete || c.Dismissed {
+	// A generic tenant declares no products: its steps are profile, brand context, channels and
+	// lead capture (team is optional).
+	if c.Total != 4 || c.Done != 0 || c.Complete || c.Dismissed {
 		t.Fatalf("fresh tenant: %+v", c)
 	}
+	for _, s := range c.Steps {
+		if s.Key == "offerings" || s.Key == "forever_shop" {
+			t.Fatalf("a generic tenant has no products step: %+v", c.Steps)
+		}
+	}
 
-	// Profile, offerings and brand context written by their own paths; a published funnel.
+	// Profile and brand context written by their own paths; a published funnel.
 	if err := metastore.SetKeys(ctx, db, tid, map[string]any{
 		"bio": "Groceries in Thika", "contact_email": "a@b.co",
-		"offerings": []any{map[string]any{"name": "Sukuma"}},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -168,8 +177,30 @@ func TestChecklistAndDismissInDatabase(t *testing.T) {
 	for _, s := range c.Steps {
 		done[s.Key] = s.Done
 	}
-	if !done["profile"] || !done["offerings"] || !done["brand_context"] || !done["lead_capture"] || done["channels"] || c.Done != 4 {
+	if !done["profile"] || !done["brand_context"] || !done["lead_capture"] || done["channels"] || c.Done != 3 {
 		t.Fatalf("after setup: %+v", c)
+	}
+
+	// A Forever tenant's products are seeded; its step is the distributor ID that links them
+	// to its own shop. A distributor-ID slug counts, as FBO tenants are created under it.
+	fid := uuid.New()
+	slug := fmt.Sprintf("2547%08d", time.Now().UnixNano()%100_000_000)
+	if _, err := db.Tenant.Create().SetID(fid).SetName("FBO " + slug).SetSlug(slug).SetBusinessType("flp").Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Tenant.DeleteOneID(fid).Exec(ctx) })
+	fc, err := svc.Checklist(ctx, fid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	forever := false
+	for _, s := range fc.Steps {
+		if s.Key == "forever_shop" {
+			forever = s.Done
+		}
+	}
+	if !forever {
+		t.Fatalf("an FBO with a distributor-ID slug has its shop linked: %+v", fc.Steps)
 	}
 
 	if err := svc.SetDismissed(ctx, tid, true); err != nil {

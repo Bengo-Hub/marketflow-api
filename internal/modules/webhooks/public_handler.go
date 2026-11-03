@@ -127,15 +127,13 @@ func (h *PublicHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	if t.WhatsappNumber != nil {
 		profile["whatsapp_number"] = *t.WhatsappNumber
 	}
-	if t.FboDistribID != nil {
-		profile["fbo_distrib_id"] = *t.FboDistribID
-	}
-	// The Forever shop links need the store and language; without them every link fell back to KEN/en.
-	if t.FlpStoreCode != nil {
-		profile["flp_store_code"] = *t.FlpStoreCode
-	}
-	if t.FlpLanguage != nil {
-		profile["flp_language"] = *t.FlpLanguage
+	// The Forever shop links need the distributor ID, store and language. flp.ForTenant fills
+	// what is not stored (the slug as the distributor ID, the country's store, en), so the
+	// page links every seeded product to this distributor's own shop.
+	if b, ok := tenantmod.FLPLinks(t); ok {
+		profile["fbo_distrib_id"] = b.DistribID
+		profile["flp_store_code"] = b.StoreCode
+		profile["flp_language"] = b.Language
 	}
 	// Only allow-listed keys: metadata also holds private data such as the Marketing OS brand context.
 	profile["metadata"] = tenantmod.PublicMetadata(t.Metadata)

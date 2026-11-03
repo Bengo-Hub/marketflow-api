@@ -3,6 +3,9 @@ package tenant
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/flp"
 )
 
 // Forever Business Owner (FBO) profile defaults, applied when a tenant whose slug is a
@@ -48,6 +51,21 @@ func defaultOfferingsValue() []any {
 	var out []any
 	_ = json.Unmarshal(raw, &out)
 	return out
+}
+
+// FLPLinks returns the Forever link builder for an FLP tenant, or false for any other tenant
+// or an FLP tenant with no distributor ID yet. Every Forever link is formed through it.
+func FLPLinks(t *ent.Tenant) (flp.LinkBuilder, bool) {
+	if t == nil || !strings.EqualFold(t.BusinessType, BusinessTypeFLP) {
+		return flp.LinkBuilder{}, false
+	}
+	deref := func(p *string) string {
+		if p == nil {
+			return ""
+		}
+		return *p
+	}
+	return flp.ForTenant(t.Slug, deref(t.FboDistribID), deref(t.FlpStoreCode), deref(t.FlpLanguage), deref(t.Country))
 }
 
 // isFLPTenant decides the business type for a synced tenant: a Forever distributor ID
