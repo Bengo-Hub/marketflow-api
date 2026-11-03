@@ -3,12 +3,15 @@ package tenant
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
@@ -324,13 +327,63 @@ func (s *Syncer) resolveName(remote *authTenant) string {
 	return remote.Name
 }
 
+// ErrUnknownTenant is returned for a slug auth-api does not know (or one that is not a valid
+// slug at all), without asking auth-api again while the slug sits in the negative cache.
+var ErrUnknownTenant = errors.New("unknown tenant")
+
+// validSlug is the tenant slug shape auth-api issues. Anything else is refused before any
+// request, so a slug taken from a public URL can never steer the call to another auth-api path.
+var validSlug = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$`)
+
+// unknownSlugTTL is how long a slug auth-api answered 404 for is remembered. Public routes sync
+// tenants just in time, so without it every request for a made-up slug cost an auth-api call.
+const (
+	unknownSlugTTL     = 5 * time.Minute
+	unknownSlugMaxKeys = 10_000
+)
+
+var unknownSlugs = struct {
+	sync.Mutex
+	until map[string]time.Time
+}{until: map[string]time.Time{}}
+
+func slugKnownMissing(slug string, now time.Time) bool {
+	unknownSlugs.Lock()
+	defer unknownSlugs.Unlock()
+	t, ok := unknownSlugs.until[slug]
+	if ok && now.After(t) {
+		delete(unknownSlugs.until, slug)
+		return false
+	}
+	return ok
+}
+
+func rememberMissingSlug(slug string, now time.Time) {
+	unknownSlugs.Lock()
+	defer unknownSlugs.Unlock()
+	if len(unknownSlugs.until) >= unknownSlugMaxKeys {
+		// Bounded memory: start over rather than track an attacker's whole slug list.
+		unknownSlugs.until = map[string]time.Time{}
+	}
+	unknownSlugs.until[slug] = now.Add(unknownSlugTTL)
+}
+
 func (s *Syncer) fetchFromAuth(slug string) (*authTenant, error) {
-	url := fmt.Sprintf("%s/api/v1/tenants/by-slug/%s", s.authAPIURL, slug)
-	resp, err := s.httpClient.Get(url)
+	if !validSlug.MatchString(slug) {
+		return nil, fmt.Errorf("%w: %q is not a tenant slug", ErrUnknownTenant, slug)
+	}
+	if slugKnownMissing(slug, time.Now()) {
+		return nil, fmt.Errorf("%w: %q", ErrUnknownTenant, slug)
+	}
+	resp, err := s.httpClient.Get(fmt.Sprintf("%s/api/v1/tenants/by-slug/%s", s.authAPIURL, url.PathEscape(slug)))
 	if err != nil {
 		return nil, fmt.Errorf("fetch tenant from auth-api: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		rememberMissingSlug(slug, time.Now())
+		return nil, fmt.Errorf("%w: %q", ErrUnknownTenant, slug)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("auth-api returned %d for tenant %q", resp.StatusCode, slug)
 	}
