@@ -29,7 +29,7 @@ type AgentRun struct {
 	TriggeredBy string `json:"triggered_by,omitempty"`
 	// Event payload that triggered the run
 	TriggerPayload map[string]interface{} `json:"trigger_payload,omitempty"`
-	// running | completed | failed
+	// pending | running | completed | failed | skipped
 	Status string `json:"status,omitempty"`
 	// Loop.Trace output: iterations, tool calls, tokens
 	Trace map[string]interface{} `json:"trace,omitempty"`

@@ -30,7 +30,7 @@ func (AgentRun) Fields() []ent.Field {
 			Comment("Event payload that triggered the run"),
 		field.String("status").
 			Default("running").
-			Comment("running | completed | failed"),
+			Comment("pending | running | completed | failed | skipped"),
 		field.JSON("trace", map[string]any{}).
 			Optional().
 			Comment("Loop.Trace output: iterations, tool calls, tokens"),

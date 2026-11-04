@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	sharedcache "github.com/Bengo-Hub/cache"
+	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"io"
 	"net/http"
 	"strings"
@@ -431,6 +432,7 @@ type CustomAgentExecutionConsumer struct {
 	serviceKey string
 	logger     *zap.Logger
 	hc         *http.Client
+	autopilot  *AutopilotRunner // runs ad_autopilot agents (autopilot_run.go)
 }
 
 func (c *CustomAgentExecutionConsumer) Subject() string { return "crm.agent.run_requested" }
@@ -498,6 +500,14 @@ func (c *CustomAgentExecutionConsumer) Handle(ctx context.Context, msg jetstream
 		return fmt.Errorf("custom agent execution: claim run: %w", err)
 	}
 	if claimed == 0 {
+		_ = msg.Ack()
+		return nil
+	}
+
+	// An ad autopilot runs in deterministic code and ends at a draft for review; it never goes
+	// through the LLM tool loop below.
+	if kind, _ := agent.Metadata["kind"].(string); kind == custom_agents.KindAdAutopilot && c.autopilot != nil {
+		c.runAutopilot(ctx, agent, runID)
 		_ = msg.Ack()
 		return nil
 	}
