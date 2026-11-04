@@ -21,10 +21,17 @@ import (
 type BoostOps struct {
 	db     *ent.Client
 	keys   *encryption.KeyProvider
-	meta   *meta.Client
+	meta   statusSetter
 	notif  *notifications.Client
 	appURL string
 	logger *zap.Logger
+	// token overrides AdToken in tests.
+	token func(ctx context.Context, c *ent.Campaign) (string, bool)
+}
+
+// statusSetter is the Meta call boosts need (faked in tests).
+type statusSetter interface {
+	SetStatus(ctx context.Context, token, objectID, status string) error
 }
 
 func NewBoostOps(db *ent.Client, keys *encryption.KeyProvider, m *meta.Client, notif *notifications.Client, appURL string, logger *zap.Logger) *BoostOps {
@@ -33,6 +40,9 @@ func NewBoostOps(db *ent.Client, keys *encryption.KeyProvider, m *meta.Client, n
 
 // AdToken decrypts the boost's connected ad-account token.
 func (b *BoostOps) AdToken(ctx context.Context, c *ent.Campaign) (string, bool) {
+	if b.token != nil {
+		return b.token(ctx, c)
+	}
 	if c.ConnectedAccountID == nil || b.keys == nil {
 		return "", false
 	}
@@ -91,7 +101,7 @@ func (b *BoostOps) tell(ctx context.Context, c *ent.Campaign, reason string) {
 		if err := b.notif.Send(ctx, c.TenantID.String(), notifications.Message{
 			Channel: "email", Recipient: email, Subject: "We paused a boost to protect your budget", Body: body,
 			Metadata:       map[string]string{"source": "marketflow-worker", "kind": "boost_auto_paused"},
-			IdempotencyKey: "boost-paused-" + c.ID.String() + "-" + email,
+			IdempotencyKey: "boost-paused-" + c.ID.String() + "-" + time.Now().UTC().Format("2006-01-02") + "-" + email,
 		}); err != nil {
 			b.logger.Warn("auto-pause notice not sent", zap.String("campaign", c.ID.String()), zap.Error(err))
 		}

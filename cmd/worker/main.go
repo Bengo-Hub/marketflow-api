@@ -180,6 +180,11 @@ func main() {
 		reg.Add(worker.NewAgentEventTriggers(agentSvc, logger)...)
 		// WhatsApp assistant on the platform number (Sprint 17): verified MarketFlow users only,
 		// and only messages marketflow-ai's gate confirms are marketing requests.
+		// Stock-driven boosts (Sprint 20): out of stock pauses the item's ads, back in stock resumes.
+		reg.Add(worker.NewStockAdsHandlers(entClient, worker.NewBoostOps(entClient, keys,
+			meta.NewClient("").WithSecret(meta.PlatformSecret(entClient, keys, os.Getenv("MF_META_APP_SECRET"))),
+			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
+			cfg.API.PortalURL, logger), logger)...)
 		// Click-to-WhatsApp attribution (Sprint 18): the ad click id on the lead, once.
 		reg.Add(worker.NewWhatsAppReferralHandler(entClient, logger))
 		reg.Add(worker.NewWhatsAppAssistantHandler(entClient, rdb,
