@@ -520,6 +520,9 @@ type CustomAgentHandlers struct {
 	// Templates and HireTemplate serve the agent store (Sprint 20).
 	Templates    http.HandlerFunc
 	HireTemplate http.HandlerFunc
+	// PutAutopilot and RollbackAutopilot save an ad autopilot's settings (Sprint 20).
+	PutAutopilot      http.HandlerFunc
+	RollbackAutopilot http.HandlerFunc
 }
 
 // SegmentHandlers groups segment management HTTP handlers.
@@ -884,6 +887,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Put("/{id}", deps.CustomAgentHandlers.Update)
 					r.Delete("/{id}", deps.CustomAgentHandlers.Delete)
 					r.Get("/{id}/runs", deps.CustomAgentHandlers.ListRuns)
+					if deps.CustomAgentHandlers.PutAutopilot != nil {
+						r.Put("/{id}/autopilot", deps.CustomAgentHandlers.PutAutopilot)
+						r.Post("/{id}/autopilot/rollback", deps.CustomAgentHandlers.RollbackAutopilot)
+					}
 					if deps.CustomAgentHandlers.TriggerRun != nil {
 						r.Post("/{id}/run", deps.CustomAgentHandlers.TriggerRun)
 					}
