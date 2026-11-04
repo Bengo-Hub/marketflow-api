@@ -89,6 +89,24 @@ func (c *Client) CreateKESAdAccount(ctx context.Context, token, businessID, name
 	return out.ID, nil
 }
 
+// Business is a business portfolio the user can manage.
+type Business struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// Businesses lists the user's business portfolios (GET /me/businesses, business_management).
+func (c *Client) Businesses(ctx context.Context, token string) ([]Business, error) {
+	q := url.Values{"fields": {"id,name"}, "limit": {"25"}, "access_token": {token}}
+	var out struct {
+		Data []Business `json:"data"`
+	}
+	if err := c.getJSON(ctx, "/me/businesses?"+q.Encode(), &out); err != nil {
+		return nil, fmt.Errorf("meta businesses: %w", err)
+	}
+	return out.Data, nil
+}
+
 // AdSetInput is a lifetime-budget ad set; budgets are in the currency's minor unit.
 type AdSetInput struct {
 	Name             string

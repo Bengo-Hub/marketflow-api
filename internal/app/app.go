@@ -663,7 +663,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			OpenReview:        creativeHandler.OpenReview,
 		},
 		AdsHandlers: httpapi.AdsHandlers{
-			Accounts: adsHandler.Accounts, Quote: adsHandler.Quote, Boost: adsHandler.Boost,
+			Accounts: adsHandler.Accounts, CreateKES: adsHandler.CreateKESAccount, Quote: adsHandler.Quote, Boost: adsHandler.Boost,
 			Get: adsHandler.Get, ConfirmPaid: adsHandler.ConfirmPaid, Pause: adsHandler.Pause,
 		},
 		InboxHandlers: httpapi.InboxHandlers{

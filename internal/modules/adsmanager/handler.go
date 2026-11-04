@@ -100,6 +100,88 @@ func (h *Handler) Accounts(w http.ResponseWriter, r *http.Request) {
 	httpapi.JSON(w, http.StatusOK, map[string]any{"data": out})
 }
 
+// CreateKESAccount handles POST /api/v1/ads/accounts/kes {business_id?, name?}: a KES ad account
+// (Nairobi time) in the client's own business portfolio, for M-Pesa on Meta. It uses the user
+// token of an ad account the client already connected (a USD one, say); a client with no ad
+// account connects Meta again after creating one in Meta Business Suite.
+// @Summary Create a KES ad account in the client's business portfolio
+// @Tags Ads
+// @Accept json
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Success 201 {object} AccountView
+// @Failure 409 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /ads/accounts/kes [post]
+func (h *Handler) CreateKESAccount(w http.ResponseWriter, r *http.Request) {
+	tid, ok := tenantOf(w, r)
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+	if h.CanLaunch != nil && !h.CanLaunch(ctx, tid) {
+		httpapi.Error(w, http.StatusForbidden, "forbidden", "only the account owner or an admin can create an ad account", nil)
+		return
+	}
+	var in struct {
+		BusinessID string `json:"business_id"`
+		Name       string `json:"name"`
+		PageConnID string `json:"page_connected_id"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&in); err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
+		return
+	}
+	src, err := h.DB.ConnectedAccount.Query().
+		Where(connectedaccount.TenantIDEQ(tid), connectedaccount.AccountTypeEQ("meta_ad_account"), connectedaccount.StatusEQ("active")).
+		First(ctx)
+	if err != nil {
+		httpapi.Error(w, http.StatusConflict, "no_meta_user", "create an ad account in Meta Business Suite first, then connect Meta again", nil)
+		return
+	}
+	tok, err := h.token(ctx, src)
+	if err != nil {
+		httpapi.Error(w, http.StatusConflict, "not_connected", "reconnect Meta to continue", nil)
+		return
+	}
+	businessID := in.BusinessID
+	if businessID == "" {
+		bs, err := h.Meta.Businesses(ctx, tok)
+		if err != nil || len(bs) == 0 {
+			httpapi.Error(w, http.StatusConflict, "no_business", "Meta shows no business portfolio for this login; create one in Meta Business Suite", nil)
+			return
+		}
+		if len(bs) > 1 {
+			httpapi.JSON(w, http.StatusConflict, map[string]any{"error": "choose the business portfolio for the new ad account", "code": "choose_business", "businesses": bs})
+			return
+		}
+		businessID = bs[0].ID
+	}
+	pageID := ""
+	if in.PageConnID != "" {
+		if p, err := h.account(ctx, tid, in.PageConnID, "facebook_page"); err == nil {
+			pageID = p.ExternalID
+		}
+	}
+	name := strings.TrimSpace(in.Name)
+	if name == "" {
+		name = "MarketFlow KES"
+	}
+	actID, err := h.Meta.CreateKESAdAccount(ctx, tok, businessID, name, pageID)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadGateway, "meta_refused", "Meta did not create the ad account: "+err.Error(), nil)
+		return
+	}
+	row, err := h.DB.ConnectedAccount.Create().SetTenantID(tid).SetPlatform("meta").SetAccountType("meta_ad_account").
+		SetExternalID(actID).SetDisplayName(name).SetTokenCiphertext(src.TokenCiphertext).SetScopes(src.Scopes).
+		SetMetadata(map[string]any{"currency": "KES", "business_id": businessID, "created_by_marketflow": true}).Save(ctx)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	httpapi.JSON(w, http.StatusCreated, AccountView{ConnectedID: row.ID.String(), ID: actID, Name: name, Currency: "KES", Active: true})
+}
+
 // QuoteInput is the body of POST /ads/quote.
 type QuoteInput struct {
 	AdAccountConnID string `json:"ad_account_connected_id"`

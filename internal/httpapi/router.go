@@ -483,6 +483,7 @@ type CreativeHandlers struct {
 // AdsHandlers groups the paid ads routes (Sprint 18).
 type AdsHandlers struct {
 	Accounts    http.HandlerFunc
+	CreateKES   http.HandlerFunc
 	Quote       http.HandlerFunc
 	Boost       http.HandlerFunc
 	Get         http.HandlerFunc
@@ -931,6 +932,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 			if deps.AdsHandlers.Quote != nil {
 				r.Route("/ads", func(r chi.Router) {
 					r.Get("/accounts", deps.AdsHandlers.Accounts)
+					r.Post("/accounts/kes", deps.AdsHandlers.CreateKES)
 					r.Post("/quote", deps.AdsHandlers.Quote)
 					r.Post("/boosts", deps.AdsHandlers.Boost)
 					r.Get("/boosts/{id}", deps.AdsHandlers.Get)
