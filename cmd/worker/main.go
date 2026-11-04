@@ -284,6 +284,9 @@ func main() {
 		// Paid ads (Sprint 18): moves confirmed boosts through PAUSED creation, review and funding.
 		go adsmanager.NewWorker(entClient, keys, meta.NewClient("").WithSecret(meta.PlatformSecret(entClient, keys, os.Getenv("MF_META_APP_SECRET"))), logger).Run(ctx)
 
+		// Competitor ad intel (Sprint 24): each tenant's competitors scanned once a week.
+		go worker.NewCompetitorScan(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).Run(ctx)
+
 		// Social inbox (Sprint 22): tags new comments and DMs with a buyer intent.
 		go worker.NewInboxTagger(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).
 			WithAutoReply(keys, inbox.NewGraph(meta.GraphURL)).Run(ctx)

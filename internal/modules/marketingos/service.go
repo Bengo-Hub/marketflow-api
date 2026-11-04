@@ -43,6 +43,9 @@ type Settings struct {
 	// default; saving it on with a message is the owner's approval of that message.
 	InboxAutoReply bool   `json:"inbox_auto_reply"`
 	InboxReplyText string `json:"inbox_reply_text"`
+	// Competitors are names, domains or Google advertiser ids (AR...) the weekly competitor
+	// scan looks up (Sprint 24), at most MaxCompetitors.
+	Competitors []string `json:"competitors"`
 }
 
 // Tenant metadata keys of the inbox auto reply.
@@ -51,6 +54,8 @@ const (
 	InboxReplyTextKey = "inbox_reply_text"
 	// MaxInboxReplyText keeps the reply short enough for every platform.
 	MaxInboxReplyText = 500
+	CompetitorsKey    = "competitors"
+	MaxCompetitors    = 10
 )
 
 // BrandContext is the owner-approved description every specialist reads first.
@@ -198,7 +203,15 @@ func (s *Service) GetSettings(ctx context.Context, tenantID uuid.UUID) (Settings
 	on, ok := t.Metadata[DailyBriefKey].(bool)
 	auto, _ := t.Metadata[InboxAutoReplyKey].(bool)
 	text, _ := t.Metadata[InboxReplyTextKey].(string)
-	return Settings{DailyBrief: !ok || on, InboxAutoReply: auto, InboxReplyText: text}, nil
+	var competitors []string
+	if list, ok := t.Metadata[CompetitorsKey].([]any); ok {
+		for _, c := range list {
+			if s, ok := c.(string); ok {
+				competitors = append(competitors, s)
+			}
+		}
+	}
+	return Settings{DailyBrief: !ok || on, InboxAutoReply: auto, InboxReplyText: text, Competitors: competitors}, nil
 }
 
 // SaveSettings stores the switches, merging only their keys.
@@ -211,8 +224,19 @@ func (s *Service) SaveSettings(ctx context.Context, tenantID uuid.UUID, in Setti
 	if in.InboxReplyText == "" {
 		in.InboxAutoReply = false
 	}
+	seen := map[string]bool{}
+	clean := []string{}
+	for _, c := range in.Competitors {
+		c = strings.TrimSpace(c)
+		if c != "" && len(c) <= 120 && !seen[strings.ToLower(c)] && len(clean) < MaxCompetitors {
+			seen[strings.ToLower(c)] = true
+			clean = append(clean, c)
+		}
+	}
+	in.Competitors = clean
 	return in, s.setKeys(ctx, tenantID, map[string]any{
 		DailyBriefKey: in.DailyBrief, InboxAutoReplyKey: in.InboxAutoReply, InboxReplyTextKey: in.InboxReplyText,
+		CompetitorsKey: in.Competitors,
 	})
 }
 

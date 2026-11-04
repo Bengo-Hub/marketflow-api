@@ -1,0 +1,37 @@
+package custom_agents
+
+import (
+	"testing"
+	"time"
+)
+
+func TestNextBriefRotation(t *testing.T) {
+	cfg := okConfig()
+	cfg.OfferingIDs = []string{"o1", "o2"}
+	cfg.Languages = []string{"en", "sw"}
+	cfg.VideoTiers = []string{"template"}
+	offers := []map[string]any{{"name": "Blender"}, {"name": "Kettle"}}
+	now := time.Date(2026, 11, 4, 9, 0, 0, 0, time.UTC)
+
+	want := []struct{ name, lang string }{{"Blender", "en"}, {"Kettle", "en"}, {"Blender", "sw"}, {"Kettle", "sw"}, {"Blender", "en"}}
+	for n, w := range want {
+		b, err := NextBrief("a1", cfg, offers, n, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if b.Offering["name"] != w.name || b.Language != w.lang || b.Objective != "leads" || b.Metadata["autopilot_run"] != n {
+			t.Fatalf("run %d: %+v", n, b)
+		}
+	}
+}
+
+func TestNextBriefRefusesMissingOfferings(t *testing.T) {
+	cfg := okConfig()
+	cfg.OfferingIDs = []string{"o1", "o2"}
+	if _, err := NextBrief("a1", cfg, []map[string]any{{"name": "Blender"}}, 0, time.Now()); err == nil {
+		t.Fatal("a missing offering snapshot must fail, not guess")
+	}
+	if _, err := NextBrief("a1", cfg, []map[string]any{{"name": ""}, {"name": "x"}}, 0, time.Now()); err == nil {
+		t.Fatal("an offering with no name must fail")
+	}
+}
