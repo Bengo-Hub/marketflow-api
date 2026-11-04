@@ -140,7 +140,7 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, keys *encryption.Ke
 				serviceKey: cfg.API.InternalServiceKey,
 				logger:     logger.Named("agent.custom-execution"),
 				hc:         agentHTTP,
-				autopilot:  NewAutopilotRunner(db, notif, cfg.API.PortalURL, logger),
+				autopilot:  NewAutopilotRunner(db, notif, cfg.API.PortalURL, logger).WithForecast(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey),
 			},
 		},
 	}

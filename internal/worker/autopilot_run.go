@@ -1,10 +1,13 @@
 package worker
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	entsql "entgo.io/ent/dialect/sql"
@@ -30,6 +33,7 @@ type AutopilotRunner struct {
 	appURL   string
 	logger   *zap.Logger
 	now      func() time.Time
+	forecast func(ctx context.Context, tenantID uuid.UUID) (creditForecast, error)
 }
 
 func NewAutopilotRunner(db *ent.Client, notif *notifications.Client, appURL string, logger *zap.Logger) *AutopilotRunner {
@@ -38,6 +42,47 @@ func NewAutopilotRunner(db *ent.Client, notif *notifications.Client, appURL stri
 
 // ErrAutopilotSkipped is a run that had nothing wrong but must not go ahead (ceiling reached).
 var ErrAutopilotSkipped = errors.New("autopilot run skipped")
+
+// errAutopilotNoCredits is a skip the owner can fix by buying credits.
+var errAutopilotNoCredits = fmt.Errorf("%w: not enough AI credits", ErrAutopilotSkipped)
+
+// creditForecast is marketflow-ai's answer to what a draft costs now. Balance is -1 when it is
+// unlimited or could not be read.
+type creditForecast struct {
+	CreditsNeeded int  `json:"credits_needed"`
+	Balance       int  `json:"balance"`
+	Enough        bool `json:"enough"`
+}
+
+// WithForecast checks each run's script price against the balance through marketflow-ai, the one
+// owner of the subscriptions-api credit client. Nothing is spent.
+func (r *AutopilotRunner) WithForecast(aiURL, key string) *AutopilotRunner {
+	if aiURL == "" || key == "" {
+		return r
+	}
+	hc := &http.Client{Timeout: 10 * time.Second}
+	url := strings.TrimSuffix(aiURL, "/") + "/api/v1/internal/credits/forecast"
+	r.forecast = func(ctx context.Context, tenantID uuid.UUID) (creditForecast, error) {
+		var fc creditForecast
+		body, _ := json.Marshal(map[string]string{"tenant_id": tenantID.String(), "output": "script"})
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+		if err != nil {
+			return fc, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-API-Key", key)
+		resp, err := hc.Do(req)
+		if err != nil {
+			return fc, err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return fc, fmt.Errorf("credit forecast: status %d", resp.StatusCode)
+		}
+		return fc, json.NewDecoder(resp.Body).Decode(&fc)
+	}
+	return r
+}
 
 // AutopilotResult is what the run made.
 type AutopilotResult struct {
@@ -68,6 +113,20 @@ func (r *AutopilotRunner) Run(ctx context.Context, a *ent.CustomAgent) (Autopilo
 	}
 	if used >= cfg.CreditCap {
 		return AutopilotResult{}, fmt.Errorf("%w: this month's credit ceiling of %d is reached", ErrAutopilotSkipped, cfg.CreditCap)
+	}
+	if r.forecast != nil {
+		// A forecast that cannot be read never blocks a run: the script's own charge still refuses
+		// a spend that does not fit.
+		fc, err := r.forecast(ctx, a.TenantID)
+		switch {
+		case err != nil:
+			r.logger.Warn("autopilot credit forecast unavailable", zap.String("agent", a.ID.String()), zap.Error(err))
+		case !cfg.CreditsFit(used, fc.CreditsNeeded):
+			return AutopilotResult{}, fmt.Errorf("%w: this draft needs %d credits and would pass this month's ceiling of %d", ErrAutopilotSkipped, fc.CreditsNeeded, cfg.CreditCap)
+		case !fc.Enough:
+			r.tellShort(ctx, a, fc)
+			return AutopilotResult{}, fmt.Errorf("%w: this draft needs %d credits and the balance is %d; it runs again on its next schedule", errAutopilotNoCredits, fc.CreditsNeeded, fc.Balance)
+		}
 	}
 	var offerings []map[string]any
 	if raw, err := json.Marshal(a.Metadata["autopilot_offerings"]); err == nil {
@@ -129,10 +188,7 @@ func (r *AutopilotRunner) tell(ctx context.Context, a *ent.CustomAgent, offering
 	if err != nil || len(emails) == 0 {
 		return
 	}
-	link := r.appURL + "/studio/" + briefID
-	if t, err := r.db.Tenant.Get(ctx, a.TenantID); err == nil && t.Slug != "" {
-		link = r.appURL + "/" + t.Slug + "/studio/" + briefID
-	}
+	link := r.portalLink(ctx, a, "/studio/"+briefID)
 	body := fmt.Sprintf("Your agent \"%s\" drafted a new ad for %s. Nothing is posted or paid for until you approve it.\n\nReview it here: %s", a.Name, offering, link)
 	for _, email := range emails {
 		if err := r.notif.Send(ctx, a.TenantID.String(), notifications.Message{
@@ -145,12 +201,46 @@ func (r *AutopilotRunner) tell(ctx context.Context, a *ent.CustomAgent, offering
 	}
 }
 
-// runAutopilot records the run's outcome. A reached ceiling is "skipped", not a failure: the
-// agent tries again on its next schedule.
+// portalLink builds a link into the tenant's portal.
+func (r *AutopilotRunner) portalLink(ctx context.Context, a *ent.CustomAgent, path string) string {
+	if t, err := r.db.Tenant.Get(ctx, a.TenantID); err == nil && t.Slug != "" {
+		return r.appURL + "/" + t.Slug + path
+	}
+	return r.appURL + path
+}
+
+// tellShort emails the tenant's admins a Buy credits link, once per agent per ISO week, so a daily
+// agent on an empty balance does not send one email a day.
+func (r *AutopilotRunner) tellShort(ctx context.Context, a *ent.CustomAgent, fc creditForecast) {
+	if r.notif == nil {
+		return
+	}
+	emails, err := tenantAdminEmails(ctx, r.db, a.TenantID, tokenNoticeRoles)
+	if err != nil || len(emails) == 0 {
+		return
+	}
+	year, week := r.now().UTC().ISOWeek()
+	body := fmt.Sprintf("Your agent \"%s\" skipped its draft because your AI credits are low: it needs %d and your balance is %d. Nothing was charged, and it tries again on its next schedule.\n\nBuy credits here: %s",
+		a.Name, fc.CreditsNeeded, fc.Balance, r.portalLink(ctx, a, "/settings/billing"))
+	for _, email := range emails {
+		if err := r.notif.Send(ctx, a.TenantID.String(), notifications.Message{
+			Channel: "email", Recipient: email, Subject: "Your ad agent needs more AI credits", Body: body,
+			Metadata:       map[string]string{"source": "marketflow-worker", "kind": "autopilot_no_credits"},
+			IdempotencyKey: fmt.Sprintf("autopilot-credits-%s-%d-%d-%s", a.ID, year, week, email),
+		}); err != nil {
+			r.logger.Warn("autopilot credits notice not sent", zap.String("agent", a.ID.String()), zap.Error(err))
+		}
+	}
+}
+
+// runAutopilot records the run's outcome. A reached ceiling or a short balance is "skipped", not
+// a failure: the agent tries again on its next schedule.
 func (c *CustomAgentExecutionConsumer) runAutopilot(ctx context.Context, a *ent.CustomAgent, runID uuid.UUID) {
 	res, err := c.autopilot.Run(ctx, a)
 	upd := c.db.AgentRun.UpdateOneID(runID).SetFinishedAt(time.Now())
 	switch {
+	case errors.Is(err, errAutopilotNoCredits):
+		upd.SetStatus("skipped").SetErrorMessage(truncateStr(err.Error(), 1000)).SetTrace(map[string]any{"skip": "credits"})
 	case errors.Is(err, ErrAutopilotSkipped):
 		upd.SetStatus("skipped").SetErrorMessage(truncateStr(err.Error(), 1000))
 	case err != nil:

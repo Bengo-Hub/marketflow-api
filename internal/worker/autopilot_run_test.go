@@ -28,6 +28,46 @@ func seedAutopilot(t *testing.T, db *ent.Client, tid uuid.UUID, credits int) *en
 	}).SaveX(context.Background())
 }
 
+// A short balance skips the run before anything is made and can be told apart from a reached
+// ceiling; a forecast that cannot be read never blocks the run.
+func TestAutopilotRunCreditForecast(t *testing.T) {
+	db := openWorkerTestDB(t)
+	ctx := context.Background()
+	tid := seedTenant(t, db, "autopilot-forecast")
+	t.Cleanup(func() {
+		ids, _ := db.CreativeBrief.Query().Where(creativebrief.TenantID(tid)).IDs(ctx)
+		_, _ = db.CreativeVersion.Delete().Where(creativeversion.BriefIDIn(ids...)).Exec(ctx)
+		_, _ = db.CreativeBrief.Delete().Where(creativebrief.TenantID(tid)).Exec(ctx)
+		_, _ = db.CustomAgent.Delete().Where(customagent.TenantID(tid)).Exec(ctx)
+	})
+	r := NewAutopilotRunner(db, nil, "https://mf.example", zap.NewNop())
+	a := seedAutopilot(t, db, tid, 100)
+
+	r.forecast = func(context.Context, uuid.UUID) (creditForecast, error) {
+		return creditForecast{CreditsNeeded: 2, Balance: 1}, nil
+	}
+	if _, err := r.Run(ctx, a); !errors.Is(err, errAutopilotNoCredits) || !errors.Is(err, ErrAutopilotSkipped) {
+		t.Fatalf("a short balance must skip: %v", err)
+	}
+	if n := db.CreativeBrief.Query().Where(creativebrief.TenantID(tid)).CountX(ctx); n != 0 {
+		t.Fatalf("a skipped run made %d briefs", n)
+	}
+
+	r.forecast = func(context.Context, uuid.UUID) (creditForecast, error) {
+		return creditForecast{CreditsNeeded: 101, Balance: 500, Enough: true}, nil
+	}
+	if _, err := r.Run(ctx, a); !errors.Is(err, ErrAutopilotSkipped) || errors.Is(err, errAutopilotNoCredits) {
+		t.Fatalf("a draft past the ceiling is a plain skip: %v", err)
+	}
+
+	r.forecast = func(context.Context, uuid.UUID) (creditForecast, error) {
+		return creditForecast{}, errors.New("marketflow-ai is down")
+	}
+	if res, err := r.Run(ctx, a); err != nil || res.Offering != "Blender" {
+		t.Fatalf("an unreadable forecast must not block: %+v %v", res, err)
+	}
+}
+
 // A run makes a draft for review and never approves it; finished runs rotate the offering; a
 // reached credit ceiling skips the run.
 func TestAutopilotRunDraftsAndRotates(t *testing.T) {
