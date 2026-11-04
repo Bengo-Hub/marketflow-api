@@ -222,7 +222,7 @@ func (h *ConversionsHandler) dispatchGoogleAdsConversion(ctx context.Context, ev
 		"partialFailure": true,
 	}
 	body, _ := json.Marshal(payload)
-	endpoint := fmt.Sprintf("https://googleads.googleapis.com/v19/customers/%s:uploadClickConversions", customerID)
+	endpoint := fmt.Sprintf("https://googleads.googleapis.com/%s/customers/%s:uploadClickConversions", GoogleAdsAPIVersion, customerID)
 	req, _ := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(body))
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("developer-token", platform["developer_token"])
@@ -391,3 +391,10 @@ func metaCAPIRow(ev *ConversionEvent, eventTime int64, userData map[string]any, 
 	}
 	return row
 }
+
+// GoogleAdsAPIVersion is the one Google Ads API version MarketFlow calls. Google sunsets each
+// major version about 12 months after release and rejects calls to it afterwards; v19 (used here
+// before 2026-11-04) was already past its sunset, so every offline conversion upload failed.
+// v26 was released 2026-10-14 and is supported until November 2027 (developers.google.com/
+// google-ads/api/docs/sunset-dates). Move it forward before that date.
+const GoogleAdsAPIVersion = "v26"
