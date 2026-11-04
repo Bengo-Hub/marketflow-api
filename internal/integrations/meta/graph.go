@@ -164,17 +164,45 @@ func (c *Client) DeleteCampaign(ctx context.Context, accessToken, campaignID str
 	return nil
 }
 
-// Insights is the aggregate metrics row for a campaign over a date range.
+// Insights is the aggregate metrics row for a campaign over a date range. Leads and messaging
+// conversations come from the actions list (insights has no "leads" field); the cost per result
+// is computed by the caller from spend.
 type Insights struct {
 	CampaignID  string `json:"campaign_id"`
 	Date        string `json:"date_start"`
 	Impressions string `json:"impressions"`
 	Clicks      string `json:"clicks"`
 	Spend       string `json:"spend"`
-	Leads       string `json:"leads"`
 	CTR         string `json:"ctr"`
-	CPL         string `json:"cost_per_result"`
-	Currency    string `json:"currency"`
+	Currency    string `json:"account_currency"`
+	Actions     []struct {
+		ActionType string `json:"action_type"`
+		Value      string `json:"value"`
+	} `json:"actions"`
+}
+
+// leadActions are the action types that count as a lead; conversationActions as a WhatsApp or
+// Messenger conversation started. Meta's docs do not list them on the pages checked, so every
+// known name is accepted (docs/integrations/meta-paid-ads-apis.md).
+var (
+	leadActions         = map[string]bool{"lead": true, "onsite_conversion.lead_grouped": true, "leadgen_grouped": true, "offsite_conversion.fb_pixel_lead": true}
+	conversationActions = map[string]bool{"onsite_conversion.messaging_conversation_started_7d": true}
+)
+
+// Results counts leads and conversations in the actions list. Lead types can overlap (lead and
+// lead_grouped), so the largest lead count is used, not the sum.
+func (i Insights) Results() (leads, conversations int64) {
+	for _, a := range i.Actions {
+		var n int64
+		_, _ = fmt.Sscan(a.Value, &n)
+		switch {
+		case leadActions[a.ActionType] && n > leads:
+			leads = n
+		case conversationActions[a.ActionType]:
+			conversations += n
+		}
+	}
+	return leads, conversations
 }
 
 // GetCampaignInsights fetches today's metrics for a single campaign. Returns
@@ -185,7 +213,7 @@ func (c *Client) GetCampaignInsights(ctx context.Context, accessToken, campaignI
 	}
 	q := url.Values{}
 	q.Set("access_token", accessToken)
-	q.Set("fields", "campaign_id,date_start,impressions,clicks,spend,ctr,cost_per_result")
+	q.Set("fields", "campaign_id,date_start,impressions,clicks,spend,ctr,actions,account_currency")
 	q.Set("date_preset", "today")
 	q.Set("time_increment", "1")
 	endpoint := fmt.Sprintf("%s/%s/%s/insights?%s", c.baseURL, c.version, url.PathEscape(campaignID), q.Encode())

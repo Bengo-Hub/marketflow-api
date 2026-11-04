@@ -180,6 +180,8 @@ func main() {
 		reg.Add(worker.NewAgentEventTriggers(agentSvc, logger)...)
 		// WhatsApp assistant on the platform number (Sprint 17): verified MarketFlow users only,
 		// and only messages marketflow-ai's gate confirms are marketing requests.
+		// Click-to-WhatsApp attribution (Sprint 18): the ad click id on the lead, once.
+		reg.Add(worker.NewWhatsAppReferralHandler(entClient, logger))
 		reg.Add(worker.NewWhatsAppAssistantHandler(entClient, rdb,
 			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
 			cfg.AuthServiceURL, cfg.CrossServiceKey,
@@ -232,8 +234,13 @@ func main() {
 		// time; falls back to the Tenant.meta_access_token legacy field
 		// when the ProviderSetting row is missing.
 		tokenResolver := worker.NewMetaTokenResolver(entClient, keys, logger)
-		insights := worker.NewAdInsights(entClient, 15*time.Minute, tokenResolver.Resolve, logger).
-			WithMetaSecret(meta.PlatformSecret(entClient, keys, os.Getenv("MF_META_APP_SECRET")))
+		// Hourly (Sprint 18): insights reach Meta's ads rate limits fast, and an hour is fine-grained
+		// enough for auto-pause. Boosts are read with their own ad-account token.
+		metaSecret := meta.PlatformSecret(entClient, keys, os.Getenv("MF_META_APP_SECRET"))
+		boostOps := worker.NewBoostOps(entClient, keys, meta.NewClient("").WithSecret(metaSecret), tokenNotif, cfg.API.PortalURL, logger)
+		insights := worker.NewAdInsights(entClient, time.Hour, tokenResolver.Resolve, logger).
+			WithMetaSecret(metaSecret).
+			WithBoosts(boostOps.AdToken, boostOps.Pause)
 		go insights.Run(ctx)
 
 		// CRM background agents: ProactiveFollowUpAgent (hourly) + DealStaleDetector (daily).

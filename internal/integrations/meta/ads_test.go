@@ -106,3 +106,13 @@ func TestGraphErrorRateLimit(t *testing.T) {
 		t.Fatalf("rate limit not recognised: %v", err)
 	}
 }
+
+func TestInsightsResults(t *testing.T) {
+	var ins Insights
+	_ = json.Unmarshal([]byte(`{"actions":[{"action_type":"lead","value":"4"},{"action_type":"onsite_conversion.lead_grouped","value":"4"},
+	  {"action_type":"onsite_conversion.messaging_conversation_started_7d","value":"9"},{"action_type":"link_click","value":"40"}]}`), &ins)
+	leads, convs := ins.Results()
+	if leads != 4 || convs != 9 {
+		t.Fatalf("overlapping lead types count once: leads=%d conversations=%d", leads, convs)
+	}
+}

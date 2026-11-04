@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	sharedcache "github.com/Bengo-Hub/cache"
 	"time"
 
@@ -24,6 +25,17 @@ type AdInsights struct {
 	logger   *zap.Logger
 	meta     *meta.Client
 	resolver func(ctx context.Context, tenantID string) (accessToken string, ok bool)
+	// adToken returns a boost's own ad-account token (ads_read); nil uses the Page resolver.
+	adToken func(ctx context.Context, c *ent.Campaign) (string, bool)
+	// pause pauses a boost on Meta and tells the owner (auto-pause); nil turns auto-pause off.
+	pause func(ctx context.Context, c *ent.Campaign, reason string) error
+}
+
+// WithBoosts reads boosts with their ad-account token and turns on auto-pause.
+func (a *AdInsights) WithBoosts(adToken func(ctx context.Context, c *ent.Campaign) (string, bool),
+	pause func(ctx context.Context, c *ent.Campaign, reason string) error) *AdInsights {
+	a.adToken, a.pause = adToken, pause
+	return a
 }
 
 // NewAdInsights constructs the insights cron.
@@ -94,7 +106,13 @@ func (a *AdInsights) tick(ctx context.Context) {
 }
 
 func (a *AdInsights) syncCampaign(ctx context.Context, c *ent.Campaign) {
-	token, ok := a.resolver(ctx, c.TenantID.String())
+	token, ok := "", false
+	if c.ConnectedAccountID != nil && a.adToken != nil {
+		token, ok = a.adToken(ctx, c)
+	}
+	if !ok {
+		token, ok = a.resolver(ctx, c.TenantID.String())
+	}
 	if !ok || token == "" {
 		return
 	}
@@ -112,12 +130,15 @@ func (a *AdInsights) syncCampaign(ctx context.Context, c *ent.Campaign) {
 	impressions := parseInt64(ins.Impressions)
 	clicks := parseInt64(ins.Clicks)
 	spend := parseFloat(ins.Spend)
-	leads := parseInt64(ins.Leads)
+	leads, conversations := ins.Results()
 	ctr := parseFloat(ins.CTR)
-	cpl := parseFloat(ins.CPL)
+	var cpl float64
+	if results := leads + conversations; results > 0 {
+		cpl = spend / float64(results)
+	}
 	currency := ins.Currency
-	if currency == "" {
-		currency = "USD"
+	if currency == "" && c.Currency != "" {
+		currency = c.Currency
 	}
 
 	// Upsert one row per (campaign, day). Ent's sql/upsert feature makes this
@@ -132,6 +153,7 @@ func (a *AdInsights) syncCampaign(ctx context.Context, c *ent.Campaign) {
 		SetClicks(clicks).
 		SetSpend(spend).
 		SetLeads(leads).
+		SetConversions(conversations).
 		SetCtr(ctr).
 		SetCpl(cpl).
 		SetCurrency(currency).
@@ -142,6 +164,9 @@ func (a *AdInsights) syncCampaign(ctx context.Context, c *ent.Campaign) {
 		a.logger.Warn("ad_metrics upsert failed",
 			zap.String("campaign", c.ID.String()), zap.Error(err))
 		return
+	}
+	if a.pause != nil && c.ConnectedAccountID != nil {
+		a.autoPause(ctx, c)
 	}
 	a.logger.Debug("ad_metrics upserted",
 		zap.String("campaign", c.ID.String()),
@@ -193,3 +218,59 @@ func parseFloat(s string) float64 {
 // Ensure sql import is referenced so we keep the dependency consistent with
 // other workers that use *sql.DB for low-level queries.
 var _ = (*sql.DB)(nil)
+
+// Auto-pause (Sprint 18): a boost whose cost per result runs above the tenant's ceiling, once it
+// has spent enough to judge, is paused on Meta and the owner is told once. The budget and the end
+// date need no rule here: a lifetime budget with an end time stops on Meta by itself.
+const (
+	tenantMaxCPLKey   = "ads_max_cpl"
+	tenantMinSpendKey = "ads_min_spend_to_judge"
+	defaultMinSpend   = 500.0
+)
+
+func (a *AdInsights) autoPause(ctx context.Context, c *ent.Campaign) {
+	if _, done := c.Metadata["auto_paused_at"]; done {
+		return
+	}
+	t, err := a.db.Tenant.Get(ctx, c.TenantID)
+	if err != nil {
+		return
+	}
+	maxCPL, _ := t.Metadata[tenantMaxCPLKey].(float64)
+	if maxCPL <= 0 {
+		return // the tenant set no ceiling
+	}
+	minSpend, _ := t.Metadata[tenantMinSpendKey].(float64)
+	if minSpend <= 0 {
+		minSpend = defaultMinSpend
+	}
+	// Lifetime totals from the daily rows (the unique (campaign_id, date) index keeps it small).
+	var totals []struct {
+		Spend   float64 `json:"sum_spend"`
+		Leads   int64   `json:"sum_leads"`
+		Convers int64   `json:"sum_conversions"`
+	}
+	if err := a.db.AdMetrics.Query().Where(admetrics.CampaignID(c.ID)).
+		Aggregate(ent.As(ent.Sum(admetrics.FieldSpend), "sum_spend"), ent.As(ent.Sum(admetrics.FieldLeads), "sum_leads"),
+			ent.As(ent.Sum(admetrics.FieldConversions), "sum_conversions")).
+		Scan(ctx, &totals); err != nil || len(totals) == 0 {
+		return
+	}
+	tot := totals[0]
+	if tot.Spend < minSpend {
+		return
+	}
+	results := tot.Leads + tot.Convers
+	reason := ""
+	switch {
+	case results == 0 && tot.Spend >= 2*maxCPL:
+		reason = fmt.Sprintf("it spent %.0f %s with no leads yet", tot.Spend, c.Currency)
+	case results > 0 && tot.Spend/float64(results) > maxCPL:
+		reason = fmt.Sprintf("each lead cost %.0f %s, above your limit of %.0f", tot.Spend/float64(results), c.Currency, maxCPL)
+	default:
+		return
+	}
+	if err := a.pause(ctx, c, reason); err != nil {
+		a.logger.Warn("auto-pause failed", zap.String("campaign", c.ID.String()), zap.Error(err))
+	}
+}
