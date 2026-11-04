@@ -130,6 +130,9 @@ func main() {
 	// retargeting blueprints tenants can clone and populate with their own
 	// ad-account IDs + creative.
 	campaignsSeeded := seedCampaignTemplates(ctx, client, tid, scope)
+	if n := seedAgentTemplates(ctx, client, tid, scope); n > 0 {
+		log.Printf("agent templates seeded: %d", n)
+	}
 	log.Printf("Campaigns: %d starter templates seeded", campaignsSeeded)
 }
 
