@@ -113,7 +113,9 @@ func (s *Service) AgentsForEvent(ctx context.Context, tenantID uuid.UUID, event 
 			customagent.TenantID(tenantID),
 			customagent.IsActive(true),
 			customagent.TriggerType(TriggerEvent),
-			func(sel *sql.Selector) { sel.Where(sqljson.ValueEQ(customagent.FieldTriggerConfig, event, sqljson.Path("event"))) },
+			func(sel *sql.Selector) {
+				sel.Where(sqljson.ValueEQ(customagent.FieldTriggerConfig, event, sqljson.Path("event")))
+			},
 			notTeamMember(),
 		).
 		Limit(50). // bounds bad data; a tenant has a handful of agents

@@ -23,6 +23,8 @@ type Service struct {
 	client   *ent.Client
 	logger   *zap.Logger
 	natsConn *nats.Conn
+	// platformSlug owns the agent templates (templates.go).
+	platformSlug string
 }
 
 // NewService creates a new custom agents service.
@@ -133,7 +135,7 @@ func (s *Service) Get(ctx context.Context, tenantID, agentID uuid.UUID) (*ent.Cu
 // List retrieves all custom agents for a tenant.
 func (s *Service) List(ctx context.Context, tenantID uuid.UUID) ([]*ent.CustomAgent, error) {
 	results, err := s.client.CustomAgent.Query().
-		Where(customagent.TenantID(tenantID), notTeamMember()).
+		Where(customagent.TenantID(tenantID), notTeamMember(), notTemplate()).
 		Order(ent.Asc(customagent.FieldCreatedAt)).
 		All(ctx)
 	if err != nil {

@@ -517,6 +517,9 @@ type CustomAgentHandlers struct {
 	Delete     http.HandlerFunc
 	ListRuns   http.HandlerFunc
 	TriggerRun http.HandlerFunc
+	// Templates and HireTemplate serve the agent store (Sprint 20).
+	Templates    http.HandlerFunc
+	HireTemplate http.HandlerFunc
 }
 
 // SegmentHandlers groups segment management HTTP handlers.
@@ -870,6 +873,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 			// CRM: Custom agents
 			if deps.CustomAgentHandlers.Create != nil {
+				if deps.CustomAgentHandlers.Templates != nil {
+					r.Get("/agents/templates", deps.CustomAgentHandlers.Templates)
+					r.Post("/agents/templates/{id}/hire", deps.CustomAgentHandlers.HireTemplate)
+				}
 				r.Route("/agents/custom", func(r chi.Router) {
 					r.Post("/", deps.CustomAgentHandlers.Create)
 					r.Get("/", deps.CustomAgentHandlers.List)

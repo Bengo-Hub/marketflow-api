@@ -299,4 +299,3 @@ func extractTenantID(r *http.Request) (uuid.UUID, error) {
 	}
 	return uuid.Parse(header)
 }
-

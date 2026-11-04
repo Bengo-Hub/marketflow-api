@@ -29,22 +29,21 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/analytics"
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
 	"github.com/bengobox/marketflow-api/internal/modules/campaigns"
-	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
-	custom_agents "github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
-	"github.com/bengobox/marketflow-api/internal/modules/inbox"
-	"github.com/bengobox/marketflow-api/internal/modules/publishing"
-	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
-	"github.com/bengobox/marketflow-api/internal/modules/onboarding"
+	custom_agents "github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	custom_fields "github.com/bengobox/marketflow-api/internal/modules/custom_fields"
 	"github.com/bengobox/marketflow-api/internal/modules/deals"
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
+	"github.com/bengobox/marketflow-api/internal/modules/inbox"
 	"github.com/bengobox/marketflow-api/internal/modules/integrations"
 	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
+	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/modules/meetings"
+	"github.com/bengobox/marketflow-api/internal/modules/onboarding"
 	"github.com/bengobox/marketflow-api/internal/modules/pipelines"
+	"github.com/bengobox/marketflow-api/internal/modules/publishing"
 	"github.com/bengobox/marketflow-api/internal/modules/rbac"
 	"github.com/bengobox/marketflow-api/internal/modules/segments"
 	"github.com/bengobox/marketflow-api/internal/modules/sequences"
@@ -53,6 +52,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/tenant"
 	"github.com/bengobox/marketflow-api/internal/modules/testimonials"
 	"github.com/bengobox/marketflow-api/internal/modules/webhooks"
+	"github.com/bengobox/marketflow-api/internal/notifications"
 	platformevents "github.com/bengobox/marketflow-api/internal/platform/events"
 	"github.com/bengobox/marketflow-api/internal/platform/subscriptions"
 	"github.com/bengobox/marketflow-api/internal/providers"
@@ -298,7 +298,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	customFieldService := custom_fields.NewService(entClient, logger)
 	customFieldHandler := custom_fields.NewHandler(customFieldService, logger)
 
-	customAgentServiceOpts := []func(*custom_agents.Service){}
+	customAgentServiceOpts := []func(*custom_agents.Service){custom_agents.WithPlatformTenant(cfg.Security.PlatformTenant)}
 	if natsConn != nil {
 		customAgentServiceOpts = append(customAgentServiceOpts, custom_agents.WithNATS(natsConn))
 	}
@@ -331,7 +331,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// Paid ads (Sprint 18): off until the platform ads/meta_enabled switch; the approving roles
 	// launch and pause; launch credits go through marketflow-ai's charge route.
 	adsHandler := &adsmanager.Handler{DB: entClient, Keys: keyProvider,
-		Meta: meta.NewClient("").WithSecret(meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret)),
+		Meta:       meta.NewClient("").WithSecret(meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret)),
 		HasFeature: consumerFeatureGate, Charge: adsmanager.AICharge(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey),
 		LaunchCredits: adsmanager.DefaultLaunchCredits, Enabled: adsmanager.MetaEnabled(entClient), Logger: logger.Named("ads"),
 		CanLaunch: func(ctx context.Context, tenantID uuid.UUID) bool {
@@ -364,7 +364,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// Webhook handlers — Meta app credentials are platform-level (MF_META_*),
 	// shared across all tenants; per-tenant link is Tenant.meta_page_id.
 	metaWebhookHandler := webhooks.NewMetaHandler(leadService, webhooks.MetaConfig{
-		DB:          sqlDB,
+		DB:            sqlDB,
 		AppSecret:     cfg.Meta.AppSecret,
 		VerifyToken:   cfg.Meta.VerifyToken,
 		AllowUnsigned: cfg.App.Environment == "development",
@@ -372,7 +372,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		Inbox:         &webhooks.InboxStore{DB: entClient, Logger: logger.Named("webhooks.inbox")},
 	}, logger)
 	tiktokWebhookHandler := webhooks.NewTikTokHandler(leadService, webhooks.TikTokConfig{
-		DB:           sqlDB,
+		DB:            sqlDB,
 		SharedSecret:  cfg.TikTok.WebhookSecret,
 		AllowUnsigned: cfg.App.Environment == "development",
 	}, logger)
@@ -615,13 +615,15 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			GetDealValues:    customFieldHandler.GetValues("deal"),
 		},
 		CustomAgentHandlers: httpapi.CustomAgentHandlers{
-			Create:     customAgentHandler.Create,
-			List:       customAgentHandler.List,
-			Get:        customAgentHandler.Get,
-			Update:     customAgentHandler.Update,
-			Delete:     customAgentHandler.Delete,
-			ListRuns:   customAgentHandler.ListRuns,
-			TriggerRun: customAgentHandler.TriggerRun,
+			Create:       customAgentHandler.Create,
+			List:         customAgentHandler.List,
+			Get:          customAgentHandler.Get,
+			Update:       customAgentHandler.Update,
+			Delete:       customAgentHandler.Delete,
+			ListRuns:     customAgentHandler.ListRuns,
+			TriggerRun:   customAgentHandler.TriggerRun,
+			Templates:    customAgentHandler.Templates,
+			HireTemplate: customAgentHandler.HireTemplate,
 		},
 		OnboardingHandlers: httpapi.OnboardingHandlers{
 			Checklist: onboardingHandler.Checklist,
