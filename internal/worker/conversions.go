@@ -14,8 +14,8 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
-	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
+	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/nats-io/nats.go/jetstream"
 	"go.uber.org/zap"
 )
@@ -28,17 +28,20 @@ import (
 // Publishers: marketflow-api when it observes a matching Lead / Meeting /
 // Order event. Subject: `conversion.occurred`.
 type ConversionEvent struct {
-	TenantID     string  `json:"tenant_id"`
-	EventName    string  `json:"event_name"` // Lead | CompleteRegistration | Purchase | etc.
-	Value        float64 `json:"value"`
-	Currency     string  `json:"currency"`
-	OccurredAt   string  `json:"occurred_at"` // RFC3339
-	Gclid        string  `json:"gclid,omitempty"`
-	Fbclid       string  `json:"fbclid,omitempty"`
-	ClientUserID string  `json:"client_user_id,omitempty"` // Lead UUID for dedup
-	Email        string  `json:"email,omitempty"`          // Raw — hashed before outbound
-	Phone        string  `json:"phone,omitempty"`          // Raw — hashed before outbound
-	Source       string  `json:"source,omitempty"`         // lead | meeting | order
+	TenantID   string  `json:"tenant_id"`
+	EventName  string  `json:"event_name"` // Lead | CompleteRegistration | Purchase | etc.
+	Value      float64 `json:"value"`
+	Currency   string  `json:"currency"`
+	OccurredAt string  `json:"occurred_at"` // RFC3339
+	Gclid      string  `json:"gclid,omitempty"`
+	Fbclid     string  `json:"fbclid,omitempty"`
+	// CtwaClid is the click id of a click-to-WhatsApp ad (Sprint 18); such a sale goes to Meta as
+	// a business_messaging event on the WhatsApp dataset, not a website event.
+	CtwaClid     string `json:"ctwa_clid,omitempty"`
+	ClientUserID string `json:"client_user_id,omitempty"` // Lead UUID for dedup
+	Email        string `json:"email,omitempty"`          // Raw — hashed before outbound
+	Phone        string `json:"phone,omitempty"`          // Raw — hashed before outbound
+	Source       string `json:"source,omitempty"`         // lead | meeting | order
 }
 
 // ConversionsHandler is the NATS consumer. Dispatches to Meta CAPI + Google
@@ -94,6 +97,17 @@ func (h *ConversionsHandler) dispatchMetaCAPI(ctx context.Context, ev *Conversio
 	}
 	pixelID := settings["pixel_id"]
 	token := settings["access_token"]
+	// A click-to-WhatsApp sale is matched by ctwa_clid on the WhatsApp dataset
+	// (POST /{dataset_id}/events, action_source business_messaging); a website event would not
+	// match the ad. Without the dataset it is skipped rather than sent wrongly.
+	messaging := ev.CtwaClid != ""
+	if messaging {
+		pixelID = settings["dataset_id"]
+		if pixelID == "" || settings["waba_id"] == "" {
+			h.logger.Info("ctwa conversion skipped: no WhatsApp dataset configured", zap.String("tenant", ev.TenantID))
+			return nil
+		}
+	}
 	if pixelID == "" || token == "" {
 		return nil
 	}
@@ -118,21 +132,8 @@ func (h *ConversionsHandler) dispatchMetaCAPI(ctx context.Context, ev *Conversio
 		userData["fbc"] = fmt.Sprintf("fb.1.%d.%s", eventTime, ev.Fbclid)
 	}
 
-	payload := map[string]any{
-		"data": []map[string]any{
-			{
-				"event_name":      ev.EventName,
-				"event_time":      eventTime,
-				"action_source":   "website",
-				"event_id":        ev.ClientUserID, // Meta dedups against pixel browser events
-				"user_data":       userData,
-				"custom_data": map[string]any{
-					"currency": firstNonEmpty(ev.Currency, "USD"),
-					"value":    ev.Value,
-				},
-			},
-		},
-	}
+	row := metaCAPIRow(ev, eventTime, userData, settings["waba_id"])
+	payload := map[string]any{"data": []map[string]any{row}}
 	body, _ := json.Marshal(payload)
 
 	url := fmt.Sprintf("https://graph.facebook.com/%s/%s/events?access_token=%s",
@@ -366,4 +367,27 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + "…"
+}
+
+// metaCAPIRow builds one Conversions API event. A click-to-WhatsApp sale is a business_messaging
+// event matched by ctwa_clid and the WhatsApp Business Account; anything else is a website event
+// matched by hashed contact data and fbclid.
+func metaCAPIRow(ev *ConversionEvent, eventTime int64, userData map[string]any, wabaID string) map[string]any {
+	row := map[string]any{
+		"event_name":    ev.EventName,
+		"event_time":    eventTime,
+		"action_source": "website",
+		"event_id":      ev.ClientUserID, // Meta dedups against pixel browser events
+		"user_data":     userData,
+		"custom_data": map[string]any{
+			"currency": firstNonEmpty(ev.Currency, "USD"),
+			"value":    ev.Value,
+		},
+	}
+	if ev.CtwaClid != "" {
+		row["action_source"] = "business_messaging"
+		row["messaging_channel"] = "whatsapp"
+		row["user_data"] = map[string]any{"whatsapp_business_account_id": wabaID, "ctwa_clid": ev.CtwaClid}
+	}
+	return row
 }

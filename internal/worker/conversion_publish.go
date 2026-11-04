@@ -16,7 +16,7 @@ import (
 )
 
 // adLeadSources are lead sources that came from a paid ad platform.
-var adLeadSources = map[string]bool{"meta_ad": true, "tiktok_ad": true, "google_ad": true}
+var adLeadSources = map[string]bool{"meta_ad": true, "tiktok_ad": true, "google_ad": true, "ctwa": true}
 
 // adAttributed reports whether a lead came from an ad: an ad source, or a stored click id.
 func adAttributed(l *ent.Lead) bool {
@@ -78,6 +78,7 @@ func enqueueAdConversion(ctx context.Context, db *ent.Client, tenantID, contactI
 		OccurredAt:   time.Now().UTC().Format(time.RFC3339),
 		Gclid:        str(l.Metadata, "gclid"),
 		Fbclid:       str(l.Metadata, "fbclid"),
+		CtwaClid:     str(l.Metadata, "ctwa_clid"),
 		ClientUserID: l.ID.String(),
 		Source:       source,
 	}
