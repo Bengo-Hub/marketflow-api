@@ -7269,43 +7269,45 @@ func (m *BehavioralTriggerMutation) ResetEdge(name string) error {
 // CampaignMutation represents an operation that mutates the Campaign nodes in the graph.
 type CampaignMutation struct {
 	config
-	op                Op
-	typ               string
-	id                *uuid.UUID
-	scope             *string
-	name              *string
-	campaign_type     *string
-	platform          *string
-	status            *string
-	channel           *string
-	meta_campaign_id  *string
-	meta_adset_id     *string
-	meta_ad_id        *string
-	budget_daily      *float64
-	addbudget_daily   *float64
-	budget_total      *float64
-	addbudget_total   *float64
-	currency          *string
-	target_audience   *map[string]interface{}
-	funnel_id         *uuid.UUID
-	start_date        *time.Time
-	end_date          *time.Time
-	metrics           *map[string]interface{}
-	metadata          *map[string]interface{}
-	created_at        *time.Time
-	updated_at        *time.Time
-	clearedFields     map[string]struct{}
-	tenant            *uuid.UUID
-	clearedtenant     bool
-	leads             map[uuid.UUID]struct{}
-	removedleads      map[uuid.UUID]struct{}
-	clearedleads      bool
-	ad_metrics        map[uuid.UUID]struct{}
-	removedad_metrics map[uuid.UUID]struct{}
-	clearedad_metrics bool
-	done              bool
-	oldValue          func(context.Context) (*Campaign, error)
-	predicates        []predicate.Campaign
+	op                   Op
+	typ                  string
+	id                   *uuid.UUID
+	scope                *string
+	name                 *string
+	campaign_type        *string
+	platform             *string
+	status               *string
+	channel              *string
+	meta_campaign_id     *string
+	meta_adset_id        *string
+	meta_ad_id           *string
+	budget_daily         *float64
+	addbudget_daily      *float64
+	budget_total         *float64
+	addbudget_total      *float64
+	currency             *string
+	target_audience      *map[string]interface{}
+	funnel_id            *uuid.UUID
+	start_date           *time.Time
+	end_date             *time.Time
+	metrics              *map[string]interface{}
+	connected_account_id *uuid.UUID
+	creative_version_id  *uuid.UUID
+	metadata             *map[string]interface{}
+	created_at           *time.Time
+	updated_at           *time.Time
+	clearedFields        map[string]struct{}
+	tenant               *uuid.UUID
+	clearedtenant        bool
+	leads                map[uuid.UUID]struct{}
+	removedleads         map[uuid.UUID]struct{}
+	clearedleads         bool
+	ad_metrics           map[uuid.UUID]struct{}
+	removedad_metrics    map[uuid.UUID]struct{}
+	clearedad_metrics    bool
+	done                 bool
+	oldValue             func(context.Context) (*Campaign, error)
+	predicates           []predicate.Campaign
 }
 
 var _ ent.Mutation = (*CampaignMutation)(nil)
@@ -8232,6 +8234,104 @@ func (m *CampaignMutation) ResetMetrics() {
 	delete(m.clearedFields, campaign.FieldMetrics)
 }
 
+// SetConnectedAccountID sets the "connected_account_id" field.
+func (m *CampaignMutation) SetConnectedAccountID(u uuid.UUID) {
+	m.connected_account_id = &u
+}
+
+// ConnectedAccountID returns the value of the "connected_account_id" field in the mutation.
+func (m *CampaignMutation) ConnectedAccountID() (r uuid.UUID, exists bool) {
+	v := m.connected_account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConnectedAccountID returns the old "connected_account_id" field's value of the Campaign entity.
+// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CampaignMutation) OldConnectedAccountID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConnectedAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConnectedAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConnectedAccountID: %w", err)
+	}
+	return oldValue.ConnectedAccountID, nil
+}
+
+// ClearConnectedAccountID clears the value of the "connected_account_id" field.
+func (m *CampaignMutation) ClearConnectedAccountID() {
+	m.connected_account_id = nil
+	m.clearedFields[campaign.FieldConnectedAccountID] = struct{}{}
+}
+
+// ConnectedAccountIDCleared returns if the "connected_account_id" field was cleared in this mutation.
+func (m *CampaignMutation) ConnectedAccountIDCleared() bool {
+	_, ok := m.clearedFields[campaign.FieldConnectedAccountID]
+	return ok
+}
+
+// ResetConnectedAccountID resets all changes to the "connected_account_id" field.
+func (m *CampaignMutation) ResetConnectedAccountID() {
+	m.connected_account_id = nil
+	delete(m.clearedFields, campaign.FieldConnectedAccountID)
+}
+
+// SetCreativeVersionID sets the "creative_version_id" field.
+func (m *CampaignMutation) SetCreativeVersionID(u uuid.UUID) {
+	m.creative_version_id = &u
+}
+
+// CreativeVersionID returns the value of the "creative_version_id" field in the mutation.
+func (m *CampaignMutation) CreativeVersionID() (r uuid.UUID, exists bool) {
+	v := m.creative_version_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreativeVersionID returns the old "creative_version_id" field's value of the Campaign entity.
+// If the Campaign object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CampaignMutation) OldCreativeVersionID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreativeVersionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreativeVersionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreativeVersionID: %w", err)
+	}
+	return oldValue.CreativeVersionID, nil
+}
+
+// ClearCreativeVersionID clears the value of the "creative_version_id" field.
+func (m *CampaignMutation) ClearCreativeVersionID() {
+	m.creative_version_id = nil
+	m.clearedFields[campaign.FieldCreativeVersionID] = struct{}{}
+}
+
+// CreativeVersionIDCleared returns if the "creative_version_id" field was cleared in this mutation.
+func (m *CampaignMutation) CreativeVersionIDCleared() bool {
+	_, ok := m.clearedFields[campaign.FieldCreativeVersionID]
+	return ok
+}
+
+// ResetCreativeVersionID resets all changes to the "creative_version_id" field.
+func (m *CampaignMutation) ResetCreativeVersionID() {
+	m.creative_version_id = nil
+	delete(m.clearedFields, campaign.FieldCreativeVersionID)
+}
+
 // SetMetadata sets the "metadata" field.
 func (m *CampaignMutation) SetMetadata(value map[string]interface{}) {
 	m.metadata = &value
@@ -8522,7 +8622,7 @@ func (m *CampaignMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CampaignMutation) Fields() []string {
-	fields := make([]string, 0, 21)
+	fields := make([]string, 0, 23)
 	if m.tenant != nil {
 		fields = append(fields, campaign.FieldTenantID)
 	}
@@ -8577,6 +8677,12 @@ func (m *CampaignMutation) Fields() []string {
 	if m.metrics != nil {
 		fields = append(fields, campaign.FieldMetrics)
 	}
+	if m.connected_account_id != nil {
+		fields = append(fields, campaign.FieldConnectedAccountID)
+	}
+	if m.creative_version_id != nil {
+		fields = append(fields, campaign.FieldCreativeVersionID)
+	}
 	if m.metadata != nil {
 		fields = append(fields, campaign.FieldMetadata)
 	}
@@ -8630,6 +8736,10 @@ func (m *CampaignMutation) Field(name string) (ent.Value, bool) {
 		return m.EndDate()
 	case campaign.FieldMetrics:
 		return m.Metrics()
+	case campaign.FieldConnectedAccountID:
+		return m.ConnectedAccountID()
+	case campaign.FieldCreativeVersionID:
+		return m.CreativeVersionID()
 	case campaign.FieldMetadata:
 		return m.Metadata()
 	case campaign.FieldCreatedAt:
@@ -8681,6 +8791,10 @@ func (m *CampaignMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldEndDate(ctx)
 	case campaign.FieldMetrics:
 		return m.OldMetrics(ctx)
+	case campaign.FieldConnectedAccountID:
+		return m.OldConnectedAccountID(ctx)
+	case campaign.FieldCreativeVersionID:
+		return m.OldCreativeVersionID(ctx)
 	case campaign.FieldMetadata:
 		return m.OldMetadata(ctx)
 	case campaign.FieldCreatedAt:
@@ -8822,6 +8936,20 @@ func (m *CampaignMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetMetrics(v)
 		return nil
+	case campaign.FieldConnectedAccountID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConnectedAccountID(v)
+		return nil
+	case campaign.FieldCreativeVersionID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreativeVersionID(v)
+		return nil
 	case campaign.FieldMetadata:
 		v, ok := value.(map[string]interface{})
 		if !ok {
@@ -8930,6 +9058,12 @@ func (m *CampaignMutation) ClearedFields() []string {
 	if m.FieldCleared(campaign.FieldMetrics) {
 		fields = append(fields, campaign.FieldMetrics)
 	}
+	if m.FieldCleared(campaign.FieldConnectedAccountID) {
+		fields = append(fields, campaign.FieldConnectedAccountID)
+	}
+	if m.FieldCleared(campaign.FieldCreativeVersionID) {
+		fields = append(fields, campaign.FieldCreativeVersionID)
+	}
 	if m.FieldCleared(campaign.FieldMetadata) {
 		fields = append(fields, campaign.FieldMetadata)
 	}
@@ -8976,6 +9110,12 @@ func (m *CampaignMutation) ClearField(name string) error {
 		return nil
 	case campaign.FieldMetrics:
 		m.ClearMetrics()
+		return nil
+	case campaign.FieldConnectedAccountID:
+		m.ClearConnectedAccountID()
+		return nil
+	case campaign.FieldCreativeVersionID:
+		m.ClearCreativeVersionID()
 		return nil
 	case campaign.FieldMetadata:
 		m.ClearMetadata()
@@ -9041,6 +9181,12 @@ func (m *CampaignMutation) ResetField(name string) error {
 		return nil
 	case campaign.FieldMetrics:
 		m.ResetMetrics()
+		return nil
+	case campaign.FieldConnectedAccountID:
+		m.ResetConnectedAccountID()
+		return nil
+	case campaign.FieldCreativeVersionID:
+		m.ResetCreativeVersionID()
 		return nil
 	case campaign.FieldMetadata:
 		m.ResetMetadata()

@@ -117,6 +117,8 @@ type RouterDeps struct {
 	OnboardingHandlers  OnboardingHandlers
 	CreativeHandlers    CreativeHandlers
 	PublishingHandlers  PublishingHandlers
+	InboxHandlers       InboxHandlers
+	AdsHandlers         AdsHandlers
 	SuggestionHandlers  SuggestionHandlers
 	SegmentHandlers     SegmentHandlers
 
@@ -476,6 +478,24 @@ type CreativeHandlers struct {
 	CreateReviewLink  http.HandlerFunc
 	RevokeReviewLinks http.HandlerFunc
 	OpenReview        http.HandlerFunc // Public — GET /r/{token}
+}
+
+// AdsHandlers groups the paid ads routes (Sprint 18).
+type AdsHandlers struct {
+	Accounts    http.HandlerFunc
+	Quote       http.HandlerFunc
+	Boost       http.HandlerFunc
+	Get         http.HandlerFunc
+	ConfirmPaid http.HandlerFunc
+	Pause       http.HandlerFunc
+}
+
+// InboxHandlers groups the social inbox routes (Sprint 22).
+type InboxHandlers struct {
+	List    http.HandlerFunc
+	Reply   http.HandlerFunc
+	Handled http.HandlerFunc
+	Promote http.HandlerFunc
 }
 
 // PublishingHandlers groups the organic publishing routes (Sprint 16).
@@ -904,6 +924,28 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Get("/versions/{id}/quote", deps.CreativeHandlers.QuoteVideoAd)
 					r.Post("/versions/{id}/review-link", deps.CreativeHandlers.CreateReviewLink)
 					r.Delete("/versions/{id}/review-link", deps.CreativeHandlers.RevokeReviewLinks)
+				})
+			}
+
+			// Paid ads on the client's own Meta ad account: accounts, quote, boost, paid, pause.
+			if deps.AdsHandlers.Quote != nil {
+				r.Route("/ads", func(r chi.Router) {
+					r.Get("/accounts", deps.AdsHandlers.Accounts)
+					r.Post("/quote", deps.AdsHandlers.Quote)
+					r.Post("/boosts", deps.AdsHandlers.Boost)
+					r.Get("/boosts/{id}", deps.AdsHandlers.Get)
+					r.Post("/boosts/{id}/paid", deps.AdsHandlers.ConfirmPaid)
+					r.Post("/boosts/{id}/pause", deps.AdsHandlers.Pause)
+				})
+			}
+
+			// Social inbox: comments and DMs with intent tags, reply, handled, promote.
+			if deps.InboxHandlers.List != nil {
+				r.Route("/inbox", func(r chi.Router) {
+					r.Get("/", deps.InboxHandlers.List)
+					r.Post("/{id}/reply", deps.InboxHandlers.Reply)
+					r.Post("/{id}/handled", deps.InboxHandlers.Handled)
+					r.Post("/{id}/promote", deps.InboxHandlers.Promote)
 				})
 			}
 

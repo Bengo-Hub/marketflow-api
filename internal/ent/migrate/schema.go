@@ -344,6 +344,8 @@ var (
 		{Name: "start_date", Type: field.TypeTime, Nullable: true},
 		{Name: "end_date", Type: field.TypeTime, Nullable: true},
 		{Name: "metrics", Type: field.TypeJSON, Nullable: true},
+		{Name: "connected_account_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "creative_version_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -357,7 +359,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "campaigns_tenants_campaigns",
-				Columns:    []*schema.Column{CampaignsColumns[21]},
+				Columns:    []*schema.Column{CampaignsColumns[23]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -366,22 +368,35 @@ var (
 			{
 				Name:    "campaign_tenant_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{CampaignsColumns[21], CampaignsColumns[5]},
+				Columns: []*schema.Column{CampaignsColumns[23], CampaignsColumns[5]},
 			},
 			{
 				Name:    "campaign_tenant_id_campaign_type",
 				Unique:  false,
-				Columns: []*schema.Column{CampaignsColumns[21], CampaignsColumns[3]},
+				Columns: []*schema.Column{CampaignsColumns[23], CampaignsColumns[3]},
 			},
 			{
 				Name:    "campaign_tenant_id_platform",
 				Unique:  false,
-				Columns: []*schema.Column{CampaignsColumns[21], CampaignsColumns[4]},
+				Columns: []*schema.Column{CampaignsColumns[23], CampaignsColumns[4]},
 			},
 			{
 				Name:    "campaign_meta_campaign_id",
 				Unique:  false,
 				Columns: []*schema.Column{CampaignsColumns[7]},
+			},
+			{
+				Name:    "campaign_tenant_id_creative_version_id",
+				Unique:  false,
+				Columns: []*schema.Column{CampaignsColumns[23], CampaignsColumns[19]},
+			},
+			{
+				Name:    "campaigns_launching",
+				Unique:  false,
+				Columns: []*schema.Column{CampaignsColumns[22]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "status = 'launching'",
+				},
 			},
 		},
 	}

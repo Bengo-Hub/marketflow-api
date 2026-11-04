@@ -247,6 +247,34 @@ func (_c *CampaignCreate) SetMetrics(v map[string]interface{}) *CampaignCreate {
 	return _c
 }
 
+// SetConnectedAccountID sets the "connected_account_id" field.
+func (_c *CampaignCreate) SetConnectedAccountID(v uuid.UUID) *CampaignCreate {
+	_c.mutation.SetConnectedAccountID(v)
+	return _c
+}
+
+// SetNillableConnectedAccountID sets the "connected_account_id" field if the given value is not nil.
+func (_c *CampaignCreate) SetNillableConnectedAccountID(v *uuid.UUID) *CampaignCreate {
+	if v != nil {
+		_c.SetConnectedAccountID(*v)
+	}
+	return _c
+}
+
+// SetCreativeVersionID sets the "creative_version_id" field.
+func (_c *CampaignCreate) SetCreativeVersionID(v uuid.UUID) *CampaignCreate {
+	_c.mutation.SetCreativeVersionID(v)
+	return _c
+}
+
+// SetNillableCreativeVersionID sets the "creative_version_id" field if the given value is not nil.
+func (_c *CampaignCreate) SetNillableCreativeVersionID(v *uuid.UUID) *CampaignCreate {
+	if v != nil {
+		_c.SetCreativeVersionID(*v)
+	}
+	return _c
+}
+
 // SetMetadata sets the "metadata" field.
 func (_c *CampaignCreate) SetMetadata(v map[string]interface{}) *CampaignCreate {
 	_c.mutation.SetMetadata(v)
@@ -546,6 +574,14 @@ func (_c *CampaignCreate) createSpec() (*Campaign, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Metrics(); ok {
 		_spec.SetField(campaign.FieldMetrics, field.TypeJSON, value)
 		_node.Metrics = value
+	}
+	if value, ok := _c.mutation.ConnectedAccountID(); ok {
+		_spec.SetField(campaign.FieldConnectedAccountID, field.TypeUUID, value)
+		_node.ConnectedAccountID = &value
+	}
+	if value, ok := _c.mutation.CreativeVersionID(); ok {
+		_spec.SetField(campaign.FieldCreativeVersionID, field.TypeUUID, value)
+		_node.CreativeVersionID = &value
 	}
 	if value, ok := _c.mutation.Metadata(); ok {
 		_spec.SetField(campaign.FieldMetadata, field.TypeJSON, value)
@@ -945,6 +981,42 @@ func (u *CampaignUpsert) UpdateMetrics() *CampaignUpsert {
 // ClearMetrics clears the value of the "metrics" field.
 func (u *CampaignUpsert) ClearMetrics() *CampaignUpsert {
 	u.SetNull(campaign.FieldMetrics)
+	return u
+}
+
+// SetConnectedAccountID sets the "connected_account_id" field.
+func (u *CampaignUpsert) SetConnectedAccountID(v uuid.UUID) *CampaignUpsert {
+	u.Set(campaign.FieldConnectedAccountID, v)
+	return u
+}
+
+// UpdateConnectedAccountID sets the "connected_account_id" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateConnectedAccountID() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldConnectedAccountID)
+	return u
+}
+
+// ClearConnectedAccountID clears the value of the "connected_account_id" field.
+func (u *CampaignUpsert) ClearConnectedAccountID() *CampaignUpsert {
+	u.SetNull(campaign.FieldConnectedAccountID)
+	return u
+}
+
+// SetCreativeVersionID sets the "creative_version_id" field.
+func (u *CampaignUpsert) SetCreativeVersionID(v uuid.UUID) *CampaignUpsert {
+	u.Set(campaign.FieldCreativeVersionID, v)
+	return u
+}
+
+// UpdateCreativeVersionID sets the "creative_version_id" field to the value that was provided on create.
+func (u *CampaignUpsert) UpdateCreativeVersionID() *CampaignUpsert {
+	u.SetExcluded(campaign.FieldCreativeVersionID)
+	return u
+}
+
+// ClearCreativeVersionID clears the value of the "creative_version_id" field.
+func (u *CampaignUpsert) ClearCreativeVersionID() *CampaignUpsert {
+	u.SetNull(campaign.FieldCreativeVersionID)
 	return u
 }
 
@@ -1362,6 +1434,48 @@ func (u *CampaignUpsertOne) UpdateMetrics() *CampaignUpsertOne {
 func (u *CampaignUpsertOne) ClearMetrics() *CampaignUpsertOne {
 	return u.Update(func(s *CampaignUpsert) {
 		s.ClearMetrics()
+	})
+}
+
+// SetConnectedAccountID sets the "connected_account_id" field.
+func (u *CampaignUpsertOne) SetConnectedAccountID(v uuid.UUID) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetConnectedAccountID(v)
+	})
+}
+
+// UpdateConnectedAccountID sets the "connected_account_id" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateConnectedAccountID() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateConnectedAccountID()
+	})
+}
+
+// ClearConnectedAccountID clears the value of the "connected_account_id" field.
+func (u *CampaignUpsertOne) ClearConnectedAccountID() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearConnectedAccountID()
+	})
+}
+
+// SetCreativeVersionID sets the "creative_version_id" field.
+func (u *CampaignUpsertOne) SetCreativeVersionID(v uuid.UUID) *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetCreativeVersionID(v)
+	})
+}
+
+// UpdateCreativeVersionID sets the "creative_version_id" field to the value that was provided on create.
+func (u *CampaignUpsertOne) UpdateCreativeVersionID() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateCreativeVersionID()
+	})
+}
+
+// ClearCreativeVersionID clears the value of the "creative_version_id" field.
+func (u *CampaignUpsertOne) ClearCreativeVersionID() *CampaignUpsertOne {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearCreativeVersionID()
 	})
 }
 
@@ -1951,6 +2065,48 @@ func (u *CampaignUpsertBulk) UpdateMetrics() *CampaignUpsertBulk {
 func (u *CampaignUpsertBulk) ClearMetrics() *CampaignUpsertBulk {
 	return u.Update(func(s *CampaignUpsert) {
 		s.ClearMetrics()
+	})
+}
+
+// SetConnectedAccountID sets the "connected_account_id" field.
+func (u *CampaignUpsertBulk) SetConnectedAccountID(v uuid.UUID) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetConnectedAccountID(v)
+	})
+}
+
+// UpdateConnectedAccountID sets the "connected_account_id" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateConnectedAccountID() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateConnectedAccountID()
+	})
+}
+
+// ClearConnectedAccountID clears the value of the "connected_account_id" field.
+func (u *CampaignUpsertBulk) ClearConnectedAccountID() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearConnectedAccountID()
+	})
+}
+
+// SetCreativeVersionID sets the "creative_version_id" field.
+func (u *CampaignUpsertBulk) SetCreativeVersionID(v uuid.UUID) *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.SetCreativeVersionID(v)
+	})
+}
+
+// UpdateCreativeVersionID sets the "creative_version_id" field to the value that was provided on create.
+func (u *CampaignUpsertBulk) UpdateCreativeVersionID() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.UpdateCreativeVersionID()
+	})
+}
+
+// ClearCreativeVersionID clears the value of the "creative_version_id" field.
+func (u *CampaignUpsertBulk) ClearCreativeVersionID() *CampaignUpsertBulk {
+	return u.Update(func(s *CampaignUpsert) {
+		s.ClearCreativeVersionID()
 	})
 }
 

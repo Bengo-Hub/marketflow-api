@@ -51,6 +51,10 @@ const (
 	FieldEndDate = "end_date"
 	// FieldMetrics holds the string denoting the metrics field in the database.
 	FieldMetrics = "metrics"
+	// FieldConnectedAccountID holds the string denoting the connected_account_id field in the database.
+	FieldConnectedAccountID = "connected_account_id"
+	// FieldCreativeVersionID holds the string denoting the creative_version_id field in the database.
+	FieldCreativeVersionID = "creative_version_id"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -109,6 +113,8 @@ var Columns = []string{
 	FieldStartDate,
 	FieldEndDate,
 	FieldMetrics,
+	FieldConnectedAccountID,
+	FieldCreativeVersionID,
 	FieldMetadata,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -235,6 +241,16 @@ func ByStartDate(opts ...sql.OrderTermOption) OrderOption {
 // ByEndDate orders the results by the end_date field.
 func ByEndDate(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEndDate, opts...).ToFunc()
+}
+
+// ByConnectedAccountID orders the results by the connected_account_id field.
+func ByConnectedAccountID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldConnectedAccountID, opts...).ToFunc()
+}
+
+// ByCreativeVersionID orders the results by the creative_version_id field.
+func ByCreativeVersionID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreativeVersionID, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

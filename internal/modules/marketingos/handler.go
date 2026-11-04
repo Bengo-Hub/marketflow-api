@@ -177,7 +177,13 @@ func (h *Handler) PutSettings(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	var in Settings
+	// Start from the saved switches, so a body that names only some of them (the brief page
+	// sends daily_brief alone) never resets the others.
+	in, err := h.svc.GetSettings(r.Context(), tid)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&in); err != nil {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
 		return

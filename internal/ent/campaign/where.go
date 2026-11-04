@@ -136,6 +136,16 @@ func EndDate(v time.Time) predicate.Campaign {
 	return predicate.Campaign(sql.FieldEQ(FieldEndDate, v))
 }
 
+// ConnectedAccountID applies equality check predicate on the "connected_account_id" field. It's identical to ConnectedAccountIDEQ.
+func ConnectedAccountID(v uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldEQ(FieldConnectedAccountID, v))
+}
+
+// CreativeVersionID applies equality check predicate on the "creative_version_id" field. It's identical to CreativeVersionIDEQ.
+func CreativeVersionID(v uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldEQ(FieldCreativeVersionID, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Campaign {
 	return predicate.Campaign(sql.FieldEQ(FieldCreatedAt, v))
@@ -1114,6 +1124,106 @@ func MetricsIsNil() predicate.Campaign {
 // MetricsNotNil applies the NotNil predicate on the "metrics" field.
 func MetricsNotNil() predicate.Campaign {
 	return predicate.Campaign(sql.FieldNotNull(FieldMetrics))
+}
+
+// ConnectedAccountIDEQ applies the EQ predicate on the "connected_account_id" field.
+func ConnectedAccountIDEQ(v uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldEQ(FieldConnectedAccountID, v))
+}
+
+// ConnectedAccountIDNEQ applies the NEQ predicate on the "connected_account_id" field.
+func ConnectedAccountIDNEQ(v uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldNEQ(FieldConnectedAccountID, v))
+}
+
+// ConnectedAccountIDIn applies the In predicate on the "connected_account_id" field.
+func ConnectedAccountIDIn(vs ...uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldIn(FieldConnectedAccountID, vs...))
+}
+
+// ConnectedAccountIDNotIn applies the NotIn predicate on the "connected_account_id" field.
+func ConnectedAccountIDNotIn(vs ...uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldNotIn(FieldConnectedAccountID, vs...))
+}
+
+// ConnectedAccountIDGT applies the GT predicate on the "connected_account_id" field.
+func ConnectedAccountIDGT(v uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldGT(FieldConnectedAccountID, v))
+}
+
+// ConnectedAccountIDGTE applies the GTE predicate on the "connected_account_id" field.
+func ConnectedAccountIDGTE(v uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldGTE(FieldConnectedAccountID, v))
+}
+
+// ConnectedAccountIDLT applies the LT predicate on the "connected_account_id" field.
+func ConnectedAccountIDLT(v uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldLT(FieldConnectedAccountID, v))
+}
+
+// ConnectedAccountIDLTE applies the LTE predicate on the "connected_account_id" field.
+func ConnectedAccountIDLTE(v uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldLTE(FieldConnectedAccountID, v))
+}
+
+// ConnectedAccountIDIsNil applies the IsNil predicate on the "connected_account_id" field.
+func ConnectedAccountIDIsNil() predicate.Campaign {
+	return predicate.Campaign(sql.FieldIsNull(FieldConnectedAccountID))
+}
+
+// ConnectedAccountIDNotNil applies the NotNil predicate on the "connected_account_id" field.
+func ConnectedAccountIDNotNil() predicate.Campaign {
+	return predicate.Campaign(sql.FieldNotNull(FieldConnectedAccountID))
+}
+
+// CreativeVersionIDEQ applies the EQ predicate on the "creative_version_id" field.
+func CreativeVersionIDEQ(v uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldEQ(FieldCreativeVersionID, v))
+}
+
+// CreativeVersionIDNEQ applies the NEQ predicate on the "creative_version_id" field.
+func CreativeVersionIDNEQ(v uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldNEQ(FieldCreativeVersionID, v))
+}
+
+// CreativeVersionIDIn applies the In predicate on the "creative_version_id" field.
+func CreativeVersionIDIn(vs ...uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldIn(FieldCreativeVersionID, vs...))
+}
+
+// CreativeVersionIDNotIn applies the NotIn predicate on the "creative_version_id" field.
+func CreativeVersionIDNotIn(vs ...uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldNotIn(FieldCreativeVersionID, vs...))
+}
+
+// CreativeVersionIDGT applies the GT predicate on the "creative_version_id" field.
+func CreativeVersionIDGT(v uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldGT(FieldCreativeVersionID, v))
+}
+
+// CreativeVersionIDGTE applies the GTE predicate on the "creative_version_id" field.
+func CreativeVersionIDGTE(v uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldGTE(FieldCreativeVersionID, v))
+}
+
+// CreativeVersionIDLT applies the LT predicate on the "creative_version_id" field.
+func CreativeVersionIDLT(v uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldLT(FieldCreativeVersionID, v))
+}
+
+// CreativeVersionIDLTE applies the LTE predicate on the "creative_version_id" field.
+func CreativeVersionIDLTE(v uuid.UUID) predicate.Campaign {
+	return predicate.Campaign(sql.FieldLTE(FieldCreativeVersionID, v))
+}
+
+// CreativeVersionIDIsNil applies the IsNil predicate on the "creative_version_id" field.
+func CreativeVersionIDIsNil() predicate.Campaign {
+	return predicate.Campaign(sql.FieldIsNull(FieldCreativeVersionID))
+}
+
+// CreativeVersionIDNotNil applies the NotNil predicate on the "creative_version_id" field.
+func CreativeVersionIDNotNil() predicate.Campaign {
+	return predicate.Campaign(sql.FieldNotNull(FieldCreativeVersionID))
 }
 
 // MetadataIsNil applies the IsNil predicate on the "metadata" field.

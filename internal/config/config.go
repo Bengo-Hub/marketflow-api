@@ -101,9 +101,11 @@ type TikTokConfig struct {
 // CrossServiceConfig holds internal URLs for S2S calls to sibling services.
 type CrossServiceConfig struct {
 	InternalServiceKey string `env:"INTERNAL_SERVICE_KEY"`
-	OrderingURL        string `env:"ORDERING_URL" envDefault:"http://ordering-backend.ordering.svc.cluster.local:4000"`
-	POSURL             string `env:"POS_URL" envDefault:"http://pos-api.pos.svc.cluster.local:4000"`
-	TreasuryURL        string `env:"TREASURY_URL" envDefault:"http://treasury-api.finance.svc.cluster.local:4000"`
+	// AIURL is marketflow-ai, for the internal credit charge of a paid ad launch.
+	AIURL       string `env:"AI_URL" envDefault:"http://marketflow-ai.marketflow.svc.cluster.local:4001"`
+	OrderingURL string `env:"ORDERING_URL" envDefault:"http://ordering-backend.ordering.svc.cluster.local:4000"`
+	POSURL      string `env:"POS_URL" envDefault:"http://pos-api.pos.svc.cluster.local:4000"`
+	TreasuryURL string `env:"TREASURY_URL" envDefault:"http://treasury-api.finance.svc.cluster.local:4000"`
 	// InventoryURL: the creative studio's offering picker reads sellable items (S2S).
 	InventoryURL string `env:"INVENTORY_URL" envDefault:"http://inventory-api.inventory.svc.cluster.local:4000"`
 	// NotificationsURL: campaign sends are handed to notifications-api's broadcast engine.

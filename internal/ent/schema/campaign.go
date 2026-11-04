@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
@@ -92,6 +93,15 @@ func (Campaign) Fields() []ent.Field {
 			Optional().
 			Comment("impressions, clicks, leads, cost, ctr, cpl, etc."),
 
+		// Paid launch (Sprint 18): the ad account it runs on and the approved creative it boosts.
+		// Columns because reports join on them; the launch stage, platform ids, review state and
+		// funding check live in metadata.launch. No money is recorded here.
+		field.UUID("connected_account_id", uuid.UUID{}).
+			Optional().
+			Nillable(),
+		field.UUID("creative_version_id", uuid.UUID{}).
+			Optional().
+			Nillable(),
 		field.JSON("metadata", map[string]any{}).
 			Optional(),
 
@@ -124,5 +134,11 @@ func (Campaign) Indexes() []ent.Index {
 		index.Fields("tenant_id", "campaign_type"),
 		index.Fields("tenant_id", "platform"),
 		index.Fields("meta_campaign_id"),
+		// Leads and spend per boosted creative.
+		index.Fields("tenant_id", "creative_version_id"),
+		// The ads launch worker reads only boosts still launching.
+		index.Fields("updated_at").
+			StorageKey("campaigns_launching").
+			Annotations(entsql.IndexWhere("status = 'launching'")),
 	}
 }

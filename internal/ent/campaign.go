@@ -56,6 +56,10 @@ type Campaign struct {
 	EndDate *time.Time `json:"end_date,omitempty"`
 	// impressions, clicks, leads, cost, ctr, cpl, etc.
 	Metrics map[string]interface{} `json:"metrics,omitempty"`
+	// ConnectedAccountID holds the value of the "connected_account_id" field.
+	ConnectedAccountID *uuid.UUID `json:"connected_account_id,omitempty"`
+	// CreativeVersionID holds the value of the "creative_version_id" field.
+	CreativeVersionID *uuid.UUID `json:"creative_version_id,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -115,7 +119,7 @@ func (*Campaign) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case campaign.FieldFunnelID:
+		case campaign.FieldFunnelID, campaign.FieldConnectedAccountID, campaign.FieldCreativeVersionID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case campaign.FieldTargetAudience, campaign.FieldMetrics, campaign.FieldMetadata:
 			values[i] = new([]byte)
@@ -268,6 +272,20 @@ func (_m *Campaign) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field metrics: %w", err)
 				}
 			}
+		case campaign.FieldConnectedAccountID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field connected_account_id", values[i])
+			} else if value.Valid {
+				_m.ConnectedAccountID = new(uuid.UUID)
+				*_m.ConnectedAccountID = *value.S.(*uuid.UUID)
+			}
+		case campaign.FieldCreativeVersionID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field creative_version_id", values[i])
+			} else if value.Valid {
+				_m.CreativeVersionID = new(uuid.UUID)
+				*_m.CreativeVersionID = *value.S.(*uuid.UUID)
+			}
 		case campaign.FieldMetadata:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field metadata", values[i])
@@ -408,6 +426,16 @@ func (_m *Campaign) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("metrics=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metrics))
+	builder.WriteString(", ")
+	if v := _m.ConnectedAccountID; v != nil {
+		builder.WriteString("connected_account_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.CreativeVersionID; v != nil {
+		builder.WriteString("creative_version_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))

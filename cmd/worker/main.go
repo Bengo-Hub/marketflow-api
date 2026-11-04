@@ -34,9 +34,11 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/Bengo-Hub/httpware/objectstore"
+	"github.com/bengobox/marketflow-api/internal/modules/adsmanager"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/publishing"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
+	"github.com/bengobox/marketflow-api/internal/modules/inbox"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/bengobox/marketflow-api/internal/worker"
@@ -243,15 +245,9 @@ func main() {
 		})
 		go cronAgents.Run(ctx)
 
-		// SLA breach detection: every 5 min, queries ticketing-api and marks breached tickets.
-		slaCron := worker.NewSLABreachCron(
-			cfg.API.TicketingAPIURL,
-			cfg.Notifications.URL,
-			cfg.API.InternalServiceKey,
-			logger,
-			&http.Client{Timeout: 15 * time.Second},
-		)
-		go slaCron.Run(ctx)
+		// SLA breaches are ticketing-api's: it marks them and publishes ticketing.sla.<kind>,
+		// which notifications-api turns into alerts. The old cron here called a ticketing route
+		// that never existed (GET /internal/tickets) and only ever got 401, so it is gone.
 
 		// Meeting prep: every 5 min, emails the organizer a brief 25 to 35 min before
 		// each meeting, with AI talking points when marketflow-ai answers in time.
@@ -278,6 +274,13 @@ func main() {
 				os.Getenv("MF_PUBLISHING_YOUTUBE_PRIVACY")),
 			publishing.NewTikTokDirect("https://open.tiktokapis.com", os.Getenv("MF_PUBLISHING_TIKTOK_PRIVACY"),
 				os.Getenv("MF_PUBLISHING_TIKTOK_PULL") == "true"))
+		// Paid ads (Sprint 18): moves confirmed boosts through PAUSED creation, review and funding.
+		go adsmanager.NewWorker(entClient, keys, meta.NewClient("").WithSecret(meta.PlatformSecret(entClient, keys, os.Getenv("MF_META_APP_SECRET"))), logger).Run(ctx)
+
+		// Social inbox (Sprint 22): tags new comments and DMs with a buyer intent.
+		go worker.NewInboxTagger(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).
+			WithAutoReply(keys, inbox.NewGraph(meta.GraphURL)).Run(ctx)
+
 		pubWorker := publishing.NewWorker(pubStore, pubRunner, logger)
 		pubWorker.OnFailed = worker.NewPublishFailureNotice(entClient, tokenNotif, cfg.API.PortalURL, logger).Notify
 		go pubWorker.Run(ctx)

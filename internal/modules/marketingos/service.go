@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqljson"
@@ -38,7 +39,19 @@ const DailyBriefKey = "os_daily_brief"
 // Settings are the tenant's Marketing OS switches.
 type Settings struct {
 	DailyBrief bool `json:"daily_brief"`
+	// InboxAutoReply answers buyer comments and DMs with InboxReplyText (Sprint 22). Off by
+	// default; saving it on with a message is the owner's approval of that message.
+	InboxAutoReply bool   `json:"inbox_auto_reply"`
+	InboxReplyText string `json:"inbox_reply_text"`
 }
+
+// Tenant metadata keys of the inbox auto reply.
+const (
+	InboxAutoReplyKey = "inbox_auto_reply"
+	InboxReplyTextKey = "inbox_reply_text"
+	// MaxInboxReplyText keeps the reply short enough for every platform.
+	MaxInboxReplyText = 500
+)
 
 // BrandContext is the owner-approved description every specialist reads first.
 type BrandContext struct {
@@ -183,12 +196,24 @@ func (s *Service) GetSettings(ctx context.Context, tenantID uuid.UUID) (Settings
 		return Settings{}, err
 	}
 	on, ok := t.Metadata[DailyBriefKey].(bool)
-	return Settings{DailyBrief: !ok || on}, nil
+	auto, _ := t.Metadata[InboxAutoReplyKey].(bool)
+	text, _ := t.Metadata[InboxReplyTextKey].(string)
+	return Settings{DailyBrief: !ok || on, InboxAutoReply: auto, InboxReplyText: text}, nil
 }
 
 // SaveSettings stores the switches, merging only their keys.
 func (s *Service) SaveSettings(ctx context.Context, tenantID uuid.UUID, in Settings) (Settings, error) {
-	return in, s.setKeys(ctx, tenantID, map[string]any{DailyBriefKey: in.DailyBrief})
+	in.InboxReplyText = strings.TrimSpace(in.InboxReplyText)
+	if utf8.RuneCountInString(in.InboxReplyText) > MaxInboxReplyText {
+		in.InboxReplyText = string([]rune(in.InboxReplyText)[:MaxInboxReplyText])
+	}
+	// The switch cannot be on without a message to send.
+	if in.InboxReplyText == "" {
+		in.InboxAutoReply = false
+	}
+	return in, s.setKeys(ctx, tenantID, map[string]any{
+		DailyBriefKey: in.DailyBrief, InboxAutoReplyKey: in.InboxAutoReply, InboxReplyTextKey: in.InboxReplyText,
+	})
 }
 
 // overrideName is the name the owner gave a member, empty when they kept the

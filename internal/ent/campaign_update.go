@@ -343,6 +343,46 @@ func (_u *CampaignUpdate) ClearMetrics() *CampaignUpdate {
 	return _u
 }
 
+// SetConnectedAccountID sets the "connected_account_id" field.
+func (_u *CampaignUpdate) SetConnectedAccountID(v uuid.UUID) *CampaignUpdate {
+	_u.mutation.SetConnectedAccountID(v)
+	return _u
+}
+
+// SetNillableConnectedAccountID sets the "connected_account_id" field if the given value is not nil.
+func (_u *CampaignUpdate) SetNillableConnectedAccountID(v *uuid.UUID) *CampaignUpdate {
+	if v != nil {
+		_u.SetConnectedAccountID(*v)
+	}
+	return _u
+}
+
+// ClearConnectedAccountID clears the value of the "connected_account_id" field.
+func (_u *CampaignUpdate) ClearConnectedAccountID() *CampaignUpdate {
+	_u.mutation.ClearConnectedAccountID()
+	return _u
+}
+
+// SetCreativeVersionID sets the "creative_version_id" field.
+func (_u *CampaignUpdate) SetCreativeVersionID(v uuid.UUID) *CampaignUpdate {
+	_u.mutation.SetCreativeVersionID(v)
+	return _u
+}
+
+// SetNillableCreativeVersionID sets the "creative_version_id" field if the given value is not nil.
+func (_u *CampaignUpdate) SetNillableCreativeVersionID(v *uuid.UUID) *CampaignUpdate {
+	if v != nil {
+		_u.SetCreativeVersionID(*v)
+	}
+	return _u
+}
+
+// ClearCreativeVersionID clears the value of the "creative_version_id" field.
+func (_u *CampaignUpdate) ClearCreativeVersionID() *CampaignUpdate {
+	_u.mutation.ClearCreativeVersionID()
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *CampaignUpdate) SetMetadata(v map[string]interface{}) *CampaignUpdate {
 	_u.mutation.SetMetadata(v)
@@ -602,6 +642,18 @@ func (_u *CampaignUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.MetricsCleared() {
 		_spec.ClearField(campaign.FieldMetrics, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ConnectedAccountID(); ok {
+		_spec.SetField(campaign.FieldConnectedAccountID, field.TypeUUID, value)
+	}
+	if _u.mutation.ConnectedAccountIDCleared() {
+		_spec.ClearField(campaign.FieldConnectedAccountID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.CreativeVersionID(); ok {
+		_spec.SetField(campaign.FieldCreativeVersionID, field.TypeUUID, value)
+	}
+	if _u.mutation.CreativeVersionIDCleared() {
+		_spec.ClearField(campaign.FieldCreativeVersionID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(campaign.FieldMetadata, field.TypeJSON, value)
@@ -1063,6 +1115,46 @@ func (_u *CampaignUpdateOne) ClearMetrics() *CampaignUpdateOne {
 	return _u
 }
 
+// SetConnectedAccountID sets the "connected_account_id" field.
+func (_u *CampaignUpdateOne) SetConnectedAccountID(v uuid.UUID) *CampaignUpdateOne {
+	_u.mutation.SetConnectedAccountID(v)
+	return _u
+}
+
+// SetNillableConnectedAccountID sets the "connected_account_id" field if the given value is not nil.
+func (_u *CampaignUpdateOne) SetNillableConnectedAccountID(v *uuid.UUID) *CampaignUpdateOne {
+	if v != nil {
+		_u.SetConnectedAccountID(*v)
+	}
+	return _u
+}
+
+// ClearConnectedAccountID clears the value of the "connected_account_id" field.
+func (_u *CampaignUpdateOne) ClearConnectedAccountID() *CampaignUpdateOne {
+	_u.mutation.ClearConnectedAccountID()
+	return _u
+}
+
+// SetCreativeVersionID sets the "creative_version_id" field.
+func (_u *CampaignUpdateOne) SetCreativeVersionID(v uuid.UUID) *CampaignUpdateOne {
+	_u.mutation.SetCreativeVersionID(v)
+	return _u
+}
+
+// SetNillableCreativeVersionID sets the "creative_version_id" field if the given value is not nil.
+func (_u *CampaignUpdateOne) SetNillableCreativeVersionID(v *uuid.UUID) *CampaignUpdateOne {
+	if v != nil {
+		_u.SetCreativeVersionID(*v)
+	}
+	return _u
+}
+
+// ClearCreativeVersionID clears the value of the "creative_version_id" field.
+func (_u *CampaignUpdateOne) ClearCreativeVersionID() *CampaignUpdateOne {
+	_u.mutation.ClearCreativeVersionID()
+	return _u
+}
+
 // SetMetadata sets the "metadata" field.
 func (_u *CampaignUpdateOne) SetMetadata(v map[string]interface{}) *CampaignUpdateOne {
 	_u.mutation.SetMetadata(v)
@@ -1352,6 +1444,18 @@ func (_u *CampaignUpdateOne) sqlSave(ctx context.Context) (_node *Campaign, err 
 	}
 	if _u.mutation.MetricsCleared() {
 		_spec.ClearField(campaign.FieldMetrics, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ConnectedAccountID(); ok {
+		_spec.SetField(campaign.FieldConnectedAccountID, field.TypeUUID, value)
+	}
+	if _u.mutation.ConnectedAccountIDCleared() {
+		_spec.ClearField(campaign.FieldConnectedAccountID, field.TypeUUID)
+	}
+	if value, ok := _u.mutation.CreativeVersionID(); ok {
+		_spec.SetField(campaign.FieldCreativeVersionID, field.TypeUUID, value)
+	}
+	if _u.mutation.CreativeVersionIDCleared() {
+		_spec.ClearField(campaign.FieldCreativeVersionID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(campaign.FieldMetadata, field.TypeJSON, value)

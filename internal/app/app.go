@@ -25,6 +25,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/accounts"
 	"github.com/bengobox/marketflow-api/internal/modules/activities"
 	"github.com/bengobox/marketflow-api/internal/modules/admin"
+	"github.com/bengobox/marketflow-api/internal/modules/adsmanager"
 	"github.com/bengobox/marketflow-api/internal/modules/analytics"
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
 	"github.com/bengobox/marketflow-api/internal/modules/campaigns"
@@ -32,6 +33,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	custom_agents "github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
+	"github.com/bengobox/marketflow-api/internal/modules/inbox"
 	"github.com/bengobox/marketflow-api/internal/modules/publishing"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/modules/onboarding"
@@ -326,6 +328,20 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		// marketflow-ai's job callback settles motion posters and video ads here;
 		// the worker's renderer starts them and polls only when a push is overdue.
 		WithJobs(creative.NewRenderer(entClient, "", "", logger))
+	// Paid ads (Sprint 18): off until the platform ads/meta_enabled switch; the approving roles
+	// launch and pause; launch credits go through marketflow-ai's charge route.
+	adsHandler := &adsmanager.Handler{DB: entClient, Keys: keyProvider,
+		Meta: meta.NewClient("").WithSecret(meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret)),
+		HasFeature: consumerFeatureGate, Charge: adsmanager.AICharge(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey),
+		LaunchCredits: adsmanager.DefaultLaunchCredits, Enabled: adsmanager.MetaEnabled(entClient), Logger: logger.Named("ads"),
+		CanLaunch: func(ctx context.Context, tenantID uuid.UUID) bool {
+			return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
+		}}
+	// Social inbox (Sprint 22): the approving roles may reply for the business.
+	inboxHandler := inbox.NewHandler(entClient, keyProvider, leadService, inbox.NewGraph(meta.GraphURL), logger)
+	inboxHandler.CanReply = func(ctx context.Context, tenantID uuid.UUID) bool {
+		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
+	}
 	// Organic publishing: the same roles that approve an ad may post it or cancel a post.
 	publishingHandler := publishing.NewHandler(&publishing.EntStore{DB: entClient, Keys: keyProvider}, logger)
 	publishingHandler.CanPost = func(ctx context.Context, tenantID uuid.UUID) bool {
@@ -645,6 +661,16 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			CreateReviewLink:  creativeHandler.CreateReviewLink,
 			RevokeReviewLinks: creativeHandler.RevokeReviewLinks,
 			OpenReview:        creativeHandler.OpenReview,
+		},
+		AdsHandlers: httpapi.AdsHandlers{
+			Accounts: adsHandler.Accounts, Quote: adsHandler.Quote, Boost: adsHandler.Boost,
+			Get: adsHandler.Get, ConfirmPaid: adsHandler.ConfirmPaid, Pause: adsHandler.Pause,
+		},
+		InboxHandlers: httpapi.InboxHandlers{
+			List:    inboxHandler.List,
+			Reply:   inboxHandler.Reply,
+			Handled: inboxHandler.Handled,
+			Promote: inboxHandler.Promote,
 		},
 		PublishingHandlers: httpapi.PublishingHandlers{
 			Accounts: publishingHandler.Accounts,
