@@ -30,14 +30,21 @@ func TestVideoAdScriptEditRender(t *testing.T) {
 		"format":   {Format: "800x600"},
 		"gender":   {VoiceGender: "robot"},
 		"photo":    {PhotoURLs: []string{"file:///etc/passwd"}},
+		// Music needs an https link and the owner's confirmation of the right to use it.
+		"music unconfirmed": {MusicURL: "https://media.example/bed.mp3"},
+		"music not https":   {MusicURL: "http://media.example/bed.mp3", MusicLicensed: true},
 	} {
 		if _, err := s.CreateVideoAd(ctx, tid, b.ID, in); !errors.Is(err, ErrInvalid) {
 			t.Errorf("%s: %v", name, err)
 		}
 	}
-	v, err := s.CreateVideoAd(ctx, tid, b.ID, VideoAdInput{Delivery: "ugc", VoiceAccent: "kenyan", CTA: "Order on WhatsApp"})
+	v, err := s.CreateVideoAd(ctx, tid, b.ID, VideoAdInput{Delivery: "ugc", VoiceAccent: "kenyan", CTA: "Order on WhatsApp",
+		MusicURL: "https://media.example/bed.mp3", MusicLicensed: true})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if v.Metadata["music_url"] != "https://media.example/bed.mp3" || v.Metadata["music_licensed_confirmed"] != true {
+		t.Fatalf("music and its confirmation are kept: %v", v.Metadata)
 	}
 	card, _ := v.Copy["end_card"].(map[string]any)
 	if v.Kind != KindVideoAd || v.Status != StatusQueued || v.Format != "1080x1920" || intOf(v.Metadata["seconds"]) != 30 ||

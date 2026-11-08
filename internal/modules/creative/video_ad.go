@@ -105,6 +105,10 @@ type VideoAdInput struct {
 	Subline  string `json:"subline"`
 	Price    string `json:"price"`
 	CTA      string `json:"cta"`
+	// MusicURL is an optional music bed under the voice. MusicLicensed is the owner's
+	// confirmation that the track may be used in ads; a link without it is refused.
+	MusicURL      string `json:"music_url"`
+	MusicLicensed bool   `json:"music_licensed"`
 }
 
 func (in *VideoAdInput) validate(brief *ent.CreativeBrief) error {
@@ -173,6 +177,14 @@ func (in *VideoAdInput) validate(brief *ent.CreativeBrief) error {
 			return invalid(fmt.Sprintf("end card text is limited to %d characters per line", maxCopyLen))
 		}
 	}
+	if in.MusicURL = strings.TrimSpace(in.MusicURL); in.MusicURL != "" {
+		if !strings.HasPrefix(in.MusicURL, "https://") || len(in.MusicURL) > 1000 {
+			return invalid("music_url must be an https link")
+		}
+		if !in.MusicLicensed {
+			return invalid("confirm you have the right to use this music in ads")
+		}
+	}
 	return nil
 }
 
@@ -198,10 +210,13 @@ func (s *Service) CreateVideoAd(ctx context.Context, tenantID, briefID uuid.UUID
 	meta := map[string]any{"stage": StageScript, "seconds": in.Seconds, "language": in.Language,
 		"photo_urls": in.PhotoURLs, "footage_urls": in.FootageURLs, "video_kind": in.Kind}
 	for k, v := range map[string]string{"voice": in.Voice, "delivery": in.Delivery, "voice_gender": in.VoiceGender,
-		"voice_accent": in.VoiceAccent, "actor_prompt": strings.TrimSpace(in.ActorPrompt)} {
+		"voice_accent": in.VoiceAccent, "actor_prompt": strings.TrimSpace(in.ActorPrompt), "music_url": in.MusicURL} {
 		if v != "" {
 			meta[k] = v
 		}
+	}
+	if in.MusicURL != "" {
+		meta["music_licensed_confirmed"] = true
 	}
 	return s.insertVersion(ctx, tenantID, briefID, nil, KindVideoAd, in.Tier, in.Format, map[string]any{"end_card": card}, meta)
 }
@@ -476,6 +491,7 @@ type adCall struct {
 	FootageURLs []string      `json:"footage_urls,omitempty"`
 	Accent      string        `json:"accent,omitempty"`
 	LogoURL     string        `json:"logo_url,omitempty"`
+	MusicURL    string        `json:"music_url,omitempty"`
 	Headline    string        `json:"headline,omitempty"`
 	Subline     string        `json:"subline,omitempty"`
 	Price       string        `json:"price,omitempty"`
@@ -511,7 +527,7 @@ func (r *Renderer) adCallFor(ctx context.Context, v *ent.CreativeVersion, script
 		VoiceAccent: str(meta["voice_accent"]), Language: str(meta["language"]), Scenes: script.Scenes,
 		PhotoURLs: strs(meta["photo_urls"]), FootageURLs: strs(meta["footage_urls"]),
 		Headline: str(card["headline"]), Subline: str(card["subline"]), Price: str(card["price"]), CTA: str(card["cta"]),
-		Charge: charge, Kind: videoKind(v)}
+		Charge: charge, Kind: videoKind(v), MusicURL: str(meta["music_url"])}
 	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
 		brand, _ := b.Metadata["brand"].(map[string]any)
 		call.Accent, call.LogoURL = str(brand["accent"]), str(brand["logo_url"])

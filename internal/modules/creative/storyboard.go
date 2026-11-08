@@ -105,7 +105,8 @@ func (s *Service) ReviseVideoAd(ctx context.Context, tenantID, sourceID uuid.UUI
 	}
 	meta := map[string]any{}
 	for _, k := range []string{"seconds", "language", "photo_urls", "footage_urls", "video_kind", "voice", "delivery",
-		"voice_gender", "voice_accent", "actor_prompt", "storyboard", "scene_cache", "findings", "restricted_categories"} {
+		"voice_gender", "voice_accent", "actor_prompt", "storyboard", "scene_cache", "findings", "restricted_categories",
+		"music_url", "music_licensed_confirmed"} {
 		if val, ok := src.Metadata[k]; ok {
 			meta[k] = val
 		}
