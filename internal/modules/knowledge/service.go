@@ -188,7 +188,10 @@ func (s *Service) UpdateEntry(ctx context.Context, tenantID, entryID uuid.UUID, 
 	}
 	if in.Content != nil {
 		builder.SetContent(*in.Content)
-		// Content changed — mark as needing re-embedding
+	}
+	// The portal form sends every field on each save, so only a real change re-embeds. The
+	// title is stored with each search chunk, so it counts too.
+	if wordsChanged(existing, in) {
 		builder.SetEmbedded(false).SetChunkCount(0)
 	}
 	if in.ProductCode != nil {
@@ -206,8 +209,8 @@ func (s *Service) UpdateEntry(ctx context.Context, tenantID, entryID uuid.UUID, 
 	if in.Tags != nil {
 		builder.SetTags(in.Tags)
 	}
-	if in.Metadata != nil {
-		builder.SetMetadata(in.Metadata)
+	if meta := mergeEntryMetadata(existing, in); meta != nil {
+		builder.SetMetadata(meta)
 	}
 
 	result, err := builder.Save(ctx)
@@ -216,6 +219,63 @@ func (s *Service) UpdateEntry(ctx context.Context, tenantID, entryID uuid.UUID, 
 	}
 
 	return result, nil
+}
+
+// syncTrackingKeys belong to the sync (sync.go); a metadata body from the portal cannot drop them.
+var syncTrackingKeys = []string{metaSource, metaSourceID, metaSourceHash, metaSyncedAt, metaStale, metaStaleAt, metaOwnerEdited}
+
+// wordsChanged reports whether an update really changes what the entry says.
+func wordsChanged(e *ent.KnowledgeBaseEntry, in UpdateEntryInput) bool {
+	return (in.Title != nil && *in.Title != e.Title) || (in.Content != nil && *in.Content != e.Content)
+}
+
+// priceChanged reports whether an update really changes the entry's price.
+func priceChanged(e *ent.KnowledgeBaseEntry, in UpdateEntryInput) bool {
+	return in.ProductPrice != nil && (e.ProductPrice == nil || *e.ProductPrice != *in.ProductPrice)
+}
+
+// mergeEntryMetadata keeps a synced entry's tracking fields through an update, and records that
+// the owner really changed its words or price, so the sync flags the entry from then on instead
+// of overwriting it. A real change also answers any "may be outdated" flag. It returns nil when
+// nothing needs writing.
+func mergeEntryMetadata(e *ent.KnowledgeBaseEntry, in UpdateEntryInput) map[string]any {
+	changed := wordsChanged(e, in) || priceChanged(e, in)
+	_, synced := e.Metadata[metaSource]
+	if !synced {
+		if in.Metadata == nil {
+			if _, flagged := e.Metadata[metaMayBeOutdated]; !flagged || !changed {
+				return nil
+			}
+			out := copyMeta(e.Metadata)
+			delete(out, metaMayBeOutdated)
+			return out
+		}
+		out := copyMeta(in.Metadata)
+		if flag, flagged := e.Metadata[metaMayBeOutdated]; flagged && !changed {
+			out[metaMayBeOutdated] = flag
+		} else {
+			delete(out, metaMayBeOutdated)
+		}
+		return out
+	}
+	out := copyMeta(e.Metadata)
+	for k, v := range in.Metadata {
+		out[k] = v
+	}
+	for _, k := range syncTrackingKeys {
+		if v, ok := e.Metadata[k]; ok {
+			out[k] = v
+		} else {
+			delete(out, k)
+		}
+	}
+	if changed {
+		out[metaOwnerEdited] = true
+		delete(out, metaMayBeOutdated)
+	} else if flag, flagged := e.Metadata[metaMayBeOutdated]; flagged {
+		out[metaMayBeOutdated] = flag
+	}
+	return out
 }
 
 // BulkImportResult holds the outcome of a CSV import.

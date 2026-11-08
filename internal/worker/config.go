@@ -60,11 +60,14 @@ type HTTPConfig struct {
 }
 
 type APIConfig struct {
-	MarketFlowAPIURL   string `env:"API_URL" envDefault:"http://marketflow-api.marketflow.svc.cluster.local:4000"`
-	MarketFlowAIURL    string `env:"AI_URL" envDefault:"http://marketflow-ai.marketflow.svc.cluster.local:4001"`
-	TicketingAPIURL    string `env:"TICKETING_URL" envDefault:"http://ticketing-api.ticketing.svc.cluster.local:4009"`
-	OllamaURL          string `env:"OLLAMA_URL" envDefault:"http://ollama.shared-infra.svc.cluster.local:11434"`
-	EmbeddingModel     string `env:"EMBEDDING_MODEL" envDefault:"nomic-embed-text"`
+	MarketFlowAPIURL string `env:"API_URL" envDefault:"http://marketflow-api.marketflow.svc.cluster.local:4000"`
+	MarketFlowAIURL  string `env:"AI_URL" envDefault:"http://marketflow-ai.marketflow.svc.cluster.local:4001"`
+	TicketingAPIURL  string `env:"TICKETING_URL" envDefault:"http://ticketing-api.ticketing.svc.cluster.local:4009"`
+	OllamaURL        string `env:"OLLAMA_URL" envDefault:"http://ollama.shared-infra.svc.cluster.local:11434"`
+	EmbeddingModel   string `env:"EMBEDDING_MODEL" envDefault:"nomic-embed-text"`
+	// InventoryURL and WebsiteURL are read by the knowledge base sync's nightly walk.
+	InventoryURL       string `env:"INVENTORY_URL" envDefault:"http://inventory-api.inventory.svc.cluster.local:4000"`
+	WebsiteURL         string `env:"WEBSITE_URL" envDefault:"http://codevertex-website.codevertex.svc.cluster.local"`
 	InternalServiceKey string `env:"INTERNAL_SERVICE_KEY"`
 	// PortalURL is the tenant portal, for links in notices (reconnect an integration).
 	PortalURL string `env:"PORTAL_URL" envDefault:"https://marketflow.codevertexafrica.com"`

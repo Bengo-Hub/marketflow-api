@@ -39,7 +39,9 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/publishing"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/modules/inbox"
+	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
+	"github.com/bengobox/marketflow-api/internal/modules/onboarding"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/bengobox/marketflow-api/internal/worker"
 	"github.com/nats-io/nats.go"
@@ -189,6 +191,8 @@ func main() {
 		reg.Add(worker.NewNewItemAdsHandler(entClient, worker.NewAutopilotRunner(entClient,
 			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
 			cfg.API.PortalURL, logger).WithForecast(custom_agents.NewCreditForecaster(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey)), logger))
+		// Knowledge base sync (Sprint 25): item events keep synced entries current.
+		reg.Add(worker.NewKBItemHandlers(entClient, knowledge.NewSync(entClient, rawDB), logger)...)
 		// Click-to-WhatsApp attribution (Sprint 18): the ad click id on the lead, once.
 		reg.Add(worker.NewWhatsAppReferralHandler(entClient, logger))
 		reg.Add(worker.NewWhatsAppAssistantHandler(entClient, rdb,
@@ -298,6 +302,14 @@ func main() {
 
 		// Competitor ad intel (Sprint 24): each tenant's competitors scanned once a week.
 		go worker.NewCompetitorScan(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).Run(ctx)
+
+		// Knowledge base (Sprint 25): embeds waiting entries each minute, and walks each MarketFlow
+		// tenant's catalogue once a day for real prices, deletions and newly active tenants.
+		go worker.NewKBEmbedSweep(entClient, worker.NewEmbeddingHandler(cfg, entClient, rawDB, logger), logger).Run(ctx)
+		go worker.NewKBSourceSweep(entClient, knowledge.NewSync(entClient, rawDB),
+			creative.NewOfferings(cfg.API.InventoryURL, cfg.API.InternalServiceKey, logger).
+				WithSource(onboarding.WebsiteOfferings(entClient, onboarding.NewWebsiteCatalog(cfg.API.WebsiteURL, nil), cfg.PlatformTenant)),
+			logger).Run(ctx)
 
 		// Social inbox (Sprint 22): tags new comments and DMs with a buyer intent.
 		go worker.NewInboxTagger(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).

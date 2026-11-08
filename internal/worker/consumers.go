@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
@@ -476,6 +477,11 @@ type EmbeddingHandler struct {
 	logger *zap.Logger
 }
 
+// NewEmbeddingHandler builds the handler for use outside the registry (the embed sweep).
+func NewEmbeddingHandler(cfg *Config, db *ent.Client, rawDB *sql.DB, logger *zap.Logger) *EmbeddingHandler {
+	return &EmbeddingHandler{cfg: cfg, db: db, rawDB: rawDB, logger: logger.Named("embedding")}
+}
+
 func (h *EmbeddingHandler) Subject() string { return "embedding.requested" }
 func (h *EmbeddingHandler) Durable() string { return "marketflow-worker-embedding" }
 
@@ -499,7 +505,12 @@ func (h *EmbeddingHandler) Handle(ctx context.Context, msg jetstream.Msg) error 
 	if err != nil {
 		return fmt.Errorf("load entry: %w", err)
 	}
+	return h.embedEntry(ctx, entry)
+}
 
+// embedEntry writes an entry's search vectors. The event above and the embed sweep both use it.
+func (h *EmbeddingHandler) embedEntry(ctx context.Context, entry *ent.KnowledgeBaseEntry) error {
+	entryID := entry.ID
 	// Chunk long content on paragraph boundaries; keep under ~1k chars per chunk
 	// so nomic-embed-text gets clean embeddings.
 	chunks := chunkText(entry.Content, 900)
@@ -520,8 +531,14 @@ func (h *EmbeddingHandler) Handle(ctx context.Context, msg jetstream.Msg) error 
 		}
 		upserted++
 	}
+	// An entry that got shorter must not keep answering from its old tail.
+	if _, err := h.rawDB.ExecContext(ctx, `DELETE FROM knowledge_base_embeddings WHERE entry_id = $1 AND chunk_index >= $2`, entryID, upserted); err != nil {
+		return fmt.Errorf("trim old chunks: %w", err)
+	}
 
-	if _, err := h.db.KnowledgeBaseEntry.UpdateOneID(entryID).
+	// Only if the text is still what was embedded; an edit meanwhile stays queued for the sweep.
+	if _, err := h.db.KnowledgeBaseEntry.Update().
+		Where(knowledgebaseentry.ID(entryID), knowledgebaseentry.UpdatedAtEQ(entry.UpdatedAt)).
 		SetEmbedded(true).
 		SetChunkCount(upserted).
 		Save(ctx); err != nil {

@@ -330,7 +330,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	websiteCatalog := onboarding.NewWebsiteCatalog(cfg.CrossService.WebsiteURL, sharedcache.New(redisClient, logger))
 	catalogueOfferings := creative.NewOfferings(cfg.CrossService.InventoryURL, cfg.CrossService.InternalServiceKey, logger).
 		WithPromotions(cfg.CrossService.POSURL).
-		WithSource(websiteOfferings(entClient, websiteCatalog, cfg.Security.PlatformTenant))
+		WithSource(onboarding.WebsiteOfferings(entClient, websiteCatalog, cfg.Security.PlatformTenant))
 	// Team setup also sees what the business sells in its own systems, not only the knowledge
 	// base: inventory, POS promotions and, for the platform tenant, the website catalogue.
 	marketingOSService.WithCatalogue(func(ctx context.Context, tenantID uuid.UUID) bool {

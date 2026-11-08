@@ -167,3 +167,54 @@ func itemOffering(it inventoryItem) Offering {
 	}
 	return off
 }
+
+// CataloguePage reads one page of the tenant's active catalogue for the knowledge base sync: the
+// sellable items with their full descriptions, and raw, the number of items the page held before
+// ingredients and not-for-sale items were dropped, so the caller knows when the walk is over.
+func (o *Offerings) CataloguePage(ctx context.Context, tenantID uuid.UUID, offset, limit int) (items []Offering, raw int, err error) {
+	if o == nil || o.inventory == nil {
+		return nil, 0, ErrOfferingsOff
+	}
+	query := url.Values{}
+	query.Set("status", "active")
+	query.Set("limit", fmt.Sprint(limit))
+	query.Set("offset", fmt.Sprint(offset))
+	query.Set("fields", "id,sku,name,description,type,is_active,not_for_sale,selling_price,image_url,images")
+	resp, err := o.inventory.Get(ctx, "/v1/"+tenantID.String()+"/inventory/items?"+query.Encode(),
+		map[string]string{"X-API-Key": o.key, "X-Tenant-ID": tenantID.String()})
+	if err != nil {
+		return nil, 0, fmt.Errorf("catalogue page: %w", err)
+	}
+	if !resp.IsSuccess() {
+		return nil, 0, ErrOfferingsOff
+	}
+	var page struct {
+		Data []inventoryItem `json:"data"`
+	}
+	if err := resp.DecodeJSON(&page); err != nil {
+		return nil, 0, fmt.Errorf("catalogue page: %w", err)
+	}
+	items = make([]Offering, 0, len(page.Data))
+	for _, it := range page.Data {
+		if !it.IsActive || !sellableTypes[it.Type] || (it.NotForSale != nil && *it.NotForSale) {
+			continue
+		}
+		off := itemOffering(it)
+		off.Description = it.Description
+		items = append(items, off)
+	}
+	return items, len(page.Data), nil
+}
+
+// ExtraOfferings is everything the extra source holds for the tenant. ok is false when there is
+// no source for this tenant or it failed.
+func (o *Offerings) ExtraOfferings(ctx context.Context, tenantID uuid.UUID) (list []Offering, ok bool) {
+	if o == nil || o.extra == nil {
+		return nil, false
+	}
+	all, err := o.extra(ctx, tenantID)
+	if err != nil || all == nil {
+		return nil, false
+	}
+	return all, true
+}
