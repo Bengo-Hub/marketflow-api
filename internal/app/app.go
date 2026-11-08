@@ -321,6 +321,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			return strings.TrimSpace(p.Website) != "" || strings.TrimSpace(p.Storefront) != "", true
 		})
 	marketingOSHandler := marketingos.NewHandler(marketingOSService, logger)
+	marketingOSHandler.Complaints = marketingos.NewComplaintFinder(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey)
 	learningHandler := learning.NewHandler(learning.NewStore(entClient), logger)
 	marketingOSHandler.CanManage = func(ctx context.Context, tenantID uuid.UUID) bool {
 		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
@@ -668,6 +669,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			InternalContext:   marketingOSHandler.InternalContext,
 			SetupTeam:         marketingOSHandler.SetupTeam,
 			InternalSetupTeam: marketingOSHandler.InternalSetupTeam,
+			FindComplaints:    marketingOSHandler.FindComplaints,
 		},
 		LearningHandlers: httpapi.LearningHandlers{
 			Phrases: learningHandler.Phrases,

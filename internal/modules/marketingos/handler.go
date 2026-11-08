@@ -22,6 +22,8 @@ type Handler struct {
 	// CanManage reports whether the caller may change the team (the approving roles). Nil
 	// allows everyone, for tests.
 	CanManage func(ctx context.Context, tenantID uuid.UUID) bool
+	// Complaints runs the market complaint search; nil answers 503.
+	Complaints ComplaintFinder
 }
 
 // manager refuses a caller who may not change the team: its members speak and spend for the

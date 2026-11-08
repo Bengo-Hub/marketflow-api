@@ -448,6 +448,8 @@ type MarketingOSHandlers struct {
 	// for marketflow-ai (service key).
 	SetupTeam         http.HandlerFunc
 	InternalSetupTeam http.HandlerFunc
+	// FindComplaints is the Fix step's search, for the owner to review.
+	FindComplaints http.HandlerFunc
 }
 
 // LearningHandlers are the internal routes of what the Marketing OS learns (Sprint 25).
@@ -931,6 +933,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Put("/agents/team/{key}", deps.MarketingOSHandlers.PutTeamMember)
 				r.Get("/tenant/os-settings", deps.MarketingOSHandlers.GetSettings)
 				r.Put("/tenant/os-settings", deps.MarketingOSHandlers.PutSettings)
+				if deps.MarketingOSHandlers.FindComplaints != nil {
+					r.Post("/tenant/market-research/complaints", deps.MarketingOSHandlers.FindComplaints)
+				}
 			}
 
 			// Creative Studio: briefs and the poster versions made from them.
