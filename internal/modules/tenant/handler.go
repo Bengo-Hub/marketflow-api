@@ -145,6 +145,11 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := upd.Save(r.Context()); err != nil {
+		// The WhatsApp number routes inbound messages to one business, so it is unique.
+		if ent.IsConstraintError(err) && strings.Contains(err.Error(), "whatsapp_number") {
+			httpapi.Error(w, http.StatusConflict, "whatsapp_number_taken", "this WhatsApp number is already linked to another business; use a different number or contact support", nil)
+			return
+		}
 		h.logger.Error("save profile", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "save_failed", "could not save the profile", nil)
 		return
