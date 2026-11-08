@@ -670,6 +670,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			SetupTeam:         marketingOSHandler.SetupTeam,
 			InternalSetupTeam: marketingOSHandler.InternalSetupTeam,
 			FindComplaints:    marketingOSHandler.FindComplaints,
+			GetResearch:       marketingOSHandler.GetResearch,
 		},
 		LearningHandlers: httpapi.LearningHandlers{
 			Phrases: learningHandler.Phrases,

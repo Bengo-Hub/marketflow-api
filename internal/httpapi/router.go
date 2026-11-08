@@ -450,6 +450,8 @@ type MarketingOSHandlers struct {
 	InternalSetupTeam http.HandlerFunc
 	// FindComplaints is the Fix step's search, for the owner to review.
 	FindComplaints http.HandlerFunc
+	// GetResearch reads what the weekly competitor scan found.
+	GetResearch http.HandlerFunc
 }
 
 // LearningHandlers are the internal routes of what the Marketing OS learns (Sprint 25).
@@ -935,6 +937,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Put("/tenant/os-settings", deps.MarketingOSHandlers.PutSettings)
 				if deps.MarketingOSHandlers.FindComplaints != nil {
 					r.Post("/tenant/market-research/complaints", deps.MarketingOSHandlers.FindComplaints)
+				}
+				if deps.MarketingOSHandlers.GetResearch != nil {
+					r.Get("/tenant/market-research", deps.MarketingOSHandlers.GetResearch)
 				}
 			}
 
