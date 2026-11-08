@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -50,27 +51,41 @@ func (c *CompetitorScan) Run(ctx context.Context) {
 	}
 }
 
+// scanPage bounds each read of tenants; the tick walks every page in id order.
+const scanPage = 200
+
 func (c *CompetitorScan) tick(ctx context.Context) {
-	rows, err := c.db.Tenant.Query().
-		Where(func(s *entsql.Selector) {
-			s.Where(entsql.ExprP("jsonb_array_length(COALESCE(" + s.C(tenant.FieldMetadata) + "->'" + marketingos.CompetitorsKey + "', '[]'::jsonb)) > 0"))
-		}).
-		Limit(500).All(ctx)
-	if err != nil {
-		c.logger.Warn("load tenants with competitors", zap.Error(err))
-		return
-	}
 	year, week := c.now().UTC().ISOWeek()
-	for _, t := range rows {
-		key := fmt.Sprintf("marketflow:competitor-scan:%s:%d-%02d", t.ID, year, week)
-		if !c.claim(ctx, key, 8*24*time.Hour) {
-			continue
+	var after uuid.UUID
+	for {
+		q := c.db.Tenant.Query().
+			Where(func(s *entsql.Selector) {
+				s.Where(entsql.ExprP("jsonb_array_length(COALESCE(" + s.C(tenant.FieldMetadata) + "->'" + marketingos.CompetitorsKey + "', '[]'::jsonb)) > 0"))
+			}).
+			Order(ent.Asc(tenant.FieldID)).Limit(scanPage)
+		if after != uuid.Nil {
+			q = q.Where(tenant.IDGT(after))
 		}
-		if quotaUsed, err := c.scan(ctx, t); err != nil {
-			c.logger.Warn("competitor scan", zap.String("tenant", t.ID.String()), zap.Error(err))
-		} else if quotaUsed {
-			return // the month's pool is used; nobody else gets searches this tick
+		rows, err := q.All(ctx)
+		if err != nil {
+			c.logger.Warn("load tenants with competitors", zap.Error(err))
+			return
 		}
+		for _, t := range rows {
+			key := fmt.Sprintf("marketflow:competitor-scan:%s:%d-%02d", t.ID, year, week)
+			if !c.claim(ctx, key, 8*24*time.Hour) {
+				continue
+			}
+			if poolUsed, err := c.scan(ctx, t); err != nil {
+				c.logger.Warn("competitor scan", zap.String("tenant", t.ID.String()), zap.Error(err))
+			} else if poolUsed {
+				return // the platform's month is used; nobody else gets searches this tick
+			}
+		}
+		if len(rows) < scanPage {
+			return
+		}
+		after = rows[len(rows)-1].ID
 	}
 }
 
@@ -88,6 +103,7 @@ type scanResult struct {
 		Error string `json:"error"`
 	} `json:"results"`
 	QuotaUsed bool `json:"quota_used"`
+	ShareUsed bool `json:"share_used"`
 }
 
 func (c *CompetitorScan) scan(ctx context.Context, t *ent.Tenant) (bool, error) {
@@ -118,17 +134,7 @@ func (c *CompetitorScan) scan(ctx context.Context, t *ent.Tenant) (bool, error) 
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		return false, err
 	}
-	// Keep a small summary: the top 5 winners per competitor.
-	summary := map[string]any{"scanned_at": c.now().UTC().Format(time.RFC3339), "quota_used": out.QuotaUsed}
-	per := []map[string]any{}
-	for _, r := range out.Results {
-		ads := r.Ads
-		if len(ads) > 5 {
-			ads = ads[:5]
-		}
-		per = append(per, map[string]any{"query": r.Query, "winners": ads, "error": r.Error})
-	}
-	summary["competitors"] = per
+	summary := mergeScan(t.Metadata, queries, out, c.now().UTC())
 	patch, _ := json.Marshal(map[string]any{"competitor_scan": summary})
 	value := entsql.ExprFunc(func(bd *entsql.Builder) {
 		bd.WriteString("(COALESCE(" + tenant.FieldMetadata + ", '{}'::jsonb) || ")
@@ -138,4 +144,52 @@ func (c *CompetitorScan) scan(ctx context.Context, t *ent.Tenant) (bool, error) 
 	_, err = c.db.Tenant.Update().Where(tenant.IDEQ(t.ID)).
 		Modify(func(u *entsql.UpdateBuilder) { u.Set(tenant.FieldMetadata, value) }).Save(ctx)
 	return out.QuotaUsed, err
+}
+
+// mergeScan keeps a small summary, the top 5 winners per competitor, in the tenant's list order.
+// A competitor searched this week gets its fresh winners. One that was not searched (the month's
+// pool or share ran out) or whose search failed keeps its earlier winners and the time they were
+// read, so a short week never wipes what was learned. Competitors removed from the list drop out.
+func mergeScan(meta map[string]any, queries []string, out scanResult, now time.Time) map[string]any {
+	stamp := now.Format(time.RFC3339)
+	earlier := map[string]map[string]any{}
+	if prev, ok := meta["competitor_scan"].(map[string]any); ok {
+		if list, ok := prev["competitors"].([]any); ok {
+			for _, e := range list {
+				if m, ok := e.(map[string]any); ok {
+					if q, _ := m["query"].(string); q != "" {
+						earlier[strings.ToLower(q)] = m
+					}
+				}
+			}
+		}
+	}
+	fresh := map[string]int{}
+	for i, r := range out.Results {
+		fresh[strings.ToLower(r.Query)] = i
+	}
+	per := make([]map[string]any, 0, len(queries))
+	for _, q := range queries {
+		old := earlier[strings.ToLower(q)]
+		i, searched := fresh[strings.ToLower(q)]
+		switch {
+		case searched && out.Results[i].Error == "":
+			ads := out.Results[i].Ads
+			if len(ads) > 5 {
+				ads = ads[:5]
+			}
+			per = append(per, map[string]any{"query": q, "winners": ads, "read_at": stamp})
+		case old != nil:
+			kept := map[string]any{"query": q, "winners": old["winners"], "read_at": old["read_at"]}
+			if searched {
+				kept["error"] = out.Results[i].Error
+			}
+			per = append(per, kept)
+		case searched:
+			per = append(per, map[string]any{"query": q, "winners": []any{}, "error": out.Results[i].Error})
+		default:
+			per = append(per, map[string]any{"query": q, "winners": []any{}, "pending": true})
+		}
+	}
+	return map[string]any{"scanned_at": stamp, "quota_used": out.QuotaUsed, "share_used": out.ShareUsed, "competitors": per}
 }

@@ -2,7 +2,9 @@ package marketingos
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
@@ -184,7 +186,8 @@ func (h *Handler) PutSettings(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, err)
 		return
 	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&in); err != nil {
+	// 32 KiB holds 20 reference ads with notes, 20 complaints and the other switches.
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 32<<10)).Decode(&in); err != nil {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
 		return
 	}
@@ -215,6 +218,10 @@ func (h *Handler) InternalContext(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) fail(w http.ResponseWriter, err error) {
 	if ent.IsNotFound(err) {
 		httpapi.Error(w, http.StatusNotFound, "not_found", "tenant not found", nil)
+		return
+	}
+	if errors.Is(err, ErrInvalidSettings) {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_settings", strings.TrimPrefix(err.Error(), ErrInvalidSettings.Error()+": "), nil)
 		return
 	}
 	h.logger.Error("marketing os request failed", zap.Error(err))

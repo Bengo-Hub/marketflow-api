@@ -46,6 +46,9 @@ type Settings struct {
 	// Competitors are names, domains or Google advertiser ids (AR...) the weekly competitor
 	// scan looks up (Sprint 24), at most MaxCompetitors.
 	Competitors []string `json:"competitors"`
+	// ReferenceAds and CustomerComplaints feed the Find, Flip, Fix engine (market_signals.go).
+	ReferenceAds       []ReferenceAd `json:"reference_ads"`
+	CustomerComplaints []string      `json:"customer_complaints"`
 }
 
 // Tenant metadata keys of the inbox auto reply.
@@ -142,6 +145,8 @@ type OSContext struct {
 	Members          []MemberOverride `json:"members"`
 	Features         map[string]bool  `json:"features,omitempty"`
 	HasPlan          bool             `json:"has_plan"`
+	// MarketSignals is the Find, Flip, Fix block (market_signals.go); absent until there is one.
+	MarketSignals *MarketSignals `json:"market_signals,omitempty"`
 }
 
 // Service serves the Marketing OS data.
@@ -211,7 +216,8 @@ func (s *Service) GetSettings(ctx context.Context, tenantID uuid.UUID) (Settings
 			}
 		}
 	}
-	return Settings{DailyBrief: !ok || on, InboxAutoReply: auto, InboxReplyText: text, Competitors: competitors}, nil
+	return Settings{DailyBrief: !ok || on, InboxAutoReply: auto, InboxReplyText: text, Competitors: competitors,
+		ReferenceAds: readReferenceAds(t.Metadata), CustomerComplaints: readStrings(t.Metadata, CustomerComplaintsKey)}, nil
 }
 
 // SaveSettings stores the switches, merging only their keys.
@@ -234,9 +240,18 @@ func (s *Service) SaveSettings(ctx context.Context, tenantID uuid.UUID, in Setti
 		}
 	}
 	in.Competitors = clean
+	refs, err := cleanReferenceAds(in.ReferenceAds)
+	if err != nil {
+		return in, fmt.Errorf("%w: %v", ErrInvalidSettings, err)
+	}
+	complaints, err := cleanComplaints(in.CustomerComplaints)
+	if err != nil {
+		return in, fmt.Errorf("%w: %v", ErrInvalidSettings, err)
+	}
+	in.ReferenceAds, in.CustomerComplaints = refs, complaints
 	return in, s.setKeys(ctx, tenantID, map[string]any{
 		DailyBriefKey: in.DailyBrief, InboxAutoReplyKey: in.InboxAutoReply, InboxReplyTextKey: in.InboxReplyText,
-		CompetitorsKey: in.Competitors,
+		CompetitorsKey: in.Competitors, ReferenceAdsKey: in.ReferenceAds, CustomerComplaintsKey: in.CustomerComplaints,
 	})
 }
 
@@ -338,6 +353,9 @@ func (s *Service) Context(ctx context.Context, tenantID uuid.UUID) (OSContext, e
 	if raw, ok := t.Metadata[MetadataKey]; ok {
 		b, _ := json.Marshal(raw)
 		out.MarketingContext = string(b)
+	}
+	if sig := marketSignals(t.Metadata); !sig.Empty() {
+		out.MarketSignals = &sig
 	}
 	titles, err := s.db.KnowledgeBaseEntry.Query().
 		Where(knowledgebaseentry.TenantID(tenantID), knowledgebaseentry.CategoryIn(offeringCategories...)).
