@@ -345,7 +345,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		websiteCatalog, cfg.Security.PlatformTenant, logger), logger)
 	// Review links are signed with the env encryption key (stable, like the OAuth
 	// state), separated from it by the token's own HMAC domain.
-	creativeHandler := creative.NewHandler(creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)),
+	creativeHandler := creative.NewHandler(creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)).WithLeadFunnels(funnelService.ForAds()),
 		creative.NewReviews(entClient, encryption.KeyFromEnv(cfg.Security.EncryptionKey)),
 		catalogueOfferings, logger).
 		WithApprover(func(ctx context.Context, tenantID uuid.UUID) bool {

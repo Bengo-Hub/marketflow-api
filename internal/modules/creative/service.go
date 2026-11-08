@@ -104,7 +104,9 @@ const (
 type Service struct {
 	db     *ent.Client
 	quota  *ratelimit.Quota // daily paid-render cap; nil turns it off
-	logger *zap.Logger
+	// leadFunnels publishes each new ad's lead page; nil leaves ads without one (tests).
+	leadFunnels LeadFunnelMaker
+	logger      *zap.Logger
 	nowFn  func() time.Time
 }
 
@@ -174,7 +176,11 @@ func (s *Service) CreateBrief(ctx context.Context, tenantID uuid.UUID, createdBy
 	if in.Metadata != nil {
 		c.SetMetadata(in.Metadata)
 	}
-	return c.Save(ctx)
+	b, err := c.Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.attachLeadFunnel(ctx, b), nil
 }
 
 // UpdateBrief changes the given fields of a brief.

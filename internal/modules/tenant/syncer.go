@@ -32,7 +32,17 @@ type Syncer struct {
 	platformTenantSlug string
 	httpClient         *http.Client
 	logger             *zap.Logger
+	// profiles caches AuthProfile per slug for authProfileTTL. auth-api stays the owner; this is
+	// a short reuse so prefilling forms does not call it on every page load.
+	profiles sync.Map // slug -> cachedProfile
 }
+
+type cachedProfile struct {
+	p  *AuthProfile
+	at time.Time
+}
+
+const authProfileTTL = 10 * time.Minute
 
 // NewSyncer creates a new TenantSyncer.
 func NewSyncer(client *ent.Client, logger *zap.Logger) *Syncer {
@@ -411,8 +421,25 @@ type AuthProfile struct {
 	PrimaryColor string   `json:"primary_color,omitempty"`
 }
 
-// AuthProfile reads a tenant's business details from auth-api, bounded by ctx.
+// AuthProfile reads a tenant's business details from auth-api, bounded by ctx, and reuses a
+// copy read in the last authProfileTTL. A failed read is never cached.
 func (s *Syncer) AuthProfile(ctx context.Context, slug string) (*AuthProfile, error) {
+	if v, ok := s.profiles.Load(slug); ok {
+		if c := v.(cachedProfile); time.Since(c.at) < authProfileTTL {
+			cp := *c.p
+			return &cp, nil
+		}
+	}
+	p, err := s.fetchAuthProfile(ctx, slug)
+	if err != nil {
+		return nil, err
+	}
+	s.profiles.Store(slug, cachedProfile{p: p, at: time.Now()})
+	cp := *p
+	return &cp, nil
+}
+
+func (s *Syncer) fetchAuthProfile(ctx context.Context, slug string) (*AuthProfile, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/v1/tenants/by-slug/%s", s.authAPIURL, url.PathEscape(slug)), nil)
 	if err != nil {
 		return nil, err

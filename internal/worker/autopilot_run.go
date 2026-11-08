@@ -12,6 +12,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
+	"github.com/bengobox/marketflow-api/internal/modules/funnels"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -32,7 +33,9 @@ type AutopilotRunner struct {
 }
 
 func NewAutopilotRunner(db *ent.Client, notif *notifications.Client, appURL string, logger *zap.Logger) *AutopilotRunner {
-	return &AutopilotRunner{db: db, creative: creative.NewService(db, logger), notif: notif, appURL: appURL, logger: logger.Named("autopilot"), now: time.Now}
+	// Ads the autopilot makes get their lead page too, the same as ads made in the portal.
+	svc := creative.NewService(db, logger).WithLeadFunnels(funnels.NewService(db, logger).ForAds())
+	return &AutopilotRunner{db: db, creative: svc, notif: notif, appURL: appURL, logger: logger.Named("autopilot"), now: time.Now}
 }
 
 // ErrAutopilotSkipped is a run that had nothing wrong but must not go ahead (ceiling reached).
