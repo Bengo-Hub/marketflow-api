@@ -43,8 +43,8 @@ func TestAutopilotRunCreditForecast(t *testing.T) {
 	r := NewAutopilotRunner(db, nil, "https://mf.example", zap.NewNop())
 	a := seedAutopilot(t, db, tid, 100)
 
-	r.forecast = func(context.Context, uuid.UUID) (creditForecast, error) {
-		return creditForecast{CreditsNeeded: 2, Balance: 1}, nil
+	r.forecast = func(context.Context, uuid.UUID) (custom_agents.CreditForecast, error) {
+		return custom_agents.CreditForecast{CreditsNeeded: 2, Balance: 1}, nil
 	}
 	if _, err := r.Run(ctx, a); !errors.Is(err, errAutopilotNoCredits) || !errors.Is(err, ErrAutopilotSkipped) {
 		t.Fatalf("a short balance must skip: %v", err)
@@ -53,15 +53,15 @@ func TestAutopilotRunCreditForecast(t *testing.T) {
 		t.Fatalf("a skipped run made %d briefs", n)
 	}
 
-	r.forecast = func(context.Context, uuid.UUID) (creditForecast, error) {
-		return creditForecast{CreditsNeeded: 101, Balance: 500, Enough: true}, nil
+	r.forecast = func(context.Context, uuid.UUID) (custom_agents.CreditForecast, error) {
+		return custom_agents.CreditForecast{CreditsNeeded: 101, Balance: 500, Enough: true}, nil
 	}
 	if _, err := r.Run(ctx, a); !errors.Is(err, ErrAutopilotSkipped) || errors.Is(err, errAutopilotNoCredits) {
 		t.Fatalf("a draft past the ceiling is a plain skip: %v", err)
 	}
 
-	r.forecast = func(context.Context, uuid.UUID) (creditForecast, error) {
-		return creditForecast{}, errors.New("marketflow-ai is down")
+	r.forecast = func(context.Context, uuid.UUID) (custom_agents.CreditForecast, error) {
+		return custom_agents.CreditForecast{}, errors.New("marketflow-ai is down")
 	}
 	if res, err := r.Run(ctx, a); err != nil || res.Offering != "Blender" {
 		t.Fatalf("an unreadable forecast must not block: %+v %v", res, err)

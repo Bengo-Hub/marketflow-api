@@ -35,3 +35,24 @@ func TestNextBriefRefusesMissingOfferings(t *testing.T) {
 		t.Fatal("an offering with no name must fail")
 	}
 }
+
+// The month's sums use the most runs a month can hold, and the ceiling caps what fits.
+func TestBuildDryRun(t *testing.T) {
+	cfg := okConfig()
+	cfg.CreditCap = 20
+	b := RunBrief{Offering: map[string]any{"name": "Blender"}, Language: "en", Tier: "template"}
+	d := BuildDryRun(cfg, b, 1, 9, 50, true)
+	if d.Offering != "Blender" || d.RunsPerMonth != 5 || d.MonthlyDraftCredits != 5 || d.MonthlyFullCredits != 50 {
+		t.Fatalf("weekly: %+v", d)
+	}
+	if d.DraftsWithinCeiling != 5 || d.AdsWithinCeiling != 2 {
+		t.Fatalf("ceiling: %+v", d)
+	}
+	cfg.Cadence = "daily"
+	if d := BuildDryRun(cfg, b, 1, 9, 50, true); d.RunsPerMonth != 31 || d.DraftsWithinCeiling != 20 {
+		t.Fatalf("daily: %+v", d)
+	}
+	if d := BuildDryRun(cfg, b, 1, 9, 50, false); d.CreditsKnown || d.MonthlyFullCredits != 0 || d.Balance != -1 || d.Offering != "Blender" {
+		t.Fatalf("unknown prices keep the preview without sums: %+v", d)
+	}
+}

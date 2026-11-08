@@ -185,6 +185,10 @@ func main() {
 			meta.NewClient("").WithSecret(meta.PlatformSecret(entClient, keys, os.Getenv("MF_META_APP_SECRET"))),
 			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
 			cfg.API.PortalURL, logger), logger)...)
+		// New item drafts (Sprint 20): agents that opted in draft a launch ad, at most one a day.
+		reg.Add(worker.NewNewItemAdsHandler(entClient, worker.NewAutopilotRunner(entClient,
+			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
+			cfg.API.PortalURL, logger).WithForecast(custom_agents.NewCreditForecaster(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey)), logger))
 		// Click-to-WhatsApp attribution (Sprint 18): the ad click id on the lead, once.
 		reg.Add(worker.NewWhatsAppReferralHandler(entClient, logger))
 		reg.Add(worker.NewWhatsAppAssistantHandler(entClient, rdb,

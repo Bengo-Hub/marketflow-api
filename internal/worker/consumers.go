@@ -20,6 +20,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/modules/activities"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
+	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go/jetstream"
@@ -140,7 +141,7 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, keys *encryption.Ke
 				serviceKey: cfg.API.InternalServiceKey,
 				logger:     logger.Named("agent.custom-execution"),
 				hc:         agentHTTP,
-				autopilot:  NewAutopilotRunner(db, notif, cfg.API.PortalURL, logger).WithForecast(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey),
+				autopilot:  NewAutopilotRunner(db, notif, cfg.API.PortalURL, logger).WithForecast(custom_agents.NewCreditForecaster(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey)),
 			},
 		},
 	}

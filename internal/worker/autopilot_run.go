@@ -1,18 +1,13 @@
 package worker
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"strings"
 	"time"
 
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/bengobox/marketflow-api/internal/ent"
-	"github.com/bengobox/marketflow-api/internal/ent/agentrun"
 	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
@@ -33,7 +28,7 @@ type AutopilotRunner struct {
 	appURL   string
 	logger   *zap.Logger
 	now      func() time.Time
-	forecast func(ctx context.Context, tenantID uuid.UUID) (creditForecast, error)
+	forecast func(ctx context.Context, tenantID uuid.UUID) (custom_agents.CreditForecast, error)
 }
 
 func NewAutopilotRunner(db *ent.Client, notif *notifications.Client, appURL string, logger *zap.Logger) *AutopilotRunner {
@@ -46,40 +41,12 @@ var ErrAutopilotSkipped = errors.New("autopilot run skipped")
 // errAutopilotNoCredits is a skip the owner can fix by buying credits.
 var errAutopilotNoCredits = fmt.Errorf("%w: not enough AI credits", ErrAutopilotSkipped)
 
-// creditForecast is marketflow-ai's answer to what a draft costs now. Balance is -1 when it is
-// unlimited or could not be read.
-type creditForecast struct {
-	CreditsNeeded int  `json:"credits_needed"`
-	Balance       int  `json:"balance"`
-	Enough        bool `json:"enough"`
-}
-
-// WithForecast checks each run's script price against the balance through marketflow-ai, the one
-// owner of the subscriptions-api credit client. Nothing is spent.
-func (r *AutopilotRunner) WithForecast(aiURL, key string) *AutopilotRunner {
-	if aiURL == "" || key == "" {
-		return r
-	}
-	hc := &http.Client{Timeout: 10 * time.Second}
-	url := strings.TrimSuffix(aiURL, "/") + "/api/v1/internal/credits/forecast"
-	r.forecast = func(ctx context.Context, tenantID uuid.UUID) (creditForecast, error) {
-		var fc creditForecast
-		body, _ := json.Marshal(map[string]string{"tenant_id": tenantID.String(), "output": "script"})
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
-		if err != nil {
-			return fc, err
+// WithForecast checks each run's script price against the balance. Nothing is spent.
+func (r *AutopilotRunner) WithForecast(f custom_agents.CreditForecaster) *AutopilotRunner {
+	if f != nil {
+		r.forecast = func(ctx context.Context, tenantID uuid.UUID) (custom_agents.CreditForecast, error) {
+			return f(ctx, tenantID, custom_agents.OutputScript)
 		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("X-API-Key", key)
-		resp, err := hc.Do(req)
-		if err != nil {
-			return fc, err
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return fc, fmt.Errorf("credit forecast: status %d", resp.StatusCode)
-		}
-		return fc, json.NewDecoder(resp.Body).Decode(&fc)
 	}
 	return r
 }
@@ -95,13 +62,19 @@ type AutopilotResult struct {
 // Run makes this run's brief and script draft. The rotation counts the agent's earlier finished
 // runs, so a failed run retries the same offering.
 func (r *AutopilotRunner) Run(ctx context.Context, a *ent.CustomAgent) (AutopilotResult, error) {
-	var cfg custom_agents.AutopilotConfig
-	raw, err := json.Marshal(a.Metadata["autopilot"])
+	return r.run(ctx, a, nil)
+}
+
+// RunForItem drafts an ad for one new catalogue item instead of the next rotated offering, through
+// the same ceiling and credit checks.
+func (r *AutopilotRunner) RunForItem(ctx context.Context, a *ent.CustomAgent, offering map[string]any) (AutopilotResult, error) {
+	return r.run(ctx, a, offering)
+}
+
+func (r *AutopilotRunner) run(ctx context.Context, a *ent.CustomAgent, only map[string]any) (AutopilotResult, error) {
+	cfg, offerings, err := custom_agents.ReadAutopilot(a)
 	if err != nil {
 		return AutopilotResult{}, err
-	}
-	if err := json.Unmarshal(raw, &cfg); err != nil {
-		return AutopilotResult{}, fmt.Errorf("the autopilot settings could not be read: %w", err)
 	}
 	// Auto-publish is not honoured here yet: every run ends at a draft, whatever the mode.
 	if err := cfg.Validate(cfg.Approval == custom_agents.AutoPublish); err != nil {
@@ -128,11 +101,11 @@ func (r *AutopilotRunner) Run(ctx context.Context, a *ent.CustomAgent) (Autopilo
 			return AutopilotResult{}, fmt.Errorf("%w: this draft needs %d credits and the balance is %d; it runs again on its next schedule", errAutopilotNoCredits, fc.CreditsNeeded, fc.Balance)
 		}
 	}
-	var offerings []map[string]any
-	if raw, err := json.Marshal(a.Metadata["autopilot_offerings"]); err == nil {
-		_ = json.Unmarshal(raw, &offerings)
+	if only != nil {
+		id, _ := only["source_id"].(string)
+		cfg.OfferingIDs, offerings = []string{id}, []map[string]any{only}
 	}
-	n, err := r.db.AgentRun.Query().Where(agentrun.CustomAgentID(a.ID), agentrun.StatusEQ("completed")).Count(ctx)
+	n, err := custom_agents.NextRunNumber(ctx, r.db, a.ID)
 	if err != nil {
 		return AutopilotResult{}, err
 	}
@@ -211,7 +184,7 @@ func (r *AutopilotRunner) portalLink(ctx context.Context, a *ent.CustomAgent, pa
 
 // tellShort emails the tenant's admins a Buy credits link, once per agent per ISO week, so a daily
 // agent on an empty balance does not send one email a day.
-func (r *AutopilotRunner) tellShort(ctx context.Context, a *ent.CustomAgent, fc creditForecast) {
+func (r *AutopilotRunner) tellShort(ctx context.Context, a *ent.CustomAgent, fc custom_agents.CreditForecast) {
 	if r.notif == nil {
 		return
 	}
@@ -233,24 +206,29 @@ func (r *AutopilotRunner) tellShort(ctx context.Context, a *ent.CustomAgent, fc 
 	}
 }
 
-// runAutopilot records the run's outcome. A reached ceiling or a short balance is "skipped", not
-// a failure: the agent tries again on its next schedule.
+// runAutopilot makes a scheduled or button run and records its outcome.
 func (c *CustomAgentExecutionConsumer) runAutopilot(ctx context.Context, a *ent.CustomAgent, runID uuid.UUID) {
 	res, err := c.autopilot.Run(ctx, a)
-	upd := c.db.AgentRun.UpdateOneID(runID).SetFinishedAt(time.Now())
+	c.autopilot.record(ctx, a, runID, res, err)
+}
+
+// record stores a run's outcome. A reached ceiling or a short balance is "skipped", not a failure:
+// the agent tries again on its next schedule.
+func (r *AutopilotRunner) record(ctx context.Context, a *ent.CustomAgent, runID uuid.UUID, res AutopilotResult, err error) {
+	upd := r.db.AgentRun.UpdateOneID(runID).SetFinishedAt(time.Now())
 	switch {
 	case errors.Is(err, errAutopilotNoCredits):
 		upd.SetStatus("skipped").SetErrorMessage(truncateStr(err.Error(), 1000)).SetTrace(map[string]any{"skip": "credits"})
 	case errors.Is(err, ErrAutopilotSkipped):
 		upd.SetStatus("skipped").SetErrorMessage(truncateStr(err.Error(), 1000))
 	case err != nil:
-		c.logger.Warn("autopilot run failed", zap.String("run_id", runID.String()), zap.Error(err))
+		r.logger.Warn("autopilot run failed", zap.String("run_id", runID.String()), zap.Error(err))
 		upd.SetStatus("failed").SetErrorMessage(truncateStr(err.Error(), 1000))
 	default:
 		upd.SetStatus("completed").SetTrace(map[string]any{"autopilot": res})
-		_, _ = c.db.CustomAgent.UpdateOneID(a.ID).AddRunCount(1).SetLastRunAt(time.Now()).Save(ctx)
+		_, _ = r.db.CustomAgent.UpdateOneID(a.ID).AddRunCount(1).SetLastRunAt(time.Now()).Save(ctx)
 	}
 	if _, err := upd.Save(ctx); err != nil {
-		c.logger.Error("autopilot run: record outcome", zap.String("run_id", runID.String()), zap.Error(err))
+		r.logger.Error("autopilot run: record outcome", zap.String("run_id", runID.String()), zap.Error(err))
 	}
 }

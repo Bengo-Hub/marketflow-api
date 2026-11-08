@@ -298,7 +298,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	customFieldService := custom_fields.NewService(entClient, logger)
 	customFieldHandler := custom_fields.NewHandler(customFieldService, logger)
 
-	customAgentServiceOpts := []func(*custom_agents.Service){custom_agents.WithPlatformTenant(cfg.Security.PlatformTenant)}
+	customAgentServiceOpts := []func(*custom_agents.Service){custom_agents.WithPlatformTenant(cfg.Security.PlatformTenant),
+		custom_agents.WithCreditForecaster(custom_agents.NewCreditForecaster(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey))}
 	if natsConn != nil {
 		customAgentServiceOpts = append(customAgentServiceOpts, custom_agents.WithNATS(natsConn))
 	}
@@ -626,6 +627,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			HireTemplate:      customAgentHandler.HireTemplate,
 			PutAutopilot:      customAgentHandler.PutAutopilot,
 			RollbackAutopilot: customAgentHandler.RollbackAutopilot,
+			DryRunAutopilot:   customAgentHandler.DryRunAutopilot,
 		},
 		OnboardingHandlers: httpapi.OnboardingHandlers{
 			Checklist: onboardingHandler.Checklist,
@@ -682,6 +684,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			List:     publishingHandler.List,
 			Cancel:   publishingHandler.Cancel,
 			Retry:    publishingHandler.Retry,
+			Move:     publishingHandler.Move,
 		},
 		SegmentHandlers: httpapi.SegmentHandlers{
 			Create:   segmentHandler.Create,

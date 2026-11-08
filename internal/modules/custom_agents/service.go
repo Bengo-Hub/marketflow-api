@@ -25,6 +25,8 @@ type Service struct {
 	natsConn *nats.Conn
 	// platformSlug owns the agent templates (templates.go).
 	platformSlug string
+	// forecaster prices the dry run (autopilot_dryrun.go).
+	forecaster CreditForecaster
 }
 
 // NewService creates a new custom agents service.

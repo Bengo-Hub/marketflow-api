@@ -44,6 +44,8 @@ type AutopilotConfig struct {
 	CreditCap    int      `json:"monthly_credit_ceiling"` // AI credits a month
 	StopCPL      float64  `json:"stop_cpl"`               // pause above this cost per lead
 	EndDate      string   `json:"end_date,omitempty"`     // YYYY-MM-DD, optional
+	// NewItemDrafts opts in to one extra draft a day when a new item with a photo joins the catalogue.
+	NewItemDrafts bool `json:"new_item_drafts,omitempty"`
 }
 
 var (

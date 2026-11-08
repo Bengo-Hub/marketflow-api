@@ -121,6 +121,9 @@ type inventoryItem struct {
 
 var sellableTypes = map[string]bool{"GOODS": true, "SERVICE": true, "RECIPE": true}
 
+// IsSellableType reports whether an inventory item type can be advertised.
+func IsSellableType(t string) bool { return sellableTypes[t] }
+
 // Search returns up to limit offerings whose name (or an item's SKU) matches q:
 // running promotions first, then the extra source, then catalogue items. The
 // sources are asked at once; ErrOfferingsOff only when none answered.

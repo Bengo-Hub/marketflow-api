@@ -506,6 +506,7 @@ type PublishingHandlers struct {
 	List     http.HandlerFunc
 	Cancel   http.HandlerFunc
 	Retry    http.HandlerFunc
+	Move     http.HandlerFunc
 }
 
 // CustomAgentHandlers groups custom agent HTTP handlers.
@@ -523,6 +524,8 @@ type CustomAgentHandlers struct {
 	// PutAutopilot and RollbackAutopilot save an ad autopilot's settings (Sprint 20).
 	PutAutopilot      http.HandlerFunc
 	RollbackAutopilot http.HandlerFunc
+	// DryRunAutopilot previews the next run and the month's credits, spending nothing.
+	DryRunAutopilot http.HandlerFunc
 }
 
 // SegmentHandlers groups segment management HTTP handlers.
@@ -890,6 +893,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 					if deps.CustomAgentHandlers.PutAutopilot != nil {
 						r.Put("/{id}/autopilot", deps.CustomAgentHandlers.PutAutopilot)
 						r.Post("/{id}/autopilot/rollback", deps.CustomAgentHandlers.RollbackAutopilot)
+						r.Get("/{id}/autopilot/dry-run", deps.CustomAgentHandlers.DryRunAutopilot)
 					}
 					if deps.CustomAgentHandlers.TriggerRun != nil {
 						r.Post("/{id}/run", deps.CustomAgentHandlers.TriggerRun)
@@ -973,6 +977,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Get("/jobs", deps.PublishingHandlers.List)
 					r.Post("/jobs/{id}/cancel", deps.PublishingHandlers.Cancel)
 					r.Post("/jobs/{id}/retry", deps.PublishingHandlers.Retry)
+					r.Post("/jobs/{id}/move", deps.PublishingHandlers.Move)
 				})
 			}
 
