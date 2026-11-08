@@ -158,6 +158,7 @@ type Service struct {
 	subs        *subscriptions.Client
 	logger      *zap.Logger
 	webPresence WebPresence // team_setup.go; nil leaves website-bound members alone
+	catalogue   Catalogue   // team_setup.go; nil reads offerings from the knowledge base only
 }
 
 // NewService builds the service; subs may be nil (no plan information).

@@ -47,6 +47,17 @@ func (s *Service) WithWebPresence(f WebPresence) *Service {
 	return s
 }
 
+// Catalogue reports whether the business sells anything in its own systems (inventory, POS
+// promotions, the codevertex-website catalogue for the platform tenant), read only through the
+// creative offering sources. Used when the knowledge base lists no offerings.
+type Catalogue func(ctx context.Context, tenantID uuid.UUID) bool
+
+// WithCatalogue wires the catalogue check.
+func (s *Service) WithCatalogue(f Catalogue) *Service {
+	s.catalogue = f
+	return s
+}
+
 // TeamFacts are what the rules look at. They describe capability, never personal data.
 type TeamFacts struct {
 	Website      bool `json:"website"`
@@ -228,6 +239,11 @@ func (s *Service) teamFacts(ctx context.Context, t *ent.Tenant) TeamFacts {
 		Where(knowledgebaseentry.TenantID(t.ID), knowledgebaseentry.CategoryIn(offeringCategories...)).Exist(ctx)
 	if !f.Offerings {
 		f.Offerings = len(brandOffers(t.Metadata)) > 0
+	}
+	if !f.Offerings && s.catalogue != nil {
+		cctx, cancel := context.WithTimeout(ctx, profileBudget)
+		f.Offerings = s.catalogue(cctx, t.ID)
+		cancel()
 	}
 	if bc, ok := t.Metadata[MetadataKey].(map[string]any); ok {
 		f.BrandContext = strings.TrimSpace(str(bc["positioning"])) != ""

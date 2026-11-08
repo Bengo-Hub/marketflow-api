@@ -114,6 +114,7 @@ type RouterDeps struct {
 	CustomFieldHandlers CustomFieldHandlers
 	CustomAgentHandlers CustomAgentHandlers
 	MarketingOSHandlers MarketingOSHandlers
+	LearningHandlers    LearningHandlers
 	OnboardingHandlers  OnboardingHandlers
 	CreativeHandlers    CreativeHandlers
 	PublishingHandlers  PublishingHandlers
@@ -447,6 +448,12 @@ type MarketingOSHandlers struct {
 	// for marketflow-ai (service key).
 	SetupTeam         http.HandlerFunc
 	InternalSetupTeam http.HandlerFunc
+}
+
+// LearningHandlers are the internal routes of what the Marketing OS learns (Sprint 25).
+type LearningHandlers struct {
+	Phrases http.HandlerFunc
+	Record  http.HandlerFunc
 }
 
 // OnboardingHandlers groups the setup checklist and the brand context draft.
@@ -1080,6 +1087,11 @@ func NewRouter(deps RouterDeps) http.Handler {
 					}
 					if deps.MarketingOSHandlers.InternalSetupTeam != nil {
 						r.Post("/os/team/setup", deps.MarketingOSHandlers.InternalSetupTeam)
+					}
+					// What the Marketing OS learns from use (Sprint 25): phrasings per intent.
+					if deps.LearningHandlers.Phrases != nil {
+						r.Get("/learning/phrases", deps.LearningHandlers.Phrases)
+						r.Post("/learning/phrases", deps.LearningHandlers.Record)
 					}
 					// marketflow-ai pushes a finished or failed media job (motion poster, video ad).
 					if deps.CreativeHandlers.JobCallback != nil {

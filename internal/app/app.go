@@ -40,6 +40,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/integrations"
 	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
+	"github.com/bengobox/marketflow-api/internal/modules/learning"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/modules/meetings"
 	"github.com/bengobox/marketflow-api/internal/modules/onboarding"
@@ -320,6 +321,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			return strings.TrimSpace(p.Website) != "" || strings.TrimSpace(p.Storefront) != "", true
 		})
 	marketingOSHandler := marketingos.NewHandler(marketingOSService, logger)
+	learningHandler := learning.NewHandler(learning.NewStore(entClient), logger)
 	marketingOSHandler.CanManage = func(ctx context.Context, tenantID uuid.UUID) bool {
 		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
 	}
@@ -329,6 +331,12 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	catalogueOfferings := creative.NewOfferings(cfg.CrossService.InventoryURL, cfg.CrossService.InternalServiceKey, logger).
 		WithPromotions(cfg.CrossService.POSURL).
 		WithSource(websiteOfferings(entClient, websiteCatalog, cfg.Security.PlatformTenant))
+	// Team setup also sees what the business sells in its own systems, not only the knowledge
+	// base: inventory, POS promotions and, for the platform tenant, the website catalogue.
+	marketingOSService.WithCatalogue(func(ctx context.Context, tenantID uuid.UUID) bool {
+		list, err := catalogueOfferings.Search(ctx, tenantID, "", 1)
+		return err == nil && len(list) > 0
+	})
 	// Onboarding: setup checklist and a brand context draft from the business's own data
 	// (account details, best sellers, website catalogue for the platform tenant).
 	onboardingHandler := onboarding.NewHandler(onboarding.NewService(entClient, marketingOSService, tenantSyncer,
@@ -660,6 +668,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			InternalContext:   marketingOSHandler.InternalContext,
 			SetupTeam:         marketingOSHandler.SetupTeam,
 			InternalSetupTeam: marketingOSHandler.InternalSetupTeam,
+		},
+		LearningHandlers: httpapi.LearningHandlers{
+			Phrases: learningHandler.Phrases,
+			Record:  learningHandler.Record,
 		},
 		CreativeHandlers: httpapi.CreativeHandlers{
 			ListBriefs:        creativeHandler.ListBriefs,
