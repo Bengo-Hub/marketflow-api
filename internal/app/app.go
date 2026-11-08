@@ -9,6 +9,7 @@ import (
 	ratelimit "github.com/Bengo-Hub/shared-ratelimit"
 	"github.com/google/uuid"
 	"net/http"
+	"strings"
 	"time"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
@@ -305,8 +306,23 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	}
 	customAgentService := custom_agents.NewService(entClient, logger, customAgentServiceOpts...)
 	customAgentHandler := custom_agents.NewHandler(customAgentService, logger)
-	marketingOSService := marketingos.NewService(entClient, subsClient, logger)
+	marketingOSService := marketingos.NewService(entClient, subsClient, logger).
+		// Team setup reads the website and online store from auth-api, their owner, read only.
+		WithWebPresence(func(ctx context.Context, tenantID uuid.UUID) (bool, bool) {
+			t, err := entClient.Tenant.Get(ctx, tenantID)
+			if err != nil || tenantSyncer == nil {
+				return false, false
+			}
+			p, err := tenantSyncer.AuthProfile(ctx, t.Slug)
+			if err != nil || p == nil {
+				return false, false
+			}
+			return strings.TrimSpace(p.Website) != "" || strings.TrimSpace(p.Storefront) != "", true
+		})
 	marketingOSHandler := marketingos.NewHandler(marketingOSService, logger)
+	marketingOSHandler.CanManage = func(ctx context.Context, tenantID uuid.UUID) bool {
+		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
+	}
 	// One cached reader of codevertex-website's catalogue and courses serves both the
 	// onboarding draft and the platform tenant's offering picker.
 	websiteCatalog := onboarding.NewWebsiteCatalog(cfg.CrossService.WebsiteURL, sharedcache.New(redisClient, logger))
@@ -635,13 +651,15 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Draft:     onboardingHandler.Draft,
 		},
 		MarketingOSHandlers: httpapi.MarketingOSHandlers{
-			GetBrandContext: marketingOSHandler.GetBrandContext,
-			PutBrandContext: marketingOSHandler.PutBrandContext,
-			ListTeam:        marketingOSHandler.ListTeam,
-			PutTeamMember:   marketingOSHandler.PutTeamMember,
-			GetSettings:     marketingOSHandler.GetSettings,
-			PutSettings:     marketingOSHandler.PutSettings,
-			InternalContext: marketingOSHandler.InternalContext,
+			GetBrandContext:   marketingOSHandler.GetBrandContext,
+			PutBrandContext:   marketingOSHandler.PutBrandContext,
+			ListTeam:          marketingOSHandler.ListTeam,
+			PutTeamMember:     marketingOSHandler.PutTeamMember,
+			GetSettings:       marketingOSHandler.GetSettings,
+			PutSettings:       marketingOSHandler.PutSettings,
+			InternalContext:   marketingOSHandler.InternalContext,
+			SetupTeam:         marketingOSHandler.SetupTeam,
+			InternalSetupTeam: marketingOSHandler.InternalSetupTeam,
 		},
 		CreativeHandlers: httpapi.CreativeHandlers{
 			ListBriefs:        creativeHandler.ListBriefs,

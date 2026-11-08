@@ -130,6 +130,9 @@ type MemberOverride struct {
 	Disabled     bool   `json:"disabled,omitempty"`
 	ModelClass   string `json:"model_class,omitempty"`
 	Instructions string `json:"instructions,omitempty"`
+	// SetBy is "team_setup" when the setup made this change; empty when the owner did. The
+	// setup never changes a member the owner set (team_setup.go).
+	SetBy string `json:"set_by,omitempty"`
 }
 
 var (
@@ -151,9 +154,10 @@ type OSContext struct {
 
 // Service serves the Marketing OS data.
 type Service struct {
-	db     *ent.Client
-	subs   *subscriptions.Client
-	logger *zap.Logger
+	db          *ent.Client
+	subs        *subscriptions.Client
+	logger      *zap.Logger
+	webPresence WebPresence // team_setup.go; nil leaves website-bound members alone
 }
 
 // NewService builds the service; subs may be nil (no plan information).
@@ -282,7 +286,7 @@ func (s *Service) TeamOverrides(ctx context.Context, tenantID uuid.UUID) ([]Memb
 	out := make([]MemberOverride, 0, len(rows))
 	for _, a := range rows {
 		o := MemberOverride{Key: str(a.Metadata["key"]), Name: overrideName(a), Disabled: !a.IsActive,
-			ModelClass: str(a.Metadata["model_class"]), Instructions: str(a.Metadata["instructions"])}
+			ModelClass: str(a.Metadata["model_class"]), Instructions: str(a.Metadata["instructions"]), SetBy: str(a.Metadata["set_by"])}
 		if o.Key != "" {
 			out = append(out, o)
 		}
@@ -316,6 +320,9 @@ func (s *Service) UpsertTeamMember(ctx context.Context, tenantID uuid.UUID, o Me
 	// The owner's chosen name lives in metadata; the row name is only a label, so
 	// switching a member off never renames it to its key.
 	meta := map[string]any{"kind": KindTeamMember, "key": o.Key, "name": o.Name, "model_class": o.ModelClass, "instructions": o.Instructions}
+	if o.SetBy == SetByTeamSetup {
+		meta["set_by"] = SetByTeamSetup
+	}
 
 	existing, err := s.db.CustomAgent.Query().
 		Where(customagent.TenantID(tenantID), func(sel *sql.Selector) {

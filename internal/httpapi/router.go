@@ -443,6 +443,10 @@ type MarketingOSHandlers struct {
 	GetSettings     http.HandlerFunc
 	PutSettings     http.HandlerFunc
 	InternalContext http.HandlerFunc
+	// SetupTeam fits the prebuilt team to the business (portal); InternalSetupTeam is the same
+	// for marketflow-ai (service key).
+	SetupTeam         http.HandlerFunc
+	InternalSetupTeam http.HandlerFunc
 }
 
 // OnboardingHandlers groups the setup checklist and the brand context draft.
@@ -914,6 +918,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Get("/tenant/marketing-context", deps.MarketingOSHandlers.GetBrandContext)
 				r.Put("/tenant/marketing-context", deps.MarketingOSHandlers.PutBrandContext)
 				r.Get("/agents/team", deps.MarketingOSHandlers.ListTeam)
+				if deps.MarketingOSHandlers.SetupTeam != nil {
+					r.Post("/agents/team/setup", deps.MarketingOSHandlers.SetupTeam)
+				}
 				r.Put("/agents/team/{key}", deps.MarketingOSHandlers.PutTeamMember)
 				r.Get("/tenant/os-settings", deps.MarketingOSHandlers.GetSettings)
 				r.Put("/tenant/os-settings", deps.MarketingOSHandlers.PutSettings)
@@ -1070,6 +1077,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					// Marketing OS context for marketflow-ai (tenant in the query, service key only).
 					if deps.MarketingOSHandlers.InternalContext != nil {
 						r.Get("/os/context", deps.MarketingOSHandlers.InternalContext)
+					}
+					if deps.MarketingOSHandlers.InternalSetupTeam != nil {
+						r.Post("/os/team/setup", deps.MarketingOSHandlers.InternalSetupTeam)
 					}
 					// marketflow-ai pushes a finished or failed media job (motion poster, video ad).
 					if deps.CreativeHandlers.JobCallback != nil {

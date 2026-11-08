@@ -55,20 +55,22 @@ func NewSyncer(client *ent.Client, logger *zap.Logger) *Syncer {
 
 // authTenant is the shape returned by auth-api /api/v1/tenants/by-slug/{slug}.
 type authTenant struct {
-	ID           string         `json:"id"`
-	Name         string         `json:"name"`
-	Slug         string         `json:"slug"`
-	Status       string         `json:"status"`
-	Country      string         `json:"country"`
-	LogoURL      string         `json:"logo_url"`
-	Website      string         `json:"website"`
-	ContactEmail string         `json:"contact_email"`
-	ContactPhone string         `json:"contact_phone"`
-	UseCase      string         `json:"use_case"`
-	UseCases     []string       `json:"use_cases"`
-	OrgSize      string         `json:"org_size"`
-	BrandColors  map[string]any `json:"brand_colors"`
-	Metadata     map[string]any `json:"metadata"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Slug    string `json:"slug"`
+	Status  string `json:"status"`
+	Country string `json:"country"`
+	LogoURL string `json:"logo_url"`
+	Website string `json:"website"`
+	// StorefrontDomain is the tenant's active ordering storefront domain (auth-api a9bf733).
+	StorefrontDomain string         `json:"storefront_domain"`
+	ContactEmail     string         `json:"contact_email"`
+	ContactPhone     string         `json:"contact_phone"`
+	UseCase          string         `json:"use_case"`
+	UseCases         []string       `json:"use_cases"`
+	OrgSize          string         `json:"org_size"`
+	BrandColors      map[string]any `json:"brand_colors"`
+	Metadata         map[string]any `json:"metadata"`
 	// Auth-api may include the owner user's profile in the response.
 	Owner *struct {
 		FirstName string `json:"first_name"`
@@ -401,6 +403,7 @@ type AuthProfile struct {
 	Country      string   `json:"country,omitempty"`
 	LogoURL      string   `json:"logo_url,omitempty"`
 	Website      string   `json:"website,omitempty"`
+	Storefront   string   `json:"storefront_domain,omitempty"`
 	ContactEmail string   `json:"contact_email,omitempty"`
 	ContactPhone string   `json:"contact_phone,omitempty"`
 	UseCases     []string `json:"use_cases,omitempty"`
@@ -427,7 +430,7 @@ func (s *Syncer) AuthProfile(ctx context.Context, slug string) (*AuthProfile, er
 		return nil, fmt.Errorf("decode auth-api response: %w", err)
 	}
 	p := &AuthProfile{
-		Name: t.Name, Country: t.Country, LogoURL: t.LogoURL, Website: t.Website,
+		Name: t.Name, Country: t.Country, LogoURL: t.LogoURL, Website: t.Website, Storefront: t.StorefrontDomain,
 		ContactEmail: t.ContactEmail, ContactPhone: t.ContactPhone, OrgSize: t.OrgSize,
 	}
 	for _, u := range append([]string{t.UseCase}, t.UseCases...) {
