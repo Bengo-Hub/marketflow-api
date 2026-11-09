@@ -1095,6 +1095,14 @@ var (
 				Columns: []*schema.Column{KnowledgeBaseEntriesColumns[15], KnowledgeBaseEntriesColumns[9]},
 			},
 			{
+				Name:    "knowledgebaseentry_waiting_embed",
+				Unique:  false,
+				Columns: []*schema.Column{KnowledgeBaseEntriesColumns[14]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "embedded = false",
+				},
+			},
+			{
 				Name:    "knowledgebaseentry_scope_category",
 				Unique:  false,
 				Columns: []*schema.Column{KnowledgeBaseEntriesColumns[1], KnowledgeBaseEntriesColumns[2]},

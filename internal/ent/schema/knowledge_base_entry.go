@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
@@ -94,6 +95,12 @@ func (KnowledgeBaseEntry) Indexes() []ent.Index {
 		index.Fields("tenant_id", "category"),
 		index.Fields("tenant_id", "product_code"),
 		index.Fields("tenant_id", "embedded"),
+		// The embed sweep reads the oldest entries waiting for search across every tenant each
+		// minute (worker/kb_sync.go). Waiting entries are few, so a partial index keeps that read
+		// small however large the knowledge base grows.
+		index.Fields("updated_at").
+			Annotations(entsql.IndexWhere("embedded = false")).
+			StorageKey("knowledgebaseentry_waiting_embed"),
 		// Platform-scoped rows are loaded into every tenant's RAG query, so
 		// scope+category is a hot index for agent_tool.kb_search.
 		index.Fields("scope", "category"),

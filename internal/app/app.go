@@ -458,6 +458,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			UpdateEntry: kbHandler.UpdateEntry,
 			DeleteEntry: kbHandler.DeleteEntry,
 			ImportCSV:   kbHandler.ImportCSV,
+
+			ApproveSuggestion:  kbHandler.ApproveSuggestion,
+			RejectSuggestion:   kbHandler.RejectSuggestion,
+			InternalSuggestFAQ: kbHandler.InternalSuggestFAQ,
 		},
 		CampaignHandlers: httpapi.CampaignHandlers{
 			Create:  campaignHandler.Create,

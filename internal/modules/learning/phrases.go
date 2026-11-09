@@ -67,7 +67,20 @@ func key(intent, phrase string) string {
 }
 
 func valid(intent, phrase string) bool {
-	return intentRe.MatchString(intent) && len(phrase) <= maxPhraseLen && phraseRe.MatchString(phrase) && !longDigits.MatchString(phrase)
+	return intentRe.MatchString(intent) && len(phrase) <= maxPhraseLen && phraseRe.MatchString(phrase) && !HasPersonalDetails(phrase)
+}
+
+var emailRe = regexp.MustCompile(`[^\s@]+@[^\s@]+\.[^\s@]+`)
+
+// HasPersonalDetails reports text that may identify a person: an email address or a run of six or
+// more digits (a phone, ID or account number, with or without spaces and dashes between them).
+// Anything the engine learns from people's words is refused when this is true.
+func HasPersonalDetails(s string) bool {
+	if emailRe.MatchString(s) {
+		return true
+	}
+	digits := strings.NewReplacer(" ", "", "-", "", ".", "", "(", "", ")", "").Replace(s)
+	return longDigits.MatchString(digits)
 }
 
 // Record counts one use of a phrase for an intent. A tenant at its bound learns nothing new, but

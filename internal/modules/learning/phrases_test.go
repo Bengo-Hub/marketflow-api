@@ -128,3 +128,16 @@ func containsStr(s, sub string) bool {
 	}
 	return false
 }
+
+func TestHasPersonalDetails(t *testing.T) {
+	for _, s := range []string{"mail me at jane@example.com", "call 0712 345 678", "+254-712-345678", "id 12345678"} {
+		if !HasPersonalDetails(s) {
+			t.Errorf("%q should be personal", s)
+		}
+	}
+	for _, s := range []string{"do you deliver to kisumu", "price for 2 kg", "open 8 to 5", "order 12345"} {
+		if HasPersonalDetails(s) {
+			t.Errorf("%q is not personal", s)
+		}
+	}
+}

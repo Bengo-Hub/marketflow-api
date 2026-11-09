@@ -62,8 +62,10 @@ type ListEntriesInput struct {
 	Embedded *bool
 	// Search matches the title or content (case-insensitive substring), at most 100 characters.
 	Search string
-	Limit  int
-	Offset int
+	// Suggested lists only the FAQ suggestions waiting for the owner; otherwise they are left out.
+	Suggested bool
+	Limit     int
+	Offset    int
 }
 
 // CreateEntry creates a new knowledge base entry.
@@ -131,6 +133,11 @@ func (s *Service) ListEntries(ctx context.Context, in ListEntriesInput) ([]*ent.
 			knowledgebaseentry.ScopeEQ("platform"),
 		))
 
+	if in.Suggested {
+		query = query.Where(knowledgebaseentry.TenantID(in.TenantID), isSuggested())
+	} else {
+		query = query.Where(notSuggested())
+	}
 	if in.Category != nil {
 		query = query.Where(knowledgebaseentry.CategoryEQ(*in.Category))
 	}
@@ -191,7 +198,8 @@ func (s *Service) UpdateEntry(ctx context.Context, tenantID, entryID uuid.UUID, 
 	}
 	// The portal form sends every field on each save, so only a real change re-embeds. The
 	// title is stored with each search chunk, so it counts too.
-	if wordsChanged(existing, in) {
+	// A suggestion stays out of search while the owner edits it; approving it embeds it.
+	if wordsChanged(existing, in) && !suggested(existing) {
 		builder.SetEmbedded(false).SetChunkCount(0)
 	}
 	if in.ProductCode != nil {
@@ -209,7 +217,7 @@ func (s *Service) UpdateEntry(ctx context.Context, tenantID, entryID uuid.UUID, 
 	if in.Tags != nil {
 		builder.SetTags(in.Tags)
 	}
-	if meta := mergeEntryMetadata(existing, in); meta != nil {
+	if meta := keepSuggestion(existing, mergeEntryMetadata(existing, in)); meta != nil {
 		builder.SetMetadata(meta)
 	}
 

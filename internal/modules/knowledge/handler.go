@@ -1,10 +1,13 @@
 package knowledge
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/Bengo-Hub/pagination"
+	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -124,10 +127,11 @@ func (h *Handler) ListEntries(w http.ResponseWriter, r *http.Request) {
 	category := r.URL.Query().Get("category")
 	p := pagination.Parse(r)
 	input := ListEntriesInput{
-		TenantID: tenantID,
-		Search:   r.URL.Query().Get("q"),
-		Limit:    p.Limit,
-		Offset:   p.Offset,
+		TenantID:  tenantID,
+		Search:    r.URL.Query().Get("q"),
+		Suggested: r.URL.Query().Get("suggested") == "true",
+		Limit:     p.Limit,
+		Offset:    p.Offset,
 	}
 	if category != "" {
 		input.Category = &category
@@ -305,3 +309,102 @@ func extractTenantID(r *http.Request) (uuid.UUID, error) {
 	return uuid.Parse(header)
 }
 
+
+// ApproveSuggestion handles POST /api/v1/knowledge/entries/{id}/approve: an FAQ suggestion from a
+// helpful chat answer becomes a normal entry and is queued for search.
+// @Summary Approve a suggested FAQ entry
+// @Tags KnowledgeBase
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Entry UUID"
+// @Success 200 {object} map[string]interface{}
+// @Security bearerAuth
+// @Router /knowledge/entries/{id}/approve [post]
+func (h *Handler) ApproveSuggestion(w http.ResponseWriter, r *http.Request) {
+	tenantID, entryID, ok := entryTarget(w, r)
+	if !ok {
+		return
+	}
+	e, err := h.service.ApproveSuggestion(r.Context(), tenantID, entryID)
+	if err != nil {
+		h.suggestionError(w, err)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, e)
+}
+
+// RejectSuggestion handles POST /api/v1/knowledge/entries/{id}/reject: the suggestion is turned
+// down for good, so the same question never comes back.
+// @Summary Reject a suggested FAQ entry
+// @Tags KnowledgeBase
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Entry UUID"
+// @Success 204
+// @Security bearerAuth
+// @Router /knowledge/entries/{id}/reject [post]
+func (h *Handler) RejectSuggestion(w http.ResponseWriter, r *http.Request) {
+	tenantID, entryID, ok := entryTarget(w, r)
+	if !ok {
+		return
+	}
+	if err := h.service.RejectSuggestion(r.Context(), tenantID, entryID); err != nil {
+		h.suggestionError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// InternalSuggestFAQ handles POST /api/v1/internal/knowledge/faq-suggestions {tenant_id, question,
+// answer} (service key only): marketflow-ai sends an answer someone rated helpful.
+func (h *Handler) InternalSuggestFAQ(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		TenantID string `json:"tenant_id"`
+		Question string `json:"question"`
+		Answer   string `json:"answer"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 32<<10)).Decode(&in); err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
+		return
+	}
+	tid, err := uuid.Parse(in.TenantID)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "tenant_id must be a UUID", nil)
+		return
+	}
+	if err := h.service.SuggestFAQ(r.Context(), tid, in.Question, in.Answer); err != nil {
+		if errors.Is(err, ErrRefused) {
+			httpapi.Error(w, http.StatusUnprocessableEntity, "refused", "this question is not kept", nil)
+			return
+		}
+		h.logger.Error("keep faq suggestion", zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "internal", "request failed", nil)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func entryTarget(w http.ResponseWriter, r *http.Request) (uuid.UUID, uuid.UUID, bool) {
+	tenantID, err := extractTenantID(r)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing or invalid X-Tenant-ID header", nil)
+		return uuid.Nil, uuid.Nil, false
+	}
+	entryID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_id", "invalid entry ID", nil)
+		return uuid.Nil, uuid.Nil, false
+	}
+	return tenantID, entryID, true
+}
+
+func (h *Handler) suggestionError(w http.ResponseWriter, err error) {
+	switch {
+	case ent.IsNotFound(err):
+		httpapi.Error(w, http.StatusNotFound, "not_found", "entry not found", nil)
+	case errors.Is(err, ErrNotSuggestion):
+		httpapi.Error(w, http.StatusConflict, "not_suggestion", err.Error(), nil)
+	default:
+		h.logger.Error("faq suggestion review", zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "internal", "request failed", nil)
+	}
+}

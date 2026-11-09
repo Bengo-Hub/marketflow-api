@@ -239,6 +239,10 @@ type KnowledgeHandlers struct {
 	UpdateEntry http.HandlerFunc
 	DeleteEntry http.HandlerFunc
 	ImportCSV   http.HandlerFunc
+	// FAQ suggestions from answers rated helpful (Sprint 25).
+	ApproveSuggestion  http.HandlerFunc
+	RejectSuggestion   http.HandlerFunc
+	InternalSuggestFAQ http.HandlerFunc
 }
 
 // CampaignHandlers groups campaign management HTTP handlers.
@@ -715,6 +719,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Get("/entries/{id}", deps.KnowledgeHandlers.GetEntry)
 				r.Put("/entries/{id}", deps.KnowledgeHandlers.UpdateEntry)
 				r.Delete("/entries/{id}", deps.KnowledgeHandlers.DeleteEntry)
+				if deps.KnowledgeHandlers.ApproveSuggestion != nil {
+					r.Post("/entries/{id}/approve", deps.KnowledgeHandlers.ApproveSuggestion)
+					r.Post("/entries/{id}/reject", deps.KnowledgeHandlers.RejectSuggestion)
+				}
 			})
 
 			// Campaign management — create gated by subscription tier.
@@ -1106,6 +1114,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 					if deps.LearningHandlers.Phrases != nil {
 						r.Get("/learning/phrases", deps.LearningHandlers.Phrases)
 						r.Post("/learning/phrases", deps.LearningHandlers.Record)
+					}
+					// Answers rated helpful, kept as FAQ suggestions for the owner to approve.
+					if deps.KnowledgeHandlers.InternalSuggestFAQ != nil {
+						r.Post("/knowledge/faq-suggestions", deps.KnowledgeHandlers.InternalSuggestFAQ)
 					}
 					// marketflow-ai pushes a finished or failed media job (motion poster, video ad).
 					if deps.CreativeHandlers.JobCallback != nil {
