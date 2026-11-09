@@ -69,13 +69,14 @@ func marketResearch(meta map[string]any) []ResearchCompetitor {
 	return out
 }
 
-// MarketResearch returns what the weekly scan found for this tenant.
-func (s *Service) MarketResearch(ctx context.Context, tenantID uuid.UUID) ([]ResearchCompetitor, error) {
+// MarketResearch returns what the weekly scan found for this tenant, and the onboarding market
+// search, if it ran.
+func (s *Service) MarketResearch(ctx context.Context, tenantID uuid.UUID) ([]ResearchCompetitor, *MarketSuggestions, error) {
 	t, err := s.db.Tenant.Get(ctx, tenantID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return marketResearch(t.Metadata), nil
+	return marketResearch(t.Metadata), readMarketSuggestions(t.Metadata), nil
 }
 
 // GetResearch handles GET /api/v1/tenant/market-research.
@@ -91,10 +92,10 @@ func (h *Handler) GetResearch(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	competitors, err := h.svc.MarketResearch(r.Context(), tid)
+	competitors, suggestions, err := h.svc.MarketResearch(r.Context(), tid)
 	if err != nil {
 		h.fail(w, err)
 		return
 	}
-	httpapi.JSON(w, http.StatusOK, map[string]any{"competitors": competitors})
+	httpapi.JSON(w, http.StatusOK, map[string]any{"competitors": competitors, "suggestions": suggestions})
 }

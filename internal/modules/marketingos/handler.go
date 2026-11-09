@@ -109,6 +109,11 @@ func (h *Handler) PutBrandContext(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 30*time.Second)
 		defer cancel()
 		h.svc.SetupTeamIfNew(ctx, tid)
+		// And searches the market once, so the owner starts with themes and competitors to confirm.
+		// The search waits up to 45 seconds, so it has its own budget.
+		sctx, scancel := context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
+		defer scancel()
+		h.SuggestFromMarketIfNew(sctx, tid)
 	}()
 	httpapi.JSON(w, http.StatusOK, saved)
 }
