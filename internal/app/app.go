@@ -682,6 +682,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			CreateBrief:       creativeHandler.CreateBrief,
 			GetBrief:          creativeHandler.GetBrief,
 			UpdateBrief:       creativeHandler.UpdateBrief,
+			LeadPage:          creativeHandler.LeadPage,
 			CreateVersion:     creativeHandler.CreateVersion,
 			GetVersion:        creativeHandler.GetVersion,
 			Approve:           creativeHandler.Approve,

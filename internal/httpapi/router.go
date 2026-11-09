@@ -475,6 +475,7 @@ type CreativeHandlers struct {
 	CreateBrief       http.HandlerFunc
 	GetBrief          http.HandlerFunc
 	UpdateBrief       http.HandlerFunc
+	LeadPage          http.HandlerFunc
 	CreateVersion     http.HandlerFunc
 	GetVersion        http.HandlerFunc
 	Approve           http.HandlerFunc
@@ -951,6 +952,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Post("/briefs", deps.CreativeHandlers.CreateBrief)
 					r.Get("/briefs/{id}", deps.CreativeHandlers.GetBrief)
 					r.Put("/briefs/{id}", deps.CreativeHandlers.UpdateBrief)
+					if deps.CreativeHandlers.LeadPage != nil {
+						r.Post("/briefs/{id}/lead-page", deps.CreativeHandlers.LeadPage)
+					}
 					r.Post("/briefs/{id}/versions", deps.CreativeHandlers.CreateVersion)
 					r.Post("/briefs/{id}/video-ads", deps.CreativeHandlers.CreateVideoAd)
 					r.Get("/versions/{id}", deps.CreativeHandlers.GetVersion)

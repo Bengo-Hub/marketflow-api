@@ -238,6 +238,37 @@ func (h *Handler) UpdateBrief(w http.ResponseWriter, r *http.Request) {
 	httpapi.JSON(w, http.StatusOK, b)
 }
 
+// LeadPage handles POST /api/v1/creative/briefs/{id}/lead-page: gives an ad made before every ad
+// got a lead page its own published page. An ad that has one is returned unchanged.
+// @Summary Create the lead page for an existing ad
+// @Tags Creative
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Brief id"
+// @Success 200 {object} map[string]interface{}
+// @Security bearerAuth
+// @Router /creative/briefs/{id}/lead-page [post]
+func (h *Handler) LeadPage(w http.ResponseWriter, r *http.Request) {
+	tid, ok := tenantOf(w, r)
+	if !ok {
+		return
+	}
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	b, err := h.svc.EnsureLeadFunnel(r.Context(), tid, id)
+	if errors.Is(err, ErrNoLeadFunnels) {
+		httpapi.Error(w, http.StatusServiceUnavailable, "unavailable", "lead pages are not available right now", nil)
+		return
+	}
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, b)
+}
+
 // CreateVersion handles POST /api/v1/creative/briefs/{id}/versions: queues a
 // poster. The worker makes it in about a minute; poll GET /creative/versions/{id}.
 // @Summary Queue a poster version of a brief
