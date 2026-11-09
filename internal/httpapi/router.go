@@ -511,6 +511,7 @@ type AdsHandlers struct {
 	Get         http.HandlerFunc
 	ConfirmPaid http.HandlerFunc
 	Pause       http.HandlerFunc
+	Resume      http.HandlerFunc
 }
 
 // InboxHandlers groups the social inbox routes (Sprint 22).
@@ -994,6 +995,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Get("/boosts/{id}", deps.AdsHandlers.Get)
 					r.Post("/boosts/{id}/paid", deps.AdsHandlers.ConfirmPaid)
 					r.Post("/boosts/{id}/pause", deps.AdsHandlers.Pause)
+					if deps.AdsHandlers.Resume != nil {
+						r.Post("/boosts/{id}/resume", deps.AdsHandlers.Resume)
+					}
 				})
 			}
 

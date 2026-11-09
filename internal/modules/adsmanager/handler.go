@@ -439,6 +439,68 @@ func (h *Handler) Pause(w http.ResponseWriter, r *http.Request) {
 	h.get(w, r, c.ID)
 }
 
+// errNotResumable explains why a boost cannot be resumed.
+type errNotResumable string
+
+func (e errNotResumable) Error() string { return string(e) }
+
+// resumable reports whether a boost can be switched back on at Meta: it must be paused and have
+// gone live (a Meta campaign id). One paused before going live has nothing on Meta to resume.
+func resumable(status, metaCampaignID string) error {
+	switch {
+	case status != CampaignPaused:
+		return errNotResumable("only a paused boost can be resumed")
+	case metaCampaignID == "":
+		return errNotResumable("this boost was paused before it went live; start a new boost instead")
+	}
+	return nil
+}
+
+// Resume handles POST /api/v1/ads/boosts/{id}/resume: a paused boost that went live is switched
+// back on at Meta, then marked active so the insights job and auto-pause watch it again.
+// @Summary Resume a paused boost
+// @Tags Ads
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Campaign UUID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 409 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /ads/boosts/{id}/resume [post]
+func (h *Handler) Resume(w http.ResponseWriter, r *http.Request) {
+	tid, c, l, ok := h.load(w, r)
+	if !ok {
+		return
+	}
+	if h.CanLaunch != nil && !h.CanLaunch(r.Context(), tid) {
+		httpapi.Error(w, http.StatusForbidden, "forbidden", "only the account owner or an admin can resume ads", nil)
+		return
+	}
+	if err := resumable(c.Status, l.State.CampaignID); err != nil {
+		httpapi.Error(w, http.StatusConflict, "not_resumable", err.Error(), nil)
+		return
+	}
+	acc, err := h.account(r.Context(), tid, l.Plan.AdAccountConnID, "meta_ad_account")
+	if err != nil {
+		httpapi.Error(w, http.StatusConflict, "not_connected", "reconnect the ad account to resume it", nil)
+		return
+	}
+	tok, err := h.token(r.Context(), acc)
+	if err == nil {
+		err = h.Meta.SetStatus(r.Context(), tok, l.State.CampaignID, "ACTIVE")
+	}
+	if err != nil {
+		h.Logger.Warn("meta resume failed", zap.String("campaign", c.ID.String()), zap.Error(err))
+		httpapi.Error(w, http.StatusBadGateway, "resume_failed", "Meta did not resume the campaign; try again", nil)
+		return
+	}
+	if _, err := h.DB.Campaign.Update().Where(campaign.IDEQ(c.ID), campaign.StatusEQ(CampaignPaused)).
+		SetStatus(CampaignActive).Save(r.Context()); err != nil {
+		h.fail(w, err)
+		return
+	}
+	h.get(w, r, c.ID)
+}
+
 // Get handles GET /api/v1/ads/boosts/{id}.
 // @Summary A boost with its launch progress
 // @Tags Ads

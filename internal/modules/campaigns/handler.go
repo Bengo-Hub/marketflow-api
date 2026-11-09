@@ -1,11 +1,13 @@
 package campaigns
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/Bengo-Hub/pagination"
+	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
 	"github.com/go-chi/chi/v5"
@@ -321,6 +323,21 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	httpapi.JSON(w, http.StatusOK, map[string]any{"status": "deleted"})
 }
 
+// statusError writes the client errors pause and resume can return; it reports whether it wrote.
+func (h *Handler) statusError(w http.ResponseWriter, err error) bool {
+	switch {
+	case err == nil:
+		return false
+	case errors.Is(err, ErrPlatformManaged):
+		httpapi.Error(w, http.StatusConflict, "platform_managed", ErrPlatformManaged.Error(), nil)
+	case ent.IsNotFound(err):
+		httpapi.Error(w, http.StatusNotFound, "not_found", "campaign not found", nil)
+	default:
+		return false
+	}
+	return true
+}
+
 // Pause handles POST /api/v1/campaigns/{id}/pause
 // @Summary Pause a campaign
 // @Description Sets campaign status to paused
@@ -346,6 +363,9 @@ func (h *Handler) Pause(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.service.Pause(r.Context(), tenantID, campaignID)
+	if h.statusError(w, err) {
+		return
+	}
 	if err != nil {
 		h.logger.Error("failed to pause campaign", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "pause_failed", "failed to pause campaign", nil)
@@ -381,6 +401,9 @@ func (h *Handler) Resume(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.service.Resume(r.Context(), tenantID, campaignID)
+	if h.statusError(w, err) {
+		return
+	}
 	if err != nil {
 		h.logger.Error("failed to resume campaign", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "resume_failed", "failed to resume campaign", nil)

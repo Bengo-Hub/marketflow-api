@@ -2,6 +2,7 @@ package campaigns
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -282,11 +283,25 @@ func (s *Service) Delete(ctx context.Context, tenantID, campaignID uuid.UUID) er
 	return nil
 }
 
+// ErrPlatformManaged is returned when a campaign runs on an ad platform: pause and resume it
+// through the ads routes (/ads/boosts/{id}/pause|resume), which change it on the platform too.
+var ErrPlatformManaged = errors.New("this campaign runs on an ad platform; pause or resume it from its boost")
+
+// platformManaged reports whether a campaign lives on an ad platform (a boost on a connected ad
+// account, or a campaign carrying a Meta id), where a status change only in our database would
+// leave it spending unwatched.
+func platformManaged(c *ent.Campaign) bool {
+	return c.ConnectedAccountID != nil || (c.MetaCampaignID != nil && *c.MetaCampaignID != "")
+}
+
 // Pause pauses a campaign by setting status to paused.
 func (s *Service) Pause(ctx context.Context, tenantID, campaignID uuid.UUID) (*ent.Campaign, error) {
 	existing, err := s.Get(ctx, tenantID, campaignID)
 	if err != nil {
 		return nil, err
+	}
+	if platformManaged(existing) {
+		return nil, ErrPlatformManaged
 	}
 
 	result, err := existing.Update().
@@ -309,6 +324,9 @@ func (s *Service) Resume(ctx context.Context, tenantID, campaignID uuid.UUID) (*
 	existing, err := s.Get(ctx, tenantID, campaignID)
 	if err != nil {
 		return nil, err
+	}
+	if platformManaged(existing) {
+		return nil, ErrPlatformManaged
 	}
 
 	result, err := existing.Update().
