@@ -1,6 +1,11 @@
 package marketingos
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -48,5 +53,74 @@ func TestReadSiteRefusesNonHTTPS(t *testing.T) {
 	}
 	if _, err := readSite(t.Context(), "not a link"); err == nil {
 		t.Fatal("a non-link was read")
+	}
+}
+
+// The site's text carries offers, prices, services and policies, not only the address and hours,
+// so it is read whenever the business has a website (owner, 2026-11-10).
+func TestSiteTextReadWheneverThereIsAWebsite(t *testing.T) {
+	calls := 0
+	reader := func(_ context.Context, url string, max int) (string, error) {
+		calls++
+		if max != siteTextChars || url != "https://cafe.example" {
+			t.Fatalf("reader got %q %d", url, max)
+		}
+		return "  Espresso KES 200. Busia, open every day 7:30 to 22:00.  ", nil
+	}
+
+	noSite := BusinessFacts{}
+	addSiteText(context.Background(), &noSite, reader)
+	if calls != 0 || noSite.SiteText != "" {
+		t.Fatalf("read without a website: %d calls", calls)
+	}
+
+	withAddress := BusinessFacts{Website: "https://cafe.example", Address: "Busia", Sources: []string{"profile", "website"}}
+	addSiteText(context.Background(), &withAddress, reader)
+	if calls != 1 || withAddress.SiteText != "Espresso KES 200. Busia, open every day 7:30 to 22:00." || withAddress.Sources[len(withAddress.Sources)-1] != "crawler" {
+		t.Fatalf("site text: calls %d facts %+v", calls, withAddress)
+	}
+}
+
+func TestCrawlerFallbackFailureLeavesFactsAlone(t *testing.T) {
+	failing := func(context.Context, string, int) (string, error) { return "", errors.New("down") }
+	f := BusinessFacts{Website: "https://cafe.example", Sources: []string{"profile"}}
+	addSiteText(context.Background(), &f, failing)
+	addSiteText(context.Background(), &f, nil)
+	if f.SiteText != "" || len(f.Sources) != 1 {
+		t.Fatalf("a failed or missing reader changed the facts: %+v", f)
+	}
+}
+
+func TestCrawlerReader(t *testing.T) {
+	var gotKey, gotURL string
+	var gotMax float64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/internal/fetch" || r.Method != http.MethodPost {
+			http.NotFound(w, r)
+			return
+		}
+		gotKey = r.Header.Get("X-API-Key")
+		var in map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		gotURL, _ = in["url"].(string)
+		gotMax, _ = in["max_chars"].(float64)
+		if gotURL == "https://blocked.example" {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			return
+		}
+		_, _ = w.Write([]byte(`{"content":"Our menu","status":200}`))
+	}))
+	defer srv.Close()
+
+	read := NewCrawlerReader(srv.URL, "k")
+	text, err := read(context.Background(), "https://cafe.example", 1500)
+	if err != nil || text != "Our menu" || gotKey != "k" || gotURL != "https://cafe.example" || gotMax != 1500 {
+		t.Fatalf("read %q %v key %q url %q max %v", text, err, gotKey, gotURL, gotMax)
+	}
+	if _, err := read(context.Background(), "https://blocked.example", 1500); err == nil {
+		t.Fatal("a refused page must be an error")
+	}
+	if NewCrawlerReader("", "k") != nil || NewCrawlerReader(srv.URL, "") != nil {
+		t.Fatal("an unconfigured crawler must turn the fallback off")
 	}
 }

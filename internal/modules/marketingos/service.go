@@ -161,6 +161,8 @@ type Service struct {
 	catalogue   Catalogue   // team_setup.go; nil reads offerings from the knowledge base only
 	// accountFacts reads the account record for business facts (business_facts.go); nil skips it.
 	accountFacts AccountSource
+	// pageReader is the crawler fallback for business facts (business_facts.go); nil skips it.
+	pageReader PageReader
 }
 
 // NewService builds the service; subs may be nil (no plan information).

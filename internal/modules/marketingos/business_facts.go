@@ -1,6 +1,7 @@
 package marketingos
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -51,9 +52,25 @@ type BusinessFacts struct {
 	Address  string   `json:"address,omitempty"`
 	Hours    []string `json:"hours,omitempty"`
 	// Summary is the website's own description of itself, which often names the town and hours.
-	Summary string   `json:"summary,omitempty"`
-	Sources []string `json:"sources"`
+	Summary string `json:"summary,omitempty"`
+	// SiteText is the website's main text from the crawler (offers, prices, services, policies,
+	// location, hours). Data, not orders.
+	SiteText string   `json:"site_text,omitempty"`
+	Sources  []string `json:"sources"`
 }
+
+// PageReader reads a page's main content as text (marketflow-crawler), capped at maxChars.
+type PageReader func(ctx context.Context, url string, maxChars int) (string, error)
+
+// WithPageReader lets BusinessFacts fall back to the crawler; nil keeps the plain read only.
+func (s *Service) WithPageReader(r PageReader) *Service {
+	s.pageReader = r
+	return s
+}
+
+// siteTextChars bounds the crawler text in a chat prompt: enough for the main offers, prices and
+// policies of a small business page, small enough to sit in every answer's prompt.
+const siteTextChars = 2500
 
 // BusinessFacts gathers the facts. A source that fails is left out; the tenant row always answers.
 func (s *Service) BusinessFacts(ctx context.Context, tenantID uuid.UUID) (BusinessFacts, error) {
@@ -104,8 +121,62 @@ func (s *Service) BusinessFacts(ctx context.Context, tenantID uuid.UUID) (Busine
 				out.Phone = site.Phone
 			}
 		}
+		addSiteText(ctx, &out, s.pageReader)
 	}
 	return out, nil
+}
+
+// addSiteText reads the website's main text through the crawler whenever the business has one: it
+// carries offers, prices, services and policies as well as the address and hours (owner,
+// 2026-11-10). The crawler caches pages for 6 hours and marketflow-ai caches the facts for an
+// hour, so this is not a read per chat. Optional: no reader, no website or a failure leaves the
+// facts as they are.
+func addSiteText(ctx context.Context, out *BusinessFacts, read PageReader) {
+	if read == nil || out.Website == "" {
+		return
+	}
+	cctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	text, err := read(cctx, out.Website, siteTextChars)
+	cancel()
+	if text = strings.TrimSpace(text); err != nil || text == "" {
+		return
+	}
+	out.SiteText = text
+	out.Sources = append(out.Sources, "crawler")
+}
+
+// NewCrawlerReader calls marketflow-crawler's POST /internal/fetch with the service key. It returns
+// nil when the crawler is not configured, which turns the fallback off.
+func NewCrawlerReader(baseURL, key string) PageReader {
+	if baseURL == "" || key == "" {
+		return nil
+	}
+	endpoint := strings.TrimSuffix(baseURL, "/") + "/internal/fetch"
+	hc := &http.Client{Timeout: 25 * time.Second}
+	return func(ctx context.Context, pageURL string, maxChars int) (string, error) {
+		body, _ := json.Marshal(map[string]any{"url": pageURL, "max_chars": maxChars})
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+		if err != nil {
+			return "", err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-API-Key", key)
+		resp, err := hc.Do(req)
+		if err != nil {
+			return "", fmt.Errorf("crawler: %w", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return "", fmt.Errorf("crawler: status %d", resp.StatusCode)
+		}
+		var out struct {
+			Content string `json:"content"`
+		}
+		if err := json.NewDecoder(io.LimitReader(resp.Body, 256<<10)).Decode(&out); err != nil {
+			return "", fmt.Errorf("crawler: %w", err)
+		}
+		return out.Content, nil
+	}
 }
 
 func metaText(meta map[string]any, key string, max int) string {

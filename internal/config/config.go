@@ -102,7 +102,9 @@ type TikTokConfig struct {
 type CrossServiceConfig struct {
 	InternalServiceKey string `env:"INTERNAL_SERVICE_KEY"`
 	// AIURL is marketflow-ai, for the internal credit charge of a paid ad launch.
-	AIURL       string `env:"AI_URL" envDefault:"http://marketflow-ai.marketflow.svc.cluster.local:4001"`
+	AIURL string `env:"AI_URL" envDefault:"http://marketflow-ai.marketflow.svc.cluster.local:4001"`
+	// CrawlerURL is marketflow-crawler, the internal page reader; empty turns its use off.
+	CrawlerURL  string `env:"CRAWLER_URL" envDefault:"http://marketflow-crawler.marketflow.svc.cluster.local:4010"`
 	OrderingURL string `env:"ORDERING_URL" envDefault:"http://ordering-backend.ordering.svc.cluster.local:4000"`
 	POSURL      string `env:"POS_URL" envDefault:"http://pos-api.pos.svc.cluster.local:4000"`
 	TreasuryURL string `env:"TREASURY_URL" envDefault:"http://treasury-api.finance.svc.cluster.local:4000"`

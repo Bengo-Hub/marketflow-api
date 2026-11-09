@@ -330,7 +330,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 				return marketingos.AccountFacts{}, fmt.Errorf("account facts: %w", err)
 			}
 			return marketingos.AccountFacts{Name: p.Name, Phone: p.ContactPhone, Email: p.ContactEmail, Website: p.Website, Storefront: p.Storefront}, nil
-		})
+		}).
+		// Sites that add their address and hours in the browser are read through the crawler.
+		WithPageReader(marketingos.NewCrawlerReader(cfg.CrossService.CrawlerURL, cfg.CrossService.InternalServiceKey))
 	marketingOSHandler := marketingos.NewHandler(marketingOSService, logger)
 	marketingOSHandler.Complaints = marketingos.NewComplaintFinder(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey)
 	learningHandler := learning.NewHandler(learning.NewStore(entClient), logger)
