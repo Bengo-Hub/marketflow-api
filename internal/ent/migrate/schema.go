@@ -474,6 +474,11 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{ChatSessionsColumns[9]},
 			},
+			{
+				Name:    "chatsession_tenant_id_last_activity_at",
+				Unique:  false,
+				Columns: []*schema.Column{ChatSessionsColumns[14], ChatSessionsColumns[11]},
+			},
 		},
 	}
 	// ConnectedAccountsColumns holds the columns for the "connected_accounts" table.

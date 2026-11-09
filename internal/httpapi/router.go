@@ -448,6 +448,8 @@ type MarketingOSHandlers struct {
 	GetSettings     http.HandlerFunc
 	PutSettings     http.HandlerFunc
 	InternalContext http.HandlerFunc
+	// BusinessFacts is what the chat may state as true about the business (service key only).
+	BusinessFacts http.HandlerFunc
 	// SetupTeam fits the prebuilt team to the business (portal); InternalSetupTeam is the same
 	// for marketflow-ai (service key).
 	SetupTeam         http.HandlerFunc
@@ -1106,6 +1108,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					// Marketing OS context for marketflow-ai (tenant in the query, service key only).
 					if deps.MarketingOSHandlers.InternalContext != nil {
 						r.Get("/os/context", deps.MarketingOSHandlers.InternalContext)
+						if deps.MarketingOSHandlers.BusinessFacts != nil {
+							r.Get("/os/business-facts", deps.MarketingOSHandlers.BusinessFacts)
+						}
 					}
 					if deps.MarketingOSHandlers.InternalSetupTeam != nil {
 						r.Post("/os/team/setup", deps.MarketingOSHandlers.InternalSetupTeam)

@@ -25,9 +25,14 @@ import (
 // brings the real prices, catches deletions and new tenants; an embed sweep turns every changed
 // entry into search vectors on the self-hosted Ollama.
 //
-// Only tenants that use MarketFlow are synced (a saved brand context or a team setup). Every POS
-// and inventory tenant publishes these events, and embedding a catalogue nobody queries is wasted
-// compute. A tenant that starts using MarketFlow is filled by the next nightly walk.
+// Only tenants that use MarketFlow are synced: a saved brand context, a team setup, or a chat
+// assistant that answered someone in the last 30 days (a website widget such as Urban Loft's, which
+// has no brand context but whose visitors ask about the menu). Every POS and inventory tenant
+// publishes these events, and embedding a catalogue nobody queries is wasted compute. A tenant
+// that starts using MarketFlow is filled by the next nightly walk.
+
+// chatActiveDays is how recent a chat must be for its tenant to count as using MarketFlow.
+const chatActiveDays = 30
 
 // usesMarketFlow reports whether a tenant's knowledge base is worth keeping in step.
 func usesMarketFlow(meta map[string]any) bool {
@@ -36,6 +41,30 @@ func usesMarketFlow(meta map[string]any) bool {
 	}
 	_, ok := meta[marketingos.TeamSetupKey]
 	return ok
+}
+
+// chatActive caches per tenant whether its assistant answered anyone lately, so item events do
+// not query chat_sessions one by one.
+var chatActive = sharedcache.NewLocal[uuid.UUID, bool](20000, time.Hour)
+
+// recentChatSQL is true for a tenant whose assistant answered someone in the last chatActiveDays.
+// It uses the chat_sessions (tenant_id, ...) indexes.
+func recentChatSQL(tenantIDCol string) string {
+	return fmt.Sprintf("EXISTS (SELECT 1 FROM chat_sessions cs WHERE cs.tenant_id = %s AND cs.last_activity_at > now() - interval '%d days')", tenantIDCol, chatActiveDays)
+}
+
+func chattedRecently(ctx context.Context, db *ent.Client, tid uuid.UUID) bool {
+	if v, ok := chatActive.Get(tid); ok {
+		return v
+	}
+	n, err := db.Tenant.Query().
+		Where(tenant.IDEQ(tid), func(sel *entsql.Selector) { sel.Where(entsql.ExprP(recentChatSQL(sel.C(tenant.FieldID)))) }).
+		Count(ctx)
+	if err != nil {
+		return false // not cached: the next event asks again
+	}
+	chatActive.Set(tid, n > 0)
+	return n > 0
 }
 
 // KBItemHandler applies one inventory item event to the knowledge base.
@@ -108,7 +137,7 @@ func (h *KBItemHandler) process(ctx context.Context, tid uuid.UUID, ev kbItemEve
 	if err != nil {
 		return err
 	}
-	if !usesMarketFlow(t.Metadata) {
+	if !usesMarketFlow(t.Metadata) && !chattedRecently(ctx, h.db, tid) {
 		return nil
 	}
 	_, err = h.sync.Apply(ctx, ev.sourceItem(tid))
@@ -217,7 +246,8 @@ func (s *KBSourceSweep) tick(ctx context.Context) {
 		q := s.db.Tenant.Query().
 			Where(func(sel *entsql.Selector) {
 				m := sel.C(tenant.FieldMetadata)
-				sel.Where(entsql.ExprP(m + "->'" + marketingos.MetadataKey + "' IS NOT NULL OR " + m + "->'" + marketingos.TeamSetupKey + "' IS NOT NULL"))
+				sel.Where(entsql.ExprP(m + "->'" + marketingos.MetadataKey + "' IS NOT NULL OR " + m + "->'" + marketingos.TeamSetupKey + "' IS NOT NULL OR " +
+					recentChatSQL(sel.C(tenant.FieldID))))
 			}).
 			Order(ent.Asc(tenant.FieldID)).Limit(kbTenantPage)
 		if after != uuid.Nil {

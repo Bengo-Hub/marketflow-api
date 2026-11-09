@@ -106,5 +106,8 @@ func (ChatSession) Indexes() []ent.Index {
 		// started_at also serves the analytics "sessions this week" counts.
 		index.Fields("last_activity_at"),
 		index.Fields("started_at"),
+		// "Has this tenant's assistant answered anyone lately" (worker/kb_sync.go) stops at the
+		// first recent row instead of reading the tenant's whole history.
+		index.Fields("tenant_id", "last_activity_at"),
 	}
 }

@@ -159,6 +159,8 @@ type Service struct {
 	logger      *zap.Logger
 	webPresence WebPresence // team_setup.go; nil leaves website-bound members alone
 	catalogue   Catalogue   // team_setup.go; nil reads offerings from the knowledge base only
+	// accountFacts reads the account record for business facts (business_facts.go); nil skips it.
+	accountFacts AccountSource
 }
 
 // NewService builds the service; subs may be nil (no plan information).

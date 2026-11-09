@@ -284,6 +284,22 @@ func (h *Handler) InternalContext(w http.ResponseWriter, r *http.Request) {
 	httpapi.JSON(w, http.StatusOK, out)
 }
 
+// InternalBusinessFacts handles GET /api/v1/internal/os/business-facts?tenant_id= (service key
+// only): what marketflow-ai's chat may state as true about the business.
+func (h *Handler) InternalBusinessFacts(w http.ResponseWriter, r *http.Request) {
+	tid, err := uuid.Parse(r.URL.Query().Get("tenant_id"))
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "tenant_id must be a UUID", nil)
+		return
+	}
+	out, err := h.svc.BusinessFacts(r.Context(), tid)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, out)
+}
+
 func (h *Handler) fail(w http.ResponseWriter, err error) {
 	if ent.IsNotFound(err) {
 		httpapi.Error(w, http.StatusNotFound, "not_found", "tenant not found", nil)

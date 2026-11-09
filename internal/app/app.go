@@ -319,6 +319,17 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 				return false, false
 			}
 			return strings.TrimSpace(p.Website) != "" || strings.TrimSpace(p.Storefront) != "", true
+		}).
+		// The chat's business facts read the account record from auth-api (cached 10 minutes).
+		WithAccountFacts(func(ctx context.Context, slug string) (marketingos.AccountFacts, error) {
+			if tenantSyncer == nil {
+				return marketingos.AccountFacts{}, fmt.Errorf("auth-api is not configured")
+			}
+			p, err := tenantSyncer.AuthProfile(ctx, slug)
+			if err != nil || p == nil {
+				return marketingos.AccountFacts{}, fmt.Errorf("account facts: %w", err)
+			}
+			return marketingos.AccountFacts{Name: p.Name, Phone: p.ContactPhone, Email: p.ContactEmail, Website: p.Website, Storefront: p.Storefront}, nil
 		})
 	marketingOSHandler := marketingos.NewHandler(marketingOSService, logger)
 	marketingOSHandler.Complaints = marketingos.NewComplaintFinder(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey)
@@ -671,6 +682,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			GetSettings:       marketingOSHandler.GetSettings,
 			PutSettings:       marketingOSHandler.PutSettings,
 			InternalContext:   marketingOSHandler.InternalContext,
+			BusinessFacts:     marketingOSHandler.InternalBusinessFacts,
 			SetupTeam:         marketingOSHandler.SetupTeam,
 			InternalSetupTeam: marketingOSHandler.InternalSetupTeam,
 			FindComplaints:    marketingOSHandler.FindComplaints,
