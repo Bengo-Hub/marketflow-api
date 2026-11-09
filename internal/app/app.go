@@ -33,6 +33,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	custom_agents "github.com/bengobox/marketflow-api/internal/modules/custom_agents"
+	"github.com/bengobox/marketflow-api/internal/modules/endpoints"
 	custom_fields "github.com/bengobox/marketflow-api/internal/modules/custom_fields"
 	"github.com/bengobox/marketflow-api/internal/modules/deals"
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
@@ -213,6 +214,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// ── Platform Provider Admin Handler ────────────────────────────────────
 	platformProviderHandler := admin.NewPlatformProviderHandler(entClient, keyProvider, logger)
 	encryptionKeyHandler := admin.NewEncryptionKeyHandler(entClient, keyProvider, logger)
+	endpointStore := endpoints.EntStore{DB: entClient}
+	endpointHandler := &endpoints.Handler{Store: endpointStore, Scanner: endpoints.NewScanner(endpointStore, endpoints.DefaultServices, logger), Logger: logger}
 	adminTenantsHandler := admin.NewTenantsHandler(entClient, logger)
 	serviceConfigHandler := admin.NewServiceConfigHandler(entClient, logger)
 
@@ -593,6 +596,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		AdminEncryptionKeyHandlers: httpapi.AdminEncryptionKeyHandlers{
 			Get: encryptionKeyHandler.GetEncryptionKey,
 			Set: encryptionKeyHandler.SetEncryptionKey,
+		},
+		EndpointHandlers: httpapi.EndpointHandlers{
+			List: endpointHandler.List, Decide: endpointHandler.Decide, Scan: endpointHandler.Scan, InternalTools: endpointHandler.InternalTools,
 		},
 		InternalLeadHandlers: httpapi.InternalLeadHandlers{
 			IngestFromService: leadHandler.IngestFromService,

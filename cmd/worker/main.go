@@ -38,6 +38,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/publishing"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
+	"github.com/bengobox/marketflow-api/internal/modules/endpoints"
 	"github.com/bengobox/marketflow-api/internal/modules/inbox"
 	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
@@ -302,6 +303,10 @@ func main() {
 
 		// Competitor ad intel (Sprint 24): each tenant's competitors scanned once a week.
 		go worker.NewCompetitorScan(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).Run(ctx)
+
+		// Endpoint discovery (Sprint 25, decision 61): each service's OpenAPI spec read once a week;
+		// new marketing-safe read routes wait for the platform owner's approval.
+		go endpoints.NewScanner(endpoints.EntStore{DB: entClient}, endpoints.DefaultServices, logger).RunWeekly(ctx, sharedcache.ClaimOnce)
 
 		// Knowledge base (Sprint 25): embeds waiting entries each minute, and walks each MarketFlow
 		// tenant's catalogue once a day for real prices, deletions and newly active tenants.

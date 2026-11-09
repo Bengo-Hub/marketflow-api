@@ -72,6 +72,8 @@ type RouterDeps struct {
 	// Admin service config CRUD (platform owner only)
 	AdminServiceConfigHandlers AdminServiceConfigHandlers
 	AdminEncryptionKeyHandlers AdminEncryptionKeyHandlers
+	// Endpoint discovery (Sprint 25): the owner's approval page plus marketflow-ai's tool list.
+	EndpointHandlers EndpointHandlers
 
 	// Analytics handlers (tenant dashboard aggregates)
 	AnalyticsHandlers AnalyticsHandlers
@@ -187,6 +189,14 @@ type AdminServiceConfigHandlers struct {
 	UpsertPlatform http.HandlerFunc
 	ListTenant     http.HandlerFunc
 	UpsertTenant   http.HandlerFunc
+}
+
+// EndpointHandlers are the endpoint discovery routes (Sprint 25, decision 61).
+type EndpointHandlers struct {
+	List          http.HandlerFunc // GET /admin/endpoints
+	Decide        http.HandlerFunc // PATCH /admin/endpoints/{service}
+	Scan          http.HandlerFunc // POST /admin/endpoints/scan
+	InternalTools http.HandlerFunc // GET /internal/endpoints/tools?tenant_id= (service key)
 }
 
 // AdminEncryptionKeyHandlers groups the platform provider-secret encryption-key
@@ -1089,6 +1099,13 @@ func NewRouter(deps RouterDeps) http.Handler {
 						r.Put("/", deps.AdminEncryptionKeyHandlers.Set)
 					})
 				}
+				if deps.EndpointHandlers.List != nil {
+					r.Route("/endpoints", func(r chi.Router) {
+						r.Get("/", deps.EndpointHandlers.List)
+						r.Post("/scan", deps.EndpointHandlers.Scan)
+						r.Patch("/{service}", deps.EndpointHandlers.Decide)
+					})
+				}
 			})
 		})
 
@@ -1115,6 +1132,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 						if deps.MarketingOSHandlers.BusinessFacts != nil {
 							r.Get("/os/business-facts", deps.MarketingOSHandlers.BusinessFacts)
 						}
+					}
+					if deps.EndpointHandlers.InternalTools != nil {
+						r.Get("/endpoints/tools", deps.EndpointHandlers.InternalTools)
 					}
 					if deps.MarketingOSHandlers.InternalSetupTeam != nil {
 						r.Post("/os/team/setup", deps.MarketingOSHandlers.InternalSetupTeam)
