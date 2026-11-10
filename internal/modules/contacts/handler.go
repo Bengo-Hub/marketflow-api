@@ -3,8 +3,11 @@ package contacts
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
+	hwcontact "github.com/Bengo-Hub/httpware/contact"
 	"github.com/Bengo-Hub/pagination"
+	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -35,6 +38,28 @@ func NewHandler(service *Service, logger *zap.Logger, opts ...func(*Handler)) *H
 // WithView360Config sets the cross-service URL config for the 360° view.
 func WithView360Config(cfg View360Config) func(*Handler) {
 	return func(h *Handler) { h.view360Cfg = cfg }
+}
+
+// validContactTypes is every contact_type value written anywhere in the fleet: the four the UI
+// offers, plus platform_tenant which the subscription consumer writes for platform customers.
+var validContactTypes = map[string]bool{
+	"customer":        true,
+	"prospect":        true,
+	"recruit":         true,
+	"downline":        true,
+	"platform_tenant": true,
+}
+
+// trimmedOrNil returns the trimmed value, or nil when it is nil or blank.
+func trimmedOrNil(s *string) *string {
+	if s == nil {
+		return nil
+	}
+	t := strings.TrimSpace(*s)
+	if t == "" {
+		return nil
+	}
+	return &t
 }
 
 type createContactRequest struct {
@@ -90,6 +115,28 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	if req.ContactType == "" {
 		req.ContactType = "customer"
+	}
+	if !validContactTypes[req.ContactType] {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_contact_type", "contact_type is not one of the allowed types", nil)
+		return
+	}
+
+	// A blank value counts as absent. A contact with neither phone nor email cannot be
+	// deduplicated, so it is refused here (the social inbox and tenant syncer create through
+	// the service directly and are not affected).
+	req.Email = trimmedOrNil(req.Email)
+	req.Phone = trimmedOrNil(req.Phone)
+	if req.Email == nil && req.Phone == nil {
+		httpapi.Error(w, http.StatusBadRequest, "missing_identifier", "at least one of phone or email is required", nil)
+		return
+	}
+	if req.Phone != nil && !hwcontact.ValidPhone(*req.Phone, hwcontact.DefaultRegion) {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_phone", "phone is not a valid phone number", nil)
+		return
+	}
+	if req.Email != nil && !hwcontact.ValidEmailSyntax(*req.Email) {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_email", "email is not a valid email address", nil)
+		return
 	}
 
 	result, err := h.service.Create(r.Context(), CreateInput{
@@ -500,6 +547,74 @@ func (h *Handler) DeleteInternal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpapi.JSON(w, http.StatusOK, map[string]any{"status": "deleted"})
+}
+
+// maxBatchContacts is the most ids one InternalBatch call may ask for.
+const maxBatchContacts = 200
+
+// identityView is the minimal profile S2S callers get, never the full contact.
+func identityView(c *ent.Contact) map[string]any {
+	return map[string]any{
+		"id":         c.ID,
+		"first_name": c.FirstName,
+		"last_name":  c.LastName,
+		"email":      c.Email,
+		"phone":      c.Phone,
+	}
+}
+
+// InternalGet handles GET /api/v1/internal/contacts/{id}?tenant_id=
+// S2S only, requires X-API-Key. A contact of another tenant answers 404.
+func (h *Handler) InternalGet(w http.ResponseWriter, r *http.Request) {
+	contactID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_id", "invalid contact ID", nil)
+		return
+	}
+	tenantID, err := uuid.Parse(r.URL.Query().Get("tenant_id"))
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "missing_tenant", "tenant_id query parameter required", nil)
+		return
+	}
+	c, err := h.service.Get(r.Context(), tenantID, contactID)
+	if err != nil {
+		httpapi.Error(w, http.StatusNotFound, "not_found", "contact not found", nil)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, identityView(c))
+}
+
+// InternalBatch handles POST /api/v1/internal/contacts/batch with {tenant_id, ids}.
+// S2S only, requires X-API-Key. Ids that are missing or belong to another tenant are omitted.
+func (h *Handler) InternalBatch(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TenantID string      `json:"tenant_id"`
+		IDs      []uuid.UUID `json:"ids"`
+	}
+	if err := httpapi.DecodeJSON(r, &req); err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid request body", nil)
+		return
+	}
+	tenantID, err := uuid.Parse(req.TenantID)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "missing_tenant", "valid tenant_id is required", nil)
+		return
+	}
+	if len(req.IDs) > maxBatchContacts {
+		httpapi.Error(w, http.StatusBadRequest, "too_many_ids", "at most 200 ids per request", nil)
+		return
+	}
+	rows, err := h.service.GetMany(r.Context(), tenantID, req.IDs)
+	if err != nil {
+		h.logger.Error("internal batch get contacts failed", zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "batch_failed", "failed to load contacts", nil)
+		return
+	}
+	data := make([]map[string]any, 0, len(rows))
+	for _, c := range rows {
+		data = append(data, identityView(c))
+	}
+	httpapi.JSON(w, http.StatusOK, map[string]any{"data": data})
 }
 
 // GetByPhone handles GET /api/v1/internal/contacts/by-phone?phone=&tenant_id=

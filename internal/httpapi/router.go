@@ -242,6 +242,8 @@ type ContactHandlers struct {
 	Merge          http.HandlerFunc // POST /contacts/merge — fold duplicate contacts into one survivor
 	UpdateInternal http.HandlerFunc // PUT /internal/contacts/{id} — S2S edit (treasury/pos "edit customer")
 	DeleteInternal http.HandlerFunc // DELETE /internal/contacts/{id} — S2S delete (treasury "delete customer")
+	GetInternal    http.HandlerFunc // GET /internal/contacts/{id}?tenant_id= — S2S read by id
+	BatchInternal  http.HandlerFunc // POST /internal/contacts/batch — S2S read of up to 200 ids
 }
 
 // KnowledgeHandlers groups knowledge base HTTP handlers.
@@ -1182,6 +1184,13 @@ func NewRouter(deps RouterDeps) http.Handler {
 					// Registered before /contacts/{id} so "reach" is never read as a contact id.
 					if deps.ContactHandlers.ReachInternal != nil {
 						r.Get("/contacts/reach", deps.ContactHandlers.ReachInternal)
+					}
+					// Static paths above and /contacts/batch win over /contacts/{id} in chi.
+					if deps.ContactHandlers.BatchInternal != nil {
+						r.Post("/contacts/batch", deps.ContactHandlers.BatchInternal)
+					}
+					if deps.ContactHandlers.GetInternal != nil {
+						r.Get("/contacts/{id}", deps.ContactHandlers.GetInternal)
 					}
 					if deps.ContactHandlers.UpdateInternal != nil {
 						r.Put("/contacts/{id}", deps.ContactHandlers.UpdateInternal)

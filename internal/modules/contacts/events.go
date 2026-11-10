@@ -2,9 +2,32 @@ package contacts
 
 import (
 	eventslib "github.com/Bengo-Hub/shared-events"
+	"github.com/google/uuid"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 )
+
+// ContactUpdatedTopic and ContactDeletedTopic are the subjects for identity changes and deletes.
+const (
+	ContactUpdatedTopic = "crm.contact.updated"
+	ContactDeletedTopic = "crm.contact.deleted"
+)
+
+// contactUpdatedEvent names which identity fields changed (email, phone, first_name, last_name),
+// never their values; consumers reload the contact.
+func contactUpdatedEvent(c *ent.Contact, changed []string) *eventslib.Event {
+	return eventslib.NewEvent("contact.updated", "crm", c.ID, c.TenantID, map[string]any{
+		"contact_id": c.ID.String(),
+		"fields":     changed,
+	})
+}
+
+// contactDeletedEvent carries the id only.
+func contactDeletedEvent(id, tenant uuid.UUID) *eventslib.Event {
+	return eventslib.NewEvent("contact.deleted", "crm", id, tenant, map[string]any{
+		"contact_id": id.String(),
+	})
+}
 
 // ContactCreatedTopic is the subject a new contact is published on: the outbox
 // publishes "<aggregate>.<event>", and the "crm" aggregate keeps it inside the

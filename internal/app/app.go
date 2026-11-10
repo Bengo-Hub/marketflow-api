@@ -474,6 +474,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Merge:          contactHandler.Merge,
 			UpdateInternal: contactHandler.UpdateInternal,
 			DeleteInternal: contactHandler.DeleteInternal,
+			GetInternal:    contactHandler.InternalGet,
+			BatchInternal:  contactHandler.InternalBatch,
 		},
 		KnowledgeHandlers: httpapi.KnowledgeHandlers{
 			CreateEntry: kbHandler.CreateEntry,

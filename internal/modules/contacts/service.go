@@ -285,7 +285,13 @@ func (s *Service) Update(ctx context.Context, tenantID, contactID uuid.UUID, in 
 		return nil, err
 	}
 
-	builder := existing.Update()
+	// The update and its crm.contact.updated event commit together.
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("update contact: begin tx: %w", err)
+	}
+	builder := tx.Contact.UpdateOne(existing)
+	changed := changedIdentityFields(existing, in)
 
 	// Recompute the normalized dedup columns whenever email/phone changes — otherwise a manual
 	// edit could silently leave email_normalized/phone_subscriber_digits stale, letting a future
@@ -353,6 +359,14 @@ func (s *Service) Update(ctx context.Context, tenantID, contactID uuid.UUID, in 
 	}
 
 	result, err := builder.Save(ctx)
+	if err == nil && len(changed) > 0 {
+		err = outbox.Enqueue(ctx, tx.OutboxEvent, contactUpdatedEvent(result, changed))
+	}
+	if err == nil {
+		err = tx.Commit()
+	} else {
+		_ = tx.Rollback()
+	}
 	if err != nil {
 		if ent.IsConstraintError(err) {
 			return nil, fmt.Errorf("update contact: email or phone already belongs to another contact for this tenant: %w", err)
@@ -361,6 +375,46 @@ func (s *Service) Update(ctx context.Context, tenantID, contactID uuid.UUID, in 
 	}
 
 	return result, nil
+}
+
+// changedIdentityFields lists the identity fields an update really changes, compared the way
+// dedup compares them (email case-insensitive, phone by subscriber digits).
+func changedIdentityFields(existing *ent.Contact, in UpdateInput) []string {
+	deref := func(p *string) string {
+		if p == nil {
+			return ""
+		}
+		return *p
+	}
+	var changed []string
+	if in.Email != nil && normalizeEmail(*in.Email) != normalizeEmail(deref(existing.Email)) {
+		changed = append(changed, "email")
+	}
+	if in.Phone != nil && nationalSubscriberDigits(*in.Phone) != nationalSubscriberDigits(deref(existing.Phone)) {
+		changed = append(changed, "phone")
+	}
+	if in.FirstName != nil && *in.FirstName != deref(existing.FirstName) {
+		changed = append(changed, "first_name")
+	}
+	if in.LastName != nil && *in.LastName != deref(existing.LastName) {
+		changed = append(changed, "last_name")
+	}
+	return changed
+}
+
+// GetMany loads the contacts of one tenant by id. Ids that do not exist or belong to another
+// tenant are left out.
+func (s *Service) GetMany(ctx context.Context, tenantID uuid.UUID, ids []uuid.UUID) ([]*ent.Contact, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	rows, err := s.client.Contact.Query().
+		Where(contact.IDIn(ids...), contact.TenantID(tenantID)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get contacts: %w", err)
+	}
+	return rows, nil
 }
 
 // MergeResult reports what Merge repointed.
@@ -485,12 +539,26 @@ func uuidsToStrings(ids []uuid.UUID) []string {
 // its OWN pre-checks and cleanup before calling this — see treasury-api's customer-delete
 // orchestration, which is the only caller expected to invoke DeleteInternal directly.
 func (s *Service) Delete(ctx context.Context, tenantID, contactID uuid.UUID) error {
-	_, err := s.client.Contact.Delete().
+	// The delete and its crm.contact.deleted event commit together. An id that matched nothing
+	// (already gone, or another tenant's) emits nothing.
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("delete contact: begin tx: %w", err)
+	}
+	n, err := tx.Contact.Delete().
 		Where(
 			contact.ID(contactID),
 			contact.TenantID(tenantID),
 		).
 		Exec(ctx)
+	if err == nil && n > 0 {
+		err = outbox.Enqueue(ctx, tx.OutboxEvent, contactDeletedEvent(contactID, tenantID))
+	}
+	if err == nil {
+		err = tx.Commit()
+	} else {
+		_ = tx.Rollback()
+	}
 	if err != nil {
 		return fmt.Errorf("delete contact: %w", err)
 	}
