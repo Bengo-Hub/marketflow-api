@@ -380,7 +380,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
 		}}
 	// Social inbox (Sprint 22): the approving roles may reply for the business.
-	inboxHandler := inbox.NewHandler(entClient, keyProvider, leadService, inbox.NewGraph(meta.GraphURL), logger)
+	inboxHandler := inbox.NewHandler(entClient, keyProvider, leadService, inbox.NewGraph(meta.GraphURL).WithProof(meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret)), logger)
 	inboxHandler.CanReply = func(ctx context.Context, tenantID uuid.UUID) bool {
 		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
 	}

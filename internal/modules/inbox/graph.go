@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 )
 
 // Graph sends inbox replies through the Graph API (v26.0), per
@@ -25,6 +27,13 @@ type Graph struct {
 
 func NewGraph(base string) *Graph {
 	return &Graph{Base: strings.TrimSuffix(base, "/"), HTTP: &http.Client{Timeout: 20 * time.Second}}
+}
+
+// WithProof signs every Graph call with appsecret_proof (needed once "Require app secret" is on
+// in the Meta app); secret is meta.PlatformSecret in production.
+func (g *Graph) WithProof(secret meta.SecretSource) *Graph {
+	g.HTTP.Transport = meta.NewProofTransport(g.HTTP.Transport, secret)
+	return g
 }
 
 // SendDM answers a DM; it returns the sent message id.

@@ -289,8 +289,8 @@ func main() {
 		// set, after its app review passes.
 		pubStore := &publishing.EntStore{DB: entClient, Keys: keys}
 		pubRunner := publishing.NewRunner(pubStore, pubStore, pubStore,
-			publishing.NewFacebookReels(meta.GraphURL),
-			publishing.NewInstagramReels(meta.GraphURL),
+			publishing.NewFacebookReels(meta.GraphURL).WithProof(metaSecret),
+			publishing.NewInstagramReels(meta.GraphURL).WithProof(metaSecret),
 			publishing.NewYouTubeShorts("https://www.googleapis.com/upload/youtube/v3", "https://www.googleapis.com/youtube/v3",
 				os.Getenv("MF_PUBLISHING_YOUTUBE_PRIVACY")),
 			publishing.NewTikTokDirect("https://open.tiktokapis.com", os.Getenv("MF_PUBLISHING_TIKTOK_PRIVACY"),
@@ -318,7 +318,7 @@ func main() {
 
 		// Social inbox (Sprint 22): tags new comments and DMs with a buyer intent.
 		go worker.NewInboxTagger(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).
-			WithAutoReply(keys, inbox.NewGraph(meta.GraphURL)).Run(ctx)
+			WithAutoReply(keys, inbox.NewGraph(meta.GraphURL).WithProof(metaSecret)).Run(ctx)
 
 		pubWorker := publishing.NewWorker(pubStore, pubRunner, logger)
 		pubWorker.OnFailed = worker.NewPublishFailureNotice(entClient, tokenNotif, cfg.API.PortalURL, logger).Notify

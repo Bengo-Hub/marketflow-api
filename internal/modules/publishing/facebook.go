@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 )
 
 // FacebookReels posts a reel to a Facebook Page (Graph v26.0, Reels publishing guide):
@@ -26,6 +28,13 @@ type FacebookReels struct {
 // NewFacebookReels uses the platform Graph version (meta.GraphVersion is v26.0).
 func NewFacebookReels(graphBase string) *FacebookReels {
 	return &FacebookReels{Graph: strings.TrimSuffix(graphBase, "/"), HTTP: &http.Client{Timeout: 60 * time.Second}}
+}
+
+// WithProof signs every Graph call with appsecret_proof (needed once "Require app secret" is on
+// in the Meta app); secret is meta.PlatformSecret in production.
+func (f *FacebookReels) WithProof(secret meta.SecretSource) *FacebookReels {
+	f.HTTP.Transport = meta.NewProofTransport(f.HTTP.Transport, secret)
+	return f
 }
 
 func (*FacebookReels) Platform() string { return Facebook }

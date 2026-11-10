@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 )
 
 // InstagramReels posts a reel to an Instagram professional account (Graph v26.0, content
@@ -27,6 +29,12 @@ type InstagramReels struct {
 // NewInstagramReels uses the platform Graph version (v26.0).
 func NewInstagramReels(graphBase string) *InstagramReels {
 	return &InstagramReels{fb: NewFacebookReels(graphBase)}
+}
+
+// WithProof signs every Graph call with appsecret_proof (shares the Facebook transport).
+func (i *InstagramReels) WithProof(secret meta.SecretSource) *InstagramReels {
+	i.fb.WithProof(secret)
+	return i
 }
 
 func (*InstagramReels) Platform() string { return Instagram }
