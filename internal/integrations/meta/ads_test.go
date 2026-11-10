@@ -22,17 +22,17 @@ func TestAdsLaunchShapes(t *testing.T) {
 		f, _ := url.ParseQuery(string(b))
 		forms[r.URL.Path] = f
 		switch r.URL.Path {
-		case "/v26.0/act_77/adsets":
+		case "/v27.0/act_77/adsets":
 			_, _ = w.Write([]byte(`{"id":"as1"}`))
-		case "/v26.0/act_77/advideos":
+		case "/v27.0/act_77/advideos":
 			_, _ = w.Write([]byte(`{"id":"vid1"}`))
-		case "/v26.0/act_77/adcreatives":
+		case "/v27.0/act_77/adcreatives":
 			_, _ = w.Write([]byte(`{"id":"cr1"}`))
-		case "/v26.0/act_77/ads":
+		case "/v27.0/act_77/ads":
 			_, _ = w.Write([]byte(`{"id":"ad1"}`))
-		case "/v26.0/biz1/adaccount":
+		case "/v27.0/biz1/adaccount":
 			_, _ = w.Write([]byte(`{"id":"act_88"}`))
-		case "/v26.0/ad1":
+		case "/v27.0/ad1":
 			if r.Method == http.MethodGet {
 				_, _ = w.Write([]byte(`{"effective_status":"DISAPPROVED","ad_review_feedback":{"global":{"facebook":{"policy":"Misleading claims"}}}}`))
 				return
@@ -57,7 +57,7 @@ func TestAdsLaunchShapes(t *testing.T) {
 	if err != nil || as != "as1" {
 		t.Fatalf("ad set: %v", err)
 	}
-	f := forms["/v26.0/act_77/adsets"]
+	f := forms["/v27.0/act_77/adsets"]
 	if f.Get("status") != "PAUSED" || f.Get("lifetime_budget") != "500000" || f.Get("end_time") == "" || f.Get("destination_type") != "WHATSAPP" {
 		t.Fatalf("ad set form: %v", f)
 	}
@@ -73,11 +73,11 @@ func TestAdsLaunchShapes(t *testing.T) {
 	if _, err := c.CreateAdCreative(ctx, "t", "77", CreativeInput{Name: "x", PageID: "pg1", VideoID: "vid1", CTA: "WHATSAPP_MESSAGE", Message: "Hi"}); err != nil {
 		t.Fatal(err)
 	}
-	if spec := forms["/v26.0/act_77/adcreatives"].Get("object_story_spec"); !strings.Contains(spec, `"app_destination":"WHATSAPP"`) {
+	if spec := forms["/v27.0/act_77/adcreatives"].Get("object_story_spec"); !strings.Contains(spec, `"app_destination":"WHATSAPP"`) {
 		t.Fatalf("creative spec: %s", spec)
 	}
-	if _, err := c.CreateAd(ctx, "t", "77", "Holiday", "as1", "cr1"); err != nil || forms["/v26.0/act_77/ads"].Get("status") != "PAUSED" {
-		t.Fatalf("ad: %v %v", err, forms["/v26.0/act_77/ads"])
+	if _, err := c.CreateAd(ctx, "t", "77", "Holiday", "as1", "cr1"); err != nil || forms["/v27.0/act_77/ads"].Get("status") != "PAUSED" {
+		t.Fatalf("ad: %v %v", err, forms["/v27.0/act_77/ads"])
 	}
 	if err := c.SetStatus(ctx, "t", "ad1", "DELETED"); err == nil {
 		t.Fatal("only ACTIVE or PAUSED")
@@ -87,8 +87,8 @@ func TestAdsLaunchShapes(t *testing.T) {
 		t.Fatalf("review: %+v %v", rev, err)
 	}
 	if id, err := c.CreateKESAdAccount(ctx, "t", "biz1", "Boi KES", "pg1"); err != nil || id != "act_88" ||
-		forms["/v26.0/biz1/adaccount"].Get("timezone_id") != "78" || forms["/v26.0/biz1/adaccount"].Get("currency") != "KES" {
-		t.Fatalf("ad account: %v %v", id, forms["/v26.0/biz1/adaccount"])
+		forms["/v27.0/biz1/adaccount"].Get("timezone_id") != "78" || forms["/v27.0/biz1/adaccount"].Get("currency") != "KES" {
+		t.Fatalf("ad account: %v %v", id, forms["/v27.0/biz1/adaccount"])
 	}
 }
 
@@ -101,7 +101,7 @@ func TestLeadFormAndCreative(t *testing.T) {
 		f, _ := url.ParseQuery(string(b))
 		forms[r.URL.Path] = f
 		switch r.URL.Path {
-		case "/v26.0/pg1/leadgen_forms":
+		case "/v27.0/pg1/leadgen_forms":
 			_, _ = w.Write([]byte(`{"id":"form9"}`))
 		default:
 			_, _ = w.Write([]byte(`{"id":"cr1"}`))
@@ -113,7 +113,7 @@ func TestLeadFormAndCreative(t *testing.T) {
 	ctx := context.Background()
 
 	id, err := c.CreateLeadForm(ctx, "page-tok", "pg1", LeadFormInput{Name: "Holiday form", PrivacyURL: "https://shop.example/privacy", Questions: []string{"FULL_NAME", "PHONE"}})
-	f := forms["/v26.0/pg1/leadgen_forms"]
+	f := forms["/v27.0/pg1/leadgen_forms"]
 	if err != nil || id != "form9" || f.Get("access_token") != "page-tok" ||
 		f.Get("questions") != `[{"key":"question1","type":"FULL_NAME"},{"key":"question2","type":"PHONE"}]` ||
 		f.Get("privacy_policy") != `{"link_text":"Privacy policy","url":"https://shop.example/privacy"}` {
@@ -122,7 +122,7 @@ func TestLeadFormAndCreative(t *testing.T) {
 	if _, err := c.CreateLeadForm(ctx, "page-tok", "pg1", LeadFormInput{Name: "c", PrivacyURL: "https://p", Questions: []string{"PHONE"}, AskWhatsAppConsent: true}); err != nil {
 		t.Fatal(err)
 	}
-	if q := forms["/v26.0/pg1/leadgen_forms"].Get("questions"); !strings.Contains(q, `"key":"whatsapp_consent"`) || !strings.Contains(q, `"type":"CUSTOM"`) {
+	if q := forms["/v27.0/pg1/leadgen_forms"].Get("questions"); !strings.Contains(q, `"key":"whatsapp_consent"`) || !strings.Contains(q, `"type":"CUSTOM"`) {
 		t.Fatalf("consent question missing: %s", q)
 	}
 	if _, err := c.CreateLeadForm(ctx, "page-tok", "pg1", LeadFormInput{Name: "x", Questions: []string{"EMAIL"}}); err == nil {
@@ -132,7 +132,7 @@ func TestLeadFormAndCreative(t *testing.T) {
 	if _, err := c.CreateAdCreative(ctx, "t", "act_77", CreativeInput{Name: "n", PageID: "pg1", VideoID: "v1", CTA: "SIGN_UP", LeadFormID: "form9"}); err != nil {
 		t.Fatal(err)
 	}
-	spec := forms["/v26.0/act_77/adcreatives"].Get("object_story_spec")
+	spec := forms["/v27.0/act_77/adcreatives"].Get("object_story_spec")
 	if !strings.Contains(spec, `"call_to_action":{"type":"SIGN_UP","value":{"lead_gen_form_id":"form9","link":"http://fb.me/"}}`) {
 		t.Fatalf("creative spec: %s", spec)
 	}

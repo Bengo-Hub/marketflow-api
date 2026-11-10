@@ -16,11 +16,12 @@ import (
 	"time"
 )
 
-// GraphVersion is the one Graph API version MarketFlow calls (the Meta app is
-// set to v26.0; v21.0 reached the end of Meta's two-year window). GraphURL and
-// DialogURL are its bases; every Meta call site uses them.
+// GraphVersion is the one Graph API version MarketFlow calls. v27.0 since 2026-11-10 (Marketing
+// API v27.0 changes checked against MarketFlow's calls: none affect it). The worker's
+// GraphVersionWatch emails the platform owner when Meta releases the next version; upgrades stay
+// a reviewed change. GraphURL and DialogURL are its bases; every Meta call site uses them.
 const (
-	GraphVersion = "v26.0"
+	GraphVersion = "v27.0"
 	GraphURL     = "https://graph.facebook.com/" + GraphVersion
 	DialogURL    = "https://www.facebook.com/" + GraphVersion + "/dialog/oauth"
 )

@@ -304,6 +304,10 @@ func main() {
 		// Competitor ad intel (Sprint 24): each tenant's competitors scanned once a week.
 		go worker.NewCompetitorScan(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).Run(ctx)
 
+		// Meta Graph API: a weekly check that emails the platform owner when a newer version than
+		// meta.GraphVersion is released (owner, 2026-11-10; the upgrade itself stays a reviewed change).
+		go worker.NewGraphVersionWatch(entClient, keys, tokenNotif, cfg.PlatformTenant, sharedcache.ClaimOnce, logger).Run(ctx)
+
 		// Endpoint discovery (Sprint 25, decision 61): each service's OpenAPI spec read once a week;
 		// new marketing-safe read routes wait for the platform owner's approval.
 		go endpoints.NewScanner(endpoints.EntStore{DB: entClient}, endpoints.DefaultServices, logger).RunWeekly(ctx, sharedcache.ClaimOnce)
