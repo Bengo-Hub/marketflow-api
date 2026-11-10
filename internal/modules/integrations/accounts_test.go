@@ -175,18 +175,18 @@ func TestOAuthState(t *testing.T) {
 	tid, uid := uuid.NewString(), uuid.NewString()
 
 	s := h.signState(tid, uid)
-	if gotT, gotU, ok := h.verifyState(s); !ok || gotT != tid || gotU != uid {
-		t.Fatalf("round trip: %q %q %v", gotT, gotU, ok)
+	if gotT, gotU, err := h.checkState(s); err != nil || gotT != tid || gotU != uid {
+		t.Fatalf("round trip: %q %q %v", gotT, gotU, err)
 	}
-	if gotT, gotU, ok := h.verifyState(h.signState(tid, "")); !ok || gotT != tid || gotU != "" {
-		t.Errorf("an API key caller has no user: %q %q %v", gotT, gotU, ok)
+	if gotT, gotU, err := h.checkState(h.signState(tid, "")); err != nil || gotT != tid || gotU != "" {
+		t.Errorf("an API key caller has no user: %q %q %v", gotT, gotU, err)
 	}
 	// The older tenant.nonce.hmac form still verifies.
 	legacy := tid + "." + fmt.Sprintf("%d", time.Now().UnixNano())
 	mac := hmac.New(sha256.New, h.stateKey)
 	mac.Write([]byte(legacy))
-	if gotT, _, ok := h.verifyState(legacy + "." + hex.EncodeToString(mac.Sum(nil))); !ok || gotT != tid {
-		t.Errorf("legacy state: %q %v", gotT, ok)
+	if gotT, _, err := h.checkState(legacy + "." + hex.EncodeToString(mac.Sum(nil))); err != nil || gotT != tid {
+		t.Errorf("legacy state: %q %v", gotT, err)
 	}
 	// Another tenant or user under the same signature, an old nonce, or garbage is refused.
 	parts := strings.Split(s, ".")
@@ -195,14 +195,14 @@ func TestOAuthState(t *testing.T) {
 		"other user":   parts[0] + "." + uuid.NewString() + "." + parts[2] + "." + parts[3],
 		"garbage":      "x.y",
 	} {
-		if _, _, ok := h.verifyState(bad); ok {
+		if _, _, err := h.checkState(bad); err == nil {
 			t.Errorf("%s must be refused", name)
 		}
 	}
 	old := tid + "." + uid + "." + fmt.Sprintf("%d", time.Now().Add(-11*time.Minute).UnixNano())
 	mac = hmac.New(sha256.New, h.stateKey)
 	mac.Write([]byte(old))
-	if _, _, ok := h.verifyState(old + "." + hex.EncodeToString(mac.Sum(nil))); ok {
+	if _, _, err := h.checkState(old + "." + hex.EncodeToString(mac.Sum(nil))); err == nil {
 		t.Error("a state older than 10 minutes must be refused")
 	}
 }

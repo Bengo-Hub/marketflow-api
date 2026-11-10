@@ -408,6 +408,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// state-signing key (must stay stable across the redirect round-trip) and is
 	// deliberately kept on the env value rather than the rotatable DB key.
 	integrationsHandler := integrations.NewHandler(entClient, encryption.KeyFromEnv(cfg.Security.EncryptionKey), keyProvider, logger).
+		WithPortal(cfg.CrossService.PortalURL).
 		WithMeta(cfg.Meta.AppSecret, cfg.Meta.DeletionStatusURL)
 
 	// Webhook handlers — Meta app credentials are platform-level (MF_META_*),

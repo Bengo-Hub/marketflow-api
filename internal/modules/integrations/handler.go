@@ -49,12 +49,14 @@ type Handler struct {
 	// provider row has none, and the public deletion status page.
 	metaAppSecret     string
 	deletionStatusURL string
+	portalURL         string // where connect callbacks send the browser back to
 }
 
 // NewHandler constructs a Handler.
 func NewHandler(db *ent.Client, stateKey []byte, keys *encryption.KeyProvider, logger *zap.Logger) *Handler {
 	return &Handler{db: db, stateKey: stateKey, keys: keys, logger: logger.Named("integrations"),
-		deletionStatusURL: "https://marketflow.codevertexafrica.com/data-deletion"}
+		deletionStatusURL: "https://marketflow.codevertexafrica.com/data-deletion",
+		portalURL:         "https://marketflow.codevertexafrica.com"}
 }
 
 // WithMeta sets the env fallback app secret and the deletion status page URL,
@@ -158,9 +160,9 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "missing_params", "code and state required", nil)
 		return
 	}
-	tenantID, _, ok := h.verifyState(state)
-	if !ok {
-		httpapi.Error(w, http.StatusUnauthorized, "bad_state", "state signature invalid", nil)
+	tenantID, _, stErr := h.checkState(state)
+	if stErr != nil {
+		writeStateError(w, stErr)
 		return
 	}
 	creds, err := h.loadPlatform(r.Context(), "google_calendar", "oauth")
@@ -296,9 +298,9 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "missing_params", "code and state required", nil)
 		return
 	}
-	tenantID, userID, ok := h.verifyState(state)
-	if !ok {
-		httpapi.Error(w, http.StatusUnauthorized, "bad_state", "state signature invalid", nil)
+	tenantID, userID, stErr := h.checkState(state)
+	if stErr != nil {
+		writeStateError(w, stErr)
 		return
 	}
 	creds, err := h.loadPlatform(r.Context(), "meta_ads", "oauth")
@@ -363,6 +365,15 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 	if err != nil && len(pages) == 0 {
 		httpapi.Error(w, http.StatusBadGateway, "pages_fetch_failed", err.Error(), nil)
 		return
+	}
+	if len(pages) == 0 {
+		// Facebook Login for Business: Pages held through a business portfolio may be missing
+		// from /me/accounts; read the granted ones from the token's granular scopes.
+		granted, gErr := grantedPages(r.Context(), userToken, creds["app_id"]+"|"+creds["app_secret"])
+		if gErr != nil {
+			h.logger.Info("meta connect: granted pages not read", zap.String("tenant", tenantID), zap.Error(gErr))
+		}
+		pages = granted
 	}
 	if len(pages) == 0 {
 		httpapi.Error(w, http.StatusBadRequest, "no_pages",
@@ -458,9 +469,9 @@ func (h *Handler) TikTokCallback(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "missing_params", "auth_code and state required", nil)
 		return
 	}
-	tenantID, userID, ok := h.verifyState(state)
-	if !ok {
-		httpapi.Error(w, http.StatusUnauthorized, "bad_state", "state signature invalid", nil)
+	tenantID, userID, stErr := h.checkState(state)
+	if stErr != nil {
+		writeStateError(w, stErr)
 		return
 	}
 	creds, err := h.loadPlatform(r.Context(), "tiktok_ads", "oauth")
@@ -817,22 +828,33 @@ func (h *Handler) integrationsURL(ctx context.Context, tenantID, query string) s
 			org = t.Slug
 		}
 	}
-	return "/" + url.PathEscape(org) + "/settings/integrations?" + query
+	return h.portalURL + "/" + url.PathEscape(org) + "/settings/integrations?" + query
+}
+
+// WithPortal sets the portal base URL that connect callbacks return to. The callbacks run on the
+// API host, so a relative path would land on the API and 404.
+func (h *Handler) WithPortal(portalURL string) *Handler {
+	h.portalURL = strings.TrimRight(portalURL, "/")
+	return h
 }
 
 // signState returns `tenantID.userID.nonce.hmac` for a 10-minute validity window. userID is the
 // signed-in auth user ("" for an API key caller); the callback records it as connected_by.
 func (h *Handler) signState(tenantID, userID string) string {
-	nonce := fmt.Sprintf("%d", time.Now().UnixNano())
-	payload := tenantID + "." + userID + "." + nonce
+	return h.signStateAt(tenantID, userID, time.Now().UnixNano())
+}
+
+func (h *Handler) signStateAt(tenantID, userID string, nanos int64) string {
+	payload := tenantID + "." + userID + "." + fmt.Sprintf("%d", nanos)
 	mac := hmac.New(sha256.New, h.stateKey)
 	mac.Write([]byte(payload))
 	return payload + "." + hex.EncodeToString(mac.Sum(nil))
 }
 
-// verifyState checks the signature and age and returns the tenant and user. The older
-// `tenantID.nonce.hmac` form (no user) is still accepted.
-func (h *Handler) verifyState(state string) (string, string, bool) {
+// checkState checks the signature and age and returns the tenant and user. The older
+// `tenantID.nonce.hmac` form (no user) is still accepted. A correctly signed state older than
+// 10 minutes is errStateExpired; anything else wrong is errStateInvalid.
+func (h *Handler) checkState(state string) (string, string, error) {
 	parts := strings.Split(state, ".")
 	var tenantID, userID, nonce, sig string
 	switch len(parts) {
@@ -841,20 +863,23 @@ func (h *Handler) verifyState(state string) (string, string, bool) {
 	case 4:
 		tenantID, userID, nonce, sig = parts[0], parts[1], parts[2], parts[3]
 	default:
-		return "", "", false
+		return "", "", errStateInvalid
 	}
 	mac := hmac.New(sha256.New, h.stateKey)
 	mac.Write([]byte(strings.Join(parts[:len(parts)-1], ".")))
 	expected := hex.EncodeToString(mac.Sum(nil))
 	if !hmac.Equal([]byte(sig), []byte(expected)) {
-		return "", "", false
+		return "", "", errStateInvalid
 	}
-	// Age check (10 min). The nonce is signed, so a missing timestamp means a forged format.
+	// The nonce is signed, so a missing timestamp means a forged format.
 	ns := parseInt64(nonce)
-	if ns <= 0 || time.Since(time.Unix(0, ns)) > 10*time.Minute {
-		return "", "", false
+	if ns <= 0 {
+		return "", "", errStateInvalid
 	}
-	return tenantID, userID, true
+	if time.Since(time.Unix(0, ns)) > 10*time.Minute {
+		return "", "", errStateExpired
+	}
+	return tenantID, userID, nil
 }
 
 func parseInt64(s string) int64 {
