@@ -83,7 +83,8 @@ func (h *Handler) resolveTenantID(r *http.Request) (string, bool) {
 	}
 	ctx := r.Context()
 	claims, _ := authclient.ClaimsFromContext(ctx)
-	isPO := claims != nil && (claims.IsPlatformOwner || claims.GetTenantSlug() == "codevertex")
+	// Only the token's platform-owner claim counts; membership of the codevertex tenant does not.
+	isPO := claims != nil && claims.IsPlatformOwner
 
 	if slug := strings.TrimSpace(r.Header.Get("X-Tenant-Slug")); slug != "" {
 		if t, err := h.db.Tenant.Query().Where(tenant.SlugEQ(slug)).Only(ctx); err == nil {
