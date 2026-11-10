@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -338,17 +339,6 @@ func (h *Handler) Boost(w http.ResponseWriter, r *http.Request) {
 		start = time.Now().UTC().Add(10 * time.Minute)
 	}
 	id := uuid.New()
-	if q.LaunchCredits > 0 && h.Charge != nil {
-		ok, err := h.Charge(ctx, tid, int64(q.LaunchCredits), "ads-launch:"+id.String(), "Paid ad launch")
-		if err != nil {
-			httpapi.Error(w, http.StatusServiceUnavailable, "credits_unavailable", "AI credits could not be checked right now, try again shortly", nil)
-			return
-		}
-		if !ok {
-			httpapi.Error(w, http.StatusPaymentRequired, "no_credits", fmt.Sprintf("a launch needs %d AI credits; buy a bundle on your billing page", q.LaunchCredits), nil)
-			return
-		}
-	}
 	l := stored{Plan: storedPlan{AdAccountConnID: acc.ID.String(), PageConnID: page.ID.String(), Currency: q.Currency,
 		Budget: q.Budget, Start: start, End: start.AddDate(0, 0, q.Days), Objective: objective, WhatsAppNumber: in.WhatsAppNumber,
 		Countries: in.Countries, AgeMin: in.AgeMin, AgeMax: in.AgeMax, AssetID: asset.ID.String(), Message: strings.TrimSpace(in.Message),
@@ -358,12 +348,41 @@ func (h *Handler) Boost(w http.ResponseWriter, r *http.Request) {
 	if in.Headline != "" {
 		name = in.Headline
 	}
-	c := h.DB.Campaign.Create().SetID(id).SetTenantID(tid).SetName(name).SetCampaignType("lead_gen").SetPlatform("meta").
-		SetStatus(CampaignLaunching).SetBudgetTotal(float64(q.Budget)).SetCurrency(q.Currency).
-		SetStartDate(l.Plan.Start).SetEndDate(l.Plan.End).
-		SetConnectedAccountID(acc.ID).SetCreativeVersionID(asset.VersionID).
-		SetMetadata(map[string]any{"launch": l, "quote": q})
-	row, err := c.Save(ctx)
+	steps := boostSteps{
+		create: func() error {
+			return h.DB.Campaign.Create().SetID(id).SetTenantID(tid).SetName(name).SetCampaignType("lead_gen").SetPlatform("meta").
+				SetStatus(CampaignPending).SetBudgetTotal(float64(q.Budget)).SetCurrency(q.Currency).
+				SetStartDate(l.Plan.Start).SetEndDate(l.Plan.End).
+				SetConnectedAccountID(acc.ID).SetCreativeVersionID(asset.VersionID).
+				SetMetadata(map[string]any{"launch": l, "quote": q}).Exec(ctx)
+		},
+		activate: func() error {
+			return h.DB.Campaign.UpdateOneID(id).SetStatus(CampaignLaunching).Exec(ctx)
+		},
+		discard: func() {
+			if err := h.DB.Campaign.DeleteOneID(id).Exec(ctx); err != nil {
+				h.Logger.Warn("unpaid boost draft not removed", zap.String("campaign", id.String()), zap.Error(err))
+			}
+		},
+	}
+	if q.LaunchCredits > 0 && h.Charge != nil {
+		steps.charge = func() (bool, error) {
+			return h.Charge(ctx, tid, int64(q.LaunchCredits), "ads-launch:"+id.String(), "Paid ad launch")
+		}
+	}
+	switch err := commitBoost(ctx, steps); {
+	case errors.Is(err, errNoCredits):
+		httpapi.Error(w, http.StatusPaymentRequired, "no_credits", fmt.Sprintf("a launch needs %d AI credits; buy a bundle on your billing page", q.LaunchCredits), nil)
+		return
+	case errors.Is(err, errCreditsUnavailable):
+		httpapi.Error(w, http.StatusServiceUnavailable, "credits_unavailable", "AI credits could not be checked right now, try again shortly", nil)
+		return
+	case err != nil:
+		h.Logger.Error("boost not committed", zap.String("campaign", id.String()), zap.Error(err))
+		h.fail(w, err)
+		return
+	}
+	row, err := h.DB.Campaign.Get(ctx, id)
 	if err != nil {
 		h.fail(w, err)
 		return

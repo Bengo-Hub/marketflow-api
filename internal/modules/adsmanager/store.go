@@ -20,6 +20,9 @@ import (
 
 // Campaign statuses a boost moves through (Campaign.status).
 const (
+	// CampaignPending is a boost saved before its launch credits are charged; the launch worker
+	// ignores it. It becomes launching once paid, or is deleted when the charge is refused.
+	CampaignPending   = "pending"
 	CampaignLaunching = "launching"
 	CampaignActive    = "active"
 	CampaignFailed    = "failed"
