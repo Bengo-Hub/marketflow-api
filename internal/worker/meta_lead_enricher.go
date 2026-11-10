@@ -236,9 +236,21 @@ func (h *MetaLeadEnricher) apply(ctx context.Context, l *ent.Lead, f metaLeadFie
 		TenantID: l.TenantID, Email: str(f.Email), Phone: str(f.Phone),
 		FirstName: str(f.FirstName), LastName: str(f.LastName),
 		ContactType: "prospect", LeadID: &leadID,
-		Metadata: map[string]any{"source": "meta_lead_ad", "consent_source": "meta_lead_form"},
+		Metadata: metaContactMetadata(f.WhatsAppConsent, fmt.Sprint(meta["meta_enriched_at"])),
 	}); err != nil {
 		h.logger.Warn("meta lead enriched but contact upsert failed", zap.String("lead", l.ID.String()), zap.Error(err))
 	}
 	return nil
+}
+
+// metaContactMetadata is the metadata of the contact made from an instant-form lead, with the
+// person's WhatsApp consent when they gave it (Sprint 18 L53).
+func metaContactMetadata(whatsAppConsent bool, at string) map[string]any {
+	m := map[string]any{"source": "meta_lead_ad", "consent_source": "meta_lead_form"}
+	if whatsAppConsent {
+		m["whatsapp_consent"] = true
+		m["whatsapp_consent_source"] = "meta_lead_form"
+		m["whatsapp_consent_at"] = at
+	}
+	return m
 }

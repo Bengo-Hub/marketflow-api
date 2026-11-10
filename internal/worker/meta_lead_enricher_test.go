@@ -196,3 +196,15 @@ func TestMetaLeadEnricherEndToEnd(t *testing.T) {
 		}
 	})
 }
+
+// Sprint 18 L53: the instant form's WhatsApp consent is kept on the contact too, not only on the
+// lead, so anything that messages the contact sees it. No consent, no key.
+func TestMetaContactMetadata(t *testing.T) {
+	m := metaContactMetadata(true, "2026-11-11T00:00:00Z")
+	if m["whatsapp_consent"] != true || m["whatsapp_consent_source"] != "meta_lead_form" || m["whatsapp_consent_at"] != "2026-11-11T00:00:00Z" || m["source"] != "meta_lead_ad" {
+		t.Fatalf("with consent: %v", m)
+	}
+	if _, ok := metaContactMetadata(false, "x")["whatsapp_consent"]; ok {
+		t.Fatal("no consent must leave no consent key")
+	}
+}
