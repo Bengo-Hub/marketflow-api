@@ -201,10 +201,16 @@ func (h *MetaHandler) HandleLeadgen(w http.ResponseWriter, r *http.Request) {
 				processed++
 				continue
 			}
-			// Meta's campaign id is numeric, never a UUID: link our Campaign through its
-			// meta_campaign_id (the old UUID parse always failed).
-			if cid, ok := h.campaignByMetaID(r.Context(), tenantID, ch.Value.CampaignID); ok {
+			// Link our Campaign: by Meta's campaign id when the webhook carries it, else by the
+			// boost's ad or instant form (leadgen webhooks usually carry only those).
+			if cid, ver, ok := h.campaignForLead(r.Context(), tenantID, ch.Value.CampaignID, ch.Value.AdID, ch.Value.FormID); ok {
 				input.CampaignID = &cid
+				if ver != nil {
+					input.Metadata["creative_version_id"] = ver.String()
+				}
+			}
+			if ch.Value.AdgroupID != "" {
+				input.Metadata["adset_id"] = ch.Value.AdgroupID
 			}
 			// Only ids are stored here so Meta gets a fast 200. The lead service publishes
 			// lead.created, and the worker's MetaLeadEnricher fetches /{leadgen_id} with the
@@ -258,6 +264,33 @@ func (h *MetaHandler) leadExists(ctx context.Context, tenantID uuid.UUID, leadge
 		  LIMIT 1`, tenantID, leadgenID,
 	).Scan(&one)
 	return err == nil
+}
+
+// campaignForLead finds the Campaign a Meta lead came from, with the creative version a boost
+// ran: by Meta's campaign id first, then by the boost's ad id or instant form id, which the ads
+// worker saves in metadata.launch.state. A tenant has few campaigns, so the jsonb match is cheap.
+func (h *MetaHandler) campaignForLead(ctx context.Context, tenantID uuid.UUID, metaCampaignID, adID, formID string) (uuid.UUID, *uuid.UUID, bool) {
+	if h.db == nil {
+		return uuid.Nil, nil, false
+	}
+	if id, ok := h.campaignByMetaID(ctx, tenantID, metaCampaignID); ok {
+		var ver *uuid.UUID
+		_ = h.db.QueryRowContext(ctx, `SELECT creative_version_id FROM campaigns WHERE id = $1`, id).Scan(&ver)
+		return id, ver, true
+	}
+	if adID == "" && formID == "" {
+		return uuid.Nil, nil, false
+	}
+	var id uuid.UUID
+	var ver *uuid.UUID
+	err := h.db.QueryRowContext(ctx,
+		`SELECT id, creative_version_id FROM campaigns
+		  WHERE tenant_id = $1
+		    AND ((metadata->'launch'->'state'->>'meta_ad_id' = $2 AND $2 <> '')
+		      OR (metadata->'launch'->'state'->>'meta_lead_form_id' = $3 AND $3 <> ''))
+		  LIMIT 1`, tenantID, adID, formID,
+	).Scan(&id, &ver)
+	return id, ver, err == nil
 }
 
 // campaignByMetaID finds the tenant's Campaign that Meta's numeric campaign id belongs to.

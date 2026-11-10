@@ -252,7 +252,9 @@ type BoostInput struct {
 	Link           string    `json:"link"`
 	WhatsAppNumber string    `json:"whatsapp_number"`
 	Welcome        string    `json:"welcome"`
-	StartAt        time.Time `json:"start_at"`
+	// PrivacyURL is the business's privacy policy, required by Meta on a leads instant form.
+	PrivacyURL string    `json:"privacy_url"`
+	StartAt    time.Time `json:"start_at"`
 }
 
 var objectives = map[string]string{"whatsapp": "OUTCOME_ENGAGEMENT", "leads": "OUTCOME_LEADS", "traffic": "OUTCOME_TRAFFIC"}
@@ -296,6 +298,9 @@ func (h *Handler) Boost(w http.ResponseWriter, r *http.Request) {
 		return
 	case strings.TrimSpace(in.Message) == "" || utf8.RuneCountInString(in.Message) > 2000:
 		httpapi.Error(w, http.StatusBadRequest, "invalid_request", "the ad text is required (at most 2,000 characters)", nil)
+		return
+	case objective == "OUTCOME_LEADS" && !strings.HasPrefix(strings.TrimSpace(in.PrivacyURL), "https://"):
+		httpapi.Error(w, http.StatusBadRequest, "invalid_request", "a leads ad needs your privacy policy link (https), which Meta shows on the form", nil)
 		return
 	case objective == "OUTCOME_TRAFFIC" && !strings.HasPrefix(in.Link, "https://"):
 		httpapi.Error(w, http.StatusBadRequest, "invalid_request", "a link ad needs an https link", nil)
@@ -342,7 +347,7 @@ func (h *Handler) Boost(w http.ResponseWriter, r *http.Request) {
 	l := stored{Plan: storedPlan{AdAccountConnID: acc.ID.String(), PageConnID: page.ID.String(), Currency: q.Currency,
 		Budget: q.Budget, Start: start, End: start.AddDate(0, 0, q.Days), Objective: objective, WhatsAppNumber: in.WhatsAppNumber,
 		Countries: in.Countries, AgeMin: in.AgeMin, AgeMax: in.AgeMax, AssetID: asset.ID.String(), Message: strings.TrimSpace(in.Message),
-		Headline: in.Headline, Link: in.Link, Welcome: in.Welcome, LaunchCharged: q.LaunchCredits > 0},
+		Headline: in.Headline, Link: in.Link, Welcome: in.Welcome, PrivacyURL: strings.TrimSpace(in.PrivacyURL), LaunchCharged: q.LaunchCredits > 0},
 		State: State{Stage: StageCampaign}}
 	name := "Boost " + time.Now().UTC().Format("2 Jan 2006")
 	if in.Headline != "" {

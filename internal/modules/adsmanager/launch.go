@@ -17,6 +17,7 @@ type Graph interface {
 	UploadAdVideo(ctx context.Context, token, actID, fileURL, title string) (string, error)
 	CreateAdCreative(ctx context.Context, token, actID string, in meta.CreativeInput) (string, error)
 	CreateAd(ctx context.Context, token, actID, name, adSetID, creativeID string) (string, error)
+	CreateLeadForm(ctx context.Context, pageToken, pageID string, in meta.LeadFormInput) (string, error)
 	GetAdReview(ctx context.Context, token, adID string) (*meta.AdReview, error)
 	SetStatus(ctx context.Context, token, objectID, status string) error
 }
@@ -55,6 +56,10 @@ type Plan struct {
 	Headline       string
 	Link           string // for OUTCOME_TRAFFIC
 	Welcome        string // WhatsApp greeting
+	// OUTCOME_LEADS runs a Meta instant form (owner, 2026-11-10): made with the Page's token,
+	// linked to the advertiser's privacy policy.
+	PageToken  string
+	PrivacyURL string
 }
 
 // State is the stored launch progress.
@@ -63,6 +68,7 @@ type State struct {
 	CampaignID string    `json:"meta_campaign_id,omitempty"`
 	AdSetID    string    `json:"meta_adset_id,omitempty"`
 	VideoID    string    `json:"meta_video_id,omitempty"`
+	FormID     string    `json:"meta_lead_form_id,omitempty"`
 	CreativeID string    `json:"meta_creative_id,omitempty"`
 	AdID       string    `json:"meta_ad_id,omitempty"`
 	Review     string    `json:"review_status,omitempty"`
@@ -138,7 +144,7 @@ func Step(ctx context.Context, g Graph, p Plan, st State, now time.Time, funded 
 			case "OUTCOME_ENGAGEMENT":
 				in.OptimizationGoal, in.DestinationType, in.WhatsAppNumber = "CONVERSATIONS", "WHATSAPP", p.WhatsAppNumber
 			case "OUTCOME_LEADS":
-				in.OptimizationGoal = "LEAD_GENERATION"
+				in.OptimizationGoal, in.DestinationType = "LEAD_GENERATION", "ON_AD"
 			default:
 				in.OptimizationGoal = "LINK_CLICKS"
 			}
@@ -165,10 +171,23 @@ func Step(ctx context.Context, g Graph, p Plan, st State, now time.Time, funded 
 				cta = "WHATSAPP_MESSAGE"
 			} else if p.Objective == "OUTCOME_LEADS" {
 				cta = "SIGN_UP"
+				// The instant form is made once and saved before the creative, so a creative
+				// that must wait for Meta's video processing never makes a second form.
+				if st.FormID == "" {
+					id, err := g.CreateLeadForm(ctx, p.PageToken, p.PageID, meta.LeadFormInput{
+						Name: p.Name + " form", PrivacyURL: p.PrivacyURL, Questions: []string{"FULL_NAME", "PHONE", "EMAIL"}})
+					if err != nil {
+						return retry(err)
+					}
+					st.FormID = id
+					if err := save(ctx, st); err != nil {
+						return st, err
+					}
+				}
 			}
 			id, err := g.CreateAdCreative(ctx, p.Token, p.AdAccountID, meta.CreativeInput{Name: p.Name, PageID: p.PageID,
 				InstagramUserID: p.InstagramID, VideoID: st.VideoID, ThumbnailURL: p.ThumbnailURL, Message: p.Message,
-				Title: p.Headline, CTA: cta, Link: p.Link, WelcomeMessage: p.Welcome})
+				Title: p.Headline, CTA: cta, Link: p.Link, WelcomeMessage: p.Welcome, LeadFormID: st.FormID})
 			if err != nil {
 				// A video Meta is still processing fails the creative; the retry waits for it.
 				return retry(err)

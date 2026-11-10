@@ -17,6 +17,39 @@ type fakeGraph struct {
 	statuses   []string
 	adSetInput meta.AdSetInput
 	creative   meta.CreativeInput
+	form       meta.LeadFormInput
+	// failCreative fails that many creative calls (a video Meta is still processing).
+	failCreative int
+}
+
+// Owner 2026-11-10: a leads boost uses a Meta instant form. One form per boost, made with the
+// Page token and kept across retries; the ad set runs on the ad, and the creative points at it.
+func TestLaunchLeadsUsesAnInstantForm(t *testing.T) {
+	now := time.Date(2026, 11, 5, 8, 0, 0, 0, time.UTC)
+	g := &fakeGraph{review: []string{"PENDING_REVIEW"}, failCreative: 1}
+	p := plan(now)
+	p.Objective, p.WhatsAppNumber, p.PageToken, p.PrivacyURL = "OUTCOME_LEADS", "", "page-token", "https://shop.example/privacy"
+	save := func(context.Context, State) error { return nil }
+	check := func(context.Context) (bool, error) { return false, nil }
+	ctx := context.Background()
+
+	st, _ := Step(ctx, g, p, State{}, now, check, save)
+	if st.FormID != "form1" || st.Stage != StageCreative || st.Attempts != 1 {
+		t.Fatalf("the form is kept when the creative must wait: %+v", st)
+	}
+	st, _ = Step(ctx, g, p, st, now, check, save)
+	if st.Stage != StageReview || strings.Count(strings.Join(g.calls, ","), "form:page-token") != 1 {
+		t.Fatalf("one form per boost, made with the Page token: %+v %v", st, g.calls)
+	}
+	if g.adSetInput.OptimizationGoal != "LEAD_GENERATION" || g.adSetInput.DestinationType != "ON_AD" {
+		t.Fatalf("ad set: %+v", g.adSetInput)
+	}
+	if g.creative.CTA != "SIGN_UP" || g.creative.LeadFormID != "form1" {
+		t.Fatalf("creative: %+v", g.creative)
+	}
+	if g.form.PrivacyURL != "https://shop.example/privacy" || len(g.form.Questions) == 0 {
+		t.Fatalf("form: %+v", g.form)
+	}
 }
 
 func (f *fakeGraph) CreateCampaign(_ context.Context, _, _ string, in meta.CampaignInput) (*meta.CampaignResponse, error) {
@@ -39,7 +72,16 @@ func (f *fakeGraph) UploadAdVideo(context.Context, string, string, string, strin
 func (f *fakeGraph) CreateAdCreative(_ context.Context, _, _ string, in meta.CreativeInput) (string, error) {
 	f.calls = append(f.calls, "creative")
 	f.creative = in
+	if f.failCreative > 0 {
+		f.failCreative--
+		return "", errors.New("video still processing")
+	}
 	return "cr1", nil
+}
+func (f *fakeGraph) CreateLeadForm(_ context.Context, pageToken, _ string, in meta.LeadFormInput) (string, error) {
+	f.calls = append(f.calls, "form:"+pageToken)
+	f.form = in
+	return "form1", nil
 }
 func (f *fakeGraph) CreateAd(context.Context, string, string, string, string, string) (string, error) {
 	f.calls = append(f.calls, "ad")

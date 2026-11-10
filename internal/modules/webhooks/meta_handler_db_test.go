@@ -86,4 +86,25 @@ func TestMetaLeadgenDedupeAndCampaignLookup(t *testing.T) {
 	if _, ok := h.campaignByMetaID(ctx, tid, "999"); ok {
 		t.Fatal("unknown Meta campaign must not match")
 	}
+
+	// Leadgen webhooks rarely carry the campaign id: a boost is found by its ad or its instant
+	// form, from the launch state the ads worker saves, and brings its creative version.
+	ver := uuid.New()
+	boost, err := db.Campaign.Create().SetTenantID(tid).SetName("Boost").SetCreativeVersionID(ver).
+		SetMetadata(map[string]any{"launch": map[string]any{"state": map[string]any{"meta_ad_id": "AD-77", "meta_lead_form_id": "FORM-77"}}}).Save(ctx)
+	if err != nil {
+		t.Fatalf("seed boost: %v", err)
+	}
+	for _, c := range []struct{ campaign, ad, form string }{{"", "AD-77", ""}, {"", "", "FORM-77"}, {"404", "AD-77", "FORM-77"}} {
+		id, v, ok := h.campaignForLead(ctx, tid, c.campaign, c.ad, c.form)
+		if !ok || id != boost.ID || v == nil || *v != ver {
+			t.Fatalf("%+v: got %s %v %v", c, id, v, ok)
+		}
+	}
+	if _, _, ok := h.campaignForLead(ctx, other, "", "AD-77", "FORM-77"); ok {
+		t.Fatal("boost lookup must be per tenant")
+	}
+	if _, _, ok := h.campaignForLead(ctx, tid, "", "", ""); ok {
+		t.Fatal("no ids, no match")
+	}
 }

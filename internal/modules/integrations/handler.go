@@ -220,7 +220,8 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 const (
 	metaAuthURL  = meta.DialogURL
 	metaTokenURL = meta.GraphURL + "/oauth/access_token"
-	metaScope    = "pages_show_list,pages_read_engagement,leads_retrieval,pages_manage_metadata"
+	// pages_manage_ads creates the instant forms of leads boosts (owner, 2026-11-10).
+	metaScope    = "pages_show_list,pages_read_engagement,leads_retrieval,pages_manage_metadata,pages_manage_ads"
 )
 
 // metaLoginParams sets what the consent dialog asks for, from the platform Meta app settings.

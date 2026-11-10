@@ -92,6 +92,46 @@ func TestAdsLaunchShapes(t *testing.T) {
 	}
 }
 
+// A lead ad: the instant form is made on the Page with the Page token, and the video creative's
+// SIGN_UP button carries the form id with Meta's documented fb.me link.
+func TestLeadFormAndCreative(t *testing.T) {
+	forms := map[string]url.Values{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		f, _ := url.ParseQuery(string(b))
+		forms[r.URL.Path] = f
+		switch r.URL.Path {
+		case "/v26.0/pg1/leadgen_forms":
+			_, _ = w.Write([]byte(`{"id":"form9"}`))
+		default:
+			_, _ = w.Write([]byte(`{"id":"cr1"}`))
+		}
+	}))
+	defer srv.Close()
+	c := NewClient("")
+	c.baseURL = srv.URL
+	ctx := context.Background()
+
+	id, err := c.CreateLeadForm(ctx, "page-tok", "pg1", LeadFormInput{Name: "Holiday form", PrivacyURL: "https://shop.example/privacy", Questions: []string{"FULL_NAME", "PHONE"}})
+	f := forms["/v26.0/pg1/leadgen_forms"]
+	if err != nil || id != "form9" || f.Get("access_token") != "page-tok" ||
+		f.Get("questions") != `[{"key":"question1","type":"FULL_NAME"},{"key":"question2","type":"PHONE"}]` ||
+		f.Get("privacy_policy") != `{"link_text":"Privacy policy","url":"https://shop.example/privacy"}` {
+		t.Fatalf("form: %v %v %v", id, err, f)
+	}
+	if _, err := c.CreateLeadForm(ctx, "page-tok", "pg1", LeadFormInput{Name: "x", Questions: []string{"EMAIL"}}); err == nil {
+		t.Fatal("a form without a privacy policy must be refused before calling Meta")
+	}
+
+	if _, err := c.CreateAdCreative(ctx, "t", "act_77", CreativeInput{Name: "n", PageID: "pg1", VideoID: "v1", CTA: "SIGN_UP", LeadFormID: "form9"}); err != nil {
+		t.Fatal(err)
+	}
+	spec := forms["/v26.0/act_77/adcreatives"].Get("object_story_spec")
+	if !strings.Contains(spec, `"call_to_action":{"type":"SIGN_UP","value":{"lead_gen_form_id":"form9","link":"http://fb.me/"}}`) {
+		t.Fatalf("creative spec: %s", spec)
+	}
+}
+
 func TestGraphErrorRateLimit(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)

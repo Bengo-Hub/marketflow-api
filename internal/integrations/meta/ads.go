@@ -180,6 +180,38 @@ type CreativeInput struct {
 	// CTA is WHATSAPP_MESSAGE (click to WhatsApp), LEARN_MORE or SIGN_UP with Link.
 	CTA, Link      string
 	WelcomeMessage string
+	// LeadFormID turns the CTA into an instant form (lead ads); Meta's documented link for it
+	// is http://fb.me/.
+	LeadFormID string
+}
+
+// LeadFormInput is a Meta instant form (POST /{page_id}/leadgen_forms with a Page token).
+type LeadFormInput struct {
+	Name       string
+	PrivacyURL string   // the advertiser's privacy policy, which Meta shows on the form
+	Questions  []string // prefill question types, e.g. FULL_NAME, PHONE, EMAIL
+}
+
+// CreateLeadForm creates an instant form on the Page and returns its id.
+func (c *Client) CreateLeadForm(ctx context.Context, pageToken, pageID string, in LeadFormInput) (string, error) {
+	if pageToken == "" || in.PrivacyURL == "" || len(in.Questions) == 0 {
+		return "", fmt.Errorf("meta lead form: a Page token, a privacy policy link and questions are required")
+	}
+	qs := make([]map[string]any, 0, len(in.Questions))
+	for i, q := range in.Questions {
+		qs = append(qs, map[string]any{"type": q, "key": fmt.Sprintf("question%d", i+1)})
+	}
+	qj, _ := json.Marshal(qs)
+	pj, _ := json.Marshal(map[string]any{"url": in.PrivacyURL, "link_text": "Privacy policy"})
+	form := url.Values{"name": {truncate(in.Name, 200)}, "questions": {string(qj)}, "privacy_policy": {string(pj)},
+		"block_display_for_non_targeted_viewer": {"true"}, "access_token": {pageToken}}
+	var out struct {
+		ID string `json:"id"`
+	}
+	if err := c.postJSON(ctx, "/"+url.PathEscape(pageID)+"/leadgen_forms", form, &out); err != nil {
+		return "", fmt.Errorf("meta lead form: %w", err)
+	}
+	return out.ID, nil
 }
 
 // CreateAdCreative creates the creative (POST /act_{id}/adcreatives).
@@ -187,6 +219,8 @@ func (c *Client) CreateAdCreative(ctx context.Context, token, actID string, in C
 	cta := map[string]any{"type": in.CTA}
 	if in.CTA == "WHATSAPP_MESSAGE" {
 		cta["value"] = map[string]any{"app_destination": "WHATSAPP"}
+	} else if in.LeadFormID != "" {
+		cta["value"] = map[string]any{"link": "http://fb.me/", "lead_gen_form_id": in.LeadFormID}
 	} else if in.Link != "" {
 		cta["value"] = map[string]any{"link": in.Link}
 	}

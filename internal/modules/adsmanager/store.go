@@ -53,6 +53,7 @@ type storedPlan struct {
 	Headline        string    `json:"headline,omitempty"`
 	Link            string    `json:"link,omitempty"`
 	Welcome         string    `json:"welcome,omitempty"`
+	PrivacyURL      string    `json:"privacy_url,omitempty"` // leads: shown on the instant form
 	LaunchCharged   bool      `json:"launch_charged,omitempty"`
 }
 
@@ -149,7 +150,7 @@ func (w *Worker) plan(ctx context.Context, c *ent.Campaign, sp storedPlan) (Plan
 	if err != nil {
 		return Plan{}, fmt.Errorf("the ad account is no longer connected; reconnect it")
 	}
-	_, pageID, err := w.token(ctx, c.TenantID, sp.PageConnID, "facebook_page")
+	pageTok, pageID, err := w.token(ctx, c.TenantID, sp.PageConnID, "facebook_page")
 	if err != nil {
 		return Plan{}, fmt.Errorf("the Facebook Page is no longer connected; reconnect it")
 	}
@@ -161,7 +162,8 @@ func (w *Worker) plan(ctx context.Context, c *ent.Campaign, sp storedPlan) (Plan
 	return Plan{Name: c.Name, AdAccountID: actID, Token: adTok, Currency: sp.Currency, Budget: sp.Budget,
 		Start: sp.Start, End: sp.End, Objective: sp.Objective, PageID: pageID, InstagramID: sp.InstagramID,
 		WhatsAppNumber: sp.WhatsAppNumber, Countries: sp.Countries, AgeMin: sp.AgeMin, AgeMax: sp.AgeMax,
-		VideoURL: asset.URL, Message: sp.Message, Headline: sp.Headline, Link: sp.Link, Welcome: sp.Welcome}, nil
+		VideoURL: asset.URL, Message: sp.Message, Headline: sp.Headline, Link: sp.Link, Welcome: sp.Welcome,
+		PageToken: pageTok, PrivacyURL: sp.PrivacyURL}, nil
 }
 
 func (w *Worker) token(ctx context.Context, tid uuid.UUID, connID, accountType string) (token, externalID string, err error) {
