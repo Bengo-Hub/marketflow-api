@@ -221,7 +221,11 @@ func (h *MembersHandler) InviteMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	audit.Tenant(r.Context(), h.db, h.logger, tenantID, "team.member_invited", "user", nil, map[string]any{"role": req.Role, "new_account": result.TempPassword != ""})
-	httpapi.JSON(w, http.StatusCreated, inviteResponse(req.Email, req.Role, result.TempPassword != ""))
+	out := inviteResponse(req.Email, req.Role, result.TempPassword != "")
+	// auth-api answers 202 for an existing account: it was emailed an invitation and joins once it
+	// accepts (audit H4).
+	out["pending_acceptance"] = resp.StatusCode == http.StatusAccepted
+	httpapi.JSON(w, http.StatusCreated, out)
 }
 
 // inviteResponse is what the inviter sees. A new account signs in from the link auth-api emails;
