@@ -10,7 +10,8 @@ COPY . .
 RUN GOTOOLCHAIN=auto CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /bin/marketflow-api     ./cmd/server && \
     GOTOOLCHAIN=auto CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /bin/marketflow-worker  ./cmd/worker && \
     GOTOOLCHAIN=auto CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /bin/marketflow-migrate ./cmd/migrate && \
-    GOTOOLCHAIN=auto CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /bin/marketflow-seed    ./cmd/seed
+    GOTOOLCHAIN=auto CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /bin/marketflow-seed    ./cmd/seed && \
+    GOTOOLCHAIN=auto CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /bin/marketflow-meta-smoke ./cmd/meta-smoke
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates tzdata && addgroup -S app && adduser -S app -G app
@@ -19,6 +20,7 @@ COPY --from=builder /bin/marketflow-api     /usr/local/bin/marketflow-api
 COPY --from=builder /bin/marketflow-worker  /usr/local/bin/marketflow-worker
 COPY --from=builder /bin/marketflow-migrate /usr/local/bin/marketflow-migrate
 COPY --from=builder /bin/marketflow-seed    /usr/local/bin/marketflow-seed
+COPY --from=builder /bin/marketflow-meta-smoke /usr/local/bin/marketflow-meta-smoke
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 USER app
