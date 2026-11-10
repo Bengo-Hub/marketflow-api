@@ -132,3 +132,25 @@ func (c *Client) cachedEntitlements(ctx context.Context, tenantID string) *Entit
 	entCacheMu.Unlock()
 	return e
 }
+
+// StrictHasFeature is ConsumerHasFeature for a feature that waives a charge (paid_ads_launch): it
+// FAILS CLOSED. Granted only when the tenant's snapshot lists the feature or the tenant is a demo;
+// an outage, a missing snapshot or a pay-as-you-go plan without the feature means not granted.
+func (c *Client) StrictHasFeature(ctx context.Context, tenantID, featureCode string) bool {
+	if c == nil || tenantID == "" {
+		return false
+	}
+	e := c.cachedEntitlements(ctx, tenantID)
+	if e == nil {
+		return false
+	}
+	if e.IsDemoBypass {
+		return true
+	}
+	for _, f := range e.Features {
+		if f == featureCode {
+			return true
+		}
+	}
+	return false
+}

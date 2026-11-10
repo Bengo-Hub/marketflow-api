@@ -2,6 +2,7 @@ package leads
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -29,6 +30,9 @@ func NewService(client *ent.Client, logger *zap.Logger) *Service {
 
 // CreateInput contains the data needed to create a lead.
 type CreateInput struct {
+	// ID, when set, is the lead's fixed id (MetaLeadID): a second create with it returns
+	// ErrDuplicateLead, so racing webhook deliveries make one lead.
+	ID                   *uuid.UUID
 	TenantID             uuid.UUID
 	Email                *string
 	Phone                *string
@@ -90,6 +94,9 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Lead, error)
 		SetTenantID(in.TenantID).
 		SetSource(in.Source).
 		SetLeadType(in.LeadType)
+	if in.ID != nil {
+		builder.SetID(*in.ID)
+	}
 
 	if in.Email != nil {
 		builder.SetNillableEmail(in.Email)
@@ -130,6 +137,9 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Lead, error)
 
 	result, err := builder.Save(ctx)
 	if err != nil {
+		if in.ID != nil && ent.IsConstraintError(err) {
+			return rollback(ErrDuplicateLead)
+		}
 		return rollback(fmt.Errorf("create lead: %w", err))
 	}
 
@@ -334,4 +344,16 @@ func (s *Service) Delete(ctx context.Context, tenantID, leadID uuid.UUID) error 
 		return fmt.Errorf("delete lead: %w", err)
 	}
 	return nil
+}
+
+// ErrDuplicateLead: a lead with this fixed id already exists (a redelivered webhook).
+var ErrDuplicateLead = errors.New("lead already exists")
+
+// metaLeadNamespace scopes MetaLeadID's name-based UUIDs.
+var metaLeadNamespace = uuid.MustParse("6f1e0b3a-6b0e-4c55-9a2f-3d5b7c1e8a90")
+
+// MetaLeadID is the fixed id of the lead for one Meta leadgen id in one tenant (UUID v5), so a
+// redelivered or racing webhook cannot create a second lead.
+func MetaLeadID(tenantID uuid.UUID, leadgenID string) uuid.UUID {
+	return uuid.NewSHA1(metaLeadNamespace, []byte(tenantID.String()+"/"+leadgenID))
 }

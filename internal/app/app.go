@@ -374,7 +374,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// launch and pause; launch credits go through marketflow-ai's charge route.
 	adsHandler := &adsmanager.Handler{DB: entClient, Keys: keyProvider,
 		Meta:       meta.NewClient("").WithSecret(meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret)),
-		HasFeature: consumerFeatureGate, Charge: adsmanager.AICharge(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey),
+		// Strict: paid_ads_launch waives the launch charge, so an outage must not grant it.
+		HasFeature: func(ctx context.Context, tenantID, feature string) bool { return subsClient.StrictHasFeature(ctx, tenantID, feature) },
+		Charge: adsmanager.AICharge(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey),
 		LaunchCredits: adsmanager.DefaultLaunchCredits, Enabled: adsmanager.MetaEnabled(entClient), Logger: logger.Named("ads"),
 		CanLaunch: func(ctx context.Context, tenantID uuid.UUID) bool {
 			return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)

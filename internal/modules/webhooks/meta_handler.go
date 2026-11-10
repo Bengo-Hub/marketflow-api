@@ -215,7 +215,16 @@ func (h *MetaHandler) HandleLeadgen(w http.ResponseWriter, r *http.Request) {
 			// Only ids are stored here so Meta gets a fast 200. The lead service publishes
 			// lead.created, and the worker's MetaLeadEnricher fetches /{leadgen_id} with the
 			// Page token to fill in name, email, phone and answers, then creates the Contact.
+			// A fixed id per leadgen id: two deliveries racing past leadExists make one lead.
+			if ch.Value.LeadgenID != "" {
+				id := leads.MetaLeadID(tenantID, ch.Value.LeadgenID)
+				input.ID = &id
+			}
 			if _, err := h.leadService.Create(r.Context(), input); err != nil {
+				if errors.Is(err, leads.ErrDuplicateLead) {
+					processed++
+					continue
+				}
 				h.logger.Error("create lead from meta webhook",
 					zap.String("tenant", tenantID.String()), zap.Error(err))
 				continue

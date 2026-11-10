@@ -2,6 +2,7 @@ package leads
 
 import (
 	"context"
+	"errors"
 	"database/sql"
 	"os"
 	"testing"
@@ -117,5 +118,27 @@ func TestCreateTwoLeadsTwoEvents(t *testing.T) {
 	}
 	if n != 2 {
 		t.Fatalf("outbox rows = %d, want 2", n)
+	}
+}
+
+// Sprint 18 flag (2026-11-10): two deliveries of one Meta lead racing past the existence check
+// created two leads. A lead with a fixed id (Meta: from tenant and leadgen id) is created once;
+// the second gets ErrDuplicateLead and writes no second lead.created event.
+func TestCreateWithFixedIDIsOnce(t *testing.T) {
+	svc, client := newLeadsTestService(t)
+	ctx := context.Background()
+	tid := seedLeadsTenant(t, client)
+	id := MetaLeadID(tid, "leadgen-123")
+	if MetaLeadID(tid, "leadgen-123") != id || MetaLeadID(tid, "leadgen-124") == id {
+		t.Fatal("the id is stable per tenant and leadgen id")
+	}
+	if _, err := svc.Create(ctx, CreateInput{TenantID: tid, Source: "meta_ad", LeadType: "customer", ID: &id}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Create(ctx, CreateInput{TenantID: tid, Source: "meta_ad", LeadType: "customer", ID: &id}); !errors.Is(err, ErrDuplicateLead) {
+		t.Fatalf("second create: %v, want ErrDuplicateLead", err)
+	}
+	if n, _ := client.OutboxEvent.Query().Where(outboxevent.TenantID(tid)).Count(ctx); n != 1 {
+		t.Fatalf("outbox rows = %d, want 1", n)
 	}
 }

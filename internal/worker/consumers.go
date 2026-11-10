@@ -354,6 +354,30 @@ func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 			return err
 		}
 	}
+	// Opt-outs (STOP replies, unsubscribe links) are kept on contacts; honour them here too.
+	if leadRow != nil && recipient != "" {
+		email, phone := "", ""
+		if leadRow.Email != nil {
+			email = *leadRow.Email
+		}
+		if leadRow.Phone != nil {
+			phone = *leadRow.Phone
+		}
+		emailOut, phoneOut := contactOptOuts(ctx, h.db, enrollment.TenantID, email, phone)
+		ch, to, ok := nurtureChannelAfterOptOut(channel, recipient, email, emailOut, phoneOut)
+		if !ok {
+			h.logger.Info("nurture cancelled: the person opted out",
+				zap.String("enrollment", enrollmentID.String()), zap.String("channel", channel))
+			_, err := h.db.NurtureEnrollment.UpdateOneID(enrollment.ID).
+				SetStatus("cancelled").
+				SetExitReason("unsubscribed").
+				SetCompletedAt(time.Now().UTC()).
+				ClearNextStepAt().
+				Save(ctx)
+			return err
+		}
+		channel, recipient = ch, to
+	}
 	if recipient == "" {
 		h.logger.Warn("no recipient on lead; marking enrollment errored",
 			zap.String("enrollment", enrollmentID.String()), zap.String("channel", channel))
