@@ -30,6 +30,7 @@ import (
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
@@ -154,20 +155,21 @@ func (h *Handler) GoogleAuthorize(w http.ResponseWriter, r *http.Request) {
 // @Param state query string true "Signed state"
 // @Router /integrations/google/callback [get]
 func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
-	code := r.URL.Query().Get("code")
 	state := r.URL.Query().Get("state")
-	if code == "" || state == "" {
-		httpapi.Error(w, http.StatusBadRequest, "missing_params", "code and state required", nil)
-		return
-	}
 	tenantID, _, stErr := h.checkState(state)
 	if stErr != nil {
-		writeStateError(w, stErr)
+		h.failConnect(w, r, "google", tenantID, stateReason(stErr), stErr.Error())
+		return
+	}
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		// The person cancelled on the provider's page (error=access_denied) or it sent nothing.
+		h.failConnect(w, r, "google", tenantID, "cancelled", r.URL.Query().Get("error"))
 		return
 	}
 	creds, err := h.loadPlatform(r.Context(), "google_calendar", "oauth")
 	if err != nil {
-		httpapi.Error(w, http.StatusServiceUnavailable, "oauth_not_configured", err.Error(), nil)
+		h.failConnect(w, r, "google", tenantID, "oauth_not_configured", err.Error())
 		return
 	}
 
@@ -180,14 +182,13 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	resp, err := http.PostForm(googleTokenURL, form)
 	if err != nil {
-		httpapi.Error(w, http.StatusBadGateway, "token_exchange_failed", err.Error(), nil)
+		h.failConnect(w, r, "google", tenantID, "token_exchange_failed", err.Error())
 		return
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
-		httpapi.Error(w, http.StatusBadGateway, "token_exchange_failed",
-			fmt.Sprintf("google %d: %s", resp.StatusCode, string(body)), nil)
+		h.failConnect(w, r, "google", tenantID, "token_exchange_failed", fmt.Sprintf("google %d: %s", resp.StatusCode, string(body)))
 		return
 	}
 	var tok struct {
@@ -196,12 +197,11 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		ExpiresIn    int    `json:"expires_in"`
 	}
 	if err := json.Unmarshal(body, &tok); err != nil {
-		httpapi.Error(w, http.StatusBadGateway, "token_parse_failed", err.Error(), nil)
+		h.failConnect(w, r, "google", tenantID, "token_parse_failed", err.Error())
 		return
 	}
 	if tok.RefreshToken == "" {
-		httpapi.Error(w, http.StatusBadRequest, "no_refresh_token",
-			"Google returned no refresh_token; ensure access_type=offline + prompt=consent and the tenant has not previously approved", nil)
+		h.failConnect(w, r, "google", tenantID, "no_refresh_token", "Google returned no refresh_token; ensure access_type=offline + prompt=consent and the tenant has not previously approved")
 		return
 	}
 	// Persist refresh_token + default calendar. calendar_id defaults to
@@ -210,7 +210,7 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		"refresh_token": tok.RefreshToken,
 		"calendar_id":   "primary",
 	}, []string{"refresh_token"}); err != nil {
-		httpapi.Error(w, http.StatusInternalServerError, "persist_failed", err.Error(), nil)
+		h.failConnect(w, r, "google", tenantID, "persist_failed", err.Error())
 		return
 	}
 	// Redirect back to the dashboard integrations page with a success flag.
@@ -292,20 +292,21 @@ func (h *Handler) MetaAuthorize(w http.ResponseWriter, r *http.Request) {
 // @Param state query string true "Signed state"
 // @Router /integrations/meta/callback [get]
 func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
-	code := r.URL.Query().Get("code")
 	state := r.URL.Query().Get("state")
-	if code == "" || state == "" {
-		httpapi.Error(w, http.StatusBadRequest, "missing_params", "code and state required", nil)
-		return
-	}
 	tenantID, userID, stErr := h.checkState(state)
 	if stErr != nil {
-		writeStateError(w, stErr)
+		h.failConnect(w, r, "meta", tenantID, stateReason(stErr), stErr.Error())
+		return
+	}
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		// The person cancelled on the provider's page (error=access_denied) or it sent nothing.
+		h.failConnect(w, r, "meta", tenantID, "cancelled", r.URL.Query().Get("error"))
 		return
 	}
 	creds, err := h.loadPlatform(r.Context(), "meta_ads", "oauth")
 	if err != nil {
-		httpapi.Error(w, http.StatusServiceUnavailable, "oauth_not_configured", err.Error(), nil)
+		h.failConnect(w, r, "meta", tenantID, "oauth_not_configured", err.Error())
 		return
 	}
 	// Step 1: exchange code for short-lived user token.
@@ -317,7 +318,7 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	resp, err := http.Get(metaTokenURL + "?" + q.Encode())
 	if err != nil {
-		httpapi.Error(w, http.StatusBadGateway, "token_exchange_failed", err.Error(), nil)
+		h.failConnect(w, r, "meta", tenantID, "token_exchange_failed", err.Error())
 		return
 	}
 	body, _ := io.ReadAll(resp.Body)
@@ -329,8 +330,7 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 		} `json:"error"`
 	}
 	if err := json.Unmarshal(body, &shortTok); err != nil || shortTok.AccessToken == "" {
-		httpapi.Error(w, http.StatusBadGateway, "token_exchange_failed",
-			fmt.Sprintf("meta: %s", strings.TrimSpace(string(body))), nil)
+		h.failConnect(w, r, "meta", tenantID, "token_exchange_failed", fmt.Sprintf("meta: %s", strings.TrimSpace(string(body))))
 		return
 	}
 	// Step 2: exchange for long-lived user token (60 days).
@@ -342,7 +342,7 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	resp2, err := http.Get(metaTokenURL + "?" + longQ.Encode())
 	if err != nil {
-		httpapi.Error(w, http.StatusBadGateway, "long_token_failed", err.Error(), nil)
+		h.failConnect(w, r, "meta", tenantID, "long_token_failed", err.Error())
 		return
 	}
 	body2, _ := io.ReadAll(resp2.Body)
@@ -359,11 +359,11 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 	// is the tenant's default Page (switchable in the UI); all are stored as ConnectedAccounts.
 	pages, err := graphList[metaPage](r.Context(), "/me/accounts", url.Values{
 		"access_token": {userToken},
-		"fields":       {"id,name,access_token,instagram_business_account{id,username}"},
+		"fields":       {"id,name,access_token,instagram_business_account{id,username,profile_picture_url}"},
 		"limit":        {"100"},
 	}, 5)
 	if err != nil && len(pages) == 0 {
-		httpapi.Error(w, http.StatusBadGateway, "pages_fetch_failed", err.Error(), nil)
+		h.failConnect(w, r, "meta", tenantID, "pages_fetch_failed", err.Error())
 		return
 	}
 	if len(pages) == 0 {
@@ -376,8 +376,7 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 		pages = granted
 	}
 	if len(pages) == 0 {
-		httpapi.Error(w, http.StatusBadRequest, "no_pages",
-			"no Facebook Pages found for this user", nil)
+		h.failConnect(w, r, "meta", tenantID, "no_pages", "no Facebook Pages found for this user")
 		return
 	}
 	p := pages[0]
@@ -392,7 +391,7 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 		pageKV[MetaFBUserKey] = fbUserID
 	}
 	if err := h.upsertTenantKV(r.Context(), tenantID, "meta_ads", "page", pageKV, []string{"page_token", "user_token"}); err != nil {
-		httpapi.Error(w, http.StatusInternalServerError, "persist_failed", err.Error(), nil)
+		h.failConnect(w, r, "meta", tenantID, "persist_failed", err.Error())
 		return
 	}
 	// The Meta Lead Ads webhook resolves the tenant by tenants.meta_page_id; without it no
@@ -463,20 +462,21 @@ func (h *Handler) TikTokAuthorize(w http.ResponseWriter, r *http.Request) {
 // @Param state query string true "Signed state"
 // @Router /integrations/tiktok/callback [get]
 func (h *Handler) TikTokCallback(w http.ResponseWriter, r *http.Request) {
-	code := r.URL.Query().Get("auth_code")
 	state := r.URL.Query().Get("state")
-	if code == "" || state == "" {
-		httpapi.Error(w, http.StatusBadRequest, "missing_params", "auth_code and state required", nil)
-		return
-	}
 	tenantID, userID, stErr := h.checkState(state)
 	if stErr != nil {
-		writeStateError(w, stErr)
+		h.failConnect(w, r, "tiktok", tenantID, stateReason(stErr), stErr.Error())
+		return
+	}
+	code := r.URL.Query().Get("auth_code")
+	if code == "" {
+		// The person cancelled on the provider's page (error=access_denied) or it sent nothing.
+		h.failConnect(w, r, "tiktok", tenantID, "cancelled", r.URL.Query().Get("error"))
 		return
 	}
 	creds, err := h.loadPlatform(r.Context(), "tiktok_ads", "oauth")
 	if err != nil {
-		httpapi.Error(w, http.StatusServiceUnavailable, "oauth_not_configured", err.Error(), nil)
+		h.failConnect(w, r, "tiktok", tenantID, "oauth_not_configured", err.Error())
 		return
 	}
 	// Exchange auth_code for access_token
@@ -487,7 +487,7 @@ func (h *Handler) TikTokCallback(w http.ResponseWriter, r *http.Request) {
 	})
 	resp, err := http.Post(tiktokTokenURL, "application/json", strings.NewReader(string(payload)))
 	if err != nil {
-		httpapi.Error(w, http.StatusBadGateway, "token_exchange_failed", err.Error(), nil)
+		h.failConnect(w, r, "tiktok", tenantID, "token_exchange_failed", err.Error())
 		return
 	}
 	body, _ := io.ReadAll(resp.Body)
@@ -502,8 +502,7 @@ func (h *Handler) TikTokCallback(w http.ResponseWriter, r *http.Request) {
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(body, &tokResp); err != nil || tokResp.Data.AccessToken == "" {
-		httpapi.Error(w, http.StatusBadGateway, "token_exchange_failed",
-			fmt.Sprintf("tiktok: code=%d msg=%s", tokResp.Code, tokResp.Message), nil)
+		h.failConnect(w, r, "tiktok", tenantID, "token_exchange_failed", fmt.Sprintf("tiktok: code=%d msg=%s", tokResp.Code, tokResp.Message))
 		return
 	}
 	advertiserID := ""
@@ -514,7 +513,7 @@ func (h *Handler) TikTokCallback(w http.ResponseWriter, r *http.Request) {
 		"access_token":  tokResp.Data.AccessToken,
 		"advertiser_id": advertiserID,
 	}, []string{"access_token"}); err != nil {
-		httpapi.Error(w, http.StatusInternalServerError, "persist_failed", err.Error(), nil)
+		h.failConnect(w, r, "tiktok", tenantID, "persist_failed", err.Error())
 		return
 	}
 	// One token covers every advertiser the user authorised; each is its own account.
@@ -573,6 +572,7 @@ func (h *Handler) ListTenant(w http.ResponseWriter, r *http.Request) {
 		Name      string            `json:"name"`
 		Connected bool              `json:"connected"`
 		Fields    map[string]string `json:"fields"`
+		Accounts  []accountSummary  `json:"accounts,omitempty"`
 	}
 	grouped := map[string]*summary{}
 	for _, s := range rows {
@@ -584,6 +584,23 @@ func (h *Handler) ListTenant(w http.ResponseWriter, r *http.Request) {
 		}
 		if !s.IsSecret && !s.IsEncrypted {
 			g.Fields[s.Key] = s.Value
+		}
+	}
+	// Each connected account (Page, Instagram, ad account) for the cards to show at a glance.
+	if tid, err := uuid.Parse(tenantID); err == nil {
+		accts, err := h.db.ConnectedAccount.Query().Where(connectedaccount.TenantIDEQ(tid)).All(r.Context())
+		if err != nil {
+			h.logger.Warn("list connected accounts", zap.Error(err))
+		}
+		defaultPage := ""
+		for _, g := range grouped {
+			if g.Provider == "meta_ads" && g.Fields["page_id"] != "" {
+				defaultPage = g.Fields["page_id"]
+			}
+		}
+		by := accountSummaries(accts, defaultPage)
+		for _, g := range grouped {
+			g.Accounts = by[g.Provider]
 		}
 	}
 	out := make([]*summary, 0, len(grouped))
@@ -877,7 +894,7 @@ func (h *Handler) checkState(state string) (string, string, error) {
 		return "", "", errStateInvalid
 	}
 	if time.Since(time.Unix(0, ns)) > 10*time.Minute {
-		return "", "", errStateExpired
+		return tenantID, userID, errStateExpired // signature good: the tenant is known
 	}
 	return tenantID, userID, nil
 }

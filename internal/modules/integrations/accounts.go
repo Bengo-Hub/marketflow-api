@@ -159,10 +159,7 @@ type metaPage struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	AccessToken string `json:"access_token"`
-	Instagram   *struct {
-		ID       string `json:"id"`
-		Username string `json:"username"`
-	} `json:"instagram_business_account"`
+	Instagram   *metaIGAccount `json:"instagram_business_account"`
 }
 
 type metaAdAccount struct {
@@ -274,7 +271,7 @@ func metaAccounts(pages []metaPage, adAccounts []metaAdAccount, userToken string
 		if p.Instagram != nil && p.Instagram.ID != "" {
 			out = append(out, account{
 				Platform: PlatformMeta, Type: AccountInstagramBusiness, ExternalID: p.Instagram.ID, DisplayName: p.Instagram.Username,
-				Token: p.AccessToken, Scopes: scopes, Metadata: meta(map[string]any{"page_id": p.ID}),
+				Token: p.AccessToken, Scopes: scopes, Metadata: meta(map[string]any{"page_id": p.ID, "picture_url": p.Instagram.Picture}),
 			})
 		}
 	}
@@ -289,4 +286,11 @@ func metaAccounts(pages []metaPage, adAccounts []metaAdAccount, userToken string
 		})
 	}
 	return out
+}
+
+// metaIGAccount is a Page's linked Instagram professional account.
+type metaIGAccount struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	Picture  string `json:"profile_picture_url"`
 }

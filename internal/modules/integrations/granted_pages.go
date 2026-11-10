@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"go.uber.org/zap"
 )
 
 // pageGrantScopes are the permissions whose granular target ids are Facebook Pages.
@@ -64,7 +64,7 @@ func grantedPages(ctx context.Context, userToken, appToken string) ([]metaPage, 
 		}
 		if err := graphGet(ctx, "/"+url.PathEscape(id), url.Values{
 			"access_token": {userToken},
-			"fields":       {"id,name,access_token,instagram_business_account{id,username}"},
+			"fields":       {"id,name,access_token,instagram_business_account{id,username,profile_picture_url}"},
 		}, &p); err != nil || p.Error != nil || p.ID == "" || p.AccessToken == "" {
 			continue
 		}
@@ -99,12 +99,26 @@ var (
 	errStateExpired = errors.New("connect link expired; start the connection again")
 )
 
-// writeStateError answers a bad OAuth state; an expired one gets its own code so a reload
-// after the 10 minute window reads as "start again", not as tampering.
-func writeStateError(w http.ResponseWriter, err error) {
-	code := "bad_state"
+// stateReason is the reason code a callback reports for a bad state.
+func stateReason(err error) string {
 	if errors.Is(err, errStateExpired) {
-		code = "state_expired"
+		return "state_expired"
 	}
-	httpapi.Error(w, http.StatusUnauthorized, code, err.Error(), nil)
+	return "bad_state"
+}
+
+// failConnect ends a connect callback that did not work. The browser is on the API host, so it
+// goes back to the tenant's integrations page with `<provider>=error&reason=<code>` for the page
+// to explain; the detail is logged, never put in the URL. Without a known tenant (a forged
+// state) it goes to the portal home.
+func (h *Handler) failConnect(w http.ResponseWriter, r *http.Request, provider, tenantID, reason, detail string) {
+	if h.logger != nil {
+		h.logger.Warn("connect failed", zap.String("provider", provider), zap.String("tenant", tenantID),
+			zap.String("reason", reason), zap.String("detail", detail))
+	}
+	target := h.portalURL + "/"
+	if tenantID != "" {
+		target = h.integrationsURL(r.Context(), tenantID, provider+"=error&reason="+url.QueryEscape(reason))
+	}
+	http.Redirect(w, r, target, http.StatusFound)
 }

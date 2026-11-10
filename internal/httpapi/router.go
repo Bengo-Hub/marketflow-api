@@ -92,6 +92,9 @@ type RouterDeps struct {
 
 	// Auth middleware
 	RequireAuthHandler   func(http.Handler) http.Handler
+	// CallerSync keeps the signed-in user's local MarketFlow user and role in step with SSO
+	// (rbac.Service.SyncMiddleware); the role gates read them.
+	CallerSync func(http.Handler) http.Handler
 	RequirePlatformOwner func(http.Handler) http.Handler
 
 	// Feature gate middleware (subscription tier enforcement)
@@ -689,6 +692,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 						next.ServeHTTP(w, r)
 					})
 				})
+			}
+
+			if deps.CallerSync != nil {
+				r.Use(deps.CallerSync)
 			}
 
 			// Optional outlet context — extracts X-Outlet-ID if present

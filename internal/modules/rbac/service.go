@@ -23,89 +23,13 @@ func NewService(repo Repository, logger *zap.Logger) *Service {
 	}
 }
 
-// EnsureUserFromToken handles JIT provisioning of a user derived from an SSO token.
-// It also assigns service-level roles based on the user's global roles from JWT claims.
+// EnsureUserFromToken provisions or refreshes the caller's local user and SSO-derived role
+// (see SyncCaller) and returns the local user.
 func (s *Service) EnsureUserFromToken(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID, email string, tenantSlug string, roles ...string) (*MarketflowUser, error) {
-	// 1. If user already exists, return early.
-	user, err := s.repo.GetUserByAuthServiceID(ctx, tenantID, userID)
-	if err == nil {
-		return user, nil
-	}
-
-	// 2. Create the user (JIT provisioning)
-	user, err = s.SyncUser(ctx, tenantID, userID, email)
-	if err != nil {
+	if err := s.SyncCaller(ctx, tenantID, userID, email, roles); err != nil {
 		return nil, err
 	}
-
-	// 3. Assign default service-level role based on global JWT roles
-	s.assignDefaultRoleFromJWT(ctx, tenantID, user.ID, userID, roles)
-
-	return user, nil
-}
-
-// assignDefaultRoleFromJWT maps global JWT roles to marketflow service-level roles.
-// superuser/admin → marketflow_admin, staff/member → fbo_owner, others → viewer.
-func (s *Service) assignDefaultRoleFromJWT(ctx context.Context, tenantID uuid.UUID, localUserID uuid.UUID, authUserID uuid.UUID, roles []string) {
-	roleCode := mapGlobalRoleToMarketflowRole(roles)
-	if roleCode == "" {
-		return
-	}
-
-	role, err := s.repo.GetRoleByCode(ctx, tenantID, roleCode)
-	if err != nil {
-		s.logger.Debug("marketflow role not found for JIT assignment",
-			zap.String("role_code", roleCode),
-			zap.String("tenant_id", tenantID.String()),
-		)
-		return
-	}
-
-	// Idempotent: check if already assigned
-	assignments, err := s.repo.ListUserAssignments(ctx, tenantID, AssignmentFilters{
-		UserID: &localUserID,
-		RoleID: &role.ID,
-	})
-	if err == nil && len(assignments) > 0 {
-		return
-	}
-
-	assignment := &UserRoleAssignment{
-		ID:         uuid.New(),
-		TenantID:   tenantID,
-		UserID:     localUserID,
-		RoleID:     role.ID,
-		AssignedBy: authUserID,
-	}
-	if err := s.repo.AssignRoleToUser(ctx, tenantID, assignment); err != nil {
-		s.logger.Warn("JIT role assignment failed",
-			zap.String("role_code", roleCode),
-			zap.Error(err),
-		)
-		return
-	}
-
-	s.logger.Info("JIT assigned marketflow role",
-		zap.String("role_code", roleCode),
-		zap.String("user_id", localUserID.String()),
-		zap.String("tenant_id", tenantID.String()),
-	)
-}
-
-// mapGlobalRoleToMarketflowRole maps global SSO roles to marketflow service roles.
-func mapGlobalRoleToMarketflowRole(roles []string) string {
-	for _, r := range roles {
-		switch r {
-		case "superuser", "admin":
-			return "marketflow_admin"
-		case "staff", "member":
-			return "fbo_owner"
-		}
-	}
-	if len(roles) > 0 {
-		return "viewer"
-	}
-	return "viewer"
+	return s.repo.GetUserByAuthServiceID(ctx, tenantID, userID)
 }
 
 // SyncUser syncs a user from auth-service.
@@ -122,7 +46,7 @@ func (s *Service) SyncUser(ctx context.Context, tenantID uuid.UUID, authServiceU
 	}
 
 	user = &MarketflowUser{
-		ID:                authServiceUserID,
+		ID:                uuid.New(), // own id: the same SSO person may be in several tenants
 		TenantID:          tenantID,
 		AuthServiceUserID: authServiceUserID,
 		Email:             email,
@@ -255,7 +179,7 @@ func (s *Service) CallerHasAnyRole(ctx context.Context, tenantID uuid.UUID, role
 		return false
 	}
 	u, err := s.repo.GetUserByAuthServiceID(ctx, tenantID, authID)
-	if err != nil || u == nil {
+	if err != nil || u == nil || u.Status == statusDeactivated {
 		return false
 	}
 	have, err := s.repo.GetUserRoles(ctx, tenantID, u.ID)

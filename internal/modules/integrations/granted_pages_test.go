@@ -4,8 +4,12 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
+
+	"go.uber.org/zap"
 )
 
 type graphStub map[string]string // path -> JSON body
@@ -81,5 +85,29 @@ func TestIntegrationsURLIsOnThePortal(t *testing.T) {
 	got := h.integrationsURL(context.Background(), "codevertex", "meta=connected")
 	if got != "https://marketflow.example.com/codevertex/settings/integrations?meta=connected" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+// Connect failures return the tenant to the portal with a reason the page explains, instead of
+// raw JSON on the API host (what the first production connect showed on 2026-11-10).
+func TestMetaCallbackFailuresReturnToPortal(t *testing.T) {
+	h := (&Handler{stateKey: []byte("k"), logger: zap.NewNop()}).WithPortal("https://p.example")
+	call := func(q string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		h.MetaCallback(w, httptest.NewRequest(http.MethodGet, "/cb?"+q, nil))
+		return w
+	}
+	expired := url.QueryEscape(h.signStateAt("acme", "u1", 1))
+	if w := call("code=x&state=" + expired); w.Code != http.StatusFound ||
+		w.Header().Get("Location") != "https://p.example/acme/settings/integrations?meta=error&reason=state_expired" {
+		t.Fatalf("expired: %d %q", w.Code, w.Header().Get("Location"))
+	}
+	fresh := url.QueryEscape(h.signState("acme", "u1"))
+	if w := call("error=access_denied&error_reason=user_denied&state=" + fresh); w.Code != http.StatusFound ||
+		w.Header().Get("Location") != "https://p.example/acme/settings/integrations?meta=error&reason=cancelled" {
+		t.Fatalf("cancelled: %d %q", w.Code, w.Header().Get("Location"))
+	}
+	if w := call("code=x&state=forged"); w.Code != http.StatusFound || w.Header().Get("Location") != "https://p.example/" {
+		t.Fatalf("forged state has no tenant: %d %q", w.Code, w.Header().Get("Location"))
 	}
 }

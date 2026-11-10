@@ -34,10 +34,7 @@ func TestMetaAccounts(t *testing.T) {
 		{ID: "p2", Name: "Clinic", AccessToken: "FAKE-P2"},
 		{ID: ""},
 	}
-	pages[1].Instagram = &struct {
-		ID       string `json:"id"`
-		Username string `json:"username"`
-	}{ID: "ig2", Username: "clinic_ke"}
+	pages[1].Instagram = &metaIGAccount{ID: "ig2", Username: "clinic_ke"}
 	ads := []metaAdAccount{{ID: "act_9", Name: "Ads", Currency: "KES", AccountStatus: 1}, {ID: ""}}
 
 	got := metaAccounts(pages, ads, "user-tok", []string{"pages_show_list"}, "fbu-1")
