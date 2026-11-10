@@ -322,7 +322,12 @@ func renderDefaultFunnel(f *ent.Funnel, tenantSlug string) string {
       funnel_slug: funnelSlug,
       utm_source: new URLSearchParams(location.search).get('utm_source') || '',
       utm_medium: new URLSearchParams(location.search).get('utm_medium') || '',
-      utm_campaign: new URLSearchParams(location.search).get('utm_campaign') || ''
+      utm_campaign: new URLSearchParams(location.search).get('utm_campaign') || '',
+      utm_content: new URLSearchParams(location.search).get('utm_content') || '',
+      utm_term: new URLSearchParams(location.search).get('utm_term') || '',
+      fbclid: new URLSearchParams(location.search).get('fbclid') || '',
+      gclid: new URLSearchParams(location.search).get('gclid') || '',
+      ttclid: new URLSearchParams(location.search).get('ttclid') || ''
     };
     fetch('/api/v1/public/leads/' + encodeURIComponent(tenantSlug), {
       method: 'POST',
@@ -368,6 +373,12 @@ type publicLeadInput struct {
 	UTMSource   string         `json:"utm_source"`
 	UTMMedium   string         `json:"utm_medium"`
 	UTMCampaign string         `json:"utm_campaign"`
+	// Click ids and the rest of the UTM set, kept in metadata for ad attribution (Sprint 18).
+	UTMContent string `json:"utm_content"`
+	UTMTerm    string `json:"utm_term"`
+	FBCLID     string `json:"fbclid"`
+	GCLID      string `json:"gclid"`
+	TTCLID     string `json:"ttclid"`
 	FunnelSlug  string         `json:"funnel_slug"`
 	Answers     map[string]any `json:"answers"`
 	// WhatsAppConsent is the lead's own "OK to contact me on WhatsApp" tick. Nurture sends
@@ -440,6 +451,9 @@ func (h *PublicHandler) PublicCreateLead(w http.ResponseWriter, r *http.Request)
 			"whatsapp_consent_at": consentAt(in.WhatsAppConsent),
 		},
 	}
+	for k, v := range attributionMetadata(in) {
+		input.Metadata[k] = v
+	}
 	// Attribute the lead to its funnel. Funnel analytics count leads by funnel_id, and before
 	// this only the slug was kept in metadata, so every funnel reported zero submissions.
 	if in.FunnelSlug != "" {
@@ -500,4 +514,24 @@ func consentAt(given bool) any {
 		return nil
 	}
 	return time.Now().UTC().Format(time.RFC3339)
+}
+
+// attributionMetadata keeps the non-empty click ids and extra UTM values of a public lead, each
+// capped at 256 characters (Sprint 18 L52).
+func attributionMetadata(in publicLeadInput) map[string]any {
+	out := map[string]any{}
+	for k, v := range map[string]string{
+		"fbclid": in.FBCLID, "gclid": in.GCLID, "ttclid": in.TTCLID,
+		"utm_content": in.UTMContent, "utm_term": in.UTMTerm,
+	} {
+		v = strings.TrimSpace(v)
+		if v == "" {
+			continue
+		}
+		if len(v) > 256 {
+			v = v[:256]
+		}
+		out[k] = v
+	}
+	return out
 }

@@ -418,6 +418,13 @@ func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 	if err := h.notif.Send(ctx, enrollment.TenantID.String(), payload); err != nil {
 		return fmt.Errorf("notifications send: %w", err)
 	}
+	// The message on the lead's timeline (Sprint 23 L29). Best effort: it was already sent.
+	if leadRow != nil {
+		if err := logNurtureActivity(ctx, h.db, enrollment.TenantID, leadRow.ID, channel, renderedSubject, renderedBody, idemKey,
+			map[string]any{"sequence_id": enrollment.SequenceID.String(), "enrollment_id": enrollmentID.String(), "step_index": enrollment.CurrentStep}); err != nil {
+			h.logger.Warn("log nurture activity", zap.String("lead", leadRow.ID.String()), zap.Error(err))
+		}
+	}
 	// The first automated message a lead gets is metadata.first_reply_at: lead created to first
 	// reply is the speed-to-lead figure (Sprint 23). contacted_at stays the person's own "contacted"
 	// status change. One atomic UPDATE that sets the key only when it is absent.
