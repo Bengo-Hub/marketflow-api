@@ -77,7 +77,9 @@ type State struct {
 	Attempts   int       `json:"attempts,omitempty"`
 	NextAt     time.Time `json:"next_at,omitempty"`
 	PaidOK     bool      `json:"paid_confirmed,omitempty"`
-	LiveAt     time.Time `json:"live_at,omitempty"`
+	// FundingSince is when the boost first waited for funds (Sprint 18 L29).
+	FundingSince time.Time `json:"funding_since,omitempty"`
+	LiveAt       time.Time `json:"live_at,omitempty"`
 }
 
 // Saver stores the state after every step.
@@ -91,6 +93,9 @@ const (
 	MaxLaunchAttempts = 5
 	ReviewPoll        = 5 * time.Minute
 	FundingPoll       = time.Minute
+	// After FundingFastFor of waiting, funds are checked every FundingPollSlow until the boost ends.
+	FundingFastFor  = 30 * time.Minute
+	FundingPollSlow = 15 * time.Minute
 )
 
 // Step moves a launch forward until it has to wait (review, funding, a retry) or ends. It
@@ -238,7 +243,14 @@ func Step(ctx context.Context, g Graph, p Plan, st State, now time.Time, funded 
 				return retry(err)
 			}
 			if !ok && !st.PaidOK {
-				st.NextAt = now.Add(FundingPoll)
+				if st.FundingSince.IsZero() {
+					st.FundingSince = now
+				}
+				poll := FundingPoll
+				if now.Sub(st.FundingSince) >= FundingFastFor {
+					poll = FundingPollSlow
+				}
+				st.NextAt = now.Add(poll)
 				return st, save(ctx, st)
 			}
 			// Ad first, then ad set, then campaign: nothing delivers until the last switch.

@@ -50,6 +50,7 @@ type AccountView struct {
 	ID          string  `json:"ad_account_id"`
 	Name        string  `json:"name"`
 	Currency    string  `json:"currency"`
+	Country     string  `json:"country,omitempty"`
 	Active      bool    `json:"active"`
 	Problem     string  `json:"problem,omitempty"`
 	Funding     Funding `json:"funding,omitempty"`
@@ -92,7 +93,7 @@ func (h *Handler) Accounts(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		q := BuildQuote(health, 1, 1, 0)
-		v.Currency, v.Active, v.Funding = health.Currency, health.AccountStatus == meta.AccountActive, q.Funding
+		v.Currency, v.Country, v.Active, v.Funding = health.Currency, health.Country, health.AccountStatus == meta.AccountActive, q.Funding
 		if !v.Active {
 			v.Problem = accountProblem(health)
 		}
@@ -241,17 +242,17 @@ func (h *Handler) quote(ctx context.Context, tid uuid.UUID, in QuoteInput) (Quot
 // BoostInput is the body of POST /ads/boosts: the confirmed quote plus the creative.
 type BoostInput struct {
 	QuoteInput
-	PageConnID     string    `json:"page_connected_id"`
-	AssetID        string    `json:"asset_id"`
-	Objective      string    `json:"objective"` // whatsapp | leads | traffic
-	Countries      []string  `json:"countries"`
-	AgeMin         int       `json:"age_min"`
-	AgeMax         int       `json:"age_max"`
-	Message        string    `json:"message"`
-	Headline       string    `json:"headline"`
-	Link           string    `json:"link"`
-	WhatsAppNumber string    `json:"whatsapp_number"`
-	Welcome        string    `json:"welcome"`
+	PageConnID     string   `json:"page_connected_id"`
+	AssetID        string   `json:"asset_id"`
+	Objective      string   `json:"objective"` // whatsapp | leads | traffic
+	Countries      []string `json:"countries"`
+	AgeMin         int      `json:"age_min"`
+	AgeMax         int      `json:"age_max"`
+	Message        string   `json:"message"`
+	Headline       string   `json:"headline"`
+	Link           string   `json:"link"`
+	WhatsAppNumber string   `json:"whatsapp_number"`
+	Welcome        string   `json:"welcome"`
 	// PrivacyURL is the business's privacy policy, required by Meta on a leads instant form.
 	PrivacyURL string    `json:"privacy_url"`
 	StartAt    time.Time `json:"start_at"`

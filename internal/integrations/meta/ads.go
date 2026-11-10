@@ -27,6 +27,7 @@ type AdAccount struct {
 	AccountStatus   int    `json:"account_status"`
 	DisableReason   int    `json:"disable_reason"`
 	Currency        string `json:"currency"`
+	Country         string `json:"business_country_code"`
 	TimezoneName    string `json:"timezone_name"`
 	AmountSpent     string `json:"amount_spent"`
 	SpendCap        string `json:"spend_cap"`
@@ -48,7 +49,7 @@ const (
 	FundingStoredBalance = 20
 )
 
-const adAccountFields = "id,account_id,name,account_status,disable_reason,currency,timezone_name,amount_spent,spend_cap,balance,is_prepay_account,funding_source,funding_source_details,min_daily_budget"
+const adAccountFields = "id,account_id,name,account_status,disable_reason,currency,business_country_code,timezone_name,amount_spent,spend_cap,balance,is_prepay_account,funding_source,funding_source_details,min_daily_budget"
 
 // AdAccounts lists the ad accounts the token can use (GET /me/adaccounts).
 func (c *Client) AdAccounts(ctx context.Context, token string) ([]AdAccount, error) {
@@ -209,7 +210,7 @@ func (c *Client) CreateLeadForm(ctx context.Context, pageToken, pageID string, i
 	}
 	if in.AskWhatsAppConsent {
 		qs = append(qs, map[string]any{"type": "CUSTOM", "key": WhatsAppConsentKey,
-			"label": "May we contact you on WhatsApp about this offer?",
+			"label":   "May we contact you on WhatsApp about this offer?",
 			"options": []map[string]string{{"value": "Yes", "key": "yes"}, {"value": "No", "key": "no"}}})
 	}
 	qj, _ := json.Marshal(qs)

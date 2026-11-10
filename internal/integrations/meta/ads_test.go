@@ -162,3 +162,22 @@ func TestInsightsResults(t *testing.T) {
 		t.Fatalf("overlapping lead types count once: leads=%d conversations=%d", leads, convs)
 	}
 }
+
+// Sprint 18 L17: the ad account check reads the account's country (business_country_code).
+func TestAdAccountHealthReadsCountry(t *testing.T) {
+	var fields string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fields = r.URL.Query().Get("fields")
+		_, _ = w.Write([]byte(`{"id":"act_1","currency":"KES","account_status":1,"business_country_code":"KE"}`))
+	}))
+	defer srv.Close()
+	c := NewClient("")
+	c.baseURL = srv.URL
+	a, err := c.AdAccountHealth(context.Background(), "tok", "1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(fields, "business_country_code") || a.Country != "KE" {
+		t.Fatalf("fields %q country %q", fields, a.Country)
+	}
+}

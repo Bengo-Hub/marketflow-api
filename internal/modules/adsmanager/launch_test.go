@@ -184,3 +184,20 @@ func TestLaunchGivesUp(t *testing.T) {
 		t.Fatalf("five failures must fail: %+v", st)
 	}
 }
+
+// Sprint 18 L29: an unfunded boost is checked every minute for its first 30 minutes waiting,
+// then every 15 minutes until it ends (the client may still fund it; "I've paid" re-checks now).
+func TestFundingPollSlowsAfterThirtyMinutes(t *testing.T) {
+	now := time.Date(2026, 11, 5, 8, 0, 0, 0, time.UTC)
+	save := func(context.Context, State) error { return nil }
+	no := func(context.Context) (bool, error) { return false, nil }
+	st, _ := Step(context.Background(), &fakeGraph{}, plan(now), State{Stage: StageFunding, AdID: "ad1"}, now, no, save)
+	if st.FundingSince.IsZero() || !st.NextAt.Equal(now.Add(FundingPoll)) {
+		t.Fatalf("first wait: %+v", st)
+	}
+	later := now.Add(31 * time.Minute)
+	st, _ = Step(context.Background(), &fakeGraph{}, plan(now), st, later, no, save)
+	if !st.NextAt.Equal(later.Add(FundingPollSlow)) || !st.FundingSince.Equal(now) {
+		t.Fatalf("after 30 minutes the check slows: %+v", st)
+	}
+}
