@@ -765,6 +765,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		},
 		RequireAuthHandler:   requireAuth,
 		CallerSync:           rbacService.SyncMiddleware,
+		WriteGate:            rbacService.WriteGate,
 		RequirePlatformOwner: requirePlatformOwner(authMiddleware),
 		RequireAICredits:     featureGate.RequireFeature("ai_chat_messages", "AI credits exhausted — purchase more at /settings/billing"),
 		RequireCampaignSlot:  featureGate.RequireFeature("campaigns_active", "Campaign limit reached — upgrade your plan at /settings/billing"),
@@ -815,22 +816,30 @@ func requirePlatformOwner(authMw *authclient.AuthMiddleware) func(http.Handler) 
 	if authMw == nil {
 		return nil
 	}
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			claims, ok := authclient.ClaimsFromContext(r.Context())
-			if !ok || claims == nil {
-				httpapi.Error(w, http.StatusUnauthorized, "unauthorized", "authentication required", nil)
-				return
-			}
+	return platformOwnerGate
+}
 
-			if !claims.IsPlatformOwner && !claims.IsService {
-				httpapi.Error(w, http.StatusForbidden, "forbidden", "platform owner access required", nil)
-				return
-			}
-
+// platformOwnerGate admits platform owners to every /admin route. A service key (the internal
+// key is shared across the platform) reaches only GET /admin/providers/resolve, the read that
+// marketflow-ai and the worker bootstrap from; configure, deactivate, service config, tenants,
+// usage and audit need a signed-in platform owner (audit MF #4).
+func platformOwnerGate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := authclient.ClaimsFromContext(r.Context())
+		if !ok || claims == nil {
+			httpapi.Error(w, http.StatusUnauthorized, "unauthorized", "authentication required", nil)
+			return
+		}
+		if claims.IsPlatformOwner {
 			next.ServeHTTP(w, r)
-		})
-	}
+			return
+		}
+		if claims.IsService && r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/admin/providers/resolve") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		httpapi.Error(w, http.StatusForbidden, "forbidden", "platform owner access required", nil)
+	})
 }
 
 // Run starts the HTTP server.

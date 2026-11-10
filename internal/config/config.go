@@ -29,7 +29,8 @@ type SubscriptionsConfig struct {
 }
 
 type AppConfig struct {
-	Environment string `env:"APP_ENV" envDefault:"development"`
+	// A missing APP_ENV means production: development relaxes webhook signatures (audit MF #9).
+	Environment string `env:"APP_ENV" envDefault:"production"`
 	ServiceName string `env:"APP_NAME" envDefault:"marketflow-api"`
 }
 
@@ -147,7 +148,19 @@ func Load() (*Config, error) {
 	if cfg.Subscriptions.APIKey == "" {
 		cfg.Subscriptions.APIKey = os.Getenv("INTERNAL_SERVICE_KEY")
 	}
+	if err := checkFailClosed(cfg); err != nil {
+		return nil, err
+	}
 	return cfg, nil
+}
+
+// checkFailClosed refuses settings that would open the API: JWT auth may be off only in
+// development (audit MF #9).
+func checkFailClosed(cfg *Config) error {
+	if !cfg.Security.RequireJWT && cfg.App.Environment != "development" {
+		return fmt.Errorf("MF_SECURITY_REQUIRE_JWT=false is only allowed with APP_ENV=development (APP_ENV=%q)", cfg.App.Environment)
+	}
+	return nil
 }
 
 // LoadDatabaseOnly parses only database-related environment variables.

@@ -95,6 +95,8 @@ type RouterDeps struct {
 	// CallerSync keeps the signed-in user's local MarketFlow user and role in step with SSO
 	// (rbac.Service.SyncMiddleware); the role gates read them.
 	CallerSync func(http.Handler) http.Handler
+	// WriteGate enforces MarketFlow roles on writes (rbac.Service.WriteGate, audit MF #5).
+	WriteGate func(http.Handler) http.Handler
 	RequirePlatformOwner func(http.Handler) http.Handler
 
 	// Feature gate middleware (subscription tier enforcement)
@@ -699,6 +701,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 			if deps.CallerSync != nil {
 				r.Use(deps.CallerSync)
 			}
+			if deps.WriteGate != nil {
+				r.Use(deps.WriteGate)
+			}
 
 			// Optional outlet context — extracts X-Outlet-ID if present
 			r.Use(func(next http.Handler) http.Handler {
@@ -1220,7 +1225,11 @@ func NewRouter(deps RouterDeps) http.Handler {
 		r.Route("/webhooks", func(r chi.Router) {
 			r.Get("/meta/leadgen", deps.WebhookHandlers.MetaVerify)
 			r.Post("/meta/leadgen", deps.WebhookHandlers.MetaLeadgen)
-			r.Post("/notifications/delivery", deps.WebhookHandlers.NotificationsDelivery)
+			// Internal peer only: a service key, never public (audit MF #6).
+			if deps.RequireAuthHandler != nil {
+				r.With(deps.RequireAuthHandler, requireServiceCaller).
+					Post("/notifications/delivery", deps.WebhookHandlers.NotificationsDelivery)
+			}
 			r.Post("/tiktok/leads", deps.WebhookHandlers.TikTokLeads)
 		})
 
