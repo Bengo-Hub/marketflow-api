@@ -431,6 +431,15 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	testimonialHandler := testimonials.NewHandler(entClient, logger)
 	tenantProfileHandler := tenant.NewHandler(entClient, logger)
 	tenantMembersHandler := tenant.NewMembersHandler(rbacService, entClient, cfg.Security.AuthServiceURL, cfg.CrossService.InternalServiceKey, logger)
+	// Register MarketFlow's own SSO roles (marketflow_admin, marketflow_member) so invites can
+	// grant them; in the background, a failure only means the next start tries again.
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := rbac.PushRolesToAuth(ctx, cfg.Security.AuthServiceURL, cfg.CrossService.InternalServiceKey); err != nil {
+			logger.Warn("marketflow SSO roles not registered", zap.Error(err))
+		}
+	}()
 
 	// Public handlers
 	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, leadService, meetingService, availabilitySvc, testimonialHandler, tenantSyncer, logger)

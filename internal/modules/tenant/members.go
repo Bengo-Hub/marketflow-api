@@ -52,12 +52,14 @@ type memberResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// inviteRoles maps the MarketFlow role picked in the UI to the auth-api roles
-// that the JIT sync maps back to it (rbac.mapGlobalRoleToMarketflowRole).
+// inviteRoles maps the MarketFlow role picked in the UI to the SSO roles the caller sync maps back
+// to it (rbac.mapGlobalRoleToMarketflowRole). They are MarketFlow-only: an invite never grants
+// the organisation-wide admin, which would make the person admin of every Codevertex app (audit
+// MF #3, owner decision 2026-11-10). A viewer is a plain member of the organisation.
 var inviteRoles = map[string][]string{
-	rbac.RoleTenantAdmin: {"admin"},
-	"fbo_owner":          {"member"},
-	"viewer":             {"viewer"},
+	rbac.RoleTenantAdmin: {"marketflow_admin"},
+	rbac.RoleMember:      {"marketflow_member"},
+	rbac.RoleViewer:      {"member"},
 }
 
 // caller is who is asking: their local user (nil when not yet synced) and whether they may manage the team.
@@ -219,18 +221,13 @@ func (h *MembersHandler) InviteMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	audit.Tenant(r.Context(), h.db, h.logger, tenantID, "team.member_invited", "user", nil, map[string]any{"role": req.Role, "new_account": result.TempPassword != ""})
-	// A new account gets a sign-in link by email and must change its password on first sign-in.
-	// auth-api returns the temporary password once so the admin can pass it on; it is never logged or stored here.
-	resp201 := map[string]any{
-		"user_id":     result.UserID,
-		"email":       req.Email,
-		"role":        req.Role,
-		"new_account": result.TempPassword != "",
-	}
-	if result.TempPassword != "" {
-		resp201["temp_password"] = result.TempPassword
-	}
-	httpapi.JSON(w, http.StatusCreated, resp201)
+	httpapi.JSON(w, http.StatusCreated, inviteResponse(req.Email, req.Role, result.TempPassword != ""))
+}
+
+// inviteResponse is what the inviter sees. A new account signs in from the link auth-api emails;
+// the temporary password and the person's user id are never passed back (audit MF #3).
+func inviteResponse(email, role string, newAccount bool) map[string]any {
+	return map[string]any{"email": email, "role": role, "new_account": newAccount}
 }
 
 // UpdateMemberRole handles PUT /api/v1/tenant/members/{userId}.
