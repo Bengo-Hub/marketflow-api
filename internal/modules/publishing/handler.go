@@ -31,6 +31,8 @@ type Handler struct {
 	// CanPost gates scheduling, cancelling and retrying (a post goes out under the tenant's
 	// name); nil allows every signed-in tenant user.
 	CanPost func(ctx context.Context, tenantID uuid.UUID) bool
+	// OnJobDone runs after a job is cancelled from the calendar (the worker covers the rest).
+	OnJobDone func(ctx context.Context, jobID string)
 }
 
 // allowed answers 403 when the caller may not post for the tenant.
@@ -349,6 +351,11 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 	h.transition(w, r, []string{StatusPending, StatusUploading}, func(u *ent.PublishJobUpdate) *ent.PublishJobUpdate {
 		return u.SetStatus(StatusCancelled)
 	}, "only a post that has not reached the platform can be cancelled")
+	// The video may now be fully used (its other posts done): the check is safe to run whether
+	// or not this cancel applied, since it reads the jobs' current state.
+	if h.OnJobDone != nil {
+		h.OnJobDone(r.Context(), chi.URLParam(r, "id"))
+	}
 }
 
 // Retry handles POST /api/v1/publishing/jobs/{id}/retry: a failed job starts again now, from

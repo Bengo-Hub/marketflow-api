@@ -322,6 +322,10 @@ func main() {
 
 		pubWorker := publishing.NewWorker(pubStore, pubRunner, logger)
 		pubWorker.OnFailed = worker.NewPublishFailureNotice(entClient, tokenNotif, cfg.API.PortalURL, logger).Notify
+		// Owner 2026-11-10: an approved video is removed 48 hours after it is used; the client is
+		// emailed the link first.
+		afterUse := &creative.AfterUse{DB: entClient, Notify: creative.EmailAfterUse(entClient, tokenNotif, cfg.API.PortalURL, logger), Logger: logger}
+		pubWorker.OnDone = func(ctx context.Context, j *publishing.Job) { afterUse.CheckJob(ctx, j.ID) }
 		go pubWorker.Run(ctx)
 	}
 

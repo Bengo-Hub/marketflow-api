@@ -20,7 +20,9 @@ type Worker struct {
 	Parallel int
 	// OnFailed tells the owner when a job fails for good; nil skips it.
 	OnFailed func(ctx context.Context, j *Job)
-	kick     chan struct{}
+	// OnDone runs when a job reaches a final state (published, failed or cancelled); nil skips it.
+	OnDone func(ctx context.Context, j *Job)
+	kick   chan struct{}
 }
 
 func NewWorker(store *EntStore, runner *Runner, logger *zap.Logger) *Worker {
@@ -68,6 +70,9 @@ func (w *Worker) tick(ctx context.Context) {
 			}
 			if j.Status == StatusFailed && w.OnFailed != nil {
 				w.OnFailed(ctx, j)
+			}
+			if (j.Status == StatusPublished || j.Status == StatusFailed || j.Status == StatusCancelled) && w.OnDone != nil {
+				w.OnDone(ctx, j)
 			}
 			if j.Status == StatusPublished || j.Status == StatusFailed {
 				w.Logger.Info("publish job done", zap.String("job", j.ID), zap.String("platform", j.Platform),

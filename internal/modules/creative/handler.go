@@ -27,6 +27,37 @@ type Handler struct {
 	canApprove func(ctx context.Context, tenantID uuid.UUID) bool
 	// jobs settles the media jobs (motion posters, video ads) marketflow-ai pushes.
 	jobs *Renderer
+	// AfterUse starts an approved video's removal countdown once it is downloaded; nil skips it.
+	AfterUse *AfterUse
+}
+
+// Downloaded handles POST /api/v1/creative/assets/{id}/downloaded: the client downloaded an
+// approved video, which starts its 48-hour removal countdown (owner, 2026-11-10) once nothing
+// else needs it; the admins are emailed the link and the removal time.
+// @Summary Record that a video was downloaded
+// @Tags Creative
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Asset UUID"
+// @Success 204
+// @Failure 404 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /creative/assets/{id}/downloaded [post]
+func (h *Handler) Downloaded(w http.ResponseWriter, r *http.Request) {
+	tid, ok := tenantOf(w, r)
+	if !ok {
+		return
+	}
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	if h.AfterUse != nil {
+		if err := h.AfterUse.MarkDownloaded(r.Context(), tid, id); err != nil {
+			h.fail(w, err)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // WithJobs turns on the media job callback; r needs only the database here.

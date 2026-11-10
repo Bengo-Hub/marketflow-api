@@ -486,6 +486,7 @@ type OnboardingHandlers struct {
 // CreativeHandlers groups the Creative Studio endpoints (briefs, poster
 // versions, review links).
 type CreativeHandlers struct {
+	Downloaded        http.HandlerFunc // POST /creative/assets/{id}/downloaded
 	ListBriefs        http.HandlerFunc
 	SearchOfferings   http.HandlerFunc
 	CreateBrief       http.HandlerFunc
@@ -981,6 +982,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Get("/versions/{id}", deps.CreativeHandlers.GetVersion)
 					r.Post("/versions/{id}/approve", deps.CreativeHandlers.Approve)
 					r.Post("/versions/{id}/discard", deps.CreativeHandlers.Discard)
+					if deps.CreativeHandlers.Downloaded != nil {
+						r.Post("/assets/{id}/downloaded", deps.CreativeHandlers.Downloaded)
+					}
 					r.Post("/versions/{id}/revise", deps.CreativeHandlers.Revise)
 					r.Post("/versions/{id}/extend", deps.CreativeHandlers.Extend)
 					r.Post("/versions/{id}/motion", deps.CreativeHandlers.CreateMotion)

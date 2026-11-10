@@ -384,11 +384,18 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	inboxHandler.CanReply = func(ctx context.Context, tenantID uuid.UUID) bool {
 		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
 	}
+	// Owner 2026-11-10: approved videos are removed 48 hours after they are posted or downloaded;
+	// the admins are emailed the link first.
+	afterUse := &creative.AfterUse{DB: entClient, Logger: logger, Notify: creative.EmailAfterUse(entClient,
+		notifications.New(notifications.Config{BaseURL: cfg.CrossService.NotificationsURL, APIKey: cfg.CrossService.InternalServiceKey}),
+		cfg.CrossService.PortalURL, logger)}
+	creativeHandler.AfterUse = afterUse
 	// Organic publishing: the same roles that approve an ad may post it or cancel a post.
 	publishingHandler := publishing.NewHandler(&publishing.EntStore{DB: entClient, Keys: keyProvider}, logger)
 	publishingHandler.CanPost = func(ctx context.Context, tenantID uuid.UUID) bool {
 		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
 	}
+	publishingHandler.OnJobDone = afterUse.CheckJob
 
 	segmentHandler := segments.NewHandler(segmentService, logger)
 
@@ -701,6 +708,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Record:  learningHandler.Record,
 		},
 		CreativeHandlers: httpapi.CreativeHandlers{
+			Downloaded:        creativeHandler.Downloaded,
 			ListBriefs:        creativeHandler.ListBriefs,
 			SearchOfferings:   creativeHandler.SearchOfferings,
 			CreateBrief:       creativeHandler.CreateBrief,
