@@ -170,6 +170,7 @@ func (c *Client) DeleteCampaign(ctx context.Context, accessToken, campaignID str
 // is computed by the caller from spend.
 type Insights struct {
 	CampaignID  string `json:"campaign_id"`
+	AdID        string `json:"ad_id,omitempty"`
 	Date        string `json:"date_start"`
 	Impressions string `json:"impressions"`
 	Clicks      string `json:"clicks"`
@@ -274,4 +275,38 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + "…"
+}
+
+// GetAdLifetimeInsights returns each ad's lifetime totals in an ad set (level=ad), for the budget
+// optimiser.
+func (c *Client) GetAdLifetimeInsights(ctx context.Context, accessToken, adSetID string) ([]Insights, error) {
+	if accessToken == "" || adSetID == "" {
+		return nil, fmt.Errorf("meta: access token + ad set id required")
+	}
+	q := url.Values{}
+	q.Set("access_token", accessToken)
+	q.Set("level", "ad")
+	q.Set("fields", "ad_id,spend,actions,account_currency")
+	q.Set("date_preset", "maximum")
+	endpoint := fmt.Sprintf("%s/%s/%s/insights?%s", c.baseURL, c.version, url.PathEscape(adSetID), q.Encode())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("meta ad insights %d: %s", resp.StatusCode, truncate(string(b), 200))
+	}
+	var env struct {
+		Data []Insights `json:"data"`
+	}
+	if err := json.Unmarshal(b, &env); err != nil {
+		return nil, err
+	}
+	return env.Data, nil
 }

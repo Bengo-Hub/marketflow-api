@@ -91,12 +91,12 @@ type RouterDeps struct {
 	TenantMemberHandlers TenantMemberHandlers
 
 	// Auth middleware
-	RequireAuthHandler   func(http.Handler) http.Handler
+	RequireAuthHandler func(http.Handler) http.Handler
 	// CallerSync keeps the signed-in user's local MarketFlow user and role in step with SSO
 	// (rbac.Service.SyncMiddleware); the role gates read them.
 	CallerSync func(http.Handler) http.Handler
 	// WriteGate enforces MarketFlow roles on writes (rbac.Service.WriteGate, audit MF #5).
-	WriteGate func(http.Handler) http.Handler
+	WriteGate            func(http.Handler) http.Handler
 	RequirePlatformOwner func(http.Handler) http.Handler
 
 	// Feature gate middleware (subscription tier enforcement)
@@ -530,6 +530,8 @@ type AdsHandlers struct {
 	ConfirmPaid http.HandlerFunc
 	Pause       http.HandlerFunc
 	Resume      http.HandlerFunc
+	// ResumeAd switches back on one ad the budget optimiser paused.
+	ResumeAd http.HandlerFunc
 }
 
 // InboxHandlers groups the social inbox routes (Sprint 22).
@@ -1029,6 +1031,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Post("/boosts/{id}/pause", deps.AdsHandlers.Pause)
 					if deps.AdsHandlers.Resume != nil {
 						r.Post("/boosts/{id}/resume", deps.AdsHandlers.Resume)
+						if deps.AdsHandlers.ResumeAd != nil {
+							r.Post("/boosts/{id}/ads/{ad_id}/resume", deps.AdsHandlers.ResumeAd)
+						}
 					}
 				})
 			}

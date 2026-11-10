@@ -242,8 +242,11 @@ func (h *Handler) quote(ctx context.Context, tid uuid.UUID, in QuoteInput) (Quot
 // BoostInput is the body of POST /ads/boosts: the confirmed quote plus the creative.
 type BoostInput struct {
 	QuoteInput
-	PageConnID     string   `json:"page_connected_id"`
-	AssetID        string   `json:"asset_id"`
+	PageConnID string `json:"page_connected_id"`
+	AssetID    string `json:"asset_id"`
+	// ExtraAssetIDs are up to two more approved videos run as more ads in the same ad set (away
+	// decision 23): the budget is shared, so the optimiser can pause the weaker ones.
+	ExtraAssetIDs  []string `json:"extra_asset_ids,omitempty"`
 	Objective      string   `json:"objective"` // whatsapp | leads | traffic
 	Countries      []string `json:"countries"`
 	AgeMin         int      `json:"age_min"`
@@ -339,6 +342,29 @@ func (h *Handler) Boost(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusConflict, "not_approved", "approve the video before boosting it", nil)
 		return
 	}
+	if len(in.ExtraAssetIDs) > maxExtraCreatives {
+		httpapi.Error(w, http.StatusBadRequest, "too_many_creatives", "a boost runs at most three videos", nil)
+		return
+	}
+	extras := make([]string, 0, len(in.ExtraAssetIDs))
+	for _, raw := range in.ExtraAssetIDs {
+		xid, err := uuid.Parse(raw)
+		if err != nil || xid == asset.ID {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_request", "each extra video must be a different approved video", nil)
+			return
+		}
+		x, err := h.DB.CreativeAsset.Query().
+			Where(creativeasset.IDEQ(xid), creativeasset.TenantIDEQ(tid), creativeasset.KindEQ("video"), creativeasset.PurgedAtIsNil()).Only(ctx)
+		if err != nil {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_request", "an extra video was not found", nil)
+			return
+		}
+		if ok, _ := h.DB.CreativeVersion.Query().Where(creativeversion.IDEQ(x.VersionID), creativeversion.StatusEQ("approved")).Exist(ctx); !ok {
+			httpapi.Error(w, http.StatusConflict, "not_approved", "approve every video before boosting it", nil)
+			return
+		}
+		extras = append(extras, x.ID.String())
+	}
 
 	start := in.StartAt.UTC()
 	if start.Before(time.Now().UTC()) {
@@ -347,7 +373,7 @@ func (h *Handler) Boost(w http.ResponseWriter, r *http.Request) {
 	id := uuid.New()
 	l := stored{Plan: storedPlan{AdAccountConnID: acc.ID.String(), PageConnID: page.ID.String(), Currency: q.Currency,
 		Budget: q.Budget, Start: start, End: start.AddDate(0, 0, q.Days), Objective: objective, WhatsAppNumber: in.WhatsAppNumber,
-		Countries: in.Countries, AgeMin: in.AgeMin, AgeMax: in.AgeMax, AssetID: asset.ID.String(), Message: strings.TrimSpace(in.Message),
+		Countries: in.Countries, AgeMin: in.AgeMin, AgeMax: in.AgeMax, AssetID: asset.ID.String(), ExtraAssetIDs: extras, Message: strings.TrimSpace(in.Message),
 		Headline: in.Headline, Link: in.Link, Welcome: in.Welcome, PrivacyURL: strings.TrimSpace(in.PrivacyURL), LaunchCharged: q.LaunchCredits > 0},
 		State: State{Stage: StageCampaign}}
 	name := "Boost " + time.Now().UTC().Format("2 Jan 2006")
@@ -618,4 +644,57 @@ func (h *Handler) fail(w http.ResponseWriter, err error) {
 	}
 	h.Logger.Error("ads request failed", zap.Error(err))
 	httpapi.Error(w, http.StatusInternalServerError, "internal_error", "something went wrong", nil)
+}
+
+// maxExtraCreatives is how many extra videos a boost may run beside its main one.
+const maxExtraCreatives = 2
+
+// ResumeAd handles POST /api/v1/ads/boosts/{id}/ads/{ad_id}/resume: the owner switches back on an
+// ad the budget optimiser paused (the undo in its email). Only an ad of this boost may be resumed;
+// the optimiser never judges it again.
+func (h *Handler) ResumeAd(w http.ResponseWriter, r *http.Request) {
+	tid, c, l, ok := h.load(w, r)
+	if !ok {
+		return
+	}
+	if h.CanLaunch != nil && !h.CanLaunch(r.Context(), tid) {
+		httpapi.Error(w, http.StatusForbidden, "forbidden", "only the account owner or an admin can resume ads", nil)
+		return
+	}
+	adID := chi.URLParam(r, "ad_id")
+	if !boostOwnsAd(l.State, adID) {
+		httpapi.Error(w, http.StatusNotFound, "not_found", "this ad is not part of the boost", nil)
+		return
+	}
+	acc, err := h.account(r.Context(), tid, l.Plan.AdAccountConnID, "meta_ad_account")
+	if err != nil {
+		httpapi.Error(w, http.StatusConflict, "not_connected", "reconnect the ad account to resume it", nil)
+		return
+	}
+	tok, err := h.token(r.Context(), acc)
+	if err == nil {
+		err = h.Meta.SetStatus(r.Context(), tok, adID, "ACTIVE")
+	}
+	if err != nil {
+		h.Logger.Warn("meta ad resume failed", zap.String("campaign", c.ID.String()), zap.Error(err))
+		httpapi.Error(w, http.StatusBadGateway, "resume_failed", "Meta did not switch the ad back on; try again", nil)
+		return
+	}
+	h.get(w, r, c.ID)
+}
+
+// boostOwnsAd reports whether adID is the boost's main ad or one of its extras.
+func boostOwnsAd(st State, adID string) bool {
+	if adID == "" {
+		return false
+	}
+	if st.AdID == adID {
+		return true
+	}
+	for _, x := range st.Extras {
+		if x.AdID == adID {
+			return true
+		}
+	}
+	return false
 }

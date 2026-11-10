@@ -750,7 +750,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		},
 		AdsHandlers: httpapi.AdsHandlers{
 			Accounts: adsHandler.Accounts, CreateKES: adsHandler.CreateKESAccount, Quote: adsHandler.Quote, Boost: adsHandler.Boost,
-			Get: adsHandler.Get, ConfirmPaid: adsHandler.ConfirmPaid, Pause: adsHandler.Pause, Resume: adsHandler.Resume,
+			Get: adsHandler.Get, ConfirmPaid: adsHandler.ConfirmPaid, Pause: adsHandler.Pause, Resume: adsHandler.Resume, ResumeAd: adsHandler.ResumeAd,
 		},
 		InboxHandlers: httpapi.InboxHandlers{
 			List:    inboxHandler.List,

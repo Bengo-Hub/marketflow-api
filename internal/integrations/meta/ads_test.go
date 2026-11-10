@@ -181,3 +181,25 @@ func TestAdAccountHealthReadsCountry(t *testing.T) {
 		t.Fatalf("fields %q country %q", fields, a.Country)
 	}
 }
+
+// Budget optimiser (away decision 23): per-ad lifetime totals of one ad set.
+func TestGetAdLifetimeInsights(t *testing.T) {
+	var q url.Values
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q = r.URL.Query()
+		_, _ = w.Write([]byte(`{"data":[{"ad_id":"a1","spend":"120.50","actions":[{"action_type":"lead","value":"3"}]},{"ad_id":"a2","spend":"80"}]}`))
+	}))
+	defer srv.Close()
+	c := NewClient("")
+	c.baseURL = srv.URL
+	rows, err := c.GetAdLifetimeInsights(context.Background(), "tok", "as1")
+	if err != nil || len(rows) != 2 || rows[0].AdID != "a1" {
+		t.Fatalf("rows %+v err %v", rows, err)
+	}
+	if q.Get("level") != "ad" || q.Get("date_preset") != "maximum" {
+		t.Fatalf("query %v", q)
+	}
+	if leads, _ := rows[0].Results(); leads != 3 {
+		t.Fatalf("leads %d", leads)
+	}
+}

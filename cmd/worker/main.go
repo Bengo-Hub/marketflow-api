@@ -196,6 +196,10 @@ func main() {
 		reg.Add(worker.NewKBItemHandlers(entClient, knowledge.NewSync(entClient, rawDB), logger)...)
 		// Click-to-WhatsApp attribution (Sprint 18): the ad click id on the lead, once.
 		reg.Add(worker.NewWhatsAppReferralHandler(entClient, logger))
+		// New-lead email to the business (Sprint 18 L58; owner 2026-11-11): at most one every 15 minutes.
+		reg.Add(worker.NewNewLeadAlertHandler(entClient, rdb,
+			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
+			cfg.API.PortalURL, logger))
 		reg.Add(worker.NewWhatsAppAssistantHandler(entClient, rdb,
 			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
 			cfg.AuthServiceURL, cfg.CrossServiceKey,
@@ -254,7 +258,8 @@ func main() {
 		boostOps := worker.NewBoostOps(entClient, keys, meta.NewClient("").WithSecret(metaSecret), tokenNotif, cfg.API.PortalURL, logger)
 		insights := worker.NewAdInsights(entClient, time.Hour, tokenResolver.Resolve, logger).
 			WithMetaSecret(metaSecret).
-			WithBoosts(boostOps.AdToken, boostOps.Pause)
+			WithBoosts(boostOps.AdToken, boostOps.Pause).
+			WithOptimiser(boostOps.OptimiserNotice)
 		go insights.Run(ctx)
 
 		// CRM background agents: ProactiveFollowUpAgent (hourly) + DealStaleDetector (daily).

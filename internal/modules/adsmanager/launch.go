@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,6 +31,7 @@ const (
 	StageVideo    = "video"
 	StageCreative = "creative"
 	StageAd       = "ad"
+	StageExtras   = "extras"  // the extra creatives, one ad each in the same ad set
 	StageReview   = "review"  // Meta is reviewing the PAUSED ad
 	StageFunding  = "funding" // approved, waiting for the money to be in place
 	StageLive     = "live"    // set ACTIVE
@@ -60,6 +62,25 @@ type Plan struct {
 	// linked to the advertiser's privacy policy.
 	PageToken  string
 	PrivacyURL string
+	// Extras are more approved creatives run as more ads in the same ad set, sharing its lifetime
+	// budget (the approved total), so the optimiser can pause losers (away decision 23).
+	Extras []Variant
+}
+
+// Variant is one extra creative of a boost.
+type Variant struct {
+	VideoURL     string
+	ThumbnailURL string
+	Message      string
+	Headline     string
+}
+
+// ExtraState is the launch progress of one extra creative.
+type ExtraState struct {
+	VideoID    string `json:"meta_video_id,omitempty"`
+	CreativeID string `json:"meta_creative_id,omitempty"`
+	AdID       string `json:"meta_ad_id,omitempty"`
+	Review     string `json:"review_status,omitempty"`
 }
 
 // State is the stored launch progress.
@@ -79,7 +100,9 @@ type State struct {
 	PaidOK     bool      `json:"paid_confirmed,omitempty"`
 	// FundingSince is when the boost first waited for funds (Sprint 18 L29).
 	FundingSince time.Time `json:"funding_since,omitempty"`
-	LiveAt       time.Time `json:"live_at,omitempty"`
+	// Extras follow Plan.Extras by index.
+	Extras []ExtraState `json:"extras,omitempty"`
+	LiveAt time.Time    `json:"live_at,omitempty"`
 }
 
 // Saver stores the state after every step.
@@ -208,12 +231,80 @@ func Step(ctx context.Context, g Graph, p Plan, st State, now time.Time, funded 
 				return retry(err)
 			}
 			st.AdID = id
+			if len(p.Extras) > 0 {
+				if err := advance(StageExtras); err != nil {
+					return st, err
+				}
+				continue
+			}
 			st.NextAt = now.Add(ReviewPoll)
 			if err := advance(StageReview); err != nil {
 				return st, err
 			}
 			return st, nil // review takes time; come back later
+		case StageExtras:
+			// One ad per extra creative in the same ad set, saved after each Meta call so a retry
+			// resumes where it stopped.
+			for len(st.Extras) < len(p.Extras) {
+				st.Extras = append(st.Extras, ExtraState{})
+			}
+			for i, v := range p.Extras {
+				x := &st.Extras[i]
+				if x.VideoID == "" {
+					id, err := g.UploadAdVideo(ctx, p.Token, p.AdAccountID, v.VideoURL, p.Name)
+					if err != nil {
+						return retry(err)
+					}
+					x.VideoID = id
+					if err := save(ctx, st); err != nil {
+						return st, err
+					}
+				}
+				if x.CreativeID == "" {
+					in := extraCreativeInput(p, st, v, x.VideoID)
+					id, err := g.CreateAdCreative(ctx, p.Token, p.AdAccountID, in)
+					if err != nil {
+						return retry(err)
+					}
+					x.CreativeID = id
+					if err := save(ctx, st); err != nil {
+						return st, err
+					}
+				}
+				if x.AdID == "" {
+					id, err := g.CreateAd(ctx, p.Token, p.AdAccountID, p.Name+" "+strconv.Itoa(i+2), st.AdSetID, x.CreativeID)
+					if err != nil {
+						return retry(err)
+					}
+					x.AdID = id
+					if err := save(ctx, st); err != nil {
+						return st, err
+					}
+				}
+			}
+			st.NextAt = now.Add(ReviewPoll)
+			if err := advance(StageReview); err != nil {
+				return st, err
+			}
+			return st, nil
 		case StageReview:
+			// The extras first: a rejected extra is dropped, a pending one is waited for.
+			for i := range st.Extras {
+				x := &st.Extras[i]
+				if x.AdID == "" || x.Review == "DISAPPROVED" || x.Review == "WITH_ISSUES" {
+					continue
+				}
+				r, err := g.GetAdReview(ctx, p.Token, x.AdID)
+				if err != nil {
+					return retry(err)
+				}
+				x.Review = r.EffectiveStatus
+				switch r.EffectiveStatus {
+				case "PENDING_REVIEW", "IN_PROCESS", "PENDING_BILLING_INFO", "":
+					st.NextAt = now.Add(ReviewPoll)
+					return st, save(ctx, st)
+				}
+			}
 			r, err := g.GetAdReview(ctx, p.Token, st.AdID)
 			if err != nil {
 				return retry(err)
@@ -253,8 +344,15 @@ func Step(ctx context.Context, g Graph, p Plan, st State, now time.Time, funded 
 				st.NextAt = now.Add(poll)
 				return st, save(ctx, st)
 			}
-			// Ad first, then ad set, then campaign: nothing delivers until the last switch.
-			for _, id := range []string{st.AdID, st.AdSetID, st.CampaignID} {
+			// Ads first (the main ad and every approved extra), then ad set, then campaign: nothing
+			// delivers until the last switch.
+			ids := []string{st.AdID}
+			for _, x := range st.Extras {
+				if x.AdID != "" && x.Review != "DISAPPROVED" && x.Review != "WITH_ISSUES" {
+					ids = append(ids, x.AdID)
+				}
+			}
+			for _, id := range append(ids, st.AdSetID, st.CampaignID) {
 				if err := g.SetStatus(ctx, p.Token, id, "ACTIVE"); err != nil {
 					return retry(err)
 				}
@@ -268,4 +366,30 @@ func Step(ctx context.Context, g Graph, p Plan, st State, now time.Time, funded 
 			return st, nil
 		}
 	}
+}
+
+// creativeCTA is the call to action for a boost objective.
+func creativeCTA(objective string) string {
+	switch objective {
+	case "OUTCOME_ENGAGEMENT":
+		return "WHATSAPP_MESSAGE"
+	case "OUTCOME_LEADS":
+		return "SIGN_UP"
+	}
+	return "LEARN_MORE"
+}
+
+// extraCreativeInput is an extra creative: the boost's Page, link, form and greeting with the
+// variant's own video, thumbnail and text (falling back to the boost's text when empty).
+func extraCreativeInput(p Plan, st State, v Variant, videoID string) meta.CreativeInput {
+	msg, title := v.Message, v.Headline
+	if msg == "" {
+		msg = p.Message
+	}
+	if title == "" {
+		title = p.Headline
+	}
+	return meta.CreativeInput{Name: p.Name, PageID: p.PageID, InstagramUserID: p.InstagramID, VideoID: videoID,
+		ThumbnailURL: v.ThumbnailURL, Message: msg, Title: title, CTA: creativeCTA(p.Objective), Link: p.Link,
+		WelcomeMessage: p.Welcome, LeadFormID: st.FormID}
 }

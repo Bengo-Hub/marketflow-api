@@ -29,6 +29,9 @@ type AdInsights struct {
 	adToken func(ctx context.Context, c *ent.Campaign) (string, bool)
 	// pause pauses a boost on Meta and tells the owner (auto-pause); nil turns auto-pause off.
 	pause func(ctx context.Context, c *ent.Campaign, reason string) error
+	// optimiserOn turns on the budget optimiser; optimiserNotice tells the owner of each pause.
+	optimiserOn     bool
+	optimiserNotice OptimiserNotice
 }
 
 // WithBoosts reads boosts with their ad-account token and turns on auto-pause.
@@ -168,6 +171,9 @@ func (a *AdInsights) syncCampaign(ctx context.Context, c *ent.Campaign) {
 	if a.pause != nil && c.ConnectedAccountID != nil {
 		a.autoPause(ctx, c)
 	}
+	if a.optimiserOn && c.ConnectedAccountID != nil {
+		a.optimise(ctx, c, token, a.minSpendFor(ctx, c))
+	}
 	a.logger.Debug("ad_metrics upserted",
 		zap.String("campaign", c.ID.String()),
 		zap.Int64("impressions", impressions),
@@ -273,4 +279,14 @@ func (a *AdInsights) autoPause(ctx context.Context, c *ent.Campaign) {
 	if err := a.pause(ctx, c, reason); err != nil {
 		a.logger.Warn("auto-pause failed", zap.String("campaign", c.ID.String()), zap.Error(err))
 	}
+}
+
+// minSpendFor is the tenant's minimum spend before judging ads (default defaultMinSpend).
+func (a *AdInsights) minSpendFor(ctx context.Context, c *ent.Campaign) float64 {
+	if t, err := a.db.Tenant.Get(ctx, c.TenantID); err == nil {
+		if v, _ := t.Metadata[tenantMinSpendKey].(float64); v > 0 {
+			return v
+		}
+	}
+	return defaultMinSpend
 }

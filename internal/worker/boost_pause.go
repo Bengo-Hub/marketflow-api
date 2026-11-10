@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	entsql "entgo.io/ent/dialect/sql"
@@ -104,6 +105,39 @@ func (b *BoostOps) tell(ctx context.Context, c *ent.Campaign, reason string) {
 			IdempotencyKey: "boost-paused-" + c.ID.String() + "-" + time.Now().UTC().Format("2006-01-02") + "-" + email,
 		}); err != nil {
 			b.logger.Warn("auto-pause notice not sent", zap.String("campaign", c.ID.String()), zap.Error(err))
+		}
+	}
+}
+
+// OptimiserNotice tells the owner which of a boost's ads the budget optimiser paused, with the
+// campaign page where they can switch an ad back on (away decision 23).
+func (b *BoostOps) OptimiserNotice(ctx context.Context, c *ent.Campaign, pausedAdIDs []string) {
+	if b.notif == nil || len(pausedAdIDs) == 0 {
+		return
+	}
+	emails, err := tenantAdminEmails(ctx, b.db, c.TenantID, tokenNoticeRoles)
+	if err != nil || len(emails) == 0 {
+		return
+	}
+	link := strings.TrimRight(b.appURL, "/") + "/campaigns/" + c.ID.String()
+	if t, err := b.db.Tenant.Get(ctx, c.TenantID); err == nil && t.Slug != "" {
+		link = strings.TrimRight(b.appURL, "/") + "/" + t.Slug + "/campaigns/" + c.ID.String()
+	}
+	n := len(pausedAdIDs)
+	what := "1 ad"
+	if n > 1 {
+		what = fmt.Sprintf("%d ads", n)
+	}
+	body := fmt.Sprintf("Your boost \"%s\" runs several videos. %s cost at least twice as much per result as the best one, so MarketFlow paused it. "+
+		"The same budget now goes to the videos that work better; your total and end date are unchanged.\n\n"+
+		"To switch a paused video back on, open the boost: %s", c.Name, what, link)
+	for _, email := range emails {
+		if err := b.notif.Send(ctx, c.TenantID.String(), notifications.Message{
+			Channel: "email", Recipient: email, Subject: "We moved your boost budget to the better video", Body: body,
+			Metadata:       map[string]string{"source": "marketflow-worker", "kind": "boost_optimised"},
+			IdempotencyKey: "boost-optimised-" + c.ID.String() + "-" + strings.Join(pausedAdIDs, "-") + "-" + email,
+		}); err != nil {
+			b.logger.Warn("optimiser notice not sent", zap.String("campaign", c.ID.String()), zap.Error(err))
 		}
 	}
 }

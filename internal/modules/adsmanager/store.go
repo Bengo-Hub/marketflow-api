@@ -49,6 +49,7 @@ type storedPlan struct {
 	AgeMin          int       `json:"age_min,omitempty"`
 	AgeMax          int       `json:"age_max,omitempty"`
 	AssetID         string    `json:"asset_id"`
+	ExtraAssetIDs   []string  `json:"extra_asset_ids,omitempty"`
 	Message         string    `json:"message"`
 	Headline        string    `json:"headline,omitempty"`
 	Link            string    `json:"link,omitempty"`
@@ -163,7 +164,7 @@ func (w *Worker) plan(ctx context.Context, c *ent.Campaign, sp storedPlan) (Plan
 		Start: sp.Start, End: sp.End, Objective: sp.Objective, PageID: pageID, InstagramID: sp.InstagramID,
 		WhatsAppNumber: sp.WhatsAppNumber, Countries: sp.Countries, AgeMin: sp.AgeMin, AgeMax: sp.AgeMax,
 		VideoURL: asset.URL, Message: sp.Message, Headline: sp.Headline, Link: sp.Link, Welcome: sp.Welcome,
-		PageToken: pageTok, PrivacyURL: sp.PrivacyURL}, nil
+		PageToken: pageTok, PrivacyURL: sp.PrivacyURL, Extras: w.extraVariants(ctx, c.TenantID, sp.ExtraAssetIDs)}, nil
 }
 
 func (w *Worker) token(ctx context.Context, tid uuid.UUID, connID, accountType string) (token, externalID string, err error) {
@@ -217,4 +218,22 @@ func SaveLaunch(ctx context.Context, db *ent.Client, id uuid.UUID, l stored, sta
 	}
 	_, err = u.Save(ctx)
 	return err
+}
+
+// extraVariants loads a boost's extra videos; one removed since the boost was made is skipped,
+// so the main ad still runs.
+func (w *Worker) extraVariants(ctx context.Context, tid uuid.UUID, ids []string) []Variant {
+	var out []Variant
+	for _, raw := range ids {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			continue
+		}
+		a, err := w.DB.CreativeAsset.Get(ctx, id)
+		if err != nil || a.TenantID != tid || a.PurgedAt != nil {
+			continue
+		}
+		out = append(out, Variant{VideoURL: a.URL})
+	}
+	return out
 }

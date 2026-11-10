@@ -3,6 +3,7 @@ package adsmanager
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -19,7 +20,10 @@ type fakeGraph struct {
 	creative   meta.CreativeInput
 	form       meta.LeadFormInput
 	// failCreative fails that many creative calls (a video Meta is still processing).
-	failCreative int
+	failCreative           int
+	nVideo, nCreative, nAd int
+	// reviewByAd answers the review of a specific ad (extras); default is the review list.
+	reviewByAd map[string]string
 }
 
 // Owner 2026-11-10: a leads boost uses a Meta instant form. One form per boost, made with the
@@ -67,7 +71,8 @@ func (f *fakeGraph) UploadAdVideo(context.Context, string, string, string, strin
 		f.failVideo--
 		return "", errors.New("389 Unable to fetch video file from URL")
 	}
-	return "v1", nil
+	f.nVideo++
+	return seq("v", f.nVideo), nil
 }
 func (f *fakeGraph) CreateAdCreative(_ context.Context, _, _ string, in meta.CreativeInput) (string, error) {
 	f.calls = append(f.calls, "creative")
@@ -76,7 +81,8 @@ func (f *fakeGraph) CreateAdCreative(_ context.Context, _, _ string, in meta.Cre
 		f.failCreative--
 		return "", errors.New("video still processing")
 	}
-	return "cr1", nil
+	f.nCreative++
+	return seq("cr", f.nCreative), nil
 }
 func (f *fakeGraph) CreateLeadForm(_ context.Context, pageToken, _ string, in meta.LeadFormInput) (string, error) {
 	f.calls = append(f.calls, "form:"+pageToken)
@@ -85,9 +91,13 @@ func (f *fakeGraph) CreateLeadForm(_ context.Context, pageToken, _ string, in me
 }
 func (f *fakeGraph) CreateAd(context.Context, string, string, string, string, string) (string, error) {
 	f.calls = append(f.calls, "ad")
-	return "ad1", nil
+	f.nAd++
+	return seq("ad", f.nAd), nil
 }
-func (f *fakeGraph) GetAdReview(context.Context, string, string) (*meta.AdReview, error) {
+func (f *fakeGraph) GetAdReview(_ context.Context, _, adID string) (*meta.AdReview, error) {
+	if s, ok := f.reviewByAd[adID]; ok {
+		return &meta.AdReview{EffectiveStatus: s}, nil
+	}
 	r := &meta.AdReview{EffectiveStatus: f.review[0]}
 	if len(f.review) > 1 {
 		f.review = f.review[1:]
@@ -199,5 +209,40 @@ func TestFundingPollSlowsAfterThirtyMinutes(t *testing.T) {
 	st, _ = Step(context.Background(), &fakeGraph{}, plan(now), st, later, no, save)
 	if !st.NextAt.Equal(later.Add(FundingPollSlow)) || !st.FundingSince.Equal(now) {
 		t.Fatalf("after 30 minutes the check slows: %+v", st)
+	}
+}
+
+func seq(prefix string, n int) string { return prefix + strconv.Itoa(n) }
+
+// Budget optimiser Phase A (away decision 23): a boost may carry extra approved creatives as more
+// ads in its one ad set, so the ad set's lifetime budget (the approved total) is shared and can
+// never be exceeded. A rejected extra is dropped, not the boost; activation turns on every
+// approved ad.
+func TestLaunchWithExtraCreatives(t *testing.T) {
+	now := time.Date(2026, 11, 5, 8, 0, 0, 0, time.UTC)
+	g := &fakeGraph{review: []string{"PAUSED"}, reviewByAd: map[string]string{"ad2": "PAUSED", "ad3": "DISAPPROVED"}}
+	p := plan(now)
+	p.Extras = []Variant{{VideoURL: "https://m/b.mp4", Message: "B"}, {VideoURL: "https://m/c.mp4", Message: "C"}}
+	save := func(context.Context, State) error { return nil }
+	yes := func(context.Context) (bool, error) { return true, nil }
+	ctx := context.Background()
+
+	st, err := Step(ctx, g, p, State{}, now, yes, save)
+	if err != nil || st.Stage != StageReview || len(st.Extras) != 2 || st.Extras[0].AdID != "ad2" || st.Extras[1].AdID != "ad3" {
+		t.Fatalf("extras made after the main ad: %+v %v", st, err)
+	}
+	if strings.Count(strings.Join(g.calls, ","), "adset") != 1 {
+		t.Fatalf("one ad set for every creative: %v", g.calls)
+	}
+	st, _ = Step(ctx, g, p, st, now.Add(ReviewPoll), yes, save)
+	if st.Stage != StageLive {
+		t.Fatalf("approved main ad and one approved extra go live: %+v", st)
+	}
+	got := strings.Join(g.statuses, ",")
+	if !strings.Contains(got, "ad1:ACTIVE") || !strings.Contains(got, "ad2:ACTIVE") || strings.Contains(got, "ad3:ACTIVE") {
+		t.Fatalf("only approved ads are switched on: %s", got)
+	}
+	if st.Extras[1].Review != "DISAPPROVED" {
+		t.Fatalf("the rejected extra is recorded: %+v", st.Extras[1])
 	}
 }
