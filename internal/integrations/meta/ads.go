@@ -190,7 +190,13 @@ type LeadFormInput struct {
 	Name       string
 	PrivacyURL string   // the advertiser's privacy policy, which Meta shows on the form
 	Questions  []string // prefill question types, e.g. FULL_NAME, PHONE, EMAIL
+	// AskWhatsAppConsent adds an optional Yes/No question (key WhatsAppConsentKey): only a Yes
+	// lets the business follow up on WhatsApp (KDPA, opted out by default).
+	AskWhatsAppConsent bool
 }
+
+// WhatsAppConsentKey is the field name the consent question's answer arrives under.
+const WhatsAppConsentKey = "whatsapp_consent"
 
 // CreateLeadForm creates an instant form on the Page and returns its id.
 func (c *Client) CreateLeadForm(ctx context.Context, pageToken, pageID string, in LeadFormInput) (string, error) {
@@ -200,6 +206,11 @@ func (c *Client) CreateLeadForm(ctx context.Context, pageToken, pageID string, i
 	qs := make([]map[string]any, 0, len(in.Questions))
 	for i, q := range in.Questions {
 		qs = append(qs, map[string]any{"type": q, "key": fmt.Sprintf("question%d", i+1)})
+	}
+	if in.AskWhatsAppConsent {
+		qs = append(qs, map[string]any{"type": "CUSTOM", "key": WhatsAppConsentKey,
+			"label": "May we contact you on WhatsApp about this offer?",
+			"options": []map[string]string{{"value": "Yes", "key": "yes"}, {"value": "No", "key": "no"}}})
 	}
 	qj, _ := json.Marshal(qs)
 	pj, _ := json.Marshal(map[string]any{"url": in.PrivacyURL, "link_text": "Privacy policy"})

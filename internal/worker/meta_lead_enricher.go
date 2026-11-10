@@ -133,6 +133,9 @@ func (h *MetaLeadEnricher) fetch(ctx context.Context, leadgenID, token string) (
 type metaLeadFields struct {
 	FirstName, LastName, Email, Phone string
 	Answers                           map[string]any
+	// WhatsAppConsent is an explicit Yes to the optional consent question our instant forms ask
+	// (meta.WhatsAppConsentKey).
+	WhatsAppConsent bool
 }
 
 // parseMetaLeadFields maps Meta's field_data. Standard question names fill the lead's own
@@ -164,6 +167,9 @@ func parseMetaLeadFields(data []metaFieldDatum) metaLeadFields {
 			out.Email = v
 		case "phone_number", "phone":
 			out.Phone = v
+		case meta.WhatsAppConsentKey:
+			out.WhatsAppConsent = strings.EqualFold(v, "yes")
+			out.Answers[d.Name] = v
 		default:
 			if len(d.Values) > 1 {
 				out.Answers[d.Name] = d.Values
@@ -187,6 +193,13 @@ func (h *MetaLeadEnricher) apply(ctx context.Context, l *ent.Lead, f metaLeadFie
 		meta[k] = v
 	}
 	meta["meta_enriched_at"] = time.Now().UTC().Format(time.RFC3339)
+	if f.WhatsAppConsent {
+		// The person ticked Yes to WhatsApp contact on the instant form: the nurture step's
+		// instant WhatsApp follow-up may run for this lead.
+		meta["whatsapp_consent"] = true
+		meta["whatsapp_consent_source"] = "meta_lead_form"
+		meta["whatsapp_consent_at"] = meta["meta_enriched_at"]
+	}
 
 	upd := h.db.Lead.UpdateOneID(l.ID).SetMetadata(meta)
 	if p := str(f.Email); p != nil {

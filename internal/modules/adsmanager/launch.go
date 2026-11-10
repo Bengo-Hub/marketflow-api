@@ -175,7 +175,8 @@ func Step(ctx context.Context, g Graph, p Plan, st State, now time.Time, funded 
 				// that must wait for Meta's video processing never makes a second form.
 				if st.FormID == "" {
 					id, err := g.CreateLeadForm(ctx, p.PageToken, p.PageID, meta.LeadFormInput{
-						Name: p.Name + " form", PrivacyURL: p.PrivacyURL, Questions: []string{"FULL_NAME", "PHONE", "EMAIL"}})
+						Name: p.Name + " form", PrivacyURL: p.PrivacyURL, Questions: []string{"FULL_NAME", "PHONE", "EMAIL"},
+						AskWhatsAppConsent: true})
 					if err != nil {
 						return retry(err)
 					}

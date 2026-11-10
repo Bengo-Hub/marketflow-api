@@ -119,6 +119,12 @@ func TestLeadFormAndCreative(t *testing.T) {
 		f.Get("privacy_policy") != `{"link_text":"Privacy policy","url":"https://shop.example/privacy"}` {
 		t.Fatalf("form: %v %v %v", id, err, f)
 	}
+	if _, err := c.CreateLeadForm(ctx, "page-tok", "pg1", LeadFormInput{Name: "c", PrivacyURL: "https://p", Questions: []string{"PHONE"}, AskWhatsAppConsent: true}); err != nil {
+		t.Fatal(err)
+	}
+	if q := forms["/v26.0/pg1/leadgen_forms"].Get("questions"); !strings.Contains(q, `"key":"whatsapp_consent"`) || !strings.Contains(q, `"type":"CUSTOM"`) {
+		t.Fatalf("consent question missing: %s", q)
+	}
 	if _, err := c.CreateLeadForm(ctx, "page-tok", "pg1", LeadFormInput{Name: "x", Questions: []string{"EMAIL"}}); err == nil {
 		t.Fatal("a form without a privacy policy must be refused before calling Meta")
 	}

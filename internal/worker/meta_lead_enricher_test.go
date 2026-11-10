@@ -49,6 +49,15 @@ func TestParseMetaLeadFields(t *testing.T) {
 		t.Fatal("empty answers must be skipped")
 	}
 
+	// Our instant forms ask an optional "contact me on WhatsApp" question (key whatsapp_consent);
+	// only an explicit Yes counts as consent (KDPA: opted out by default).
+	for answer, want := range map[string]bool{"Yes": true, "yes": true, "No": false, "": false} {
+		f := parseMetaLeadFields([]metaFieldDatum{{Name: "whatsapp_consent", Values: []string{answer}}})
+		if f.WhatsAppConsent != want {
+			t.Errorf("answer %q: consent %v", answer, f.WhatsAppConsent)
+		}
+	}
+
 	// Explicit first/last name wins over full_name regardless of order.
 	got = parseMetaLeadFields([]metaFieldDatum{
 		{Name: "first_name", Values: []string{"Ann"}},

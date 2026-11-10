@@ -47,7 +47,7 @@ func TestLaunchLeadsUsesAnInstantForm(t *testing.T) {
 	if g.creative.CTA != "SIGN_UP" || g.creative.LeadFormID != "form1" {
 		t.Fatalf("creative: %+v", g.creative)
 	}
-	if g.form.PrivacyURL != "https://shop.example/privacy" || len(g.form.Questions) == 0 {
+	if g.form.PrivacyURL != "https://shop.example/privacy" || len(g.form.Questions) == 0 || !g.form.AskWhatsAppConsent {
 		t.Fatalf("form: %+v", g.form)
 	}
 }
