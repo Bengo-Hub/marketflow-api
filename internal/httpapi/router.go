@@ -663,10 +663,14 @@ func NewRouter(deps RouterDeps) http.Handler {
 						// stored one) used to get 400 "missing X-Tenant-ID". Fill it in: a tenant
 						// user's own tenant from the token (never one named by a header), and the
 						// slug's tenant for platform owners and service keys, who act for any tenant.
+						// A tenant user always acts for the tenant in their token. Handlers trust this
+						// header, so a tenant ID a tenant user sends is overwritten, never kept: keeping
+						// it let a member of one tenant read and write another tenant's contacts.
+						if claims != nil && !claims.IsPlatformOwner && !claims.IsService && claims.TenantID != "" {
+							r.Header.Set("X-Tenant-ID", claims.TenantID)
+						}
 						if r.Header.Get("X-Tenant-ID") == "" {
 							switch {
-							case claims != nil && !claims.IsPlatformOwner && !claims.IsService && claims.TenantID != "":
-								r.Header.Set("X-Tenant-ID", claims.TenantID)
 							case resolved != uuid.Nil:
 								r.Header.Set("X-Tenant-ID", resolved.String())
 							default:
