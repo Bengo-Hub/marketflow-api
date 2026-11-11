@@ -36,6 +36,13 @@ type Handler interface {
 	Handle(ctx context.Context, msg jetstream.Msg) error
 }
 
+// finalFailureRecorder is implemented by a handler that must keep a durable record when its
+// message is given up on after the last delivery (an erasure request, for one), instead of only
+// the error log line.
+type finalFailureRecorder interface {
+	OnFinalFailure(ctx context.Context, msg jetstream.Msg)
+}
+
 // errPoisonDropped is a sentinel returned by handlers after they have already
 // settled an UNRECOVERABLE (poison) message via msg.Term(). The Consume
 // wrapper treats it as "do not redeliver, do not re-settle": it neither Naks
@@ -166,6 +173,8 @@ func (r *Registry) streamFor(subject string) string {
 		return "notifications"
 	case strings.HasPrefix(subject, "inventory."):
 		return "inventory"
+	case strings.HasPrefix(subject, "maskani."):
+		return "maskani"
 	default:
 		return r.cfg.NATS.Stream
 	}
@@ -203,6 +212,9 @@ func (r *Registry) RegisterAll(ctx context.Context, js jetstream.JetStream) erro
 					r.logger.Error("handler failed on the last delivery; message dropped",
 						zap.String("subject", msg.Subject()), zap.String("durable", hc.Durable()),
 						zap.Uint64("delivered", delivered), zap.Error(err))
+					if ff, ok := hc.(finalFailureRecorder); ok {
+						ff.OnFinalFailure(ctx, msg)
+					}
 					_ = msg.Term()
 					return
 				}

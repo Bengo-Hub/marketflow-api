@@ -71,6 +71,11 @@ type APIConfig struct {
 	InternalServiceKey string `env:"INTERNAL_SERVICE_KEY"`
 	// PortalURL is the tenant portal, for links in notices (reconnect an integration).
 	PortalURL string `env:"PORTAL_URL" envDefault:"https://marketflow.codevertexafrica.com"`
+	// CRMLinkServices lists the services asked "do you still link this CRM contact" before an
+	// erased person's contact is deleted, as "name=base_url,..." (MF_WORKER_CRM_LINK_SERVICES).
+	// Empty uses the in-cluster defaults for pos, treasury, library, hospital, ordering,
+	// ticketing and projects.
+	CRMLinkServices string `env:"CRM_LINK_SERVICES"`
 }
 
 // NotificationsConfig carries the platform notifications-api coordinates.

@@ -194,6 +194,9 @@ func main() {
 			cfg.API.PortalURL, logger).WithForecast(custom_agents.NewCreditForecaster(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey)), logger))
 		// Knowledge base sync (Sprint 25): item events keep synced entries current.
 		reg.Add(worker.NewKBItemHandlers(entClient, knowledge.NewSync(entClient, rawDB), logger)...)
+		// Erasure in maskani (privacy.party_anonymised): delete the CRM contact only when no other
+		// service still links it, else strip it to a minimal record (owner decision 2026-11-11).
+		reg.Add(worker.NewPartyAnonymisedHandler(entClient, cfg.API.CRMLinkServices, cfg.CrossServiceKey, logger))
 		// Click-to-WhatsApp attribution (Sprint 18): the ad click id on the lead, once.
 		reg.Add(worker.NewWhatsAppReferralHandler(entClient, logger))
 		// New-lead email to the business (Sprint 18 L58; owner 2026-11-11): at most one every 15 minutes.
