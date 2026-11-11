@@ -312,6 +312,10 @@ func main() {
 		// Meta Graph API: a weekly check that emails the platform owner when a newer version than
 		// meta.GraphVersion is released (owner, 2026-11-10; the upgrade itself stays a reviewed change).
 		go worker.NewGraphVersionWatch(entClient, keys, tokenNotif, cfg.PlatformTenant, sharedcache.ClaimOnce, logger).Run(ctx)
+		// AI provider models (owner, 2026-11-11): a daily listing of each provider's models; a new
+		// version in a watched family alerts platform admins on Slack (auth-api) and by email.
+		go worker.NewModelWatch(entClient, keys, rdb, tokenNotif, cfg.AuthServiceURL, cfg.CrossServiceKey,
+			cfg.PlatformTenant, sharedcache.ClaimOnce, logger).Run(ctx)
 
 		// Endpoint discovery (Sprint 25, decision 61): each service's OpenAPI spec read once a week;
 		// new marketing-safe read routes wait for the platform owner's approval.
