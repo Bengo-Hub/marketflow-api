@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
+	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 )
 
@@ -121,6 +122,8 @@ func (h *WhatsAppAssistantHandler) askLeadReply(ctx context.Context, t *ent.Tena
 		"tenant_id": t.ID.String(), "tenant_slug": t.Slug, "lead_id": l.ID.String(), "text": text, "handoff_value": threshold,
 		// The business's compliance rules apply to every reply (Sprint 23 L34).
 		"business_type": t.BusinessType,
+		// Claims the business never makes (brand context): an answer that makes one goes to the owner.
+		"banned_claims": tenantBannedClaims(t.Metadata),
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.aiURL+"/api/v1/internal/os/lead-reply", bytes.NewReader(body))
 	if err != nil {
@@ -185,4 +188,17 @@ func logWhatsAppActivity(ctx context.Context, db *ent.Client, l *ent.Lead, direc
 	return db.Activity.Create().SetTenantID(l.TenantID).SetEntityType("lead").SetEntityID(l.ID).
 		SetActivityType("whatsapp").SetDirection(direction).SetBody(text).SetSource("agent").
 		SetExternalRef(ref).SetPerformedAt(time.Now().UTC()).Exec(ctx)
+}
+
+// tenantBannedClaims reads the brand context's banned claims from tenant metadata.
+func tenantBannedClaims(meta map[string]any) []string {
+	bc, _ := meta[marketingos.MetadataKey].(map[string]any)
+	list, _ := bc["banned_claims"].([]any)
+	out := make([]string, 0, len(list))
+	for _, v := range list {
+		if s, ok := v.(string); ok && strings.TrimSpace(s) != "" {
+			out = append(out, strings.TrimSpace(s))
+		}
+	}
+	return out
 }

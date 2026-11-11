@@ -26,7 +26,7 @@ func TestHandleLeadReply(t *testing.T) {
 	db := openWorkerTestDB(t)
 	ctx := context.Background()
 	tid := seedTenant(t, db, "leadreply")
-	if err := db.Tenant.UpdateOneID(tid).SetMetadata(map[string]any{"sales_handoff_value": 100000.0}).Exec(ctx); err != nil {
+	if err := db.Tenant.UpdateOneID(tid).SetMetadata(map[string]any{"sales_handoff_value": 100000.0, "marketing_context": map[string]any{"banned_claims": []any{"cures eczema"}}}).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
 	admin, _ := db.MarketflowRole.Create().SetTenantID(tid).SetRoleCode("marketflow_admin").SetName("Admin").Save(ctx)
@@ -100,7 +100,7 @@ func TestHandleLeadReply(t *testing.T) {
 		t.Fatalf("lead reply: %v %v", ok, err)
 	}
 	mu.Lock()
-	if len(asked) != 1 || asked[0]["lead_id"] != l.ID.String() || asked[0]["handoff_value"] != 100000.0 || asked[0]["business_type"] != "flp" {
+	if len(asked) != 1 || asked[0]["lead_id"] != l.ID.String() || asked[0]["handoff_value"] != 100000.0 || asked[0]["business_type"] != "flp" || fmt.Sprint(asked[0]["banned_claims"]) != "[cures eczema]" {
 		t.Fatalf("the assistant is asked with the lead and hand-off value: %+v", asked)
 	}
 	if len(sent) != 1 || firstTo(sent[0]) != phone || !strings.Contains(dataBody(sent[0]), "5,000") {
