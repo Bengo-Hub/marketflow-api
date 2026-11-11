@@ -100,7 +100,7 @@ func TestHandleLeadReply(t *testing.T) {
 		t.Fatalf("lead reply: %v %v", ok, err)
 	}
 	mu.Lock()
-	if len(asked) != 1 || asked[0]["lead_id"] != l.ID.String() || asked[0]["handoff_value"] != 100000.0 {
+	if len(asked) != 1 || asked[0]["lead_id"] != l.ID.String() || asked[0]["handoff_value"] != 100000.0 || asked[0]["business_type"] != "flp" {
 		t.Fatalf("the assistant is asked with the lead and hand-off value: %+v", asked)
 	}
 	if len(sent) != 1 || firstTo(sent[0]) != phone || !strings.Contains(dataBody(sent[0]), "5,000") {
@@ -141,4 +141,39 @@ func TestHandleLeadReply(t *testing.T) {
 	}
 	mu.Unlock()
 	_ = ent.Lead{}
+}
+
+// Sprint 23 L45: with the assistant switched off, a lead's message is kept on the timeline and
+// no AI answer is sent.
+func TestHandleLeadReplyOffSwitch(t *testing.T) {
+	db := openWorkerTestDB(t)
+	ctx := context.Background()
+	tid := seedTenant(t, db, "leadoff")
+	if err := db.Tenant.UpdateOneID(tid).SetMetadata(map[string]any{"sales_auto_reply": false}).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	suffix := fmt.Sprintf("8%08d", time.Now().UnixNano()%100000000)
+	l, err := db.Lead.Create().SetTenantID(tid).SetSource("meta_ad").SetLeadType("customer").SetPhone("+254" + suffix).
+		SetMetadata(map[string]any{"first_reply_at": time.Now().UTC().Format(time.RFC3339)}).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seq, _ := db.NurtureSequence.Create().SetTenantID(tid).SetName("Welcome").SetTriggerEvent("lead.created").
+		SetActive(true).SetSteps([]map[string]any{}).Save(ctx)
+	if _, err := db.NurtureEnrollment.Create().SetTenantID(tid).SetSequenceID(seq.ID).SetLeadID(l.ID).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	called := false
+	ai := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { called = true }))
+	defer ai.Close()
+	h := &WhatsAppAssistantHandler{db: db, http: http.DefaultClient, logger: zap.NewNop(), aiURL: ai.URL}
+	if ok, err := h.handleLeadReply(ctx, waInbound{From: "254" + suffix, WaMessageID: "off1", Text: "price?"}); !ok || err != nil {
+		t.Fatalf("still a lead's message: %v %v", ok, err)
+	}
+	if called {
+		t.Error("no AI answer when the assistant is off")
+	}
+	if n, _ := db.Activity.Query().Where(activity.EntityID(l.ID)).Count(ctx); n != 1 {
+		t.Errorf("the message is on the timeline, got %d", n)
+	}
 }

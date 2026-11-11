@@ -89,6 +89,10 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 			httpapi.Error(w, http.StatusBadRequest, "invalid_offerings", err.Error(), nil)
 			return
 		}
+		if err := ValidateSalesSettings(req.Metadata); err != nil {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_sales_settings", err.Error(), nil)
+			return
+		}
 	}
 
 	// Columns and metadata keys change together or not at all. Metadata is merged in the

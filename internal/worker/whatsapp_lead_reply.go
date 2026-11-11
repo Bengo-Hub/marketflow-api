@@ -28,6 +28,9 @@ const leadReplyWindow = 7 * 24 * time.Hour
 // tenantHandoffKey is the tenant metadata amount at or above which a lead goes to the owner.
 const tenantHandoffKey = "sales_handoff_value"
 
+// tenantAutoReplyKey switches the assistant's answers to lead replies (unset means on).
+const tenantAutoReplyKey = "sales_auto_reply"
+
 // followUpLead finds the lead this sender is, among leads that got the instant follow-up in the
 // last leadReplyWindow and were enrolled in a follow-up sequence (the business chose automated
 // follow-up). The most recently contacted wins. Leads already handed to the owner are skipped.
@@ -87,6 +90,11 @@ func (h *WhatsAppAssistantHandler) handleLeadReply(ctx context.Context, in waInb
 	threshold, _ := t.Metadata[tenantHandoffKey].(float64)
 	ref := "wa-in-" + in.WaMessageID
 	_ = logWhatsAppActivity(ctx, h.db, l, "inbound", in.Text, ref)
+	// The business switched the assistant off (Sprint 23 L45): the message stays on the
+	// timeline for a person to answer.
+	if on, set := t.Metadata[tenantAutoReplyKey].(bool); set && !on {
+		return true, nil
+	}
 
 	ans, err := h.askLeadReply(ctx, t, l, in.Text, threshold)
 	if err != nil {
@@ -111,6 +119,8 @@ func (h *WhatsAppAssistantHandler) handleLeadReply(ctx context.Context, in waInb
 func (h *WhatsAppAssistantHandler) askLeadReply(ctx context.Context, t *ent.Tenant, l *ent.Lead, text string, threshold float64) (leadReplyAnswer, error) {
 	body, _ := json.Marshal(map[string]any{
 		"tenant_id": t.ID.String(), "tenant_slug": t.Slug, "lead_id": l.ID.String(), "text": text, "handoff_value": threshold,
+		// The business's compliance rules apply to every reply (Sprint 23 L34).
+		"business_type": t.BusinessType,
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.aiURL+"/api/v1/internal/os/lead-reply", bytes.NewReader(body))
 	if err != nil {
