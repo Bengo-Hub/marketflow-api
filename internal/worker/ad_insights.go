@@ -174,6 +174,9 @@ func (a *AdInsights) syncCampaign(ctx context.Context, c *ent.Campaign) {
 	if a.optimiserOn && c.ConnectedAccountID != nil {
 		a.optimise(ctx, c, token, a.minSpendFor(ctx, c))
 	}
+	if c.ConnectedAccountID != nil {
+		a.recordFinalSpend(ctx, c)
+	}
 	a.logger.Debug("ad_metrics upserted",
 		zap.String("campaign", c.ID.String()),
 		zap.Int64("impressions", impressions),

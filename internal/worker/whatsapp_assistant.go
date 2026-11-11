@@ -130,7 +130,9 @@ func (h *WhatsAppAssistantHandler) process(ctx context.Context, in waInbound) er
 		return err
 	}
 	if user == nil {
-		return nil // not a verified user: the message is not for the assistant
+		// Not a business user: maybe a lead answering the instant follow-up (Sprint 23).
+		_, err := h.handleLeadReply(ctx, in)
+		return err
 	}
 
 	// 3. Which of their businesses use MarketFlow with an approving role.
