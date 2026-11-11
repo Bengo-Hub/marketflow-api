@@ -363,24 +363,26 @@ func htmlEscape(s string) string {
 }
 
 type publicLeadInput struct {
-	Email       string         `json:"email"`
-	Phone       string         `json:"phone"`
-	FirstName   string         `json:"first_name"`
-	LastName    string         `json:"last_name"`
-	Source      string         `json:"source"`
-	Interest    string         `json:"interest"`
-	LeadType    string         `json:"lead_type"`
-	UTMSource   string         `json:"utm_source"`
-	UTMMedium   string         `json:"utm_medium"`
-	UTMCampaign string         `json:"utm_campaign"`
+	Email       string `json:"email"`
+	Phone       string `json:"phone"`
+	FirstName   string `json:"first_name"`
+	LastName    string `json:"last_name"`
+	Source      string `json:"source"`
+	Interest    string `json:"interest"`
+	LeadType    string `json:"lead_type"`
+	UTMSource   string `json:"utm_source"`
+	UTMMedium   string `json:"utm_medium"`
+	UTMCampaign string `json:"utm_campaign"`
 	// Click ids and the rest of the UTM set, kept in metadata for ad attribution (Sprint 18).
 	UTMContent string `json:"utm_content"`
 	UTMTerm    string `json:"utm_term"`
 	FBCLID     string `json:"fbclid"`
 	GCLID      string `json:"gclid"`
 	TTCLID     string `json:"ttclid"`
-	FunnelSlug  string         `json:"funnel_slug"`
-	Answers     map[string]any `json:"answers"`
+	FunnelSlug string `json:"funnel_slug"`
+	// FunnelVariant is the A/B version ("a" or "b") the visitor saw (Sprint 7 #53).
+	FunnelVariant string         `json:"funnel_variant"`
+	Answers       map[string]any `json:"answers"`
 	// WhatsAppConsent is the lead's own "OK to contact me on WhatsApp" tick. Nurture sends
 	// WhatsApp only when it is true (Kenya Data Protection Act; owner, 2026-11-03).
 	WhatsAppConsent bool `json:"whatsapp_consent"`
@@ -461,6 +463,9 @@ func (h *PublicHandler) PublicCreateLead(w http.ResponseWriter, r *http.Request)
 			Where(funnel.TenantIDEQ(t.ID), funnel.SlugEQ(in.FunnelSlug)).
 			Only(r.Context()); err == nil {
 			input.FunnelID = &f.ID
+			if v := funnels.NormalVariant(in.FunnelVariant); v != "" {
+				input.Metadata["funnel_variant"] = v
+			}
 		}
 	}
 	if in.Email != "" {

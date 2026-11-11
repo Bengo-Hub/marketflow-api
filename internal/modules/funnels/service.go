@@ -27,14 +27,14 @@ func NewService(client *ent.Client, logger *zap.Logger) *Service {
 
 // CreateInput contains the data needed to create a funnel.
 type CreateInput struct {
-	TenantID       uuid.UUID
-	Name           string
-	Slug           string
-	FunnelType     *string
-	Steps          []map[string]any
+	TenantID        uuid.UUID
+	Name            string
+	Slug            string
+	FunnelType      *string
+	Steps           []map[string]any
 	LandingPageHTML *string
-	LandingPageCSS map[string]any
-	Metadata       map[string]any
+	LandingPageCSS  map[string]any
+	Metadata        map[string]any
 }
 
 // UpdateInput contains the data to update a funnel.

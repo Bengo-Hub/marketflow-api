@@ -86,6 +86,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req.Steps, req.Metadata = req.legacyFields.fold(req.Steps, req.Metadata)
+	if err := ValidateABTest(req.Metadata); err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_ab_test", err.Error(), nil)
+		return
+	}
 
 	result, err := h.service.Create(r.Context(), CreateInput{
 		TenantID:        tenantID,
@@ -224,6 +228,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req.Steps, req.Metadata = req.legacyFields.fold(req.Steps, req.Metadata)
+	if err := ValidateABTest(req.Metadata); err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_ab_test", err.Error(), nil)
+		return
+	}
 
 	result, err := h.service.Update(r.Context(), tenantID, funnelID, UpdateInput{
 		Name:            req.Name,
@@ -340,4 +348,3 @@ func extractTenantID(r *http.Request) (uuid.UUID, error) {
 	}
 	return uuid.Parse(header)
 }
-

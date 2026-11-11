@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
@@ -40,6 +42,13 @@ func stepViewRedisKey(slug string, stepIndex int) string {
 
 type stepViewRequest struct {
 	StepIndex int `json:"step_index"`
+	// Variant is the A/B version ("a" or "b") the visitor sees (Sprint 7 #53).
+	Variant string `json:"variant"`
+}
+
+// variantViewKey counts first-step views of one A/B version.
+func variantViewKey(slug, variant string) string {
+	return fmt.Sprintf("mf:funnel:%s:ab:%s:views", slug, variant)
 }
 
 // RecordStepView handles POST /api/v1/public/funnels/{slug}/step-view.
@@ -76,6 +85,9 @@ func (h *AnalyticsHandler) RecordStepView(w http.ResponseWriter, r *http.Request
 	if err := h.redis.Incr(r.Context(), key).Err(); err != nil {
 		h.logger.Warn("redis incr failed for step view", zap.String("key", key), zap.Error(err))
 		// Fail silently — analytics failures must not break the visitor UX.
+	}
+	if v := NormalVariant(req.Variant); v != "" && req.StepIndex == 0 {
+		_ = h.redis.Incr(r.Context(), variantViewKey(slug, v)).Err()
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -151,13 +163,31 @@ func (h *AnalyticsHandler) GetAnalytics(w http.ResponseWriter, r *http.Request) 
 			lead.FunnelIDEQ(funnelID),
 		).Count(ctx)
 
-	httpapi.JSON(w, http.StatusOK, map[string]any{
-		"funnel_id":   funnelID,
-		"slug":        f.Slug,
-		"total_steps": numSteps,
-		"steps":       steps,
+	out := map[string]any{
+		"funnel_id":        funnelID,
+		"slug":             f.Slug,
+		"total_steps":      numSteps,
+		"steps":            steps,
 		"lead_submissions": leadCount,
-	})
+	}
+	// A/B comparison (Sprint 7 #53): first-step views and leads of each version.
+	if _, ok := f.Metadata[MetaABTest].(map[string]any); ok {
+		ab := map[string]any{"enabled": ReadABTest(f.Metadata).Enabled}
+		for _, v := range []string{"a", "b"} {
+			views, _ := h.redis.Get(ctx, variantViewKey(f.Slug, v)).Int64()
+			leads, _ := h.db.Lead.Query().Where(
+				lead.TenantIDEQ(tenantID), lead.FunnelIDEQ(funnelID),
+				func(s *sql.Selector) { s.Where(sqljson.ValueEQ(lead.FieldMetadata, v, sqljson.Path("funnel_variant"))) },
+			).Count(ctx)
+			rate := 0.0
+			if views > 0 {
+				rate = float64(leads) / float64(views) * 100
+			}
+			ab[v] = map[string]any{"views": views, "leads": leads, "conversion_rate": rate}
+		}
+		out["ab_test"] = ab
+	}
+	httpapi.JSON(w, http.StatusOK, out)
 }
 
 // getStepViews reads the step view counter from Redis.

@@ -84,6 +84,8 @@ type PublicFunnel struct {
 	HeroImageURL    string           `json:"hero_image_url,omitempty"`
 	Steps           []map[string]any `json:"steps"`
 	LandingPageHTML string           `json:"landing_page_html,omitempty"`
+	// ABTest is the running A/B test (Sprint 7 #53), absent when none.
+	ABTest *PublicABTest `json:"ab_test,omitempty"`
 }
 
 // ToPublic builds the public view of a published funnel. The HTML is sanitised again here so
@@ -108,6 +110,7 @@ func ToPublic(f *ent.Funnel, tenantSlug string) PublicFunnel {
 		BrandColor:      SafeColor(str(MetaBrandColor), ""),
 		Steps:           steps,
 		LandingPageHTML: SanitizeLandingHTML(f.LandingPageHTML),
+		ABTest:          publicABTest(f.Metadata),
 	}
 	if u := str(MetaHeroImage); strings.HasPrefix(u, "https://") {
 		out.HeroImageURL = u
