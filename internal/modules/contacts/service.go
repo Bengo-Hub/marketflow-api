@@ -245,13 +245,10 @@ func (s *Service) List(ctx context.Context, in ListInput) ([]*ent.Contact, int, 
 	if in.ContactType != nil {
 		query = query.Where(contact.ContactTypeEQ(*in.ContactType))
 	}
-	if in.Query != nil && *in.Query != "" {
-		q := *in.Query
-		query = query.Where(contact.Or(
-			contact.FirstNameContainsFold(q),
-			contact.LastNameContainsFold(q),
-			contact.EmailContainsFold(q),
-		))
+	if in.Query != nil {
+		if m := matchQuery(*in.Query); m != nil {
+			query = query.Where(m)
+		}
 	}
 
 	total, err := query.Clone().Count(ctx)

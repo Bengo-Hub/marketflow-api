@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/outbox"
+	"github.com/bengobox/marketflow-api/internal/platform/search"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -261,15 +261,14 @@ func (s *Service) filtered(in ListInput) *ent.LeadQuery {
 	if in.To != nil {
 		query = query.Where(lead.CreatedAtLTE(*in.To))
 	}
-	if q := strings.TrimSpace(in.Search); q != "" {
-		if len(q) > 100 {
-			q = q[:100]
-		}
+	// Every word must match a name, email or phone, so a full name typed as "Jane Doe" finds the
+	// lead stored as first name Jane, last name Doe (same rule as the contacts search).
+	for _, t := range search.Terms(in.Search) {
 		query = query.Where(lead.Or(
-			lead.FirstNameContainsFold(q),
-			lead.LastNameContainsFold(q),
-			lead.EmailContainsFold(q),
-			lead.PhoneContains(q),
+			lead.FirstNameContainsFold(t),
+			lead.LastNameContainsFold(t),
+			lead.EmailContainsFold(t),
+			lead.PhoneContains(t),
 		))
 	}
 	return query

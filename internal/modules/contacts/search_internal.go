@@ -28,13 +28,8 @@ func (s *Service) Search(ctx context.Context, tenantID uuid.UUID, q string, limi
 			contact.TenantID(tenantID),
 			contact.Not(contact.And(contact.FirstNameEqualFold("Walk-in"), contact.LastNameEqualFold("Customer"))),
 		)
-	if q != "" {
-		base = base.Where(contact.Or(
-			contact.FirstNameContainsFold(q),
-			contact.LastNameContainsFold(q),
-			contact.EmailContainsFold(q),
-			contact.PhoneContainsFold(q),
-		))
+	if m := matchQuery(q); m != nil {
+		base = base.Where(m)
 	}
 	total, err := base.Clone().Count(ctx)
 	if err != nil {
