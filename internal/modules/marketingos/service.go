@@ -147,7 +147,10 @@ type OSContext struct {
 	Offerings        []string         `json:"offerings"`
 	Members          []MemberOverride `json:"members"`
 	Features         map[string]bool  `json:"features,omitempty"`
-	HasPlan          bool             `json:"has_plan"`
+	// ChatTurnsDaily is the plan's free chat turns a day (subscriptions limit chat_turns_daily);
+	// 0 when the plan sets none, and marketflow-ai keeps its default.
+	ChatTurnsDaily int  `json:"chat_turns_daily,omitempty"`
+	HasPlan        bool `json:"has_plan"`
 	// MarketSignals is the Find, Flip, Fix block (market_signals.go); absent until there is one.
 	MarketSignals *MarketSignals `json:"market_signals,omitempty"`
 }
@@ -398,6 +401,9 @@ func (s *Service) Context(ctx context.Context, tenantID uuid.UUID) (OSContext, e
 			out.Features = make(map[string]bool, len(ent.Features))
 			for _, f := range ent.Features {
 				out.Features[f] = true
+			}
+			if n := ent.Limits["chat_turns_daily"]; n > 0 {
+				out.ChatTurnsDaily = n
 			}
 		}
 	}

@@ -40,6 +40,8 @@ type Entitlements struct {
 	Status       string   `json:"status"`
 	BillingMode  string   `json:"billing_mode"`
 	IsDemoBypass bool     `json:"is_demo_bypass"`
+	// Limits are the plan's numeric limits (chat_turns_daily, max_leads, ...).
+	Limits map[string]int `json:"limits,omitempty"`
 }
 
 // GetEntitlements fetches the tenant's subscription snapshot from the S2S endpoint.
