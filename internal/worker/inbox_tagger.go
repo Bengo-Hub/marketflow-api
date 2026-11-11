@@ -16,6 +16,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/activity"
 	"github.com/bengobox/marketflow-api/internal/modules/inbox"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
+	"github.com/bengobox/marketflow-api/internal/platform/reqid"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -65,7 +66,7 @@ const (
 )
 
 func NewInboxTagger(db *ent.Client, aiURL, aiKey string, logger *zap.Logger) *InboxTagger {
-	return &InboxTagger{db: db, http: &http.Client{Timeout: 20 * time.Second}, aiURL: strings.TrimSuffix(aiURL, "/"), aiKey: aiKey,
+	return &InboxTagger{db: db, http: reqid.Client(20 * time.Second), aiURL: strings.TrimSuffix(aiURL, "/"), aiKey: aiKey,
 		every: inboxTaggerEvery, batch: 50, logger: logger.Named("inbox-tagger"), claim: sharedcache.ClaimPeriod}
 }
 

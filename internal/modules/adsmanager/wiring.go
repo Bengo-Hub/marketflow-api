@@ -11,6 +11,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
+	"github.com/bengobox/marketflow-api/internal/platform/reqid"
 	"github.com/google/uuid"
 )
 
@@ -29,7 +30,7 @@ func MetaEnabled(db *ent.Client) func(ctx context.Context) bool {
 // AICharge spends credits through marketflow-ai's internal charge route, the one owner of the
 // subscriptions-api credit client.
 func AICharge(aiURL, key string) func(ctx context.Context, tid uuid.UUID, units int64, idem, desc string) (bool, error) {
-	hc := &http.Client{Timeout: 15 * time.Second}
+	hc := reqid.Client(15 * time.Second)
 	return func(ctx context.Context, tid uuid.UUID, units int64, idem, desc string) (bool, error) {
 		body, _ := json.Marshal(map[string]any{"tenant_id": tid.String(), "units": units, "key": idem, "description": desc})
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimSuffix(aiURL, "/")+"/api/v1/internal/credits/charge", bytes.NewReader(body))

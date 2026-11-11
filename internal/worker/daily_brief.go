@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/notifications"
+	"github.com/bengobox/marketflow-api/internal/platform/reqid"
 )
 
 // briefRoles receive the daily brief.
@@ -63,7 +64,7 @@ type DailyBrief struct {
 // NewDailyBrief builds the job.
 func NewDailyBrief(db *ent.Client, svc *marketingos.Service, notif *notifications.Client, aiURL, serviceKey, portalURL string, logger *zap.Logger) *DailyBrief {
 	return &DailyBrief{db: db, svc: svc, notif: notif, aiURL: strings.TrimSuffix(aiURL, "/"), serviceKey: serviceKey,
-		portalURL: strings.TrimSuffix(portalURL, "/"), hc: &http.Client{Timeout: briefWordsTimeout},
+		portalURL: strings.TrimSuffix(portalURL, "/"), hc: reqid.Client(briefWordsTimeout),
 		every: 15 * time.Minute, logger: logger.Named("daily-brief"), nowFn: time.Now, claim: sharedcache.ClaimOnce}
 }
 

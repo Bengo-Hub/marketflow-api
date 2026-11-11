@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/platform/reqid"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -24,7 +25,7 @@ func NewComplaintFinder(aiURL, key string) ComplaintFinder {
 	if aiURL == "" || key == "" {
 		return nil
 	}
-	hc := &http.Client{Timeout: 45 * time.Second}
+	hc := reqid.Client(45 * time.Second)
 	url := strings.TrimSuffix(aiURL, "/") + "/api/v1/internal/adintel/complaints"
 	return func(ctx context.Context, tenantID uuid.UUID, query, country string) (int, []byte, error) {
 		payload, _ := json.Marshal(map[string]string{"tenant_id": tenantID.String(), "query": query, "country": country})

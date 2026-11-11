@@ -13,16 +13,17 @@ import (
 
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/bengobox/marketflow-api/internal/encryption"
-	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
+	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/modules/activities"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/notifications"
+	"github.com/bengobox/marketflow-api/internal/platform/reqid"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go/jetstream"
 	"go.uber.org/zap"
@@ -80,7 +81,7 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, keys *encryption.Ke
 		AuthToken: cfg.Notifications.Token,
 	})
 	activitySvc := activities.NewService(db, logger.Named("activities"))
-	agentHTTP := &http.Client{Timeout: 15 * time.Second}
+	agentHTTP := reqid.Client(15 * time.Second)
 	leadScorer := &LeadScorerAgent{
 		db:         db,
 		apiBaseURL: cfg.API.MarketFlowAPIURL,
@@ -187,7 +188,7 @@ func (r *Registry) RegisterAll(ctx context.Context, js jetstream.JetStream) erro
 		}
 		hc := h
 		if _, err := cons.Consume(func(msg jetstream.Msg) {
-			if err := hc.Handle(ctx, msg); err != nil {
+			if err := hc.Handle(reqid.WithEvent(ctx, msg.Headers(), msg.Data()), msg); err != nil {
 				// Poison messages were already terminated by the handler via
 				// dropPoison — do NOT Nak (would re-settle / redeliver).
 				if errors.Is(err, errPoisonDropped) {

@@ -14,6 +14,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/bengobox/marketflow-api/internal/platform/reqid"
 )
 
 // Channel values recognised by notifications-api.
@@ -153,7 +155,7 @@ func New(cfg Config) *Client {
 	}
 	return &Client{
 		baseURL:   strings.TrimSuffix(cfg.BaseURL, "/"),
-		http:      &http.Client{Timeout: cfg.Timeout},
+		http:      reqid.Client(cfg.Timeout),
 		authToken: cfg.AuthToken,
 		apiKey:    cfg.APIKey,
 		userAgent: "marketflow-worker/1.0",

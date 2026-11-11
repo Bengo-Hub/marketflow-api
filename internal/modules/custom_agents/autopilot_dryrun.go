@@ -13,6 +13,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/agentrun"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/platform/reqid"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -46,7 +47,7 @@ func NewCreditForecaster(aiURL, key string) CreditForecaster {
 	if aiURL == "" || key == "" {
 		return nil
 	}
-	hc := &http.Client{Timeout: 10 * time.Second}
+	hc := reqid.Client(10 * time.Second)
 	url := strings.TrimSuffix(aiURL, "/") + "/api/v1/internal/credits/forecast"
 	return func(ctx context.Context, tenantID uuid.UUID, output string) (CreditForecast, error) {
 		var fc CreditForecast

@@ -19,6 +19,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/ent/userroleassignment"
 	"github.com/bengobox/marketflow-api/internal/notifications"
+	"github.com/bengobox/marketflow-api/internal/platform/reqid"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/redis/go-redis/v9"
@@ -67,7 +68,7 @@ const (
 func NewWhatsAppAssistantHandler(db *ent.Client, rdb *redis.Client, notif *notifications.Client,
 	authURL, authKey, aiURL, aiKey, portalURL, platformTenant string, logger *zap.Logger) *WhatsAppAssistantHandler {
 	return &WhatsAppAssistantHandler{
-		db: db, rdb: rdb, notif: notif, http: &http.Client{Timeout: 110 * time.Second},
+		db: db, rdb: rdb, notif: notif, http: reqid.Client(110 * time.Second),
 		authURL: strings.TrimSuffix(authURL, "/"), aiURL: strings.TrimSuffix(aiURL, "/"),
 		authKey: authKey, aiKey: aiKey, portalURL: strings.TrimSuffix(portalURL, "/"), platformTen: platformTenant,
 		logger: logger.Named("whatsapp-assistant"),

@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
+	"github.com/bengobox/marketflow-api/internal/platform/reqid"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -32,7 +33,7 @@ type CompetitorScan struct {
 }
 
 func NewCompetitorScan(db *ent.Client, aiURL, aiKey string, logger *zap.Logger) *CompetitorScan {
-	return &CompetitorScan{db: db, http: &http.Client{Timeout: 3 * time.Minute}, aiURL: strings.TrimSuffix(aiURL, "/"), aiKey: aiKey,
+	return &CompetitorScan{db: db, http: reqid.Client(3 * time.Minute), aiURL: strings.TrimSuffix(aiURL, "/"), aiKey: aiKey,
 		logger: logger.Named("competitor-scan"), claim: sharedcache.ClaimOnce, now: time.Now}
 }
 
