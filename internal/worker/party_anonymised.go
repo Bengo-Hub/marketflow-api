@@ -36,8 +36,8 @@ const defaultCRMLinkServices = "pos=http://pos-api.pos.svc.cluster.local:4000," 
 	"hospital=http://hospital-api.hospital.svc.cluster.local:4200," +
 	"ordering=http://ordering-backend.ordering.svc.cluster.local:4000," +
 	"ticketing=http://ticketing-api.ticketing.svc.cluster.local:4009," +
-	// projects-api keeps crm_contact_id in project commercial metadata and has no endpoint yet:
-	// its 404 counts as "cannot answer", so contacts are stripped, never deleted, until it does.
+	// projects-api keeps crm_contact_id in project commercial metadata and answers the same
+	// crm-links endpoint as the others (S2-18).
 	"projects=http://projects-api.projects.svc.cluster.local:4000"
 
 // linkService is one service that may hold a crm_contact_id.

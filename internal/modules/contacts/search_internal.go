@@ -67,12 +67,13 @@ func (h *Handler) SearchInternal(w http.ResponseWriter, r *http.Request) {
 	out := make([]map[string]any, 0, len(results))
 	for _, c := range results {
 		out = append(out, map[string]any{
-			"id":         c.ID,
-			"first_name": c.FirstName,
-			"last_name":  c.LastName,
-			"email":      c.Email,
-			"phone":      c.Phone,
-			"created_at": c.CreatedAt,
+			"id":           c.ID,
+			"first_name":   c.FirstName,
+			"last_name":    c.LastName,
+			"email":        c.Email,
+			"phone":        c.Phone,
+			"contact_type": c.ContactType,
+			"created_at":   c.CreatedAt,
 		})
 	}
 	httpapi.JSON(w, http.StatusOK, map[string]any{"data": out, "total": total})

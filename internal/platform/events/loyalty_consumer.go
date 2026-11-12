@@ -131,7 +131,9 @@ func (c *LoyaltyConsumer) handle(msg *nats.Msg) {
 	}
 	if existing == nil {
 		c.logger.Debug("loyalty.tier_upgraded: no CRM contact found, skipping metadata update",
-			zap.String("phone", p.CustomerPhone))
+			zap.String("tenant_id", tenantID.String()),
+			zap.String("account_id", p.AccountID),
+			zap.String("crm_contact_id", p.CRMContactID))
 		return
 	}
 
