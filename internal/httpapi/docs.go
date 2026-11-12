@@ -429,6 +429,87 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/endpoints": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Discovered service endpoints",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/endpoints/scan": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Scan service specs for new endpoints now",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/endpoints/{service}": {
+            "patch": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Approve or reject a discovered endpoint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service name",
+                        "name": "service",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/providers": {
             "get": {
                 "security": [
@@ -816,6 +897,325 @@ const docTemplate = `{
                 }
             }
         },
+        "/ads/accounts": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ads"
+                ],
+                "summary": "Connected ad accounts with health",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/ads/accounts/kes": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ads"
+                ],
+                "summary": "Create a KES ad account in the client's business portfolio",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/adsmanager.AccountView"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ads/boosts": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ads"
+                ],
+                "summary": "Boost an approved video",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "402": {
+                        "description": "Payment Required",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ads/boosts/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Ads"
+                ],
+                "summary": "A boost with its launch progress",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Campaign UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/ads/boosts/{id}/paid": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Ads"
+                ],
+                "summary": "Confirm the ad budget was paid on Meta",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Campaign UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/ads/boosts/{id}/pause": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Ads"
+                ],
+                "summary": "Pause a boost",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Campaign UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/ads/boosts/{id}/resume": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Ads"
+                ],
+                "summary": "Resume a paused boost",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Campaign UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ads/quote": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ads"
+                ],
+                "summary": "Quote a boost",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/adsmanager.Quote"
+                        }
+                    }
+                }
+            }
+        },
         "/agents/custom": {
             "get": {
                 "security": [
@@ -1018,6 +1418,161 @@ const docTemplate = `{
                 }
             }
         },
+        "/agents/custom/{id}/autopilot": {
+            "put": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Custom Agents"
+                ],
+                "summary": "Save an ad autopilot's settings as a new config version",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Agent UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Autopilot settings",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/custom_agents.AutopilotInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/agents/custom/{id}/autopilot/dry-run": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Custom Agents"
+                ],
+                "summary": "Preview an ad autopilot's next run and monthly credits",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Agent UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/custom_agents.DryRun"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/agents/custom/{id}/autopilot/rollback": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Custom Agents"
+                ],
+                "summary": "Restore an earlier autopilot config",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Agent UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/agents/custom/{id}/run": {
             "post": {
                 "security": [
@@ -1158,6 +1713,45 @@ const docTemplate = `{
                 }
             }
         },
+        "/agents/team/setup": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MarketingOS"
+                ],
+                "summary": "Set up or review the Marketing OS team",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/marketingos.TeamSetup"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/agents/team/{key}": {
             "put": {
                 "security": [
@@ -1211,6 +1805,77 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/agents/templates": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Custom Agents"
+                ],
+                "summary": "Agent templates to hire",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by industry",
+                        "name": "industry",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/agents/templates/{id}/hire": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Custom Agents"
+                ],
+                "summary": "Hire an agent template",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Template UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -2131,6 +2796,46 @@ const docTemplate = `{
                 }
             }
         },
+        "/creative/assets/{id}/downloaded": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Creative"
+                ],
+                "summary": "Record that a video was downloaded",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Asset UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/creative/briefs": {
             "get": {
                 "security": [
@@ -2161,14 +2866,20 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Page",
+                        "description": "Page size",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page, from 1 (or use offset)",
                         "name": "page",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Page size",
-                        "name": "page_size",
+                        "description": "Rows to skip, when page is not given",
+                        "name": "offset",
                         "in": "query"
                     }
                 ],
@@ -2337,6 +3048,47 @@ const docTemplate = `{
                 }
             }
         },
+        "/creative/briefs/{id}/lead-page": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Creative"
+                ],
+                "summary": "Create the lead page for an existing ad",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Brief id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/creative/briefs/{id}/versions": {
             "post": {
                 "security": [
@@ -2376,6 +3128,70 @@ const docTemplate = `{
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/creative.VersionInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/creative/briefs/{id}/video-ads": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Creative"
+                ],
+                "summary": "Start a video ad: the script is written first, for review",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Brief UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Format, length, voice and the photos and clips to use",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/creative.VideoAdInput"
                         }
                     }
                 ],
@@ -2636,6 +3452,176 @@ const docTemplate = `{
                 }
             }
         },
+        "/creative/versions/{id}/motion": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Creative"
+                ],
+                "summary": "Make a motion poster (a short clip) of a finished poster",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Source poster version UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Motion, length and tier",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/creative.MotionInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/creative/versions/{id}/quote": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Creative"
+                ],
+                "summary": "Quote a video ad's render",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Video ad version UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/creative/versions/{id}/render": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Creative"
+                ],
+                "summary": "Render a reviewed video ad script",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Video ad version UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/creative/versions/{id}/review-link": {
             "post": {
                 "security": [
@@ -2771,6 +3757,218 @@ const docTemplate = `{
                 "responses": {
                     "202": {
                         "description": "Accepted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/creative/versions/{id}/revision": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Creative"
+                ],
+                "summary": "Change a finished video ad scene by scene",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Finished video ad version UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/creative/versions/{id}/script": {
+            "put": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Creative"
+                ],
+                "summary": "Edit a video ad's script and end card before rendering",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Video ad version UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Script and end card",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/creative.ScriptInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/creative/versions/{id}/storyboard": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Creative"
+                ],
+                "summary": "Make a video ad's storyboard",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Video ad version UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/creative/versions/{id}/storyboard/approve": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Creative"
+                ],
+                "summary": "Approve a video ad's storyboard",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Video ad version UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -3750,6 +4948,299 @@ const docTemplate = `{
                 }
             }
         },
+        "/inbox": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inbox"
+                ],
+                "summary": "Social inbox",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "comment or dm",
+                        "name": "kind",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "an intent tag, or buyer for every buyer_* tag",
+                        "name": "intent",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "only items not yet handled",
+                        "name": "open",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "next_cursor of the previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/inbox/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inbox"
+                ],
+                "summary": "Delete a comment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inbox item (Activity) UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/inbox/{id}/handled": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Inbox"
+                ],
+                "summary": "Mark an inbox item handled",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inbox item UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/inbox/{id}/hide": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inbox"
+                ],
+                "summary": "Hide or unhide a comment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inbox item (Activity) UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/inbox/{id}/promote": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Inbox"
+                ],
+                "summary": "Promote an inbox item to a lead",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inbox item UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/inbox/{id}/reply": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inbox"
+                ],
+                "summary": "Reply to a comment or DM",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inbox item (Activity) UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/integrations": {
             "get": {
                 "security": [
@@ -4441,6 +5932,81 @@ const docTemplate = `{
                 }
             }
         },
+        "/knowledge/entries/{id}/approve": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "KnowledgeBase"
+                ],
+                "summary": "Approve a suggested FAQ entry",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Entry UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/knowledge/entries/{id}/reject": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "KnowledgeBase"
+                ],
+                "summary": "Reject a suggested FAQ entry",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Entry UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
         "/leads": {
             "get": {
                 "security": [
@@ -4773,6 +6339,40 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/me/access": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenant"
+                ],
+                "summary": "The caller's MarketFlow role",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -5738,6 +7338,297 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/publishing/accounts": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Publishing"
+                ],
+                "summary": "Accounts a video can be posted to",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/publishing/jobs": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Publishing"
+                ],
+                "summary": "Publishing calendar",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "RFC3339 start (default: 7 days ago)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "RFC3339 end (default: 30 days ahead)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "next_cursor of the previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Publishing"
+                ],
+                "summary": "Schedule an approved video to connected accounts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Post",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/publishing.ScheduleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/publishing/jobs/{id}/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Publishing"
+                ],
+                "summary": "Cancel a scheduled post",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Job UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/publishing/jobs/{id}/move": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Publishing"
+                ],
+                "summary": "Move a scheduled post to another time",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Job UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/publishing.JobView"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/publishing/jobs/{id}/retry": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Publishing"
+                ],
+                "summary": "Retry a failed post",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Job UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/httpapi.ErrorResponse"
                         }
@@ -6749,6 +8640,89 @@ const docTemplate = `{
                 }
             }
         },
+        "/tenant/market-research": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MarketingOS"
+                ],
+                "summary": "What the weekly competitor scan found",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/tenant/market-research/complaints": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MarketingOS"
+                ],
+                "summary": "Find complaint themes in the business's market",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "402": {
+                        "description": "Payment Required",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/tenant/marketing-context": {
             "get": {
                 "security": [
@@ -6826,6 +8800,40 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tenant/marketing-context/draft": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Built from the profile, the account details, best sellers (or the website for the platform tenant) and testimonials. Nothing is saved; PUT /tenant/marketing-context saves.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Onboarding"
+                ],
+                "summary": "Suggested brand context",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/onboarding.Draft"
                         }
                     }
                 }
@@ -6981,6 +8989,70 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": true
                         }
+                    }
+                }
+            }
+        },
+        "/tenant/onboarding": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Progress through setting up MarketFlow, computed from existing data",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Onboarding"
+                ],
+                "summary": "Setup checklist",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/onboarding.Checklist"
+                        }
+                    }
+                }
+            }
+        },
+        "/tenant/onboarding/dismiss": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Onboarding"
+                ],
+                "summary": "Hide or show the setup prompt",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
                     }
                 }
             }
@@ -7677,6 +9749,92 @@ const docTemplate = `{
                 }
             }
         },
+        "adsmanager.AccountView": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "boolean"
+                },
+                "ad_account_id": {
+                    "type": "string"
+                },
+                "connected_account_id": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "funding": {
+                    "$ref": "#/definitions/adsmanager.Funding"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "problem": {
+                    "type": "string"
+                }
+            }
+        },
+        "adsmanager.Funding": {
+            "type": "string",
+            "enum": [
+                "card",
+                "prepaid",
+                "needs_funds",
+                "unknown"
+            ],
+            "x-enum-varnames": [
+                "FundingCard",
+                "FundingPrepaid",
+                "FundingNeeded",
+                "FundingUnknown"
+            ]
+        },
+        "adsmanager.Quote": {
+            "type": "object",
+            "properties": {
+                "account_name": {
+                    "type": "string"
+                },
+                "ad_account_id": {
+                    "type": "string"
+                },
+                "balance": {
+                    "description": "prepaid stored balance seen, whole units",
+                    "type": "integer"
+                },
+                "blockers": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "budget": {
+                    "description": "whole units, paid to Meta by the client",
+                    "type": "integer"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "days": {
+                    "type": "integer"
+                },
+                "funding": {
+                    "$ref": "#/definitions/adsmanager.Funding"
+                },
+                "launch_credits": {
+                    "description": "MarketFlow's charge, credits",
+                    "type": "integer"
+                },
+                "shortfall": {
+                    "description": "what to add on Meta, whole units",
+                    "type": "integer"
+                }
+            }
+        },
         "analytics.DashboardData": {
             "type": "object",
             "properties": {
@@ -8126,6 +10284,23 @@ const docTemplate = `{
                 }
             }
         },
+        "creative.MotionInput": {
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "description": "the motion, optional (\"slow push in, steam rising\")",
+                    "type": "string"
+                },
+                "seconds": {
+                    "description": "4 to 10, default 5",
+                    "type": "integer"
+                },
+                "tier": {
+                    "description": "standard (default) or premium",
+                    "type": "string"
+                }
+            }
+        },
         "creative.ReviseInput": {
             "type": "object",
             "properties": {
@@ -8139,6 +10314,44 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "subline": {
+                    "type": "string"
+                }
+            }
+        },
+        "creative.ScriptInput": {
+            "type": "object",
+            "properties": {
+                "end_card": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "script": {
+                    "$ref": "#/definitions/creative.VideoScript"
+                }
+            }
+        },
+        "creative.ScriptScene": {
+            "type": "object",
+            "properties": {
+                "asset": {
+                    "type": "integer"
+                },
+                "caption": {
+                    "type": "string"
+                },
+                "duration_s": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "shot": {
+                    "type": "string"
+                },
+                "visual": {
+                    "type": "string"
+                },
+                "voiceover": {
                     "type": "string"
                 }
             }
@@ -8178,11 +10391,272 @@ const docTemplate = `{
                 }
             }
         },
+        "creative.VideoAdInput": {
+            "type": "object",
+            "properties": {
+                "actor_prompt": {
+                    "description": "ActorPrompt describes the presenter for a new actor (presenter types); the brief's\nactor is kept once it exists.",
+                    "type": "string"
+                },
+                "cta": {
+                    "type": "string"
+                },
+                "delivery": {
+                    "description": "ad (default) | ugc | kids | story | info",
+                    "type": "string"
+                },
+                "footage_urls": {
+                    "description": "the owner's clips",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "format": {
+                    "description": "default 1080x1920 (Reels, TikTok, Status)",
+                    "type": "string"
+                },
+                "headline": {
+                    "description": "The end card's words; empty fields come from the offering.",
+                    "type": "string"
+                },
+                "kind": {
+                    "description": "Kind is the video type: template (default), presenter or presenter_premium.",
+                    "type": "string"
+                },
+                "language": {
+                    "description": "en or sw; default the brief's",
+                    "type": "string"
+                },
+                "music_licensed": {
+                    "type": "boolean"
+                },
+                "music_url": {
+                    "description": "MusicURL is an optional music bed under the voice. MusicLicensed is the owner's\nconfirmation that the track may be used in ads; a link without it is refused.",
+                    "type": "string"
+                },
+                "photo_urls": {
+                    "description": "default: the offering's photos",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "price": {
+                    "type": "string"
+                },
+                "seconds": {
+                    "description": "15 to 60, default 30",
+                    "type": "integer"
+                },
+                "subline": {
+                    "type": "string"
+                },
+                "tier": {
+                    "description": "standard (default) or premium",
+                    "type": "string"
+                },
+                "voice": {
+                    "description": "a voice id or name; \"\" picks the best for the delivery",
+                    "type": "string"
+                },
+                "voice_accent": {
+                    "description": "e.g. african, kenyan, nigerian",
+                    "type": "string"
+                },
+                "voice_gender": {
+                    "type": "string"
+                }
+            }
+        },
+        "creative.VideoScript": {
+            "type": "object",
+            "properties": {
+                "cta": {
+                    "type": "string"
+                },
+                "format": {
+                    "type": "string"
+                },
+                "hooks": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "scenes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/creative.ScriptScene"
+                    }
+                }
+            }
+        },
         "creative.reviewLinkRequest": {
             "type": "object",
             "properties": {
                 "hours": {
                     "type": "integer"
+                }
+            }
+        },
+        "custom_agents.AutopilotConfig": {
+            "type": "object",
+            "properties": {
+                "approval_mode": {
+                    "type": "string"
+                },
+                "cadence": {
+                    "description": "daily | weekly",
+                    "type": "string"
+                },
+                "connected_account_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "end_date": {
+                    "description": "YYYY-MM-DD, optional",
+                    "type": "string"
+                },
+                "languages": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "monthly_ad_ceiling": {
+                    "description": "the most ad money a month, whole units",
+                    "type": "integer"
+                },
+                "monthly_credit_ceiling": {
+                    "description": "AI credits a month",
+                    "type": "integer"
+                },
+                "new_item_drafts": {
+                    "description": "NewItemDrafts opts in to one extra draft a day when a new item with a photo joins the catalogue.",
+                    "type": "boolean"
+                },
+                "objective": {
+                    "description": "whatsapp | leads | traffic",
+                    "type": "string"
+                },
+                "offering_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "paid": {
+                    "type": "boolean"
+                },
+                "per_ad_budget": {
+                    "description": "whole currency units, paid to Meta by the client",
+                    "type": "integer"
+                },
+                "period_days": {
+                    "description": "each ad's run",
+                    "type": "integer"
+                },
+                "platforms": {
+                    "description": "facebook | instagram | youtube | tiktok",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "stop_cpl": {
+                    "description": "pause above this cost per lead",
+                    "type": "number"
+                },
+                "time": {
+                    "description": "HH:MM, tenant time",
+                    "type": "string"
+                },
+                "veto_hours": {
+                    "description": "auto-publish heads-up window",
+                    "type": "integer"
+                },
+                "video_tiers": {
+                    "description": "template | presenter | presenter_premium",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "weekday": {
+                    "description": "0 Sunday, for weekly",
+                    "type": "integer"
+                }
+            }
+        },
+        "custom_agents.AutopilotInput": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/custom_agents.AutopilotConfig"
+                },
+                "offerings": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                }
+            }
+        },
+        "custom_agents.DryRun": {
+            "type": "object",
+            "properties": {
+                "ads_within_ceiling": {
+                    "description": "drafts rendered too",
+                    "type": "integer"
+                },
+                "balance": {
+                    "description": "-1: unlimited or unknown",
+                    "type": "integer"
+                },
+                "credit_ceiling": {
+                    "type": "integer"
+                },
+                "credits_known": {
+                    "type": "boolean"
+                },
+                "drafts_within_ceiling": {
+                    "type": "integer"
+                },
+                "language": {
+                    "type": "string"
+                },
+                "monthly_draft_credits": {
+                    "description": "every run, drafts only",
+                    "type": "integer"
+                },
+                "monthly_full_credits": {
+                    "description": "every run, every draft rendered",
+                    "type": "integer"
+                },
+                "objective": {
+                    "type": "string"
+                },
+                "offering": {
+                    "type": "string"
+                },
+                "render_credits": {
+                    "description": "what rendering a draft costs, for the dearest tier",
+                    "type": "integer"
+                },
+                "runs_per_month": {
+                    "description": "the most a calendar month can hold",
+                    "type": "integer"
+                },
+                "script_credits": {
+                    "description": "what each run costs",
+                    "type": "integer"
+                },
+                "tier": {
+                    "type": "string"
                 }
             }
         },
@@ -8339,9 +10813,42 @@ const docTemplate = `{
                 }
             }
         },
+        "funnels.ABVariant": {
+            "type": "object",
+            "properties": {
+                "headline": {
+                    "type": "string"
+                },
+                "hero_image_url": {
+                    "type": "string"
+                },
+                "subheadline": {
+                    "type": "string"
+                }
+            }
+        },
+        "funnels.PublicABTest": {
+            "type": "object",
+            "properties": {
+                "b": {
+                    "$ref": "#/definitions/funnels.ABVariant"
+                },
+                "split": {
+                    "type": "integer"
+                }
+            }
+        },
         "funnels.PublicFunnel": {
             "type": "object",
             "properties": {
+                "ab_test": {
+                    "description": "ABTest is the running A/B test (Sprint 7 #53), absent when none.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/funnels.PublicABTest"
+                        }
+                    ]
+                },
                 "brand_color": {
                     "type": "string"
                 },
@@ -8443,6 +10950,10 @@ const docTemplate = `{
             "properties": {
                 "step_index": {
                     "type": "integer"
+                },
+                "variant": {
+                    "description": "Variant is the A/B version (\"a\" or \"b\") the visitor sees (Sprint 7 #53).",
+                    "type": "string"
                 }
             }
         },
@@ -8741,6 +11252,36 @@ const docTemplate = `{
                 }
             }
         },
+        "marketingos.MemberFit": {
+            "type": "object",
+            "properties": {
+                "changed": {
+                    "description": "Changed is true when this setup switched the member on or off.",
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "limits": {
+                    "description": "Limits are what an enabled member cannot do yet and what would allow it.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "owner_set": {
+                    "description": "OwnerSet is true when the owner set this member by hand, so the setup left it.",
+                    "type": "boolean"
+                },
+                "reason": {
+                    "description": "Reason says why a member is off, in the owner's terms; empty when it is on.",
+                    "type": "string"
+                }
+            }
+        },
         "marketingos.MemberOverride": {
             "type": "object",
             "properties": {
@@ -8758,14 +11299,117 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "set_by": {
+                    "description": "SetBy is \"team_setup\" when the setup made this change; empty when the owner did. The\nsetup never changes a member the owner set (team_setup.go).",
+                    "type": "string"
+                }
+            }
+        },
+        "marketingos.ReferenceAd": {
+            "type": "object",
+            "properties": {
+                "notes": {
+                    "type": "string"
+                },
+                "platform": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
                 }
             }
         },
         "marketingos.Settings": {
             "type": "object",
             "properties": {
+                "competitors": {
+                    "description": "Competitors are names, domains or Google advertiser ids (AR...) the weekly competitor\nscan looks up (Sprint 24), at most MaxCompetitors.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "customer_complaints": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "daily_brief": {
                     "type": "boolean"
+                },
+                "inbox_auto_reply": {
+                    "description": "InboxAutoReply answers buyer comments and DMs with InboxReplyText (Sprint 22). Off by\ndefault; saving it on with a message is the owner's approval of that message.",
+                    "type": "boolean"
+                },
+                "inbox_reply_text": {
+                    "type": "string"
+                },
+                "reference_ads": {
+                    "description": "ReferenceAds and CustomerComplaints feed the Find, Flip, Fix engine (market_signals.go).",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/marketingos.ReferenceAd"
+                    }
+                }
+            }
+        },
+        "marketingos.TeamFacts": {
+            "type": "object",
+            "properties": {
+                "ad_account": {
+                    "type": "boolean"
+                },
+                "brand_context": {
+                    "type": "boolean"
+                },
+                "competitors": {
+                    "type": "boolean"
+                },
+                "lead_capture": {
+                    "type": "boolean"
+                },
+                "offerings": {
+                    "type": "boolean"
+                },
+                "paid_ads_plan": {
+                    "type": "boolean"
+                },
+                "social_pages": {
+                    "type": "boolean"
+                },
+                "website": {
+                    "type": "boolean"
+                },
+                "website_known": {
+                    "type": "boolean"
+                },
+                "whatsapp": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "marketingos.TeamSetup": {
+            "type": "object",
+            "properties": {
+                "at": {
+                    "type": "string"
+                },
+                "facts": {
+                    "$ref": "#/definitions/marketingos.TeamFacts"
+                },
+                "first": {
+                    "type": "boolean"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/marketingos.MemberFit"
+                    }
+                },
+                "version": {
+                    "type": "integer"
                 }
             }
         },
@@ -8847,6 +11491,116 @@ const docTemplate = `{
                 }
             }
         },
+        "onboarding.Checklist": {
+            "type": "object",
+            "properties": {
+                "complete": {
+                    "type": "boolean"
+                },
+                "dismissed": {
+                    "type": "boolean"
+                },
+                "done": {
+                    "type": "integer"
+                },
+                "steps": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/onboarding.Step"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "onboarding.Draft": {
+            "type": "object",
+            "properties": {
+                "current": {
+                    "$ref": "#/definitions/marketingos.BrandContext"
+                },
+                "offerings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/onboarding.Suggestion"
+                    }
+                },
+                "profile": {
+                    "$ref": "#/definitions/onboarding.ProfileDefaults"
+                },
+                "sources": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "suggested": {
+                    "$ref": "#/definitions/marketingos.BrandContext"
+                }
+            }
+        },
+        "onboarding.ProfileDefaults": {
+            "type": "object",
+            "properties": {
+                "brand_primary_color": {
+                    "type": "string"
+                },
+                "contact_email": {
+                    "type": "string"
+                },
+                "logo_url": {
+                    "type": "string"
+                },
+                "website": {
+                    "type": "string"
+                },
+                "whatsapp_number": {
+                    "type": "string"
+                }
+            }
+        },
+        "onboarding.Step": {
+            "type": "object",
+            "properties": {
+                "done": {
+                    "type": "boolean"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "optional": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "onboarding.Suggestion": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price_label": {
+                    "type": "string"
+                },
+                "quantity_sold": {
+                    "type": "number"
+                },
+                "source": {
+                    "description": "pos | inventory | website | course",
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
         "pipelines.createPipelineRequest": {
             "type": "object",
             "properties": {
@@ -8854,6 +11608,68 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "publishing.JobView": {
+            "type": "object",
+            "properties": {
+                "asset_id": {
+                    "type": "string"
+                },
+                "attempts": {
+                    "type": "integer"
+                },
+                "caption": {
+                    "type": "string"
+                },
+                "connected_account_id": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "permalink": {
+                    "type": "string"
+                },
+                "planned_at": {
+                    "type": "string"
+                },
+                "platform": {
+                    "type": "string"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "publishing.ScheduleInput": {
+            "type": "object",
+            "properties": {
+                "asset_id": {
+                    "type": "string"
+                },
+                "caption": {
+                    "type": "string"
+                },
+                "connected_account_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "made_for_kids": {
+                    "type": "boolean"
+                },
+                "scheduled_at": {
+                    "description": "zero means now",
                     "type": "string"
                 }
             }
@@ -9097,10 +11913,20 @@ const docTemplate = `{
                 "email": {
                     "type": "string"
                 },
+                "fbclid": {
+                    "type": "string"
+                },
                 "first_name": {
                     "type": "string"
                 },
                 "funnel_slug": {
+                    "type": "string"
+                },
+                "funnel_variant": {
+                    "description": "FunnelVariant is the A/B version (\"a\" or \"b\") the visitor saw (Sprint 7 #53).",
+                    "type": "string"
+                },
+                "gclid": {
                     "type": "string"
                 },
                 "interest": {
@@ -9118,7 +11944,14 @@ const docTemplate = `{
                 "source": {
                     "type": "string"
                 },
+                "ttclid": {
+                    "type": "string"
+                },
                 "utm_campaign": {
+                    "type": "string"
+                },
+                "utm_content": {
+                    "description": "Click ids and the rest of the UTM set, kept in metadata for ad attribution (Sprint 18).",
                     "type": "string"
                 },
                 "utm_medium": {
@@ -9126,6 +11959,13 @@ const docTemplate = `{
                 },
                 "utm_source": {
                     "type": "string"
+                },
+                "utm_term": {
+                    "type": "string"
+                },
+                "whatsapp_consent": {
+                    "description": "WhatsAppConsent is the lead's own \"OK to contact me on WhatsApp\" tick. Nurture sends\nWhatsApp only when it is true (Kenya Data Protection Act; owner, 2026-11-03).",
+                    "type": "boolean"
                 }
             }
         }

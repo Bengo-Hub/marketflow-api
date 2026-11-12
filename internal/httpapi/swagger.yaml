@@ -98,6 +98,66 @@ definitions:
           type: string
         type: object
     type: object
+  adsmanager.AccountView:
+    properties:
+      active:
+        type: boolean
+      ad_account_id:
+        type: string
+      connected_account_id:
+        type: string
+      country:
+        type: string
+      currency:
+        type: string
+      funding:
+        $ref: '#/definitions/adsmanager.Funding'
+      name:
+        type: string
+      problem:
+        type: string
+    type: object
+  adsmanager.Funding:
+    enum:
+    - card
+    - prepaid
+    - needs_funds
+    - unknown
+    type: string
+    x-enum-varnames:
+    - FundingCard
+    - FundingPrepaid
+    - FundingNeeded
+    - FundingUnknown
+  adsmanager.Quote:
+    properties:
+      account_name:
+        type: string
+      ad_account_id:
+        type: string
+      balance:
+        description: prepaid stored balance seen, whole units
+        type: integer
+      blockers:
+        items:
+          type: string
+        type: array
+      budget:
+        description: whole units, paid to Meta by the client
+        type: integer
+      currency:
+        type: string
+      days:
+        type: integer
+      funding:
+        $ref: '#/definitions/adsmanager.Funding'
+      launch_credits:
+        description: MarketFlow's charge, credits
+        type: integer
+      shortfall:
+        description: what to add on Meta, whole units
+        type: integer
+    type: object
   analytics.DashboardData:
     properties:
       by_source:
@@ -396,6 +456,18 @@ definitions:
       title:
         type: string
     type: object
+  creative.MotionInput:
+    properties:
+      prompt:
+        description: the motion, optional ("slow push in, steam rising")
+        type: string
+      seconds:
+        description: 4 to 10, default 5
+        type: integer
+      tier:
+        description: standard (default) or premium
+        type: string
+    type: object
   creative.ReviseInput:
     properties:
       cta:
@@ -405,6 +477,31 @@ definitions:
       price:
         type: string
       subline:
+        type: string
+    type: object
+  creative.ScriptInput:
+    properties:
+      end_card:
+        additionalProperties: {}
+        type: object
+      script:
+        $ref: '#/definitions/creative.VideoScript'
+    type: object
+  creative.ScriptScene:
+    properties:
+      asset:
+        type: integer
+      caption:
+        type: string
+      duration_s:
+        type: number
+      id:
+        type: string
+      shot:
+        type: string
+      visual:
+        type: string
+      voiceover:
         type: string
     type: object
   creative.VersionInput:
@@ -430,10 +527,199 @@ definitions:
       tier:
         type: string
     type: object
+  creative.VideoAdInput:
+    properties:
+      actor_prompt:
+        description: |-
+          ActorPrompt describes the presenter for a new actor (presenter types); the brief's
+          actor is kept once it exists.
+        type: string
+      cta:
+        type: string
+      delivery:
+        description: ad (default) | ugc | kids | story | info
+        type: string
+      footage_urls:
+        description: the owner's clips
+        items:
+          type: string
+        type: array
+      format:
+        description: default 1080x1920 (Reels, TikTok, Status)
+        type: string
+      headline:
+        description: The end card's words; empty fields come from the offering.
+        type: string
+      kind:
+        description: 'Kind is the video type: template (default), presenter or presenter_premium.'
+        type: string
+      language:
+        description: en or sw; default the brief's
+        type: string
+      music_licensed:
+        type: boolean
+      music_url:
+        description: |-
+          MusicURL is an optional music bed under the voice. MusicLicensed is the owner's
+          confirmation that the track may be used in ads; a link without it is refused.
+        type: string
+      photo_urls:
+        description: 'default: the offering''s photos'
+        items:
+          type: string
+        type: array
+      price:
+        type: string
+      seconds:
+        description: 15 to 60, default 30
+        type: integer
+      subline:
+        type: string
+      tier:
+        description: standard (default) or premium
+        type: string
+      voice:
+        description: a voice id or name; "" picks the best for the delivery
+        type: string
+      voice_accent:
+        description: e.g. african, kenyan, nigerian
+        type: string
+      voice_gender:
+        type: string
+    type: object
+  creative.VideoScript:
+    properties:
+      cta:
+        type: string
+      format:
+        type: string
+      hooks:
+        items:
+          type: string
+        type: array
+      scenes:
+        items:
+          $ref: '#/definitions/creative.ScriptScene'
+        type: array
+    type: object
   creative.reviewLinkRequest:
     properties:
       hours:
         type: integer
+    type: object
+  custom_agents.AutopilotConfig:
+    properties:
+      approval_mode:
+        type: string
+      cadence:
+        description: daily | weekly
+        type: string
+      connected_account_ids:
+        items:
+          type: string
+        type: array
+      end_date:
+        description: YYYY-MM-DD, optional
+        type: string
+      languages:
+        items:
+          type: string
+        type: array
+      monthly_ad_ceiling:
+        description: the most ad money a month, whole units
+        type: integer
+      monthly_credit_ceiling:
+        description: AI credits a month
+        type: integer
+      new_item_drafts:
+        description: NewItemDrafts opts in to one extra draft a day when a new item
+          with a photo joins the catalogue.
+        type: boolean
+      objective:
+        description: whatsapp | leads | traffic
+        type: string
+      offering_ids:
+        items:
+          type: string
+        type: array
+      paid:
+        type: boolean
+      per_ad_budget:
+        description: whole currency units, paid to Meta by the client
+        type: integer
+      period_days:
+        description: each ad's run
+        type: integer
+      platforms:
+        description: facebook | instagram | youtube | tiktok
+        items:
+          type: string
+        type: array
+      stop_cpl:
+        description: pause above this cost per lead
+        type: number
+      time:
+        description: HH:MM, tenant time
+        type: string
+      veto_hours:
+        description: auto-publish heads-up window
+        type: integer
+      video_tiers:
+        description: template | presenter | presenter_premium
+        items:
+          type: string
+        type: array
+      weekday:
+        description: 0 Sunday, for weekly
+        type: integer
+    type: object
+  custom_agents.AutopilotInput:
+    properties:
+      config:
+        $ref: '#/definitions/custom_agents.AutopilotConfig'
+      offerings:
+        items:
+          additionalProperties: {}
+          type: object
+        type: array
+    type: object
+  custom_agents.DryRun:
+    properties:
+      ads_within_ceiling:
+        description: drafts rendered too
+        type: integer
+      balance:
+        description: '-1: unlimited or unknown'
+        type: integer
+      credit_ceiling:
+        type: integer
+      credits_known:
+        type: boolean
+      drafts_within_ceiling:
+        type: integer
+      language:
+        type: string
+      monthly_draft_credits:
+        description: every run, drafts only
+        type: integer
+      monthly_full_credits:
+        description: every run, every draft rendered
+        type: integer
+      objective:
+        type: string
+      offering:
+        type: string
+      render_credits:
+        description: what rendering a draft costs, for the dearest tier
+        type: integer
+      runs_per_month:
+        description: the most a calendar month can hold
+        type: integer
+      script_credits:
+        description: what each run costs
+        type: integer
+      tier:
+        type: string
     type: object
   custom_agents.createAgentRequest:
     properties:
@@ -536,8 +822,28 @@ definitions:
       value:
         type: number
     type: object
+  funnels.ABVariant:
+    properties:
+      headline:
+        type: string
+      hero_image_url:
+        type: string
+      subheadline:
+        type: string
+    type: object
+  funnels.PublicABTest:
+    properties:
+      b:
+        $ref: '#/definitions/funnels.ABVariant'
+      split:
+        type: integer
+    type: object
   funnels.PublicFunnel:
     properties:
+      ab_test:
+        allOf:
+        - $ref: '#/definitions/funnels.PublicABTest'
+        description: 'ABTest is the running A/B test (Sprint 7 #53), absent when none.'
       brand_color:
         type: string
       description:
@@ -607,6 +913,10 @@ definitions:
     properties:
       step_index:
         type: integer
+      variant:
+        description: 'Variant is the A/B version ("a" or "b") the visitor sees (Sprint
+          7 #53).'
+        type: string
     type: object
   funnels.updateFunnelRequest:
     properties:
@@ -806,6 +1116,30 @@ definitions:
           type: string
         type: array
     type: object
+  marketingos.MemberFit:
+    properties:
+      changed:
+        description: Changed is true when this setup switched the member on or off.
+        type: boolean
+      enabled:
+        type: boolean
+      key:
+        type: string
+      limits:
+        description: Limits are what an enabled member cannot do yet and what would
+          allow it.
+        items:
+          type: string
+        type: array
+      owner_set:
+        description: OwnerSet is true when the owner set this member by hand, so the
+          setup left it.
+        type: boolean
+      reason:
+        description: Reason says why a member is off, in the owner's terms; empty
+          when it is on.
+        type: string
+    type: object
   marketingos.MemberOverride:
     properties:
       disabled:
@@ -818,11 +1152,87 @@ definitions:
         type: string
       name:
         type: string
+      set_by:
+        description: |-
+          SetBy is "team_setup" when the setup made this change; empty when the owner did. The
+          setup never changes a member the owner set (team_setup.go).
+        type: string
+    type: object
+  marketingos.ReferenceAd:
+    properties:
+      notes:
+        type: string
+      platform:
+        type: string
+      url:
+        type: string
     type: object
   marketingos.Settings:
     properties:
+      competitors:
+        description: |-
+          Competitors are names, domains or Google advertiser ids (AR...) the weekly competitor
+          scan looks up (Sprint 24), at most MaxCompetitors.
+        items:
+          type: string
+        type: array
+      customer_complaints:
+        items:
+          type: string
+        type: array
       daily_brief:
         type: boolean
+      inbox_auto_reply:
+        description: |-
+          InboxAutoReply answers buyer comments and DMs with InboxReplyText (Sprint 22). Off by
+          default; saving it on with a message is the owner's approval of that message.
+        type: boolean
+      inbox_reply_text:
+        type: string
+      reference_ads:
+        description: ReferenceAds and CustomerComplaints feed the Find, Flip, Fix
+          engine (market_signals.go).
+        items:
+          $ref: '#/definitions/marketingos.ReferenceAd'
+        type: array
+    type: object
+  marketingos.TeamFacts:
+    properties:
+      ad_account:
+        type: boolean
+      brand_context:
+        type: boolean
+      competitors:
+        type: boolean
+      lead_capture:
+        type: boolean
+      offerings:
+        type: boolean
+      paid_ads_plan:
+        type: boolean
+      social_pages:
+        type: boolean
+      website:
+        type: boolean
+      website_known:
+        type: boolean
+      whatsapp:
+        type: boolean
+    type: object
+  marketingos.TeamSetup:
+    properties:
+      at:
+        type: string
+      facts:
+        $ref: '#/definitions/marketingos.TeamFacts'
+      first:
+        type: boolean
+      members:
+        items:
+          $ref: '#/definitions/marketingos.MemberFit'
+        type: array
+      version:
+        type: integer
     type: object
   meetings.createMeetingRequest:
     properties:
@@ -876,11 +1286,124 @@ definitions:
       status:
         type: string
     type: object
+  onboarding.Checklist:
+    properties:
+      complete:
+        type: boolean
+      dismissed:
+        type: boolean
+      done:
+        type: integer
+      steps:
+        items:
+          $ref: '#/definitions/onboarding.Step'
+        type: array
+      total:
+        type: integer
+    type: object
+  onboarding.Draft:
+    properties:
+      current:
+        $ref: '#/definitions/marketingos.BrandContext'
+      offerings:
+        items:
+          $ref: '#/definitions/onboarding.Suggestion'
+        type: array
+      profile:
+        $ref: '#/definitions/onboarding.ProfileDefaults'
+      sources:
+        items:
+          type: string
+        type: array
+      suggested:
+        $ref: '#/definitions/marketingos.BrandContext'
+    type: object
+  onboarding.ProfileDefaults:
+    properties:
+      brand_primary_color:
+        type: string
+      contact_email:
+        type: string
+      logo_url:
+        type: string
+      website:
+        type: string
+      whatsapp_number:
+        type: string
+    type: object
+  onboarding.Step:
+    properties:
+      done:
+        type: boolean
+      key:
+        type: string
+      optional:
+        type: boolean
+    type: object
+  onboarding.Suggestion:
+    properties:
+      description:
+        type: string
+      image_url:
+        type: string
+      name:
+        type: string
+      price_label:
+        type: string
+      quantity_sold:
+        type: number
+      source:
+        description: pos | inventory | website | course
+        type: string
+      url:
+        type: string
+    type: object
   pipelines.createPipelineRequest:
     properties:
       is_default:
         type: boolean
       name:
+        type: string
+    type: object
+  publishing.JobView:
+    properties:
+      asset_id:
+        type: string
+      attempts:
+        type: integer
+      caption:
+        type: string
+      connected_account_id:
+        type: string
+      error:
+        type: string
+      id:
+        type: string
+      permalink:
+        type: string
+      planned_at:
+        type: string
+      platform:
+        type: string
+      published_at:
+        type: string
+      status:
+        type: string
+    type: object
+  publishing.ScheduleInput:
+    properties:
+      asset_id:
+        type: string
+      caption:
+        type: string
+      connected_account_ids:
+        items:
+          type: string
+        type: array
+      made_for_kids:
+        type: boolean
+      scheduled_at:
+        description: zero means now
         type: string
     type: object
   sequences.createSequenceRequest:
@@ -1042,9 +1565,17 @@ definitions:
         type: object
       email:
         type: string
+      fbclid:
+        type: string
       first_name:
         type: string
       funnel_slug:
+        type: string
+      funnel_variant:
+        description: 'FunnelVariant is the A/B version ("a" or "b") the visitor saw
+          (Sprint 7 #53).'
+        type: string
+      gclid:
         type: string
       interest:
         type: string
@@ -1056,12 +1587,25 @@ definitions:
         type: string
       source:
         type: string
+      ttclid:
+        type: string
       utm_campaign:
+        type: string
+      utm_content:
+        description: Click ids and the rest of the UTM set, kept in metadata for ad
+          attribution (Sprint 18).
         type: string
       utm_medium:
         type: string
       utm_source:
         type: string
+      utm_term:
+        type: string
+      whatsapp_consent:
+        description: |-
+          WhatsAppConsent is the lead's own "OK to contact me on WhatsApp" tick. Nurture sends
+          WhatsApp only when it is true (Kenya Data Protection Act; owner, 2026-11-03).
+        type: boolean
     type: object
 host: marketflowapi.codevertexafrica.com
 info:
@@ -1383,6 +1927,55 @@ paths:
       summary: List platform audit events
       tags:
       - Admin - Audit
+  /admin/endpoints:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Discovered service endpoints
+      tags:
+      - Admin
+  /admin/endpoints/{service}:
+    patch:
+      parameters:
+      - description: Service name
+        in: path
+        name: service
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Approve or reject a discovered endpoint
+      tags:
+      - Admin
+  /admin/endpoints/scan:
+    post:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Scan service specs for new endpoints now
+      tags:
+      - Admin
   /admin/providers:
     get:
       produces:
@@ -1633,6 +2226,206 @@ paths:
       summary: Platform-wide usage rollup
       tags:
       - Admin - Analytics
+  /ads/accounts:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Connected ad accounts with health
+      tags:
+      - Ads
+  /ads/accounts/kes:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/adsmanager.AccountView'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Create a KES ad account in the client's business portfolio
+      tags:
+      - Ads
+  /ads/boosts:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "402":
+          description: Payment Required
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Boost an approved video
+      tags:
+      - Ads
+  /ads/boosts/{id}:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Campaign UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: A boost with its launch progress
+      tags:
+      - Ads
+  /ads/boosts/{id}/paid:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Campaign UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Confirm the ad budget was paid on Meta
+      tags:
+      - Ads
+  /ads/boosts/{id}/pause:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Campaign UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Pause a boost
+      tags:
+      - Ads
+  /ads/boosts/{id}/resume:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Campaign UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Resume a paused boost
+      tags:
+      - Ads
+  /ads/quote:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/adsmanager.Quote'
+      security:
+      - bearerAuth: []
+      summary: Quote a boost
+      tags:
+      - Ads
   /agents/custom:
     get:
       parameters:
@@ -1761,6 +2554,105 @@ paths:
       summary: Update a custom agent
       tags:
       - Custom Agents
+  /agents/custom/{id}/autopilot:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Agent UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Autopilot settings
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/custom_agents.AutopilotInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Save an ad autopilot's settings as a new config version
+      tags:
+      - Custom Agents
+  /agents/custom/{id}/autopilot/dry-run:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Agent UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/custom_agents.DryRun'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Preview an ad autopilot's next run and monthly credits
+      tags:
+      - Custom Agents
+  /agents/custom/{id}/autopilot/rollback:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Agent UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Restore an earlier autopilot config
+      tags:
+      - Custom Agents
   /agents/custom/{id}/run:
     post:
       consumes:
@@ -1887,6 +2779,74 @@ paths:
       summary: Update a Marketing OS team member
       tags:
       - MarketingOS
+  /agents/team/setup:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/marketingos.TeamSetup'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Set up or review the Marketing OS team
+      tags:
+      - MarketingOS
+  /agents/templates:
+    get:
+      parameters:
+      - description: Filter by industry
+        in: query
+        name: industry
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Agent templates to hire
+      tags:
+      - Custom Agents
+  /agents/templates/{id}/hire:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Template UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Hire an agent template
+      tags:
+      - Custom Agents
   /analytics/audit:
     get:
       parameters:
@@ -2475,6 +3435,31 @@ paths:
       summary: Merge duplicate contacts into one survivor
       tags:
       - Contacts
+  /creative/assets/{id}/downloaded:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Asset UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Record that a video was downloaded
+      tags:
+      - Creative
   /creative/briefs:
     get:
       parameters:
@@ -2487,13 +3472,17 @@ paths:
         in: query
         name: status
         type: string
-      - description: Page
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Page, from 1 (or use offset)
         in: query
         name: page
         type: integer
-      - description: Page size
+      - description: Rows to skip, when page is not given
         in: query
-        name: page_size
+        name: offset
         type: integer
       produces:
       - application/json
@@ -2607,6 +3596,32 @@ paths:
       summary: Update a creative brief
       tags:
       - Creative
+  /creative/briefs/{id}/lead-page:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Brief id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Create the lead page for an existing ad
+      tags:
+      - Creative
   /creative/briefs/{id}/versions:
     post:
       consumes:
@@ -2647,6 +3662,47 @@ paths:
       security:
       - bearerAuth: []
       summary: Queue a poster version of a brief
+      tags:
+      - Creative
+  /creative/briefs/{id}/video-ads:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Brief UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Format, length, voice and the photos and clips to use
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/creative.VideoAdInput'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: 'Start a video ad: the script is written first, for review'
       tags:
       - Creative
   /creative/offerings:
@@ -2799,6 +3855,115 @@ paths:
       summary: Keep a draft for 7 days from when it was made (once)
       tags:
       - Creative
+  /creative/versions/{id}/motion:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Source poster version UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Motion, length and tier
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/creative.MotionInput'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Make a motion poster (a short clip) of a finished poster
+      tags:
+      - Creative
+  /creative/versions/{id}/quote:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Video ad version UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Quote a video ad's render
+      tags:
+      - Creative
+  /creative/versions/{id}/render:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Video ad version UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Render a reviewed video ad script
+      tags:
+      - Creative
   /creative/versions/{id}/review-link:
     delete:
       parameters:
@@ -2892,6 +4057,142 @@ paths:
       security:
       - bearerAuth: []
       summary: Revise a poster's words (free, same image)
+      tags:
+      - Creative
+  /creative/versions/{id}/revision:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Finished video ad version UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Change a finished video ad scene by scene
+      tags:
+      - Creative
+  /creative/versions/{id}/script:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Video ad version UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Script and end card
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/creative.ScriptInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Edit a video ad's script and end card before rendering
+      tags:
+      - Creative
+  /creative/versions/{id}/storyboard:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Video ad version UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Make a video ad's storyboard
+      tags:
+      - Creative
+  /creative/versions/{id}/storyboard/approve:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Video ad version UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Approve a video ad's storyboard
       tags:
       - Creative
   /custom-fields/defs:
@@ -3513,6 +4814,193 @@ paths:
       summary: Publish a funnel
       tags:
       - Funnels
+  /inbox:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: comment or dm
+        in: query
+        name: kind
+        type: string
+      - description: an intent tag, or buyer for every buyer_* tag
+        in: query
+        name: intent
+        type: string
+      - description: only items not yet handled
+        in: query
+        name: open
+        type: boolean
+      - description: next_cursor of the previous page
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Social inbox
+      tags:
+      - Inbox
+  /inbox/{id}:
+    delete:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Inbox item (Activity) UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Delete a comment
+      tags:
+      - Inbox
+  /inbox/{id}/handled:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Inbox item UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Mark an inbox item handled
+      tags:
+      - Inbox
+  /inbox/{id}/hide:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Inbox item (Activity) UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Hide or unhide a comment
+      tags:
+      - Inbox
+  /inbox/{id}/promote:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Inbox item UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Promote an inbox item to a lead
+      tags:
+      - Inbox
+  /inbox/{id}/reply:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Inbox item (Activity) UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Reply to a comment or DM
+      tags:
+      - Inbox
   /integrations:
     get:
       parameters:
@@ -3924,6 +5412,53 @@ paths:
       summary: Update a knowledge base entry
       tags:
       - KnowledgeBase
+  /knowledge/entries/{id}/approve:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Entry UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Approve a suggested FAQ entry
+      tags:
+      - KnowledgeBase
+  /knowledge/entries/{id}/reject:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Entry UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - bearerAuth: []
+      summary: Reject a suggested FAQ entry
+      tags:
+      - KnowledgeBase
   /knowledge/entries/import:
     post:
       consumes:
@@ -4178,6 +5713,27 @@ paths:
       summary: Export leads as CSV
       tags:
       - Leads
+  /me/access:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: The caller's MarketFlow role
+      tags:
+      - Tenant
   /meetings:
     get:
       description: Returns paginated meetings with optional filters
@@ -4816,6 +6372,191 @@ paths:
       summary: Public testimonials for a tenant slug
       tags:
       - Public
+  /publishing/accounts:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Accounts a video can be posted to
+      tags:
+      - Publishing
+  /publishing/jobs:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 'RFC3339 start (default: 7 days ago)'
+        in: query
+        name: from
+        type: string
+      - description: 'RFC3339 end (default: 30 days ahead)'
+        in: query
+        name: to
+        type: string
+      - description: Filter by status
+        in: query
+        name: status
+        type: string
+      - description: next_cursor of the previous page
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Publishing calendar
+      tags:
+      - Publishing
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Post
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/publishing.ScheduleInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Schedule an approved video to connected accounts
+      tags:
+      - Publishing
+  /publishing/jobs/{id}/cancel:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Job UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Cancel a scheduled post
+      tags:
+      - Publishing
+  /publishing/jobs/{id}/move:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Job UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/publishing.JobView'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Move a scheduled post to another time
+      tags:
+      - Publishing
+  /publishing/jobs/{id}/retry:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Job UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Retry a failed post
+      tags:
+      - Publishing
   /segments:
     get:
       parameters:
@@ -5461,6 +7202,58 @@ paths:
       summary: Mark a task as done
       tags:
       - Tasks
+  /tenant/market-research:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: What the weekly competitor scan found
+      tags:
+      - MarketingOS
+  /tenant/market-research/complaints:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "402":
+          description: Payment Required
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Find complaint themes in the business's market
+      tags:
+      - MarketingOS
   /tenant/marketing-context:
     get:
       parameters:
@@ -5512,6 +7305,29 @@ paths:
       summary: Save the tenant's brand context (Marketing OS)
       tags:
       - MarketingOS
+  /tenant/marketing-context/draft:
+    get:
+      description: Built from the profile, the account details, best sellers (or the
+        website for the platform tenant) and testimonials. Nothing is saved; PUT /tenant/marketing-context
+        saves.
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/onboarding.Draft'
+      security:
+      - bearerAuth: []
+      summary: Suggested brand context
+      tags:
+      - Onboarding
   /tenant/members:
     get:
       parameters:
@@ -5609,6 +7425,46 @@ paths:
       summary: Invite a new team member
       tags:
       - Tenant
+  /tenant/onboarding:
+    get:
+      description: Progress through setting up MarketFlow, computed from existing
+        data
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/onboarding.Checklist'
+      security:
+      - bearerAuth: []
+      summary: Setup checklist
+      tags:
+      - Onboarding
+  /tenant/onboarding/dismiss:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - bearerAuth: []
+      summary: Hide or show the setup prompt
+      tags:
+      - Onboarding
   /tenant/os-settings:
     get:
       parameters:
