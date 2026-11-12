@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,6 +21,8 @@ import (
 //     RESPONSE (inside the 24 hour window);
 //   - a Facebook comment: POST /{comment-id}/comments;
 //   - an Instagram comment: POST /{ig-comment-id}/replies.
+//
+// It also hides, unhides and deletes comments (HideComment, DeleteComment).
 type Graph struct {
 	Base string // https://graph.facebook.com/v26.0
 	HTTP *http.Client
@@ -81,6 +84,59 @@ func (g *Graph) ReplyToComment(ctx context.Context, platform, commentID, token, 
 	return out.ID, nil
 }
 
+// HideComment hides or unhides a comment on the business's own post. Facebook:
+// POST /{comment-id} is_hidden=true|false; Instagram: POST /{ig-comment-id} hide=true|false.
+func (g *Graph) HideComment(ctx context.Context, platform, commentID, token string, hidden bool) error {
+	if commentID == "" {
+		return fmt.Errorf("hide comment: no comment id")
+	}
+	field := "is_hidden"
+	if platform == "instagram" {
+		field = "hide"
+	}
+	form := url.Values{field: {strconv.FormatBool(hidden)}, "access_token": {token}}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.Base+"/"+url.PathEscape(commentID), strings.NewReader(form.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	var out map[string]any
+	if err := g.do(req, &out); err != nil {
+		return fmt.Errorf("hide comment: %w", err)
+	}
+	return nil
+}
+
+// DeleteComment removes a comment from the business's own post: DELETE /{comment-id} on Facebook
+// and DELETE /{ig-comment-id} on Instagram (the same call; platform is kept for symmetry).
+func (g *Graph) DeleteComment(ctx context.Context, _ string, commentID, token string) error {
+	if commentID == "" {
+		return fmt.Errorf("delete comment: no comment id")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, g.Base+"/"+url.PathEscape(commentID)+"?access_token="+url.QueryEscape(token), nil)
+	if err != nil {
+		return err
+	}
+	var out map[string]any
+	if err := g.do(req, &out); err != nil {
+		return fmt.Errorf("delete comment: %w", err)
+	}
+	return nil
+}
+
+// GraphError is a Graph API refusal with Meta's own message.
+type GraphError struct {
+	Status  int
+	Message string
+}
+
+func (e *GraphError) Error() string {
+	if e.Message == "" {
+		return fmt.Sprintf("status %d", e.Status)
+	}
+	return fmt.Sprintf("%d: %s", e.Status, e.Message)
+}
+
 func (g *Graph) do(req *http.Request, out any) error {
 	resp, err := g.HTTP.Do(req)
 	if err != nil {
@@ -94,10 +150,8 @@ func (g *Graph) do(req *http.Request, out any) error {
 				Message string `json:"message"`
 			} `json:"error"`
 		}
-		if json.Unmarshal(b, &ge) == nil && ge.Error.Message != "" {
-			return fmt.Errorf("%d: %s", resp.StatusCode, ge.Error.Message)
-		}
-		return fmt.Errorf("status %d", resp.StatusCode)
+		_ = json.Unmarshal(b, &ge)
+		return &GraphError{Status: resp.StatusCode, Message: ge.Error.Message}
 	}
 	return json.Unmarshal(b, out)
 }

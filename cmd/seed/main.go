@@ -750,6 +750,8 @@ var systemRoles = []roleDef{
 	{"marketflow_admin", "MarketFlow Admin", "Full administrative access to all modules"},
 	{"fbo_owner", "FBO Owner", "Manage own leads, contacts, knowledge, campaigns, funnels, shortlinks, chat"},
 	{"viewer", "Viewer", "Read-only access to all data"},
+	// No entry in rolePermissionMap: the role gate's allow-list (rbac.restrictedRoleCapabilities) decides.
+	{"app_reviewer", "App reviewer", "Meta App Review access: connect Facebook and Instagram, boost, post, reply, view leads and results"},
 }
 
 // seedRoles creates system roles for a tenant.

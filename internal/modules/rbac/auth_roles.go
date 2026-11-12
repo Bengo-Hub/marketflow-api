@@ -15,6 +15,8 @@ import (
 var ssoRoles = []struct{ code, name, desc string }{
 	{"marketflow_admin", "MarketFlow admin", "MarketFlow settings, integrations, team, autopilot and lead export"},
 	{"marketflow_member", "MarketFlow member", "Day-to-day marketing in MarketFlow: create, approve, boost, post, reply"},
+	// Least privilege for the Meta App Review account; never admin tier (maps to app_reviewer).
+	{"marketflow_reviewer", "MarketFlow app reviewer", "Meta App Review access: connect Facebook and Instagram, boost, post, reply, view leads and results"},
 }
 
 // PushRolesToAuth registers MarketFlow's SSO roles in auth-api's role registry

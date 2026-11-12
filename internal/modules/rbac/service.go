@@ -156,7 +156,7 @@ func (s *Service) UpdateUserRole(ctx context.Context, tenantID uuid.UUID, userID
 const RoleTenantAdmin = "marketflow_admin"
 
 // AssignableRoles are the system roles a tenant admin can give a member.
-var AssignableRoles = []string{RoleTenantAdmin, "fbo_owner", "viewer"}
+var AssignableRoles = []string{RoleTenantAdmin, RoleMember, RoleViewer, RoleAppReviewer}
 
 // UserByAuthID returns the tenant's local user for an SSO user id, or an error when there is none.
 func (s *Service) UserByAuthID(ctx context.Context, tenantID, authUserID uuid.UUID) (*MarketflowUser, error) {
@@ -167,28 +167,58 @@ func (s *Service) UserByAuthID(ctx context.Context, tenantID, authUserID uuid.UU
 // the tenant. Platform owners and service callers always pass. A caller whose
 // MarketFlow user is not synced yet has no roles.
 func (s *Service) CallerHasAnyRole(ctx context.Context, tenantID uuid.UUID, roles ...string) bool {
+	a := s.callerAccess(ctx, tenantID)
+	return a.bypass || hasAnyRole(a.roles, roles)
+}
+
+// callerAccess is what the role gates know about the signed-in caller in a tenant.
+type callerAccess struct {
+	// bypass: a platform owner or a service key, who pass every role gate.
+	bypass        bool
+	platformOwner bool
+	// roles are the MarketFlow role codes the caller holds; empty when there are no claims, the
+	// caller is not synced yet or was removed (deactivated), or the roles could not be read.
+	roles []string
+}
+
+func (s *Service) callerAccess(ctx context.Context, tenantID uuid.UUID) callerAccess {
 	claims, ok := authclient.ClaimsFromContext(ctx)
 	if !ok || claims == nil {
-		return false
+		return callerAccess{}
 	}
 	if claims.IsPlatformOwner || claims.IsService {
-		return true
+		return callerAccess{bypass: true, platformOwner: claims.IsPlatformOwner}
+	}
+	// When the stored roles cannot be used, a token whose SSO roles make the caller a restricted
+	// role still restricts them: without this an unsynced reviewer would read like a viewer. It
+	// only ever narrows access, never widens it.
+	fallback := callerAccess{}
+	if r := mapGlobalRoleToMarketflowRole(claims.Roles); restrictedRole([]string{r}) != "" {
+		fallback.roles = []string{r}
 	}
 	authID, err := claims.UserID()
 	if err != nil {
-		return false
+		return fallback
 	}
 	u, err := s.repo.GetUserByAuthServiceID(ctx, tenantID, authID)
 	if err != nil || u == nil || u.Status == statusDeactivated {
-		return false
+		return fallback
 	}
 	have, err := s.repo.GetUserRoles(ctx, tenantID, u.ID)
 	if err != nil {
-		return false
+		return fallback
 	}
+	codes := make([]string, 0, len(have))
 	for _, h := range have {
-		for _, want := range roles {
-			if h.RoleCode == want {
+		codes = append(codes, h.RoleCode)
+	}
+	return callerAccess{roles: codes}
+}
+
+func hasAnyRole(have, want []string) bool {
+	for _, h := range have {
+		for _, w := range want {
+			if h == w {
 				return true
 			}
 		}

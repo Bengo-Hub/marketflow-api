@@ -15,6 +15,7 @@ var systemRoleDefs = []struct{ code, name, desc string }{
 	{RoleTenantAdmin, "MarketFlow Admin", "Settings, integrations, team, autopilot budgets, lead export and delete"},
 	{RoleMember, "Member", "Day-to-day marketing: create, approve, boost, post, reply, spend credits"},
 	{RoleViewer, "Viewer", "Read only"},
+	{RoleAppReviewer, "App reviewer", "Meta App Review access: connect Facebook and Instagram, boost, post, reply, view leads and results"},
 }
 
 const (
@@ -28,9 +29,9 @@ const (
 // mapGlobalRoleToMarketflowRole picks the MarketFlow role for a caller's SSO roles in the tenant.
 // The highest role wins whatever the order. Organisation admins own MarketFlow too; the
 // MarketFlow-scoped SSO roles map directly; everyone else (POS cashiers, plain members, staff)
-// is a viewer until someone grants more.
+// is a viewer until someone grants more. The app reviewer ranks above a viewer and below a member
+// (see roleRank), so a reviewer who also holds a higher role gets that role.
 func mapGlobalRoleToMarketflowRole(roles []string) string {
-	rank := map[string]int{RoleViewer: 0, RoleMember: 1, RoleTenantAdmin: 2}
 	best := RoleViewer
 	for _, r := range roles {
 		var code string
@@ -39,10 +40,12 @@ func mapGlobalRoleToMarketflowRole(roles []string) string {
 			code = RoleTenantAdmin
 		case "marketflow_member":
 			code = RoleMember
+		case "marketflow_reviewer":
+			code = RoleAppReviewer
 		default:
 			continue
 		}
-		if rank[code] > rank[best] {
+		if roleRank[code] > roleRank[best] {
 			best = code
 		}
 	}

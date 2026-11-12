@@ -13,6 +13,7 @@ func TestInviteRolesAreMarketflowScoped(t *testing.T) {
 		rbac.RoleTenantAdmin: {"marketflow_admin"},
 		rbac.RoleMember:      {"marketflow_member"},
 		rbac.RoleViewer:      {"member"},
+		rbac.RoleAppReviewer: {"marketflow_reviewer"},
 	}
 	for local, roles := range want {
 		got := inviteRoles[local]

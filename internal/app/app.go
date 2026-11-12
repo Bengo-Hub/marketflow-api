@@ -370,6 +370,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		// marketflow-ai's job callback settles motion posters and video ads here;
 		// the worker's renderer starts them and polls only when a push is overdue.
 		WithJobs(creative.NewRenderer(entClient, "", "", logger))
+	// Boost, post and reply are also open to the Meta App Review account (owner 2026-11-12); the
+	// role gate keeps it to exactly those routes. Approving an ad stays with the approving roles.
+	reviewActionRoles := rbac.WithAppReviewer(creative.ApprovalRoles)
 	// Paid ads (Sprint 18): off until the platform ads/meta_enabled switch; the approving roles
 	// launch and pause; launch credits go through marketflow-ai's charge route.
 	adsHandler := &adsmanager.Handler{DB: entClient, Keys: keyProvider,
@@ -379,12 +382,16 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		Charge: adsmanager.AICharge(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey),
 		LaunchCredits: adsmanager.DefaultLaunchCredits, Enabled: adsmanager.MetaEnabled(entClient), Logger: logger.Named("ads"),
 		CanLaunch: func(ctx context.Context, tenantID uuid.UUID) bool {
-			return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
+			return rbacService.CallerHasAnyRole(ctx, tenantID, reviewActionRoles...)
 		}}
 	// Social inbox (Sprint 22): the approving roles may reply for the business.
 	inboxHandler := inbox.NewHandler(entClient, keyProvider, leadService, inbox.NewGraph(meta.GraphURL).WithProof(meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret)), logger)
 	inboxHandler.CanReply = func(ctx context.Context, tenantID uuid.UUID) bool {
-		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
+		return rbacService.CallerHasAnyRole(ctx, tenantID, reviewActionRoles...)
+	}
+	// Hiding or deleting a comment on the business's own post: members and above, plus the reviewer.
+	inboxHandler.CanModerate = func(ctx context.Context, tenantID uuid.UUID) bool {
+		return rbacService.CallerHasAnyRole(ctx, tenantID, reviewActionRoles...)
 	}
 	// Owner 2026-11-10: approved videos are removed 48 hours after they are posted or downloaded;
 	// the admins are emailed the link first.
@@ -395,7 +402,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// Organic publishing: the same roles that approve an ad may post it or cancel a post.
 	publishingHandler := publishing.NewHandler(&publishing.EntStore{DB: entClient, Keys: keyProvider}, logger)
 	publishingHandler.CanPost = func(ctx context.Context, tenantID uuid.UUID) bool {
-		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
+		return rbacService.CallerHasAnyRole(ctx, tenantID, reviewActionRoles...)
 	}
 	publishingHandler.OnJobDone = afterUse.CheckJob
 
@@ -757,6 +764,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Reply:   inboxHandler.Reply,
 			Handled: inboxHandler.Handled,
 			Promote: inboxHandler.Promote,
+			Hide:    inboxHandler.Hide,
+			Delete:  inboxHandler.Delete,
 		},
 		PublishingHandlers: httpapi.PublishingHandlers{
 			Accounts: publishingHandler.Accounts,
@@ -777,6 +786,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		RequireAuthHandler:   requireAuth,
 		CallerSync:           rbacService.SyncMiddleware,
 		WriteGate:            rbacService.WriteGate,
+		MyAccess:             rbacService.MyAccess,
 		RequirePlatformOwner: requirePlatformOwner(authMiddleware),
 		RequireAICredits:     featureGate.RequireFeature("ai_chat_messages", "AI credits exhausted — purchase more at /settings/billing"),
 		RequireCampaignSlot:  featureGate.RequireFeature("campaigns_active", "Campaign limit reached — upgrade your plan at /settings/billing"),

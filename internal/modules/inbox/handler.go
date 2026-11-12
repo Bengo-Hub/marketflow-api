@@ -36,6 +36,9 @@ type Handler struct {
 	logger *zap.Logger
 	// CanReply gates replies (they speak publicly for the business); nil allows every member.
 	CanReply func(ctx context.Context, tenantID uuid.UUID) bool
+	// CanModerate gates hiding and deleting comments on the business's own posts; nil allows
+	// every member.
+	CanModerate func(ctx context.Context, tenantID uuid.UUID) bool
 }
 
 func NewHandler(db *ent.Client, keys *encryption.KeyProvider, leadSvc *leads.Service, graph *Graph, logger *zap.Logger) *Handler {
@@ -60,6 +63,12 @@ type Item struct {
 	LeadID      string    `json:"lead_id,omitempty"`
 	CanReply    bool      `json:"can_reply"`
 	ReplyWindow string    `json:"reply_window,omitempty"`
+	// Hidden: the comment is hidden on the post (only the commenter and their friends see it).
+	Hidden bool `json:"hidden"`
+	// DeletedAt: the comment was deleted from the post; the item stays, marked, like handled.
+	DeletedAt string `json:"deleted_at,omitempty"`
+	// CanModerate: a Facebook or Instagram comment, so it can be hidden or deleted.
+	CanModerate bool `json:"can_moderate"`
 }
 
 // List handles GET /api/v1/inbox?kind=&intent=&open=true&cursor=&limit=: newest first, keyset
@@ -141,6 +150,13 @@ func toItem(a *ent.Activity, now time.Time) Item {
 		it.Text = *a.Body
 	}
 	it.CanReply, it.ReplyWindow = replyWindow(a.ActivityType, a.PerformedAt, now)
+	it.Hidden, _ = a.Metadata["hidden"].(bool)
+	it.DeletedAt = str("deleted_at")
+	if it.DeletedAt != "" {
+		it.CanReply, it.ReplyWindow = false, "the comment was deleted"
+	}
+	_, _, notComment := moderationTarget(a)
+	it.CanModerate = notComment == nil && it.DeletedAt == ""
 	return it
 }
 
@@ -189,6 +205,10 @@ func (h *Handler) Reply(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_request", "text is required (at most 1,000 characters)", nil)
 		return
 	}
+	if str(a.Metadata, "deleted_at") != "" {
+		httpapi.Error(w, http.StatusConflict, "comment_deleted", "the comment was deleted", nil)
+		return
+	}
 	if can, why := replyWindow(a.ActivityType, a.PerformedAt, time.Now()); !can {
 		httpapi.Error(w, http.StatusConflict, "window_closed", why, nil)
 		return
@@ -216,16 +236,9 @@ func (h *Handler) send(ctx context.Context, tid uuid.UUID, a *ent.Activity, text
 
 // Send is the reply path, exported for the auto reply.
 func Send(ctx context.Context, db *ent.Client, keys *encryption.KeyProvider, g *Graph, tid uuid.UUID, a *ent.Activity, text string, by *uuid.UUID) error {
-	accID, _ := uuid.Parse(str(a.Metadata, "connected_account_id"))
-	acc, err := db.ConnectedAccount.Query().
-		Where(connectedaccount.IDEQ(accID), connectedaccount.TenantIDEQ(tid), connectedaccount.StatusEQ("active")).
-		Only(ctx)
-	if err != nil || acc.TokenCiphertext == "" || keys == nil {
-		return ErrNoAccount
-	}
-	token, err := keys.Decrypt(ctx, acc.TokenCiphertext)
+	token, err := accountToken(ctx, db, keys, tid, a)
 	if err != nil {
-		return ErrNoAccount
+		return err
 	}
 	platform := str(a.Metadata, "platform")
 	var externalID string
@@ -251,6 +264,153 @@ func Send(ctx context.Context, db *ent.Client, keys *encryption.KeyProvider, g *
 		return err
 	}
 	return MergeMetadata(ctx, db, a.ID, map[string]any{"replied_at": now.Format(time.RFC3339)})
+}
+
+// accountToken is the token of the connected Page or Instagram account that received the item,
+// the one replies, hides and deletes act with. ErrNoAccount when it is gone or unreadable.
+func accountToken(ctx context.Context, db *ent.Client, keys *encryption.KeyProvider, tid uuid.UUID, a *ent.Activity) (string, error) {
+	accID, _ := uuid.Parse(str(a.Metadata, "connected_account_id"))
+	acc, err := db.ConnectedAccount.Query().
+		Where(connectedaccount.IDEQ(accID), connectedaccount.TenantIDEQ(tid), connectedaccount.StatusEQ("active")).
+		Only(ctx)
+	if err != nil || acc.TokenCiphertext == "" || keys == nil {
+		return "", ErrNoAccount
+	}
+	token, err := keys.Decrypt(ctx, acc.TokenCiphertext)
+	if err != nil {
+		return "", ErrNoAccount
+	}
+	return token, nil
+}
+
+// ErrNotComment: only Facebook Page and Instagram comments can be hidden or deleted.
+var ErrNotComment = errors.New("only comments can be hidden or deleted")
+
+// moderationTarget is the platform and comment id to hide or delete, or ErrNotComment for a DM, a
+// WhatsApp item or a comment without its id.
+func moderationTarget(a *ent.Activity) (platform, commentID string, err error) {
+	platform = str(a.Metadata, "platform")
+	if a.ActivityType != "comment" || (platform != "facebook" && platform != "instagram") || derefOr(a.ExternalRef) == "" {
+		return "", "", ErrNotComment
+	}
+	return platform, *a.ExternalRef, nil
+}
+
+// moderate loads the item, checks the role and that it is a live comment, and returns its target
+// and the account token. It answers the request itself when it returns false.
+func (h *Handler) moderate(w http.ResponseWriter, r *http.Request) (uuid.UUID, *ent.Activity, string, string, string, bool) {
+	tid, a, ok := h.load(w, r)
+	if !ok {
+		return uuid.Nil, nil, "", "", "", false
+	}
+	if h.CanModerate != nil && !h.CanModerate(r.Context(), tid) {
+		httpapi.Error(w, http.StatusForbidden, "forbidden", "your MarketFlow role cannot hide or delete comments", nil)
+		return uuid.Nil, nil, "", "", "", false
+	}
+	platform, commentID, err := moderationTarget(a)
+	if err != nil {
+		httpapi.Error(w, http.StatusConflict, "not_a_comment", ErrNotComment.Error(), nil)
+		return uuid.Nil, nil, "", "", "", false
+	}
+	if str(a.Metadata, "deleted_at") != "" {
+		httpapi.Error(w, http.StatusConflict, "already_deleted", "this comment was already deleted", nil)
+		return uuid.Nil, nil, "", "", "", false
+	}
+	token, err := accountToken(r.Context(), h.db, h.keys, tid, a)
+	if err != nil {
+		httpapi.Error(w, http.StatusConflict, "not_connected", "this page or account is no longer connected; reconnect it to moderate comments", nil)
+		return uuid.Nil, nil, "", "", "", false
+	}
+	return tid, a, platform, commentID, token, true
+}
+
+// metaFailed answers a Graph refusal as 502 with Meta's own message.
+func (h *Handler) metaFailed(w http.ResponseWriter, tid uuid.UUID, what string, err error) {
+	h.logger.Warn("inbox "+what+" failed", zap.String("tenant", tid.String()), zap.Error(err))
+	msg := err.Error()
+	var ge *GraphError
+	if errors.As(err, &ge) && ge.Message != "" {
+		msg = ge.Message
+	}
+	httpapi.Error(w, http.StatusBadGateway, what+"_failed", msg, nil)
+}
+
+// Hide handles POST /api/v1/inbox/{id}/hide {"hidden": true|false}: hides or unhides a Facebook
+// Page or Instagram comment on the business's own post, with the receiving account's token.
+// @Summary Hide or unhide a comment
+// @Tags Inbox
+// @Accept json
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Inbox item (Activity) UUID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 409 {object} httpapi.ErrorResponse
+// @Failure 502 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /inbox/{id}/hide [post]
+func (h *Handler) Hide(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Hidden *bool `json:"hidden"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&in); err != nil || in.Hidden == nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_request", `send {"hidden": true} or {"hidden": false}`, nil)
+		return
+	}
+	tid, a, platform, commentID, token, ok := h.moderate(w, r)
+	if !ok {
+		return
+	}
+	if err := h.graph.HideComment(r.Context(), platform, commentID, token, *in.Hidden); err != nil {
+		h.metaFailed(w, tid, "hide", err)
+		return
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	patch := map[string]any{"hidden": *in.Hidden}
+	if *in.Hidden {
+		patch["hidden_at"] = now
+	} else {
+		patch["unhidden_at"] = now
+	}
+	if u := userOf(r); u != nil {
+		patch["hidden_by"] = u.String()
+	}
+	if err := MergeMetadata(r.Context(), h.db, a.ID, patch); err != nil {
+		h.fail(w, err)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, toItem(h.db.Activity.GetX(r.Context(), a.ID), time.Now()))
+}
+
+// Delete handles DELETE /api/v1/inbox/{id}: deletes a Facebook Page or Instagram comment from the
+// business's own post. The inbox item stays, marked deleted, so the history is kept.
+// @Summary Delete a comment
+// @Tags Inbox
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Inbox item (Activity) UUID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 409 {object} httpapi.ErrorResponse
+// @Failure 502 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /inbox/{id} [delete]
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	tid, a, platform, commentID, token, ok := h.moderate(w, r)
+	if !ok {
+		return
+	}
+	if err := h.graph.DeleteComment(r.Context(), platform, commentID, token); err != nil {
+		h.metaFailed(w, tid, "delete", err)
+		return
+	}
+	patch := map[string]any{"deleted_at": time.Now().UTC().Format(time.RFC3339)}
+	if u := userOf(r); u != nil {
+		patch["deleted_by"] = u.String()
+	}
+	if err := MergeMetadata(r.Context(), h.db, a.ID, patch); err != nil {
+		h.fail(w, err)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, toItem(h.db.Activity.GetX(r.Context(), a.ID), time.Now()))
 }
 
 // Handled handles POST /api/v1/inbox/{id}/handled.

@@ -60,7 +60,12 @@ var inviteRoles = map[string][]string{
 	rbac.RoleTenantAdmin: {"marketflow_admin"},
 	rbac.RoleMember:      {"marketflow_member"},
 	rbac.RoleViewer:      {"member"},
+	// The Meta App Review account: least privilege, never admin tier.
+	rbac.RoleAppReviewer: {"marketflow_reviewer"},
 }
+
+// invalidRoleMessage names the roles an invite or role change accepts.
+var invalidRoleMessage = "role must be one of " + strings.Join(rbac.AssignableRoles, ", ")
 
 // caller is who is asking: their local user (nil when not yet synced) and whether they may manage the team.
 type caller struct {
@@ -170,7 +175,7 @@ func (h *MembersHandler) InviteMember(w http.ResponseWriter, r *http.Request) {
 	}
 	authRoles, ok := inviteRoles[req.Role]
 	if !ok {
-		httpapi.Error(w, http.StatusBadRequest, "invalid_role", "role must be one of marketflow_admin, fbo_owner or viewer", nil)
+		httpapi.Error(w, http.StatusBadRequest, "invalid_role", invalidRoleMessage, nil)
 		return
 	}
 
@@ -268,7 +273,7 @@ func (h *MembersHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request
 		Role string `json:"role"`
 	}
 	if err := httpapi.DecodeJSON(r, &req); err != nil || !slices.Contains(rbac.AssignableRoles, req.Role) {
-		httpapi.Error(w, http.StatusBadRequest, "invalid_role", "role must be one of marketflow_admin, fbo_owner or viewer", nil)
+		httpapi.Error(w, http.StatusBadRequest, "invalid_role", invalidRoleMessage, nil)
 		return
 	}
 	if err := h.rbacSvc.UpdateUserRole(r.Context(), tenantID, userID, req.Role, me.localID); err != nil {

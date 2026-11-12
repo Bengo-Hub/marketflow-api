@@ -95,8 +95,11 @@ type RouterDeps struct {
 	// CallerSync keeps the signed-in user's local MarketFlow user and role in step with SSO
 	// (rbac.Service.SyncMiddleware); the role gates read them.
 	CallerSync func(http.Handler) http.Handler
-	// WriteGate enforces MarketFlow roles on writes (rbac.Service.WriteGate, audit MF #5).
-	WriteGate            func(http.Handler) http.Handler
+	// WriteGate enforces MarketFlow roles (rbac.Service.WriteGate, audit MF #5): the role ladder on
+	// writes, and a restricted role's allow-list (the app reviewer) on reads and writes.
+	WriteGate func(http.Handler) http.Handler
+	// MyAccess answers GET /api/v1/me/access: the caller's MarketFlow role for the UI.
+	MyAccess             http.HandlerFunc
 	RequirePlatformOwner func(http.Handler) http.Handler
 
 	// Feature gate middleware (subscription tier enforcement)
@@ -540,6 +543,9 @@ type InboxHandlers struct {
 	Reply   http.HandlerFunc
 	Handled http.HandlerFunc
 	Promote http.HandlerFunc
+	// Hide hides or unhides a comment; Delete deletes it (Facebook Page and Instagram only).
+	Hide   http.HandlerFunc
+	Delete http.HandlerFunc
 }
 
 // PublishingHandlers groups the organic publishing routes (Sprint 16).
@@ -716,6 +722,11 @@ func NewRouter(deps RouterDeps) http.Handler {
 					next.ServeHTTP(w, r)
 				})
 			})
+
+			// The caller's own MarketFlow role, for the UI's menu and buttons.
+			if deps.MyAccess != nil {
+				r.Get("/me/access", deps.MyAccess)
+			}
 
 			// Lead management
 			r.Route("/leads", func(r chi.Router) {
@@ -1045,6 +1056,11 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Post("/{id}/reply", deps.InboxHandlers.Reply)
 					r.Post("/{id}/handled", deps.InboxHandlers.Handled)
 					r.Post("/{id}/promote", deps.InboxHandlers.Promote)
+					// Hide, unhide or delete a Facebook Page or Instagram comment.
+					if deps.InboxHandlers.Hide != nil {
+						r.Post("/{id}/hide", deps.InboxHandlers.Hide)
+						r.Delete("/{id}", deps.InboxHandlers.Delete)
+					}
 				})
 			}
 

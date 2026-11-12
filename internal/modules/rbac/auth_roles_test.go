@@ -33,14 +33,14 @@ func TestPushRolesToAuth(t *testing.T) {
 	if err := PushRolesToAuth(context.Background(), srv.URL, "FAKE-KEY"); err != nil {
 		t.Fatal(err)
 	}
-	if key != "FAKE-KEY" || got.Service != "marketflow" || len(got.Roles) != 2 {
+	if key != "FAKE-KEY" || got.Service != "marketflow" || len(got.Roles) != 3 {
 		t.Fatalf("key %q payload %+v", key, got)
 	}
 	codes := map[string]string{}
 	for _, r := range got.Roles {
 		codes[r.RoleCode] = r.Scope
 	}
-	if codes["marketflow_admin"] != "marketflow" || codes["marketflow_member"] != "marketflow" {
+	if codes["marketflow_admin"] != "marketflow" || codes["marketflow_member"] != "marketflow" || codes["marketflow_reviewer"] != "marketflow" {
 		t.Fatalf("roles %v", codes)
 	}
 	if err := PushRolesToAuth(context.Background(), srv.URL, ""); err == nil {

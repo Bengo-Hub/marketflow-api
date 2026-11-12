@@ -147,6 +147,12 @@ func TestSyncCallerMapsHighestRole(t *testing.T) {
 		{[]string{"superuser"}, "marketflow_admin"},
 		{[]string{"owner"}, "marketflow_admin"},
 		{[]string{"marketflow_admin"}, "marketflow_admin"},
+		// The Meta App Review account: above a viewer, below a member.
+		{[]string{"marketflow_reviewer"}, "app_reviewer"},
+		{[]string{"member", "marketflow_reviewer"}, "app_reviewer"},
+		{[]string{"marketflow_reviewer", "marketflow_member"}, "fbo_owner"},
+		{[]string{"marketflow_reviewer", "admin"}, "marketflow_admin"},
+		{[]string{"MarketFlow_Reviewer "}, "app_reviewer"},
 	}
 	for _, c := range cases {
 		repo := &memRepo{}
@@ -158,7 +164,7 @@ func TestSyncCallerMapsHighestRole(t *testing.T) {
 		if got := roleOf(t, s, repo, tenant, auth); got != c.want {
 			t.Errorf("%v: got %s want %s", c.roles, got, c.want)
 		}
-		if len(repo.roles) != 3 {
+		if len(repo.roles) != len(systemRoleDefs) {
 			t.Errorf("system roles created once each: %d", len(repo.roles))
 		}
 	}
