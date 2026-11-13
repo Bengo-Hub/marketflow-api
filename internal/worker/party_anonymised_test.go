@@ -344,7 +344,7 @@ func TestParseLinkServices(t *testing.T) {
 			t.Fatalf("default %s must stay in-cluster: %s", s.Name, s.BaseURL)
 		}
 	}
-	for _, n := range []string{"pos", "treasury", "library", "hospital", "ordering", "ticketing", "projects"} {
+	for _, n := range []string{"pos", "treasury", "library", "hospital", "ordering", "ticketing", "projects", "logistics"} {
 		if !names[n] {
 			t.Fatalf("default list lacks %s", n)
 		}

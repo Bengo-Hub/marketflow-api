@@ -38,7 +38,10 @@ const defaultCRMLinkServices = "pos=http://pos-api.pos.svc.cluster.local:4000," 
 	"ticketing=http://ticketing-api.ticketing.svc.cluster.local:4009," +
 	// projects-api keeps crm_contact_id in project commercial metadata and answers the same
 	// crm-links endpoint as the others (S2-18).
-	"projects=http://projects-api.projects.svc.cluster.local:4000"
+	"projects=http://projects-api.projects.svc.cluster.local:4000," +
+	// logistics-api keeps crm_contact_id with the customer's name, phone and email in delivery
+	// task metadata (I-2).
+	"logistics=http://logistics-api.logistics.svc.cluster.local:4000"
 
 // linkService is one service that may hold a crm_contact_id.
 type linkService struct {
