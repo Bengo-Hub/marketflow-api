@@ -16,7 +16,7 @@ import (
 // Search lists/searches a tenant's contacts for the customer directory: q == "" lists all
 // (newest first), otherwise a case-insensitive substring match on name/email/phone. Returns
 // the page plus the total match count for pagination.
-func (s *Service) Search(ctx context.Context, tenantID uuid.UUID, q string, limit, offset int) ([]*ent.Contact, int, error) {
+func (s *Service) Search(ctx context.Context, tenantID uuid.UUID, q string, limit, offset int, contactTypes ...string) ([]*ent.Contact, int, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
@@ -30,6 +30,9 @@ func (s *Service) Search(ctx context.Context, tenantID uuid.UUID, q string, limi
 		)
 	if m := matchQuery(q); m != nil {
 		base = base.Where(m)
+	}
+	if len(contactTypes) > 0 {
+		base = base.Where(contact.ContactTypeIn(contactTypes...))
 	}
 	total, err := base.Clone().Count(ctx)
 	if err != nil {
@@ -56,8 +59,10 @@ func (h *Handler) SearchInternal(w http.ResponseWriter, r *http.Request) {
 	}
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
-
-	results, total, err := h.service.Search(r.Context(), tenantID, q, limit, offset)
+	// contact_type (optional, comma list, e.g. "customer") narrows the book. Treasury's Customers
+	// page asks for customers only, so marketing leads stay behind MarketFlow's own permissions
+	// (S2-8 review M-2). Empty lists every type, as the pos picker expects.
+	results, total, err := h.service.Search(r.Context(), tenantID, q, limit, offset, contactTypesParam(r.URL.Query().Get("contact_type"))...)
 	if err != nil {
 		h.logger.Error("s2s contact search failed", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "search_failed", "failed to search contacts", nil)
@@ -77,4 +82,15 @@ func (h *Handler) SearchInternal(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	httpapi.JSON(w, http.StatusOK, map[string]any{"data": out, "total": total})
+}
+
+// contactTypesParam splits a comma list of contact types, dropping blanks.
+func contactTypesParam(v string) []string {
+	var out []string
+	for _, t := range strings.Split(v, ",") {
+		if t = strings.TrimSpace(t); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
 }

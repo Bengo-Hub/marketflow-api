@@ -56,3 +56,30 @@ func TestSearch_FullNameAcrossColumns(t *testing.T) {
 		}
 	}
 }
+
+// TestSearch_ContactTypeFilter: treasury's Customers page asks for customers only, so a lead is
+// left out; no filter lists every type (S2-8 review M-2).
+func TestSearch_ContactTypeFilter(t *testing.T) {
+	svc, client := newContactsTestService(t)
+	ctx := context.Background()
+	tid := uuid.New()
+	seedTenant(t, client, tid)
+	t.Cleanup(func() {
+		_, _ = client.Contact.Delete().Where(contact.TenantID(tid)).Exec(context.Background())
+	})
+	for _, typ := range []string{"customer", "lead"} {
+		if _, err := client.Contact.Create().SetTenantID(tid).SetContactType(typ).SetLifecycleStage(typ).
+			SetFirstName("Asha").SetLastName(typ).Save(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, total, err := svc.Search(ctx, tid, "", 20, 0, "customer"); err != nil || total != 1 {
+		t.Errorf("customers only: total %d, err %v; want 1", total, err)
+	}
+	if _, total, err := svc.Search(ctx, tid, "", 20, 0); err != nil || total != 2 {
+		t.Errorf("no filter: total %d, err %v; want 2", total, err)
+	}
+	if got := contactTypesParam(" customer, ,lead "); len(got) != 2 || got[0] != "customer" || got[1] != "lead" {
+		t.Errorf("contactTypesParam = %v", got)
+	}
+}
