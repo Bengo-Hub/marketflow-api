@@ -8638,6 +8638,132 @@
                 }
             }
         },
+        "/tenant/brand-images": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "BrandImages"
+                ],
+                "summary": "List the tenant's brand images with short-lived links",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/brandimages.listReply"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "BrandImages"
+                ],
+                "summary": "Upload a brand image (JPEG or PNG, at least 1024 px on the short side)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "JPEG or PNG, up to 2 MB",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/brandimages.View"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tenant/brand-images/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "BrandImages"
+                ],
+                "summary": "Delete a brand image",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Image id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/tenant/market-research": {
             "get": {
                 "security": [
@@ -9931,6 +10057,58 @@
                 }
             }
         },
+        "brandimages.View": {
+            "type": "object",
+            "properties": {
+                "bytes": {
+                    "type": "integer"
+                },
+                "content_type": {
+                    "type": "string"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "uploaded_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "width": {
+                    "type": "integer"
+                }
+            }
+        },
+        "brandimages.listReply": {
+            "type": "object",
+            "properties": {
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/brandimages.View"
+                    }
+                },
+                "max": {
+                    "type": "integer"
+                },
+                "max_bytes": {
+                    "type": "integer"
+                },
+                "min": {
+                    "type": "integer"
+                },
+                "min_short_side": {
+                    "type": "integer"
+                }
+            }
+        },
         "campaigns.createCampaignRequest": {
             "type": "object",
             "properties": {
@@ -10343,6 +10521,10 @@
                 "id": {
                     "type": "string"
                 },
+                "sfx": {
+                    "description": "SFX is an optional short sound cue played at the scene's start (marketflow-ai renders it).",
+                    "type": "string"
+                },
                 "shot": {
                     "type": "string"
                 },
@@ -10443,6 +10625,14 @@
                 "price": {
                     "type": "string"
                 },
+                "script": {
+                    "description": "Script is a script already written and reviewed by the Marketing Manager's team (a\nWhatsApp or chat request, os_turn.go). When set, it is validated like an owner's edit\nand the version starts at script_ready: no script job and no second script charge.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/creative.VideoScript"
+                        }
+                    ]
+                },
                 "seconds": {
                     "description": "15 to 60, default 30",
                     "type": "integer"
@@ -10481,6 +10671,10 @@
                     "items": {
                         "type": "string"
                     }
+                },
+                "mood": {
+                    "description": "Mood is a few words on how the background music should feel; it goes to the render.",
+                    "type": "string"
                 },
                 "scenes": {
                     "type": "array",
@@ -11206,6 +11400,16 @@
         "marketingos.BrandContext": {
             "type": "object",
             "properties": {
+                "actor_name_style": {
+                    "description": "ActorNameStyle is the naming tradition the names of on-screen actors follow (one of\nActorNameStyles); empty leaves it to the writer. ActorNames are exact names the business\nlikes; when there are any, the script writer uses only these (actor_names.go).",
+                    "type": "string"
+                },
+                "actor_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "audience": {
                     "type": "array",
                     "items": {

@@ -29,6 +29,9 @@ func (h *Handler) MakeStoryboard(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !h.requireBrandImages(w, r, tid) {
+		return
+	}
 	v, err := h.svc.MakeStoryboard(r.Context(), tid, id)
 	if err != nil {
 		h.fail(w, err)
@@ -86,6 +89,9 @@ func (h *Handler) ReviseVideoAd(w http.ResponseWriter, r *http.Request) {
 	}
 	id, ok := idParam(w, r)
 	if !ok {
+		return
+	}
+	if !h.requireBrandImages(w, r, tid) {
 		return
 	}
 	v, err := h.svc.ReviseVideoAd(r.Context(), tid, id)

@@ -18,6 +18,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 	"github.com/bengobox/marketflow-api/internal/ent/testimonial"
+	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant"
@@ -25,6 +26,15 @@ import (
 )
 
 func ptr[T any](v T) *T { return &v }
+
+func stepDone(c Checklist, key string) bool {
+	for _, s := range c.Steps {
+		if s.Key == key {
+			return s.Done
+		}
+	}
+	return false
+}
 
 func TestComposeFillsOnlyEmptyFields(t *testing.T) {
 	ten := &ent.Tenant{Name: "Mama Njeri", Slug: "mama-njeri", BusinessType: tenant.BusinessTypeGeneric,
@@ -146,9 +156,9 @@ func TestChecklistAndDismissInDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A generic tenant declares no products: its steps are profile, brand context, channels and
-	// lead capture (team is optional).
-	if c.Total != 4 || c.Done != 0 || c.Complete || c.Dismissed {
+	// A generic tenant declares no products: its steps are profile, brand context, brand images,
+	// channels and lead capture (team is optional).
+	if c.Total != 5 || c.Done != 0 || c.Complete || c.Dismissed {
 		t.Fatalf("fresh tenant: %+v", c)
 	}
 	for _, s := range c.Steps {
@@ -177,9 +187,32 @@ func TestChecklistAndDismissInDatabase(t *testing.T) {
 	for _, s := range c.Steps {
 		done[s.Key] = s.Done
 	}
-	if !done["profile"] || !done["brand_context"] || !done["lead_capture"] || done["channels"] || c.Done != 3 {
+	if !done["profile"] || !done["brand_context"] || !done["lead_capture"] || done["channels"] || done["brand_images"] || c.Done != 3 {
 		t.Fatalf("after setup: %+v", c)
 	}
+
+	// Brand images: two are not enough, three (the default minimum) complete the step. Only keys
+	// under the tenant's own prefix count.
+	img := func(owner uuid.UUID, n int) map[string]any {
+		return map[string]any{"id": fmt.Sprint(n), "key": brandimages.Prefix(owner) + fmt.Sprintf("2026/11/%d.jpg", n)}
+	}
+	two := []any{img(tid, 1), img(tid, 2), img(uuid.New(), 3)}
+	if err := metastore.SetKeys(ctx, db, tid, map[string]any{brandimages.MetadataKey: two}); err != nil {
+		t.Fatal(err)
+	}
+	if c, _ = svc.Checklist(ctx, tid); stepDone(c, "brand_images") {
+		t.Fatalf("two own images must not complete the step: %+v", c.Steps)
+	}
+	if err := metastore.SetKeys(ctx, db, tid, map[string]any{brandimages.MetadataKey: append(two, img(tid, 4))}); err != nil {
+		t.Fatal(err)
+	}
+	if c, _ = svc.Checklist(ctx, tid); !stepDone(c, "brand_images") || c.Done != 4 {
+		t.Fatalf("three images complete the step: %+v", c)
+	}
+	if c, _ = svc.WithBrandImagesMin(4).Checklist(ctx, tid); stepDone(c, "brand_images") {
+		t.Fatal("the minimum comes from config")
+	}
+	svc.WithBrandImagesMin(3)
 
 	// A Forever tenant's products are seeded; its step is the distributor ID that links them
 	// to its own shop. A distributor-ID slug counts, as FBO tenants are created under it.

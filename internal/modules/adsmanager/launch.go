@@ -100,9 +100,26 @@ type State struct {
 	PaidOK     bool      `json:"paid_confirmed,omitempty"`
 	// FundingSince is when the boost first waited for funds (Sprint 18 L29).
 	FundingSince time.Time `json:"funding_since,omitempty"`
+	// FundingSeen is what the last funding check read on Meta, for the Add funds step (L62).
+	FundingSeen *FundingSeen `json:"funding_seen,omitempty"`
 	// Extras follow Plan.Extras by index.
 	Extras []ExtraState `json:"extras,omitempty"`
 	LiveAt time.Time    `json:"live_at,omitempty"`
+}
+
+// FundingSeen is the ad account's funding as last read from Meta while a boost waits for money:
+// the balance when Meta shows one (prepaid accounts), what is still missing, and when it was read.
+type FundingSeen struct {
+	Funding   Funding   `json:"funding"`
+	Balance   int64     `json:"balance"`   // whole units; 0 when Meta shows none
+	Shortfall int64     `json:"shortfall"` // whole units still to add
+	Currency  string    `json:"currency,omitempty"`
+	At        time.Time `json:"at"`
+}
+
+// seenFrom records a fresh quote as the funding last seen.
+func seenFrom(q Quote, now time.Time) *FundingSeen {
+	return &FundingSeen{Funding: q.Funding, Balance: q.Balance, Shortfall: q.Shortfall, Currency: q.Currency, At: now.UTC()}
 }
 
 // Saver stores the state after every step.

@@ -106,7 +106,7 @@ func (s *Service) ReviseVideoAd(ctx context.Context, tenantID, sourceID uuid.UUI
 	meta := map[string]any{}
 	for _, k := range []string{"seconds", "language", "photo_urls", "footage_urls", "video_kind", "voice", "delivery",
 		"voice_gender", "voice_accent", "actor_prompt", "storyboard", "scene_cache", "findings", "restricted_categories",
-		"music_url", "music_licensed_confirmed"} {
+		"music_url", "music_licensed_confirmed", metaBrandImageKeys} {
 		if val, ok := src.Metadata[k]; ok {
 			meta[k] = val
 		}
@@ -148,7 +148,7 @@ func (r *Renderer) startStoryboard(ctx context.Context, v *ent.CreativeVersion) 
 		return
 	}
 	call := storyboardCall{TenantID: v.TenantID.String(), VersionID: v.ID.String(), Format: v.Format, Kind: videoKind(v),
-		Scenes: script.Scenes, PhotoURLs: strs(meta["photo_urls"]), ActorPrompt: str(meta["actor_prompt"]), Charge: true}
+		Scenes: script.Scenes, PhotoURLs: r.adPhotos(v), ActorPrompt: str(meta["actor_prompt"]), Charge: true}
 	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
 		if actor, ok := b.Metadata["actor"].(map[string]any); ok && str(actor["url"]) != "" {
 			call.Actor = actor
@@ -188,6 +188,7 @@ func (r *Renderer) settleStoryboard(ctx context.Context, v *ent.CreativeVersion,
 		}
 		meta["storyboard"], meta["stage"] = board, StageScript
 		delete(meta, "storyboard_error")
+		settled := false // this report moved the version, so its message goes once
 		err := withTx(ctx, r.db, func(tx *ent.Tx) error {
 			n, err := tx.CreativeVersion.Update().
 				Where(creativeversion.ID(v.ID), creativeversion.StatusEQ(StatusRendering)).
@@ -196,6 +197,7 @@ func (r *Renderer) settleStoryboard(ctx context.Context, v *ent.CreativeVersion,
 			if err != nil || n == 0 {
 				return err
 			}
+			settled = true
 			for _, st := range sb.Stills {
 				if st.Key == "" || st.Source != "generated" {
 					continue
@@ -214,6 +216,10 @@ func (r *Renderer) settleStoryboard(ctx context.Context, v *ent.CreativeVersion,
 		}
 		if sb.Actor != nil && sb.Actor.URL != "" {
 			r.keepActor(ctx, v.BriefID, sb.Actor)
+		}
+		if settled {
+			// A WhatsApp turn's video: the stills go to the requester with the render code.
+			r.notifyOSTurn(ctx, v, OSTurnStoryboardReady, stillLinks(sb.Stills), "")
 		}
 		return nil
 	case job.Status == "failed" && job.Refunded:

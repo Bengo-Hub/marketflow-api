@@ -13,6 +13,8 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
+	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
+	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -109,6 +111,23 @@ type VideoAdInput struct {
 	// confirmation that the track may be used in ads; a link without it is refused.
 	MusicURL      string `json:"music_url"`
 	MusicLicensed bool   `json:"music_licensed"`
+	// Script is a script already written and reviewed by the Marketing Manager's team (a
+	// WhatsApp or chat request, os_turn.go). When set, it is validated like an owner's edit
+	// and the version starts at script_ready: no script job and no second script charge.
+	Script *VideoScript `json:"script,omitempty"`
+
+	// brandKeys are the tenant's brand image keys, set by CreateVideoAd; validate keeps as many
+	// as fit after the offering's photos.
+	brandKeys []string
+}
+
+// metaBrandImageKeys holds a video ad's brand image keys. They are photos after photo_urls
+// (script assets len(photo_urls)+1 onwards) and are signed only when a job is sent.
+const metaBrandImageKeys = "brand_image_keys"
+
+// adPhotoCount is how many photos a video ad's script may use: the offering's and the brand's.
+func adPhotoCount(meta map[string]any) int {
+	return len(strs(meta["photo_urls"])) + len(strs(meta[metaBrandImageKeys]))
 }
 
 func (in *VideoAdInput) validate(brief *ent.CreativeBrief) error {
@@ -163,7 +182,10 @@ func (in *VideoAdInput) validate(brief *ent.CreativeBrief) error {
 	if len(in.PhotoURLs) > maxAdPhotos || len(in.FootageURLs) > maxAdFootage {
 		return invalid(fmt.Sprintf("at most %d photos and %d clips", maxAdPhotos, maxAdFootage))
 	}
-	if len(in.PhotoURLs)+len(in.FootageURLs) == 0 {
+	if room := maxAdPhotos - len(in.PhotoURLs); len(in.brandKeys) > room {
+		in.brandKeys = in.brandKeys[:room]
+	}
+	if len(in.PhotoURLs)+len(in.brandKeys)+len(in.FootageURLs) == 0 {
 		return invalid("add at least one product photo or clip")
 	}
 	for _, u := range append(append([]string{}, in.PhotoURLs...), in.FootageURLs...) {
@@ -195,6 +217,9 @@ func (s *Service) CreateVideoAd(ctx context.Context, tenantID, briefID uuid.UUID
 	if err != nil {
 		return nil, err
 	}
+	if t, err := s.db.Tenant.Get(ctx, tenantID); err == nil {
+		in.brandKeys = brandimages.Keys(t.Metadata, tenantID, 0)
+	}
 	if err := in.validate(brief); err != nil {
 		return nil, err
 	}
@@ -218,6 +243,12 @@ func (s *Service) CreateVideoAd(ctx context.Context, tenantID, briefID uuid.UUID
 	if in.MusicURL != "" {
 		meta["music_licensed_confirmed"] = true
 	}
+	if len(in.brandKeys) > 0 {
+		meta[metaBrandImageKeys] = in.brandKeys
+	}
+	if in.Script != nil {
+		return s.insertScriptedVideoAd(ctx, tenantID, brief, in, map[string]any{"end_card": card}, meta)
+	}
 	return s.insertVersion(ctx, tenantID, briefID, nil, KindVideoAd, in.Tier, in.Format, map[string]any{"end_card": card}, meta)
 }
 
@@ -234,6 +265,8 @@ type VideoScript struct {
 	Hooks  []string      `json:"hooks"`
 	Scenes []ScriptScene `json:"scenes"`
 	CTA    string        `json:"cta"`
+	// Mood is a few words on how the background music should feel; it goes to the render.
+	Mood string `json:"mood,omitempty"`
 }
 
 // ScriptScene is one scene of a script.
@@ -245,17 +278,31 @@ type ScriptScene struct {
 	Visual    string  `json:"visual"`
 	Voiceover string  `json:"voiceover"`
 	Caption   string  `json:"caption"`
+	// SFX is an optional short sound cue played at the scene's start (marketflow-ai renders it).
+	SFX string `json:"sfx,omitempty"`
 }
+
+// Script sound limits, the same as marketflow-ai's.
+const (
+	maxSceneSFX   = 60
+	maxScriptMood = 120
+)
 
 func (v *VideoScript) validate(photos, footage int, kind string) error {
 	if len(v.Scenes) < 2 || len(v.Scenes) > maxAdScenes {
 		return invalid(fmt.Sprintf("a script has 2 to %d scenes", maxAdScenes))
+	}
+	if v.Mood = strings.TrimSpace(v.Mood); utf8.RuneCountInString(v.Mood) > maxScriptMood {
+		return invalid(fmt.Sprintf("the music mood is up to %d characters", maxScriptMood))
 	}
 	chars := 0
 	for i := range v.Scenes {
 		sc := &v.Scenes[i]
 		sc.Voiceover, sc.Caption = strings.TrimSpace(sc.Voiceover), strings.TrimSpace(sc.Caption)
 		sc.Visual = strings.TrimSpace(sc.Visual)
+		if sc.SFX = strings.TrimSpace(sc.SFX); utf8.RuneCountInString(sc.SFX) > maxSceneSFX {
+			return invalid(fmt.Sprintf("scene %d: the sound cue is up to %d characters", i+1, maxSceneSFX))
+		}
 		if sc.Shot == "presenter" {
 			if !isPresenter(kind) {
 				return invalid(fmt.Sprintf("scene %d: a presenter scene needs the presenter video type", i+1))
@@ -312,7 +359,7 @@ func (s *Service) UpdateScript(ctx context.Context, tenantID, id uuid.UUID, in S
 	}
 	copyFields := copyMap(v.Copy)
 	if in.Script != nil {
-		if err := in.Script.validate(len(strs(v.Metadata["photo_urls"])), len(strs(v.Metadata["footage_urls"])), videoKind(v)); err != nil {
+		if err := in.Script.validate(adPhotoCount(v.Metadata), len(strs(v.Metadata["footage_urls"])), videoKind(v)); err != nil {
 			return nil, err
 		}
 		copyFields["script"] = toMap(in.Script)
@@ -404,6 +451,13 @@ type scriptCall struct {
 	Footage   int    `json:"footage"`
 	Kind      string `json:"kind"`
 	Charge    bool   `json:"charge"`
+	// BrandPhotos is how many of the photos (the last ones) are pictures of the business itself
+	// (shop, team, products in use) rather than of the offering.
+	BrandPhotos int `json:"brand_photos,omitempty"`
+	// ActorNameStyle and ActorNames are the owner's naming choice for on-screen actors (brand
+	// context). With names, the writer uses only those; with a style only, names of that style.
+	ActorNameStyle string   `json:"actor_name_style,omitempty"`
+	ActorNames     []string `json:"actor_names,omitempty"`
 }
 
 // writeScript runs a claimed video ad's script step: marketflow-ai writes and
@@ -424,8 +478,11 @@ func (r *Renderer) writeScript(ctx context.Context, v *ent.CreativeVersion) {
 	}
 	call := scriptCall{TenantID: v.TenantID.String(), VersionID: v.ID.String(), Offering: excerpt(name, 300),
 		Facts: offeringFacts(b.Offering), Objective: b.Objective, Audience: b.Audience, Language: str(meta["language"]),
-		Seconds: intOf(meta["seconds"]), Photos: len(strs(meta["photo_urls"])), Footage: len(strs(meta["footage_urls"])),
-		Kind: videoKind(v), Charge: true}
+		Seconds: intOf(meta["seconds"]), Photos: adPhotoCount(meta), Footage: len(strs(meta["footage_urls"])),
+		Kind: videoKind(v), Charge: true, BrandPhotos: len(strs(meta[metaBrandImageKeys]))}
+	if t, err := r.db.Tenant.Get(ctx, v.TenantID); err == nil {
+		call.ActorNameStyle, call.ActorNames = marketingos.ActorNaming(t.Metadata)
+	}
 	data, status, err := r.aiCall(ctx, http.MethodPost, "/api/v1/internal/creative/script", call, scriptCallTimeout)
 	if err == nil && status != http.StatusOK {
 		err = aiStatusError(status, data)
@@ -504,6 +561,24 @@ type adCall struct {
 	Seed       int64             `json:"seed,omitempty"`
 	Stills     map[string]string `json:"stills,omitempty"`
 	SceneCache []any             `json:"scene_cache,omitempty"`
+	// Mood is the script's music mood, for the generated score.
+	Mood string `json:"mood,omitempty"`
+}
+
+// adPhotos is a video ad's photos as marketflow-ai fetches them: the offering's links, then
+// fresh signed links to the brand images the ad was made with.
+func (r *Renderer) adPhotos(v *ent.CreativeVersion) []string {
+	photos := strs(v.Metadata["photo_urls"])
+	keys := strs(v.Metadata[metaBrandImageKeys])
+	if len(keys) == 0 {
+		return photos
+	}
+	links := r.brandLinks.Links(v.TenantID, keys)
+	if len(links) != len(keys) {
+		r.logger.Warn("brand images not all linked; scenes that use them may fail",
+			zap.String("version_id", v.ID.String()), zap.Int("keys", len(keys)), zap.Int("links", len(links)))
+	}
+	return append(append([]string{}, photos...), links...)
 }
 
 // startAd starts a claimed video ad's render job in marketflow-ai.
@@ -525,9 +600,9 @@ func (r *Renderer) adCallFor(ctx context.Context, v *ent.CreativeVersion, script
 	call := adCall{TenantID: v.TenantID.String(), VersionID: v.ID.String(), Format: v.Format, Tier: v.Tier,
 		Voice: str(meta["voice"]), Delivery: str(meta["delivery"]), VoiceGender: str(meta["voice_gender"]),
 		VoiceAccent: str(meta["voice_accent"]), Language: str(meta["language"]), Scenes: script.Scenes,
-		PhotoURLs: strs(meta["photo_urls"]), FootageURLs: strs(meta["footage_urls"]),
+		PhotoURLs: r.adPhotos(v), FootageURLs: strs(meta["footage_urls"]),
 		Headline: str(card["headline"]), Subline: str(card["subline"]), Price: str(card["price"]), CTA: str(card["cta"]),
-		Charge: charge, Kind: videoKind(v), MusicURL: str(meta["music_url"])}
+		Charge: charge, Kind: videoKind(v), MusicURL: str(meta["music_url"]), Mood: script.Mood}
 	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
 		brand, _ := b.Metadata["brand"].(map[string]any)
 		call.Accent, call.LogoURL = str(brand["accent"]), str(brand["logo_url"])

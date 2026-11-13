@@ -178,6 +178,10 @@ func (r *Renderer) touchJob(ctx context.Context, v *ent.CreativeVersion, lost bo
 			return
 		}
 		u.SetStatus(StatusFailed).SetError("the video took too long; try again")
+		if n, err := u.Save(ctx); err == nil && n > 0 {
+			r.notifyRenderFailed(ctx, v.ID, "")
+		}
+		return
 	case lost:
 		u.SetStatus(StatusQueued)
 	default:
@@ -228,7 +232,8 @@ func (r *Renderer) SettleJob(ctx context.Context, id uuid.UUID, job Job) error {
 		if res.Voice != "" {
 			meta["voice_used"] = res.Voice
 		}
-		return withTx(ctx, r.db, func(tx *ent.Tx) error {
+		settled := false // this report moved the version, so its message goes once
+		err := withTx(ctx, r.db, func(tx *ent.Tx) error {
 			n, err := tx.CreativeVersion.Update().
 				Where(creativeversion.ID(id), creativeversion.StatusEQ(StatusRendering)).
 				SetStatus(StatusReady).SetCredits(v.Credits + job.CreditsCharged).SetMetadata(meta).ClearError().
@@ -236,6 +241,7 @@ func (r *Renderer) SettleJob(ctx context.Context, id uuid.UUID, job Job) error {
 			if err != nil || n == 0 {
 				return err
 			}
+			settled = true
 			a := tx.CreativeAsset.Create().
 				SetTenantID(v.TenantID).SetVersionID(id).SetKind(AssetVideo).
 				SetStorageKey(res.Key).SetURL(res.URL).SetBytes(res.Bytes).
@@ -265,18 +271,29 @@ func (r *Renderer) SettleJob(ctx context.Context, id uuid.UUID, job Job) error {
 			}
 			return nil
 		})
+		if err == nil && settled && v.Kind == KindVideoAd {
+			// A WhatsApp turn's video: the finished ad's link goes to the requester.
+			r.notifyOSTurn(ctx, v, OSTurnRenderDone, []string{res.URL}, "")
+		}
+		return err
 	case job.Status == "failed" && job.Refunded:
 		msg := job.Error
 		if msg == "" {
 			msg = "the video could not be made right now; nothing was charged"
 		}
-		_, err := pending.SetStatus(StatusFailed).SetError(excerpt(msg, 480)).Save(ctx)
+		n, err := pending.SetStatus(StatusFailed).SetError(excerpt(msg, 480)).Save(ctx)
+		if err == nil && n > 0 {
+			r.notifyRenderFailed(ctx, id, msg)
+		}
 		return err
 	case job.Status == "failed":
 		// Lost with its pod and not refunded: start again under the same charge key.
 		if intOf(v.Metadata["attempts"]) >= maxAttempts {
 			r.refundLost(ctx, v, "render")
-			_, err := pending.SetStatus(StatusFailed).SetError("the video took too long; try again").Save(ctx)
+			n, err := pending.SetStatus(StatusFailed).SetError("the video took too long; try again").Save(ctx)
+			if err == nil && n > 0 {
+				r.notifyRenderFailed(ctx, id, "")
+			}
 			return err
 		}
 		_, err := pending.SetStatus(StatusQueued).Save(ctx)
@@ -363,7 +380,11 @@ func (r *Renderer) failJob(ctx context.Context, id uuid.UUID, err error) {
 		msg = excerpt(ae.msg, 480)
 	}
 	r.logger.Warn("video job did not start", zap.String("version_id", id.String()), zap.Error(err))
-	_ = r.db.CreativeVersion.Update().
+	n, err := r.db.CreativeVersion.Update().
 		Where(creativeversion.ID(id), creativeversion.StatusEQ(StatusRendering)).
-		SetStatus(StatusFailed).SetError(msg).Exec(ctx)
+		SetStatus(StatusFailed).SetError(msg).Save(ctx)
+	if err == nil && n > 0 {
+		// A render that could not start (for example too few credits) is a terminal failure too.
+		r.notifyRenderFailed(ctx, id, msg)
+	}
 }

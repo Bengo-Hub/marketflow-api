@@ -126,6 +126,7 @@ type RouterDeps struct {
 	MarketingOSHandlers MarketingOSHandlers
 	LearningHandlers    LearningHandlers
 	OnboardingHandlers  OnboardingHandlers
+	BrandImageHandlers  BrandImageHandlers
 	CreativeHandlers    CreativeHandlers
 	PublishingHandlers  PublishingHandlers
 	InboxHandlers       InboxHandlers
@@ -486,6 +487,13 @@ type LearningHandlers struct {
 	Record  http.HandlerFunc
 }
 
+// BrandImageHandlers are the tenant's brand images (private, short-lived links).
+type BrandImageHandlers struct {
+	List   http.HandlerFunc
+	Upload http.HandlerFunc
+	Delete http.HandlerFunc
+}
+
 // OnboardingHandlers groups the setup checklist and the brand context draft.
 type OnboardingHandlers struct {
 	Checklist http.HandlerFunc
@@ -518,6 +526,9 @@ type CreativeHandlers struct {
 	ReviseVideoAd     http.HandlerFunc
 	QuoteVideoAd      http.HandlerFunc
 	JobCallback       http.HandlerFunc // S2S: POST /internal/creative/jobs/{id} from marketflow-ai
+	// OSTurnEvent is S2S POST /internal/creative/os-turn/events: marketflow-ai's background
+	// make-media for a WhatsApp turn failed, and the requester is told.
+	OSTurnEvent       http.HandlerFunc
 	CreateReviewLink  http.HandlerFunc
 	RevokeReviewLinks http.HandlerFunc
 	OpenReview        http.HandlerFunc // Public — GET /r/{token}
@@ -977,6 +988,14 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Get("/tenant/marketing-context/draft", deps.OnboardingHandlers.Draft)
 			}
 
+			// Brand images: the tenant's own pictures for posters and video ads. Only the tenant in
+			// the checked header is ever read or changed.
+			if deps.BrandImageHandlers.List != nil {
+				r.Get("/tenant/brand-images", deps.BrandImageHandlers.List)
+				r.Post("/tenant/brand-images", deps.BrandImageHandlers.Upload)
+				r.Delete("/tenant/brand-images/{id}", deps.BrandImageHandlers.Delete)
+			}
+
 			// Marketing OS: brand context and team member overrides. The tenant
 			// header is checked against the token by the group's tenant check.
 			if deps.MarketingOSHandlers.GetBrandContext != nil {
@@ -1194,6 +1213,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					// marketflow-ai pushes a finished or failed media job (motion poster, video ad).
 					if deps.CreativeHandlers.JobCallback != nil {
 						r.Post("/creative/jobs/{id}", deps.CreativeHandlers.JobCallback)
+					}
+					if deps.CreativeHandlers.OSTurnEvent != nil {
+						r.Post("/creative/os-turn/events", deps.CreativeHandlers.OSTurnEvent)
 					}
 					if deps.ContactHandlers.GetByEmail != nil {
 						r.Get("/contacts/by-email", deps.ContactHandlers.GetByEmail)

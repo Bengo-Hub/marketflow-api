@@ -5,10 +5,12 @@ import (
 	"database/sql"
 	"fmt"
 	sharedcache "github.com/Bengo-Hub/cache"
+	"github.com/Bengo-Hub/httpware/objectstore"
 	"github.com/Bengo-Hub/httpware/tenantexport"
 	ratelimit "github.com/Bengo-Hub/shared-ratelimit"
 	"github.com/google/uuid"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -29,6 +31,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/adsmanager"
 	"github.com/bengobox/marketflow-api/internal/modules/analytics"
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
+	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/campaigns"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
@@ -335,7 +338,11 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			return marketingos.AccountFacts{Name: p.Name, Phone: p.ContactPhone, Email: p.ContactEmail, Website: p.Website, Storefront: p.Storefront}, nil
 		}).
 		// Sites that add their address and hours in the browser are read through the crawler.
-		WithPageReader(marketingos.NewCrawlerReader(cfg.CrossService.CrawlerURL, cfg.CrossService.InternalServiceKey))
+		WithPageReader(marketingos.NewCrawlerReader(cfg.CrossService.CrawlerURL, cfg.CrossService.InternalServiceKey)).
+		// Only the platform owner's tenant gets every plan level in the AI work (not demo tenants).
+		WithPlatformTenant(cfg.Security.PlatformTenant).
+		// A demo tenant follows the free plan's features and chat limit (its password is public).
+		WithDemoPlan(cfg.Security.DemoPlanCode)
 	marketingOSHandler := marketingos.NewHandler(marketingOSService, logger)
 	marketingOSHandler.Complaints = marketingos.NewComplaintFinder(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey)
 	learningHandler := learning.NewHandler(learning.NewStore(entClient), logger)
@@ -356,12 +363,25 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	})
 	// Onboarding: setup checklist and a brand context draft from the business's own data
 	// (account details, best sellers, website catalogue for the platform tenant).
+	// Brand images (WP3, owner 2026-11-12): private objects under the tenant's prefix, the same
+	// shared object storage configuration as the worker (OBJECT_STORAGE_*).
+	brandImagesCfg, err := brandimages.ConfigFromEnv(os.Getenv)
+	if err != nil {
+		logger.Warn("brand image limits: using the defaults", zap.Error(err))
+	}
+	mediaStore, err := objectstore.New("marketflow", objectstore.FromEnv())
+	if err != nil {
+		logger.Warn("object storage unavailable; brand image uploads off", zap.Error(err))
+	}
+	brandImagesHandler := brandimages.NewHandler(brandimages.NewService(entClient, mediaStore, brandImagesCfg, logger), logger)
+	brandLinks := brandimages.NewLinker(mediaStore, brandImagesCfg.RenderLinkTTL)
 	onboardingHandler := onboarding.NewHandler(onboarding.NewService(entClient, marketingOSService, tenantSyncer,
 		creative.NewTopOfferings(catalogueOfferings, cfg.CrossService.POSURL, cfg.CrossService.InternalServiceKey, logger),
-		websiteCatalog, cfg.Security.PlatformTenant, logger), logger)
+		websiteCatalog, cfg.Security.PlatformTenant, logger).WithBrandImagesMin(brandImagesCfg.Min), logger)
 	// Review links are signed with the env encryption key (stable, like the OAuth
 	// state), separated from it by the token's own HMAC domain.
-	creativeHandler := creative.NewHandler(creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)).WithLeadFunnels(funnelService.ForAds()),
+	creativeHandler := creative.NewHandler(creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)).
+		WithLeadFunnels(funnelService.ForAds()).WithBrandImagesMin(brandImagesCfg.Min),
 		creative.NewReviews(entClient, encryption.KeyFromEnv(cfg.Security.EncryptionKey)),
 		catalogueOfferings, logger).
 		WithApprover(func(ctx context.Context, tenantID uuid.UUID) bool {
@@ -369,7 +389,13 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		}).
 		// marketflow-ai's job callback settles motion posters and video ads here;
 		// the worker's renderer starts them and polls only when a push is overdue.
-		WithJobs(creative.NewRenderer(entClient, "", "", logger))
+		WithJobs(creative.NewRenderer(entClient, "", "", logger).WithBrandImages(brandLinks).
+			// A video made from a WhatsApp turn: marketflow-ai writes the storyboard and finished-ad
+			// messages (with the render code); they go out from the platform number.
+			WithOSTurn(creative.NewWhatsAppTurnNotifier(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey,
+				creative.NewPlatformWhatsApp(entClient,
+					notifications.New(notifications.Config{BaseURL: cfg.CrossService.NotificationsURL, APIKey: cfg.CrossService.InternalServiceKey}),
+					cfg.Security.PlatformTenant, "marketflow-api"), logger)))
 	// Boost, post and reply are also open to the Meta App Review account (owner 2026-11-12); the
 	// role gate keeps it to exactly those routes. Approving an ad stays with the approving roles.
 	reviewActionRoles := rbac.WithAppReviewer(creative.ApprovalRoles)
@@ -451,7 +477,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	}()
 
 	// Public handlers
-	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, leadService, meetingService, availabilitySvc, testimonialHandler, tenantSyncer, logger)
+	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, leadService, meetingService, availabilitySvc, testimonialHandler, tenantSyncer, logger).
+		// White label hides "Powered by Codevertex" (Business plan); fail closed, never the demo bypass.
+		WithFeatureCheck(subsClient.StrictHasFeature)
 
 	// Tenant backups are made from the SSO client area (auth-api collects this service's
 	// /api/v1/s2s/tenant-export); the platform pg_dumpall covers disaster recovery.
@@ -710,6 +738,11 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Dismiss:   onboardingHandler.Dismiss,
 			Draft:     onboardingHandler.Draft,
 		},
+		BrandImageHandlers: httpapi.BrandImageHandlers{
+			List:   brandImagesHandler.List,
+			Upload: brandImagesHandler.Upload,
+			Delete: brandImagesHandler.Delete,
+		},
 		MarketingOSHandlers: httpapi.MarketingOSHandlers{
 			GetBrandContext:   marketingOSHandler.GetBrandContext,
 			PutBrandContext:   marketingOSHandler.PutBrandContext,
@@ -751,6 +784,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			ReviseVideoAd:     creativeHandler.ReviseVideoAd,
 			QuoteVideoAd:      creativeHandler.QuoteVideoAd,
 			JobCallback:       creativeHandler.JobCallback,
+			OSTurnEvent:       creativeHandler.OSTurnEvent,
 			CreateReviewLink:  creativeHandler.CreateReviewLink,
 			RevokeReviewLinks: creativeHandler.RevokeReviewLinks,
 			OpenReview:        creativeHandler.OpenReview,

@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -102,12 +103,14 @@ const (
 
 // Service is the Creative Studio data layer.
 type Service struct {
-	db     *ent.Client
-	quota  *ratelimit.Quota // daily paid-render cap; nil turns it off
+	db    *ent.Client
+	quota *ratelimit.Quota // daily paid-render cap; nil turns it off
 	// leadFunnels publishes each new ad's lead page; nil leaves ads without one (tests).
 	leadFunnels LeadFunnelMaker
 	logger      *zap.Logger
-	nowFn  func() time.Time
+	nowFn       func() time.Time
+	// brandImagesMin is how many brand images a video ad needs (brand_gate.go); 0 uses the default.
+	brandImagesMin int
 }
 
 // NewService builds the service.
@@ -173,8 +176,14 @@ func (s *Service) CreateBrief(ctx context.Context, tenantID uuid.UUID, createdBy
 	if in.Offering != nil {
 		c.SetOffering(in.Offering)
 	}
-	if in.Metadata != nil {
-		c.SetMetadata(in.Metadata)
+	meta := copyMap(in.Metadata)
+	if _, ok := meta["brand"]; !ok {
+		if brand := s.tenantBrand(ctx, tenantID); brand != nil {
+			meta["brand"] = brand
+		}
+	}
+	if len(meta) > 0 {
+		c.SetMetadata(meta)
 	}
 	b, err := c.Save(ctx)
 	if err != nil {
@@ -182,6 +191,31 @@ func (s *Service) CreateBrief(ctx context.Context, tenantID uuid.UUID, createdBy
 	}
 	return s.attachLeadFunnel(ctx, b), nil
 }
+
+// tenantBrand is the brief's brand block (accent, logo_url, palette) from the tenant's profile:
+// brand_primary_color and logo_url, the keys the profile page saves. The poster, motion and video
+// ad renders read it from the brief. Nil when the profile has neither.
+func (s *Service) tenantBrand(ctx context.Context, tenantID uuid.UUID) map[string]any {
+	t, err := s.db.Tenant.Get(ctx, tenantID)
+	if err != nil {
+		return nil
+	}
+	brand := map[string]any{}
+	if c := strings.TrimSpace(str(t.Metadata["brand_primary_color"])); hexColor.MatchString(c) {
+		brand["accent"] = c
+		brand["palette"] = []any{c}
+	}
+	if l := strings.TrimSpace(str(t.Metadata["logo_url"])); strings.HasPrefix(l, "https://") || strings.HasPrefix(l, "http://") {
+		brand["logo_url"] = l
+	}
+	if len(brand) == 0 {
+		return nil
+	}
+	return brand
+}
+
+// hexColor is a #rgb or #rrggbb colour, the form the renders accept.
+var hexColor = regexp.MustCompile(`^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$`)
 
 // UpdateBrief changes the given fields of a brief.
 func (s *Service) UpdateBrief(ctx context.Context, tenantID, id uuid.UUID, in BriefInput) (*ent.CreativeBrief, error) {
@@ -364,6 +398,12 @@ func (s *Service) checkLiveDrafts(ctx context.Context, tenantID uuid.UUID) error
 // (brief_id, version_no) index settles a race between two requests, and the
 // loser takes the next number.
 func (s *Service) insertVersion(ctx context.Context, tenantID, briefID uuid.UUID, parent *uuid.UUID, kind, tier, format string, copyFields, meta map[string]any) (*ent.CreativeVersion, error) {
+	return s.insertVersionAs(ctx, tenantID, briefID, parent, kind, tier, format, "", copyFields, meta)
+}
+
+// insertVersionAs is insertVersion with the first status ("" for the default, queued). A video ad
+// whose script is already written starts at script_ready, so the renderer never claims it.
+func (s *Service) insertVersionAs(ctx context.Context, tenantID, briefID uuid.UUID, parent *uuid.UUID, kind, tier, format, status string, copyFields, meta map[string]any) (*ent.CreativeVersion, error) {
 	for attempt := 0; ; attempt++ {
 		next := 1
 		last, err := s.db.CreativeVersion.Query().
@@ -376,7 +416,7 @@ func (s *Service) insertVersion(ctx context.Context, tenantID, briefID uuid.UUID
 		case !ent.IsNotFound(err):
 			return nil, err
 		}
-		v, err := s.db.CreativeVersion.Create().
+		c := s.db.CreativeVersion.Create().
 			SetTenantID(tenantID).
 			SetBriefID(briefID).
 			SetNillableParentVersionID(parent).
@@ -385,8 +425,11 @@ func (s *Service) insertVersion(ctx context.Context, tenantID, briefID uuid.UUID
 			SetTier(tier).
 			SetFormat(format).
 			SetCopy(copyFields).
-			SetMetadata(meta).
-			Save(ctx)
+			SetMetadata(meta)
+		if status != "" {
+			c.SetStatus(status)
+		}
+		v, err := c.Save(ctx)
 		if err == nil || !ent.IsConstraintError(err) || attempt >= 2 {
 			return v, err
 		}

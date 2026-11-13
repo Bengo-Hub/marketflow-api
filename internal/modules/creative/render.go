@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
+	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -42,6 +43,30 @@ type Renderer struct {
 	logger     *zap.Logger
 	nowFn      func() time.Time
 	interval   time.Duration
+	// brandLinks signs the tenant's brand images for a render; nil sends none.
+	brandLinks *brandimages.Linker
+	// osTurn tells a WhatsApp requester about a video made from their Marketing Manager turn
+	// (os_turn.go); nil tells nobody.
+	osTurn OSTurnNotifier
+}
+
+// WithBrandImages lets renders use the tenant's brand images next to an offering's photos.
+func (r *Renderer) WithBrandImages(l *brandimages.Linker) *Renderer {
+	r.brandLinks = l
+	return r
+}
+
+// withBrandPhotos tops photos up to limit with signed links to the tenant's current brand images.
+func (r *Renderer) withBrandPhotos(ctx context.Context, tenantID uuid.UUID, photos []string, limit int) []string {
+	if r.brandLinks == nil || len(photos) >= limit {
+		return photos
+	}
+	t, err := r.db.Tenant.Get(ctx, tenantID)
+	if err != nil {
+		return photos
+	}
+	links := r.brandLinks.Links(tenantID, brandimages.Keys(t.Metadata, tenantID, limit-len(photos)))
+	return append(append([]string{}, photos...), links...)
 }
 
 // NewRenderer builds a Renderer.
@@ -211,6 +236,10 @@ func (r *Renderer) render(ctx context.Context, v *ent.CreativeVersion) {
 		if len(call.PhotoURLs) == 0 {
 			call.PhotoURLs = strs(b.Offering["photo_urls"])
 		}
+	}
+	// A text-only revision reuses its stored scene and needs no photos.
+	if call.SceneURL == "" {
+		call.PhotoURLs = r.withBrandPhotos(ctx, v.TenantID, call.PhotoURLs, maxPhotos)
 	}
 
 	reply, err := r.call(ctx, call)

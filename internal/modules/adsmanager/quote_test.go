@@ -3,6 +3,7 @@ package adsmanager
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 )
@@ -42,6 +43,22 @@ func TestQuoteFunding(t *testing.T) {
 	q = BuildQuote(acct(true, "", nil), 5000, 7, 0)
 	if q.Funding != FundingUnknown || q.Shortfall != 5000 || q.Ready(false) {
 		t.Fatalf("unknown: %+v", q)
+	}
+}
+
+// L62: while a boost waits for money, the funding last read on Meta is kept for the Add funds
+// step, so the client sees the live balance and shortfall, not the figure from the quote.
+func TestFundingSeenFromQuote(t *testing.T) {
+	stored := &struct {
+		ID     string `json:"id"`
+		Type   int    `json:"type"`
+		Amount string `json:"amount"`
+	}{Type: meta.FundingStoredBalance, Amount: "KES 1,500.00"}
+	now := time.Date(2026, 11, 12, 10, 0, 0, 0, time.FixedZone("EAT", 3*3600))
+	q := BuildQuote(acct(true, "", stored), 5000, 7, 0)
+	seen := seenFrom(q, now)
+	if seen.Funding != FundingNeeded || seen.Balance != 1500 || seen.Shortfall != 3500 || !seen.At.Equal(now) || seen.At.Location() != time.UTC {
+		t.Fatalf("seen %+v", seen)
 	}
 }
 

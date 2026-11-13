@@ -21,6 +21,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
 	"github.com/bengobox/marketflow-api/internal/ent/testimonial"
+	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant"
@@ -41,11 +42,22 @@ type Service struct {
 	website      *WebsiteCatalog
 	platformSlug string
 	logger       *zap.Logger
+	// minBrandImages completes the brand_images step (brandimages.Config.Min).
+	minBrandImages int
 }
 
 // NewService wires the sources; auth, top and website may be nil (that source is skipped).
 func NewService(db *ent.Client, brand BrandStore, auth *tenant.Syncer, top *creative.TopOfferings, website *WebsiteCatalog, platformSlug string, logger *zap.Logger) *Service {
-	return &Service{db: db, brand: brand, auth: auth, top: top, website: website, platformSlug: platformSlug, logger: logger.Named("onboarding")}
+	return &Service{db: db, brand: brand, auth: auth, top: top, website: website, platformSlug: platformSlug,
+		logger: logger.Named("onboarding"), minBrandImages: brandimages.DefaultConfig().Min}
+}
+
+// WithBrandImagesMin sets how many brand images complete the brand_images step.
+func (s *Service) WithBrandImagesMin(n int) *Service {
+	if n > 0 {
+		s.minBrandImages = n
+	}
+	return s
 }
 
 // draftBudget bounds the whole draft; each outside source has its own shorter timeout inside it.
@@ -100,6 +112,9 @@ func (s *Service) Checklist(ctx context.Context, tenantID uuid.UUID) (Checklist,
 	}
 	steps = append(steps, []Step{
 		{Key: "brand_context", Done: strings.TrimSpace(bc.Positioning) != "" && len(bc.Audience) > 0 && len(bc.Offers) > 0},
+		// Pictures of the business itself (brandimages), which posters and video ads use next to
+		// an offering's own photos.
+		{Key: "brand_images", Done: len(brandimages.Keys(meta, tenantID, 0)) >= s.minBrandImages},
 		{Key: "channels", Done: hasChannel},
 		{Key: "lead_capture", Done: hasCapture},
 		{Key: "team", Done: team > 1, Optional: true},

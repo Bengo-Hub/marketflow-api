@@ -3,6 +3,7 @@ package tenant
 import (
 	"testing"
 
+	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 )
 
@@ -29,9 +30,11 @@ func TestPublicMetadataDropsPrivateKeys(t *testing.T) {
 }
 
 func TestProfileMetadataPatchSkipsReserved(t *testing.T) {
-	update := map[string]any{marketingos.MetadataKey: "stale", "bio": "new", marketingos.DailyBriefKey: true, OnboardingMetadataKey: map[string]any{}, "story": nil}
+	update := map[string]any{marketingos.MetadataKey: "stale", "bio": "new", marketingos.DailyBriefKey: true, OnboardingMetadataKey: map[string]any{}, "story": nil,
+		// A profile save must never point the brand image list at keys of its choosing.
+		brandimages.MetadataKey: []any{map[string]any{"key": "marketflow/other-tenant/brand-images/x.jpg"}}}
 	got := ProfileMetadataPatch(update)
-	for _, k := range []string{marketingos.MetadataKey, marketingos.DailyBriefKey, OnboardingMetadataKey} {
+	for _, k := range []string{marketingos.MetadataKey, marketingos.DailyBriefKey, OnboardingMetadataKey, brandimages.MetadataKey} {
 		if _, ok := got[k]; ok {
 			t.Fatalf("reserved key %q written through the profile", k)
 		}

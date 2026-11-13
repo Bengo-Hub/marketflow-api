@@ -9,7 +9,8 @@ import (
 
 // Sprint 18 flag (2026-11-10): paid_ads_launch (no launch charge) went through the fail-open
 // consumer gate, so a subscriptions-api outage made every ad launch free. A benefit that waives a
-// charge is granted only when the plan lists it (or the tenant is a demo).
+// charge is granted only when the plan lists it. Owner, 2026-11-12: the public demo tenant gets
+// free plan features only, so the demo bypass no longer grants it.
 func TestStrictHasFeature(t *testing.T) {
 	body := `{"features":["paid_ads_launch"],"status":"ACTIVE"}`
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -33,8 +34,8 @@ func TestStrictHasFeature(t *testing.T) {
 	if c.StrictHasFeature(ctx, "without", "paid_ads_launch") {
 		t.Error("PAYG without the feature pays the launch charge")
 	}
-	if !c.StrictHasFeature(ctx, "demo", "paid_ads_launch") {
-		t.Error("demo tenants are exempt")
+	if c.StrictHasFeature(ctx, "demo", "paid_ads_launch") {
+		t.Error("the demo bypass must not waive the launch charge")
 	}
 	if c.StrictHasFeature(ctx, "outage", "paid_ads_launch") {
 		t.Error("an outage must not waive the charge")

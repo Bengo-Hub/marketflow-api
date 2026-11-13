@@ -222,6 +222,40 @@ definitions:
       source:
         type: string
     type: object
+  brandimages.View:
+    properties:
+      bytes:
+        type: integer
+      content_type:
+        type: string
+      height:
+        type: integer
+      id:
+        type: string
+      name:
+        type: string
+      uploaded_at:
+        type: string
+      url:
+        type: string
+      width:
+        type: integer
+    type: object
+  brandimages.listReply:
+    properties:
+      images:
+        items:
+          $ref: '#/definitions/brandimages.View'
+        type: array
+      max:
+        type: integer
+      max_bytes:
+        type: integer
+      min:
+        type: integer
+      min_short_side:
+        type: integer
+    type: object
   campaigns.createCampaignRequest:
     properties:
       budget_daily:
@@ -497,6 +531,10 @@ definitions:
         type: number
       id:
         type: string
+      sfx:
+        description: SFX is an optional short sound cue played at the scene's start
+          (marketflow-ai renders it).
+        type: string
       shot:
         type: string
       visual:
@@ -570,6 +608,13 @@ definitions:
         type: array
       price:
         type: string
+      script:
+        allOf:
+        - $ref: '#/definitions/creative.VideoScript'
+        description: |-
+          Script is a script already written and reviewed by the Marketing Manager's team (a
+          WhatsApp or chat request, os_turn.go). When set, it is validated like an owner's edit
+          and the version starts at script_ready: no script job and no second script charge.
       seconds:
         description: 15 to 60, default 30
         type: integer
@@ -597,6 +642,10 @@ definitions:
         items:
           type: string
         type: array
+      mood:
+        description: Mood is a few words on how the background music should feel;
+          it goes to the render.
+        type: string
       scenes:
         items:
           $ref: '#/definitions/creative.ScriptScene'
@@ -1087,6 +1136,16 @@ definitions:
     type: object
   marketingos.BrandContext:
     properties:
+      actor_name_style:
+        description: |-
+          ActorNameStyle is the naming tradition the names of on-screen actors follow (one of
+          ActorNameStyles); empty leaves it to the writer. ActorNames are exact names the business
+          likes; when there are any, the script writer uses only these (actor_names.go).
+        type: string
+      actor_names:
+        items:
+          type: string
+        type: array
       audience:
         items:
           type: string
@@ -7202,6 +7261,85 @@ paths:
       summary: Mark a task as done
       tags:
       - Tasks
+  /tenant/brand-images:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/brandimages.listReply'
+      security:
+      - bearerAuth: []
+      summary: List the tenant's brand images with short-lived links
+      tags:
+      - BrandImages
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: JPEG or PNG, up to 2 MB
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/brandimages.View'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Upload a brand image (JPEG or PNG, at least 1024 px on the short side)
+      tags:
+      - BrandImages
+  /tenant/brand-images/{id}:
+    delete:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Image id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Delete a brand image
+      tags:
+      - BrandImages
   /tenant/market-research:
     get:
       parameters:

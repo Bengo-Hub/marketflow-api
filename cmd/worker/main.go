@@ -35,6 +35,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/Bengo-Hub/httpware/objectstore"
 	"github.com/bengobox/marketflow-api/internal/modules/adsmanager"
+	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/publishing"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
@@ -285,11 +286,22 @@ func main() {
 
 		// Creative Studio: makes queued posters through marketflow-ai, and deletes
 		// draft files whose time is up (hourly) from the shared object storage.
-		go creative.NewRenderer(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).Run(ctx)
 		mediaStore, err := objectstore.New("marketflow", objectstore.FromEnv())
 		if err != nil {
 			logger.Warn("object storage unavailable; creative draft purge off", zap.Error(err))
 		}
+		// Renders use the tenant's brand images through short-lived signed links.
+		brandImagesCfg, cfgErr := brandimages.ConfigFromEnv(os.Getenv)
+		if cfgErr != nil {
+			logger.Warn("brand image limits: using the defaults", zap.Error(cfgErr))
+		}
+		go creative.NewRenderer(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).
+			WithBrandImages(brandimages.NewLinker(mediaStore, brandImagesCfg.RenderLinkTTL)).
+			// The fallback poll settles jobs too, so it sends a WhatsApp turn's messages as well.
+			WithOSTurn(creative.NewWhatsAppTurnNotifier(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey,
+				creative.NewPlatformWhatsApp(entClient,
+					notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
+					cfg.PlatformTenant, "marketflow-worker"), logger)).Run(ctx)
 		go creative.NewPurger(entClient, mediaStore, logger).Run(ctx)
 
 		// Organic publishing (Sprint 16): posts approved videos to connected accounts. Each

@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 )
 
@@ -39,6 +40,8 @@ var ReservedMetadataKeys = []string{
 	marketingos.MetadataKey,
 	marketingos.DailyBriefKey,
 	OnboardingMetadataKey,
+	// The brand image list holds storage keys; only its own endpoints may write it.
+	brandimages.MetadataKey,
 }
 
 // OnboardingMetadataKey holds the setup checklist state ({dismissed_at, completed_at}),

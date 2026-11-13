@@ -199,7 +199,7 @@ func (h *Handler) CreateBrief(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
 		return
 	}
-	b, err := h.svc.CreateBrief(r.Context(), tid, userOf(r), in)
+	b, err := h.svc.CreateBrief(r.Context(), tid, briefCreator(r, in.Metadata), in)
 	if err != nil {
 		h.fail(w, err)
 		return
@@ -526,7 +526,9 @@ func (h *Handler) JobCallback(w http.ResponseWriter, r *http.Request) {
 
 // CreateVideoAd handles POST /api/v1/creative/briefs/{id}/video-ads: queues a
 // template video ad's script (1 credit). The version turns script_ready in
-// about a minute; the owner reviews and edits it, then asks for the render.
+// about a minute; the owner reviews and edits it, then asks for the render. A body with a
+// script (one the Marketing Manager's team already wrote) starts at script_ready at once, with
+// no script job and no script credit.
 // @Summary Start a video ad: the script is written first, for review
 // @Tags Creative
 // @Accept json
@@ -550,10 +552,14 @@ func (h *Handler) CreateVideoAd(w http.ResponseWriter, r *http.Request) {
 	}
 	var in VideoAdInput
 	if r.ContentLength != 0 {
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&in); err != nil {
+		// 64 KB: a script written by the Marketing Manager's team may come with the request.
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&in); err != nil {
 			httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
 			return
 		}
+	}
+	if !h.requireBrandImagesForTenant(w, r, tid) {
+		return
 	}
 	v, err := h.svc.CreateVideoAd(r.Context(), tid, id, in)
 	if err != nil {
@@ -619,6 +625,9 @@ func (h *Handler) RenderVideoAd(w http.ResponseWriter, r *http.Request) {
 	}
 	id, ok := idParam(w, r)
 	if !ok {
+		return
+	}
+	if !h.requireBrandImages(w, r, tid) {
 		return
 	}
 	v, err := h.svc.RenderVideoAd(r.Context(), tid, id)

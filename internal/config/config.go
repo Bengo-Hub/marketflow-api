@@ -68,6 +68,9 @@ type SecurityConfig struct {
 	RequireJWT     bool   `env:"REQUIRE_JWT" envDefault:"true"`
 	EncryptionKey  string `env:"ENCRYPTION_KEY" comment:"32-byte base64-encoded key for AES-256-GCM encryption of provider secrets"`
 	PlatformTenant string `env:"PLATFORM_TENANT" envDefault:"codevertex" comment:"Platform owner tenant slug for provider config hierarchy"`
+	// DemoPlanCode is the plan a demo tenant (exempt from subscriptions, no plan of its own) gets
+	// in the AI work: the public demo password must not unlock paid features (owner, 2026-11-12).
+	DemoPlanCode string `env:"DEMO_PLAN_CODE" envDefault:"MARKETFLOW_STARTER" comment:"Free plan a demo tenant's AI features and chat limits follow"`
 	AuthServiceURL string `env:"AUTH_SERVICE_URL" envDefault:"https://sso.codevertexafrica.com" comment:"Used by shared-auth-client APIKeyValidator"`
 	// EnforceTenantHeader refuses a tenant header that names another tenant than the token.
 	// Off, the mismatch is only logged ("tenant in request does not match the token").

@@ -38,6 +38,15 @@ type PublicHandler struct {
 	testimonialService TestimonialReader
 	tenantSyncer       TenantSyncer
 	logger             *zap.Logger
+	// hasFeature reads a plan feature for the public profile (white label); nil means none.
+	hasFeature func(ctx context.Context, tenantID, feature string) bool
+}
+
+// WithFeatureCheck sets the plan feature check the public profile uses (subscriptions
+// StrictHasFeature: fail closed, and the demo bypass grants nothing).
+func (h *PublicHandler) WithFeatureCheck(f func(ctx context.Context, tenantID, feature string) bool) *PublicHandler {
+	h.hasFeature = f
+	return h
 }
 
 // TestimonialReader is the minimal surface area PublicHandler needs from the
@@ -137,6 +146,9 @@ func (h *PublicHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	// Only allow-listed keys: metadata also holds private data such as the Marketing OS brand context.
 	profile["metadata"] = tenantmod.PublicMetadata(t.Metadata)
+	// White label (owner, 2026-11-12: the Business plan's white_label feature): the public pages
+	// hide "Powered by Codevertex". Checked fail closed, so an outage keeps the badge.
+	profile["white_label"] = h.hasFeature != nil && h.hasFeature(r.Context(), t.ID.String(), "white_label")
 
 	httpapi.JSON(w, http.StatusOK, profile)
 }

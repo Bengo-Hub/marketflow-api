@@ -71,6 +71,11 @@ type BrandContext struct {
 	VoiceExamples []string `json:"voice_examples"`
 	BannedClaims  []string `json:"banned_claims"`
 	Learnings     []string `json:"learnings"`
+	// ActorNameStyle is the naming tradition the names of on-screen actors follow (one of
+	// ActorNameStyles); empty leaves it to the writer. ActorNames are exact names the business
+	// likes; when there are any, the script writer uses only these (actor_names.go).
+	ActorNameStyle string   `json:"actor_name_style,omitempty"`
+	ActorNames     []string `json:"actor_names,omitempty"`
 }
 
 // Limits keep the context small enough to sit in every prompt.
@@ -101,7 +106,7 @@ func (b *BrandContext) Validate() error {
 		return err
 	}
 	b.Learnings = clean
-	return nil
+	return b.validateActorNaming()
 }
 
 func cleanList(in []string, max int) ([]string, error) {
@@ -151,6 +156,11 @@ type OSContext struct {
 	// 0 when the plan sets none, and marketflow-ai keeps its default.
 	ChatTurnsDaily int  `json:"chat_turns_daily,omitempty"`
 	HasPlan        bool `json:"has_plan"`
+	// Exempt is the platform owner's own tenant only (owner, 2026-11-12): marketflow-ai gives it
+	// every plan level, such as the top video sound level, whatever its feature list says. Demo
+	// tenants are NOT exempt here, unlike other services' gating: their password is public and
+	// AI work costs real money, so they stay on their plan's features.
+	Exempt bool `json:"exempt,omitempty"`
 	// MarketSignals is the Find, Flip, Fix block (market_signals.go); absent until there is one.
 	MarketSignals *MarketSignals `json:"market_signals,omitempty"`
 }
@@ -166,11 +176,28 @@ type Service struct {
 	accountFacts AccountSource
 	// pageReader is the crawler fallback for business facts (business_facts.go); nil skips it.
 	pageReader PageReader
+	// platformSlug is the platform owner's tenant (PLATFORM_TENANT): the only exempt tenant.
+	platformSlug string
+	// demoPlan is the free plan a demo tenant follows in the AI work (DEMO_PLAN_CODE).
+	demoPlan string
 }
 
 // NewService builds the service; subs may be nil (no plan information).
 func NewService(db *ent.Client, subs *subscriptions.Client, logger *zap.Logger) *Service {
 	return &Service{db: db, subs: subs, logger: logger.Named("marketingos")}
+}
+
+// WithPlatformTenant names the platform owner's tenant, the only one the OS context marks
+// exempt (demo tenants are not; see OSContext.Exempt).
+func (s *Service) WithPlatformTenant(slug string) *Service {
+	s.platformSlug = strings.TrimSpace(slug)
+	return s
+}
+
+// WithDemoPlan names the free plan a demo tenant follows in the AI work.
+func (s *Service) WithDemoPlan(code string) *Service {
+	s.demoPlan = strings.TrimSpace(code)
+	return s
 }
 
 // GetBrandContext returns the stored context (empty when none is saved).
@@ -365,6 +392,7 @@ func (s *Service) Context(ctx context.Context, tenantID uuid.UUID) (OSContext, e
 		return out, err
 	}
 	out.BusinessType = t.BusinessType
+	out.Exempt = s.platformSlug != "" && t.Slug == s.platformSlug
 	if raw, ok := t.Metadata[MetadataKey]; ok {
 		b, _ := json.Marshal(raw)
 		out.MarketingContext = string(b)
@@ -404,6 +432,20 @@ func (s *Service) Context(ctx context.Context, tenantID uuid.UUID) (OSContext, e
 			}
 			if n := ent.Limits["chat_turns_daily"]; n > 0 {
 				out.ChatTurnsDaily = n
+			}
+			// A demo tenant has no plan of its own; its password is public, so in the AI work it
+			// gets exactly the free plan's features and limits (owner, 2026-11-12). The platform
+			// owner's own tenant is Exempt instead and keeps every level.
+			if ent.IsDemoBypass && !out.Exempt && s.demoPlan != "" {
+				if p := s.subs.GetPlan(ctx, s.demoPlan); p != nil {
+					out.Features = make(map[string]bool, len(p.Features))
+					for _, f := range p.Features {
+						out.Features[f] = true
+					}
+					if n := p.Limits["chat_turns_daily"]; n > 0 {
+						out.ChatTurnsDaily = n
+					}
+				}
 			}
 		}
 	}

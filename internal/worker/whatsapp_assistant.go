@@ -18,6 +18,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/ent/userroleassignment"
+	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/bengobox/marketflow-api/internal/platform/reqid"
 	"github.com/google/uuid"
@@ -53,7 +54,8 @@ type WhatsAppAssistantHandler struct {
 	platformTen string // the platform tenant's slug; its UUID is looked up once
 	logger      *zap.Logger
 
-	platformID uuid.UUID
+	// platform sends the replies from the platform number (made on first use).
+	platform *creative.PlatformWhatsApp
 }
 
 // AssistantRoles may use the assistant: the same roles that approve an ad.
@@ -144,7 +146,7 @@ func (h *WhatsAppAssistantHandler) process(ctx context.Context, in waInbound) er
 	if len(tenants) == 0 {
 		return nil
 	}
-	chosen, handled, err := h.pickTenant(ctx, in, tenants)
+	chosen, handled, err := h.pickTenant(ctx, in, user.UserID, tenants)
 	if err != nil || handled {
 		return err
 	}
@@ -157,7 +159,7 @@ func (h *WhatsAppAssistantHandler) process(ctx context.Context, in waInbound) er
 		return h.reply(ctx, in, ans.Reply)
 	}
 	active := h.rdb.Exists(ctx, "mf:wa:session:"+in.From).Val() == 1
-	ans, err = h.ask(ctx, chosen, user.UserID, in.Text, active)
+	ans, err = h.ask(ctx, chosen, user.UserID, sender, in.Text, active)
 	if err != nil {
 		return err
 	}
@@ -268,7 +270,7 @@ func (h *WhatsAppAssistantHandler) eligibleTenants(ctx context.Context, u *phone
 // pickTenant chooses the business the message is for. One business: that one. Several: the one
 // of the open session, else a numbered question, and the next message that is only a number
 // answers it. handled is true when this message was the question or the answer.
-func (h *WhatsAppAssistantHandler) pickTenant(ctx context.Context, in waInbound, tenants []assistantTenant) (assistantTenant, bool, error) {
+func (h *WhatsAppAssistantHandler) pickTenant(ctx context.Context, in waInbound, userID string, tenants []assistantTenant) (assistantTenant, bool, error) {
 	if len(tenants) == 1 {
 		return tenants[0], false, nil
 	}
@@ -288,12 +290,24 @@ func (h *WhatsAppAssistantHandler) pickTenant(ctx context.Context, in waInbound,
 			}
 		}
 	}
+	// A bare "YES <code>" after the pick expired: marketflow-ai says which business holds that
+	// code for this user and number (it is not used here). A YES with no code pending anywhere
+	// gets the business question, never silence.
+	isYes := false
+	if found, yes, err := h.approvalTenant(ctx, userID, in.From, in.Text, tenants); err != nil {
+		h.logger.Warn("whatsapp assistant: approval lookup failed", zap.Error(err))
+	} else if found != nil {
+		h.rdb.Set(ctx, "mf:wa:session:"+in.From, found.ID.String(), assistantSession)
+		return *found, false, nil
+	} else {
+		isYes = yes
+	}
 	// Only ask when the text looks like a marketing request; plain chat gets no question.
-	if !looksLikeMarketing(in.Text) {
+	if !isYes && !looksLikeMarketing(in.Text) {
 		return assistantTenant{}, true, nil
 	}
 	var b strings.Builder
-	b.WriteString("You use MarketFlow for more than one business. Reply with the number of the one this is for, then send your request again:\n")
+	b.WriteString("You use MarketFlow for more than one business. Reply with the number of the one this is for, then send your message again:\n")
 	for i, t := range tenants {
 		fmt.Fprintf(&b, "\n%d. %s", i+1, t.Name)
 	}
@@ -314,6 +328,43 @@ func looksLikeMarketing(text string) bool {
 	return false
 }
 
+// approvalTenant asks marketflow-ai whether text is an approval reply ("YES <code>") and which of
+// the tenants holds that pending code for this user and number. found is nil when none does.
+func (h *WhatsAppAssistantHandler) approvalTenant(ctx context.Context, userID, from, text string, tenants []assistantTenant) (*assistantTenant, bool, error) {
+	ids := make([]string, 0, len(tenants))
+	for _, t := range tenants {
+		ids = append(ids, t.ID.String())
+	}
+	body, _ := json.Marshal(map[string]any{"user_id": userID, "sender": "+" + strings.TrimPrefix(from, "+"), "text": text, "tenant_ids": ids})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.aiURL+"/api/v1/internal/os/approval-tenant", bytes.NewReader(body))
+	if err != nil {
+		return nil, false, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-API-Key", h.aiKey)
+	resp, err := h.http.Do(req)
+	if err != nil {
+		return nil, false, fmt.Errorf("approval-tenant: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, false, fmt.Errorf("approval-tenant: status %d", resp.StatusCode)
+	}
+	var out struct {
+		Yes      bool   `json:"yes"`
+		TenantID string `json:"tenant_id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, false, fmt.Errorf("approval-tenant: %w", err)
+	}
+	for i := range tenants {
+		if out.TenantID != "" && tenants[i].ID.String() == out.TenantID {
+			return &tenants[i], out.Yes, nil
+		}
+	}
+	return nil, out.Yes, nil
+}
+
 type assistAnswer struct {
 	Pass    bool `json:"pass"`
 	Verdict struct {
@@ -323,9 +374,11 @@ type assistAnswer struct {
 	Reply string `json:"reply"`
 }
 
-func (h *WhatsAppAssistantHandler) ask(ctx context.Context, t assistantTenant, userID, text string, active bool) (assistAnswer, error) {
+// ask sends the message to marketflow-ai with the sender's verified number, which its approval
+// codes ("Reply YES <code>") and the messages about a turn's video are bound to.
+func (h *WhatsAppAssistantHandler) ask(ctx context.Context, t assistantTenant, userID, sender, text string, active bool) (assistAnswer, error) {
 	body, _ := json.Marshal(map[string]any{
-		"tenant_id": t.ID.String(), "tenant_slug": t.Slug, "user_id": userID, "text": text,
+		"tenant_id": t.ID.String(), "tenant_slug": t.Slug, "user_id": userID, "sender": sender, "text": text,
 		"session_active": active, "portal_url": h.portalURL,
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.aiURL+"/api/v1/internal/os/whatsapp-ask", bytes.NewReader(body))
@@ -350,23 +403,14 @@ func (h *WhatsAppAssistantHandler) ask(ctx context.Context, t assistantTenant, u
 }
 
 // reply sends text from the platform number, inside the 24-hour window the inbound message
-// just opened, so no template is needed. The platform tenant sends it.
+// just opened, so no template is needed. The platform tenant sends it, through the same sender
+// the messages about a turn's video use (creative.PlatformWhatsApp).
 func (h *WhatsAppAssistantHandler) reply(ctx context.Context, in waInbound, text string) error {
 	if h.notif == nil {
 		return nil
 	}
-	if h.platformID == uuid.Nil {
-		t, err := h.db.Tenant.Query().Where(tenant.SlugEQ(h.platformTen)).Only(ctx)
-		if err != nil {
-			return fmt.Errorf("platform tenant %q: %w", h.platformTen, err)
-		}
-		h.platformID = t.ID
+	if h.platform == nil {
+		h.platform = creative.NewPlatformWhatsApp(h.db, h.notif, h.platformTen, "marketflow-worker")
 	}
-	return h.notif.Send(ctx, h.platformID.String(), notifications.Message{
-		Channel:        "whatsapp",
-		Recipient:      "+" + strings.TrimPrefix(in.From, "+"),
-		Body:           text,
-		Metadata:       map[string]string{"source": "marketflow-worker", "kind": "whatsapp_assistant"},
-		IdempotencyKey: "wa-assist-" + in.WaMessageID,
-	})
+	return h.platform.Send(ctx, in.From, text, "wa-assist-"+in.WaMessageID)
 }

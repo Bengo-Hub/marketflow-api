@@ -123,14 +123,21 @@ func (w *Worker) step(ctx context.Context, c *ent.Campaign) error {
 		return w.save(ctx, c.ID, l, CampaignFailed)
 	}
 	actID := plan.AdAccountID
+	var seen *FundingSeen
 	funded := func(ctx context.Context) (bool, error) {
 		a, err := w.Meta.AdAccountHealth(ctx, plan.Token, actID)
 		if err != nil {
 			return false, err
 		}
-		return BuildQuote(a, plan.Budget, int(plan.End.Sub(plan.Start).Hours()/24)+1, 0).Ready(l.State.PaidOK), nil
+		q := BuildQuote(a, plan.Budget, int(plan.End.Sub(plan.Start).Hours()/24)+1, 0)
+		seen = seenFrom(q, w.Now())
+		return q.Ready(l.State.PaidOK), nil
 	}
 	save := func(ctx context.Context, st State) error {
+		// What this step read on Meta rides along, so the Add funds step shows a live figure.
+		if seen != nil {
+			st.FundingSeen = seen
+		}
 		l.State = st
 		status := CampaignLaunching
 		switch st.Stage {
