@@ -41,7 +41,9 @@ const defaultCRMLinkServices = "pos=http://pos-api.pos.svc.cluster.local:4000," 
 	"projects=http://projects-api.projects.svc.cluster.local:4000," +
 	// logistics-api keeps crm_contact_id with the customer's name, phone and email in delivery
 	// task metadata (I-2).
-	"logistics=http://logistics-api.logistics.svc.cluster.local:4000"
+	"logistics=http://logistics-api.logistics.svc.cluster.local:4000," +
+	// maskani-api keeps crm_contact_id on parties; two parties can share a contact (M-12).
+	"maskani=http://maskani-api.maskani.svc.cluster.local:4000"
 
 // linkService is one service that may hold a crm_contact_id.
 type linkService struct {
