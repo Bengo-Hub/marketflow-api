@@ -31,6 +31,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/adsmanager"
 	"github.com/bengobox/marketflow-api/internal/modules/analytics"
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
+	"github.com/bengobox/marketflow-api/internal/modules/autopublish"
 	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/campaigns"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
@@ -315,13 +316,32 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	customFieldService := custom_fields.NewService(entClient, logger)
 	customFieldHandler := custom_fields.NewHandler(customFieldService, logger)
 
+	// Ad autopilot veto window (Sprint 20, owner 2026-11-14): the plan feature is read strictly
+	// (fail closed, never the demo bypass), together with the tenant's acceptance of the terms.
+	custom_agents.SetDefaultVeto(cfg.Autopilot.DefaultVetoHours)
+	strictFeature := func(ctx context.Context, tenantID, feature string) bool {
+		return subsClient.StrictHasFeature(ctx, tenantID, feature)
+	}
+	// The pipeline is built further down with the Studio; an agent switched off, set back to
+	// approve-each or deleted has its waiting veto-window posts cancelled through it at once.
+	var autopilotPipeline *autopublish.Pipeline
 	customAgentServiceOpts := []func(*custom_agents.Service){custom_agents.WithPlatformTenant(cfg.Security.PlatformTenant),
-		custom_agents.WithCreditForecaster(custom_agents.NewCreditForecaster(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey))}
+		custom_agents.WithCreditForecaster(custom_agents.NewCreditForecaster(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey)),
+		custom_agents.WithAutoPublishGate(strictFeature, cfg.Autopilot.TermsVersion),
+		custom_agents.WithAgentChanged(func(ctx context.Context, tenantID, agentID uuid.UUID) {
+			if autopilotPipeline != nil {
+				autopilotPipeline.AgentChanged(ctx, tenantID, agentID)
+			}
+		})}
 	if natsConn != nil {
 		customAgentServiceOpts = append(customAgentServiceOpts, custom_agents.WithNATS(natsConn))
 	}
 	customAgentService := custom_agents.NewService(entClient, logger, customAgentServiceOpts...)
 	customAgentHandler := custom_agents.NewHandler(customAgentService, logger)
+	// Choosing the veto window and accepting its terms is for the roles that approve ads.
+	customAgentHandler.CanApprove = func(ctx context.Context, tenantID uuid.UUID) bool {
+		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
+	}
 	marketingOSService := marketingos.NewService(entClient, subsClient, logger).
 		// Team setup reads the website and online store from auth-api, their owner, read only.
 		WithWebPresence(func(ctx context.Context, tenantID uuid.UUID) (bool, bool) {
@@ -423,6 +443,18 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	onboardingHandler := onboarding.NewHandler(onboarding.NewService(entClient, marketingOSService, tenantSyncer,
 		creative.NewTopOfferings(catalogueOfferings, cfg.CrossService.POSURL, cfg.CrossService.InternalServiceKey, logger),
 		websiteCatalog, cfg.Security.PlatformTenant, logger).WithBrandImagesMin(brandImagesCfg.Min), logger)
+	// Ad autopilot veto window: a job report settled here carries the agent's video on at once
+	// (the worker's sweep catches anything missed). It works through its own Studio service with
+	// the daily render quota, and quotes renders through marketflow-ai like the Studio.
+	pubStore := &publishing.EntStore{DB: entClient, Keys: keyProvider}
+	autopilotPipeline = autopublish.New(autopublish.Deps{DB: entClient,
+		Studio:  creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)),
+		Quoter:  creative.NewRenderer(entClient, cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey, logger).WithBrandImages(brandLinks),
+		Publish: pubStore,
+		Gate:    custom_agents.AutoPublishGate{DB: entClient, HasFeature: strictFeature, TermsVersion: cfg.Autopilot.TermsVersion},
+		Notif:   notifications.New(notifications.Config{BaseURL: cfg.CrossService.NotificationsURL, APIKey: cfg.CrossService.InternalServiceKey}),
+		Links:   autopublish.NewVetoLinks(encryption.KeyFromEnv(cfg.Security.EncryptionKey)),
+		AppURL:  cfg.CrossService.PortalURL, Config: cfg.Autopilot, Logger: logger})
 	// Review links are signed with the env encryption key (stable, like the OAuth
 	// state), separated from it by the token's own HMAC domain.
 	creativeHandler := creative.NewHandler(creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)).
@@ -441,9 +473,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 				creative.NewPlatformWhatsApp(entClient,
 					notifications.New(notifications.Config{BaseURL: cfg.CrossService.NotificationsURL, APIKey: cfg.CrossService.InternalServiceKey}),
 					cfg.Security.PlatformTenant, "marketflow-api").
-					// Stills as images, the finished ad as a video and the render buttons, while the
-					// requester's 24-hour window is open (the worker marks it on each message).
-					WithRich(redisClient, whatsAppRichConfig(logger)), logger)))
+					// The storyboard link, the finished ad as a video and the render buttons, while
+					// the requester's 24-hour window is open (the worker marks it on each message).
+					WithRich(redisClient, whatsAppRichConfig(logger)), logger)).
+			WithAutopilot(autopilotPipeline))
 	// Boost, post and reply are also open to the Meta App Review account (owner 2026-11-12); the
 	// role gate keeps it to exactly those routes. Approving an ad stays with the approving roles.
 	reviewActionRoles := rbac.WithAppReviewer(creative.ApprovalRoles)
@@ -473,6 +506,13 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		notifications.New(notifications.Config{BaseURL: cfg.CrossService.NotificationsURL, APIKey: cfg.CrossService.InternalServiceKey}),
 		cfg.CrossService.PortalURL, logger)}
 	creativeHandler.AfterUse = afterUse
+	autopilotPipeline.AfterUse = afterUse
+	// The agents' posts in their veto window, the signed-in veto (the approving roles) and the
+	// emailed cancel link.
+	autopublishHandler := autopublish.NewHandler(autopilotPipeline, logger)
+	autopublishHandler.CanApprove = func(ctx context.Context, tenantID uuid.UUID) bool {
+		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
+	}
 	// Organic publishing: the same roles that approve an ad may post it or cancel a post.
 	publishingHandler := publishing.NewHandler(&publishing.EntStore{DB: entClient, Keys: keyProvider}, logger)
 	publishingHandler.CanPost = func(ctx context.Context, tenantID uuid.UUID) bool {
@@ -784,6 +824,12 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			PutAutopilot:      customAgentHandler.PutAutopilot,
 			RollbackAutopilot: customAgentHandler.RollbackAutopilot,
 			DryRunAutopilot:   customAgentHandler.DryRunAutopilot,
+			GetAutoPublish:    customAgentHandler.GetAutoPublish,
+			PutAutoPublish:    customAgentHandler.PutAutoPublish,
+			AutopilotPosts:    autopublishHandler.Posts,
+			AutopilotVeto:     autopublishHandler.Veto,
+			PublicVetoView:    autopublishHandler.PublicView,
+			PublicVetoPost:    autopublishHandler.PublicVeto,
 		},
 		OnboardingHandlers: httpapi.OnboardingHandlers{
 			Checklist: onboardingHandler.Checklist,

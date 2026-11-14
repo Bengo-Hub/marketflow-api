@@ -38,10 +38,15 @@ type configVersion struct {
 }
 
 // SaveAutopilot validates the config, makes the agent an ad_autopilot on the config's schedule
-// and adds a config version. Auto-publish is refused for now: its veto window and the Autopilot
-// terms are not built, and a run ends at a draft either way.
+// and adds a config version. The veto-window mode (auto_publish) is allowed only when the plan
+// feature autopilot_auto_publish (read strictly: fail closed, never the demo bypass) and the
+// current Autopilot terms are in place; otherwise ErrAutoPublishNotAllowed.
 func (s *Service) SaveAutopilot(ctx context.Context, tenantID, agentID uuid.UUID, in AutopilotInput) (*ent.CustomAgent, error) {
-	if err := in.Config.Validate(false); err != nil {
+	canAutoPublish := false
+	if in.Config.Approval == AutoPublish {
+		canAutoPublish, _ = s.autoPublishGate().Allowed(ctx, tenantID)
+	}
+	if err := in.Config.Validate(canAutoPublish); err != nil {
 		return nil, err
 	}
 	if len(in.Offerings) != len(in.Config.OfferingIDs) {
@@ -60,7 +65,12 @@ func (s *Service) SaveAutopilot(ctx context.Context, tenantID, agentID uuid.UUID
 	if len(versions) > MaxAutopilotVersions {
 		versions = versions[len(versions)-MaxAutopilotVersions:]
 	}
-	return s.applyAutopilot(ctx, tenantID, agentID, in.Config, in.Offerings, versions)
+	saved, err := s.applyAutopilot(ctx, tenantID, agentID, in.Config, in.Offerings, versions)
+	if err == nil && in.Config.Approval != AutoPublish {
+		// Back to approve-each: posts still waiting in a veto window are cancelled at once.
+		s.agentChanged(ctx, tenantID, agentID)
+	}
+	return saved, err
 }
 
 // RollbackAutopilot restores a saved version as a new version, so the history stays complete.
@@ -140,6 +150,10 @@ func (h *Handler) PutAutopilot(w http.ResponseWriter, r *http.Request) {
 	var in AutopilotInput
 	if err := httpapi.DecodeJSON(r, &in); err != nil {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid request body", nil)
+		return
+	}
+	// Letting an agent post by itself is the approving roles' choice, like approving an ad.
+	if in.Config.Approval == AutoPublish && !h.approver(w, r, tenantID) {
 		return
 	}
 	a, err := h.service.SaveAutopilot(r.Context(), tenantID, id, in)

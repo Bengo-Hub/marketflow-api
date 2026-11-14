@@ -1,9 +1,16 @@
 package custom_agents
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
+
+	entsql "entgo.io/ent/dialect/sql"
+	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
+	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
+	"github.com/google/uuid"
 )
 
 // RunBrief is the creative brief one autopilot run starts from (Sprint 20). It is built in code
@@ -17,6 +24,31 @@ type RunBrief struct {
 	Language  string
 	Tier      string
 	Metadata  map[string]any
+}
+
+// CreditsThisMonth sums what an agent's drafts really cost since the 1st (UTC): scripts,
+// storyboards and renders alike, from the versions of the briefs it made (the tenant's
+// created_at index keeps the brief read small). It is the monthly ceiling's measure.
+func CreditsThisMonth(ctx context.Context, db *ent.Client, tenantID, agentID uuid.UUID, now time.Time) (int, error) {
+	now = now.UTC()
+	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	ids, err := db.CreativeBrief.Query().
+		Where(creativebrief.TenantID(tenantID), creativebrief.CreatedAtGTE(start), func(s *entsql.Selector) {
+			s.Where(entsql.P(func(b *entsql.Builder) {
+				b.WriteString(s.C(creativebrief.FieldMetadata) + "->>'autopilot_agent_id' = ").Arg(agentID.String())
+			}))
+		}).IDs(ctx)
+	if err != nil || len(ids) == 0 {
+		return 0, err
+	}
+	var totals []struct {
+		Sum int `json:"sum"`
+	}
+	if err := db.CreativeVersion.Query().Where(creativeversion.BriefIDIn(ids...)).
+		Aggregate(ent.Sum(creativeversion.FieldCredits)).Scan(ctx, &totals); err != nil || len(totals) == 0 {
+		return 0, err
+	}
+	return totals[0].Sum, nil
 }
 
 // creativeObjective maps the autopilot objective onto the creative module's objectives. A

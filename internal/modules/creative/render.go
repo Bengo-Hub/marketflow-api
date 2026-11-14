@@ -48,6 +48,9 @@ type Renderer struct {
 	// osTurn tells a WhatsApp requester about a video made from their Marketing Manager turn
 	// (os_turn.go); nil tells nobody.
 	osTurn OSTurnNotifier
+	// autopilot carries an autopilot agent's video on after each step in veto-window mode
+	// (autopilot_hook.go); nil leaves every video for a person.
+	autopilot AutopilotHook
 }
 
 // WithBrandImages lets renders use the tenant's brand images next to an offering's photos.

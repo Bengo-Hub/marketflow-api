@@ -112,3 +112,52 @@ func TestAutopilotRunDraftsAndRotates(t *testing.T) {
 		t.Fatalf("over the ceiling must skip: %v", err)
 	}
 }
+
+// A veto-window agent's draft is marked for the autopublish pipeline with its run, but only while
+// the plan and the terms allow it; otherwise the run is approve-each and the brief says why.
+func TestAutopilotRunVetoWindow(t *testing.T) {
+	db := openWorkerTestDB(t)
+	ctx := context.Background()
+	tid := seedTenant(t, db, "autopilot-veto")
+	t.Cleanup(func() {
+		ids, _ := db.CreativeBrief.Query().Where(creativebrief.TenantID(tid)).IDs(ctx)
+		_, _ = db.CreativeVersion.Delete().Where(creativeversion.BriefIDIn(ids...)).Exec(ctx)
+		_, _ = db.CreativeBrief.Delete().Where(creativebrief.TenantID(tid)).Exec(ctx)
+		_, _ = db.CustomAgent.Delete().Where(customagent.TenantID(tid)).Exec(ctx)
+	})
+	db.Tenant.UpdateOneID(tid).SetMetadata(map[string]any{custom_agents.TermsKey: map[string]any{"version": "v1"}}).ExecX(ctx)
+	a := seedAutopilot(t, db, tid, 100)
+	meta := a.Metadata
+	cfg := meta["autopilot"].(map[string]any)
+	cfg["approval_mode"], cfg["veto_hours"] = custom_agents.AutoPublish, 4
+	a = db.CustomAgent.UpdateOneID(a.ID).SetMetadata(meta).SaveX(ctx)
+	runID := uuid.New()
+
+	allowed := NewAutopilotRunner(db, nil, "https://mf.example", zap.NewNop()).WithAutoPublishGate(custom_agents.AutoPublishGate{
+		DB: db, HasFeature: func(context.Context, string, string) bool { return true }, TermsVersion: "v1"})
+	res, err := allowed.RunWithID(ctx, a, runID)
+	if err != nil || !res.VetoWindow {
+		t.Fatalf("veto-window run: %+v %v", res, err)
+	}
+	v := db.CreativeVersion.GetX(ctx, uuid.MustParse(res.VersionID))
+	ap, _ := v.Metadata["autopilot"].(map[string]any)
+	if ap["agent_id"] != a.ID.String() || ap["run_id"] != runID.String() || ap["state"] != "active" || v.Status == "approved" {
+		t.Fatalf("the draft must carry the agent and the run: %v", v.Metadata)
+	}
+	if b := db.CreativeBrief.GetX(ctx, uuid.MustParse(res.BriefID)); b.Metadata["autopilot_run_id"] != runID.String() {
+		t.Fatalf("the brief names the run: %v", b.Metadata)
+	}
+
+	lapsed := NewAutopilotRunner(db, nil, "https://mf.example", zap.NewNop()).WithAutoPublishGate(custom_agents.AutoPublishGate{
+		DB: db, HasFeature: func(context.Context, string, string) bool { return false }, TermsVersion: "v1"})
+	res, err = lapsed.RunWithID(ctx, a, uuid.New())
+	if err != nil || res.VetoWindow {
+		t.Fatalf("a lapsed plan runs approve-each: %+v %v", res, err)
+	}
+	if v := db.CreativeVersion.GetX(ctx, uuid.MustParse(res.VersionID)); v.Metadata["autopilot"] != nil {
+		t.Fatalf("an approve-each draft is not the pipeline's: %v", v.Metadata)
+	}
+	if b := db.CreativeBrief.GetX(ctx, uuid.MustParse(res.BriefID)); b.Metadata["approval_mode"] != custom_agents.ApproveEach || b.Metadata["veto_fallback"] == "" {
+		t.Fatalf("the brief records the fallback: %v", b.Metadata)
+	}
+}

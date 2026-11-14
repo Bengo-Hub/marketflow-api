@@ -21,6 +21,26 @@ type Config struct {
 	AI            AIConfig            `envPrefix:"MF_AI_"`
 	Subscriptions SubscriptionsConfig `envPrefix:"MF_SUBSCRIPTIONS_"`
 	CrossService  CrossServiceConfig  `envPrefix:"MF_CROSS_"`
+	Autopilot     AutopilotConfig     `envPrefix:"MF_AUTOPILOT_"`
+}
+
+// AutopilotConfig is the ad autopilot's veto-window mode (Sprint 20, owner 2026-11-14), read by the
+// API and the worker alike (MF_AUTOPILOT_*).
+type AutopilotConfig struct {
+	// DefaultVetoHours is the window an auto_publish agent gets when it sets none (1 to 72).
+	DefaultVetoHours int `env:"DEFAULT_VETO_HOURS" envDefault:"4"`
+	// TermsVersion is the Autopilot terms version tenants accept; a new one asks everyone again.
+	TermsVersion string `env:"TERMS_VERSION" envDefault:"2026-11-14"`
+	// PipelineInterval is how often the worker carries veto-window videos on (the Renderer's
+	// reports carry them on at once; this sweep catches anything a report missed).
+	PipelineInterval time.Duration `env:"PIPELINE_INTERVAL" envDefault:"1m"`
+	// PipelineSettle is how long a version stays still before the sweep acts on it.
+	PipelineSettle time.Duration `env:"PIPELINE_SETTLE" envDefault:"2m"`
+	// VetoLinkGrace keeps the emailed cancel link answering after the post time, so a late click
+	// is told the post already went out instead of "invalid link".
+	VetoLinkGrace time.Duration `env:"VETO_LINK_GRACE" envDefault:"168h"`
+	// QuoteRetries is how many failed render quotes a video tolerates before it waits for a person.
+	QuoteRetries int `env:"QUOTE_RETRIES" envDefault:"5"`
 }
 
 type SubscriptionsConfig struct {

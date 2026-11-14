@@ -1,6 +1,7 @@
 package custom_agents
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -16,6 +17,9 @@ import (
 type Handler struct {
 	service *Service
 	logger  *zap.Logger
+	// CanApprove gates the Autopilot terms and choosing the veto-window mode to the approving
+	// roles (creative.ApprovalRoles); nil allows every caller the write gate let through.
+	CanApprove func(ctx context.Context, tenantID uuid.UUID) bool
 }
 
 // NewHandler creates a new custom agents handler.

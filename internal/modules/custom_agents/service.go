@@ -27,6 +27,11 @@ type Service struct {
 	platformSlug string
 	// forecaster prices the dry run (autopilot_dryrun.go).
 	forecaster CreditForecaster
+	// gate allows the veto-window mode (autopilot_terms.go); the zero gate allows nothing.
+	gate AutoPublishGate
+	// onChanged cancels an agent's waiting veto-window posts when it is switched off, set back to
+	// approve-each or deleted (WithAgentChanged); nil leaves them to the worker's sweep.
+	onChanged func(ctx context.Context, tenantID, agentID uuid.UUID)
 }
 
 // NewService creates a new custom agents service.
@@ -196,7 +201,31 @@ func (s *Service) Update(ctx context.Context, tenantID, agentID uuid.UUID, in Up
 	if err != nil {
 		return nil, fmt.Errorf("update custom agent: %w", err)
 	}
+	if in.IsActive != nil && !*in.IsActive {
+		s.agentChanged(ctx, tenantID, agentID)
+	}
 	return result, nil
+}
+
+// WithAgentChanged is told when an agent is switched off, set back to approve-each or deleted,
+// so its posts waiting in a veto window are cancelled at once (owner 2026-11-14).
+func WithAgentChanged(fn func(ctx context.Context, tenantID, agentID uuid.UUID)) func(*Service) {
+	return func(s *Service) {
+		s.onChanged = fn
+	}
+}
+
+// agentChanged runs the change hook in the background with its own deadline, so the request
+// that switched the agent off never waits on the cancels and emails.
+func (s *Service) agentChanged(ctx context.Context, tenantID, agentID uuid.UUID) {
+	if s.onChanged == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
+		defer cancel()
+		s.onChanged(ctx, tenantID, agentID)
+	}()
 }
 
 // Delete hard-deletes a custom agent.
@@ -210,6 +239,7 @@ func (s *Service) Delete(ctx context.Context, tenantID, agentID uuid.UUID) error
 	if n == 0 {
 		return fmt.Errorf("custom agent not found")
 	}
+	s.agentChanged(ctx, tenantID, agentID)
 	return nil
 }
 

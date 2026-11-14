@@ -142,7 +142,7 @@ func (h *NewItemAdsHandler) draft(ctx context.Context, a *ent.CustomAgent, ev it
 	if err != nil {
 		return err
 	}
-	res, runErr := h.runner.RunForItem(ctx, a, ev.offering())
+	res, runErr := h.runner.RunForItem(ctx, a, ev.offering(), run.ID)
 	h.runner.record(ctx, a, run.ID, res, runErr)
 	return nil
 }

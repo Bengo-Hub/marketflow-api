@@ -121,6 +121,10 @@ type VideoAdInput struct {
 	// unboxing-demo; marketflow-ai's library). "" lets marketflow-ai choose from the brief.
 	Approach string `json:"approach"`
 
+	// Autopilot marks a video an autopilot run makes in veto-window mode (metadata.autopilot,
+	// autopilot_hook.go). Only the worker's run sets it; a request body never can.
+	Autopilot map[string]any `json:"-"`
+
 	// brandKeys are the tenant's brand image keys, set by CreateVideoAd; validate keeps as many
 	// as fit after the offering's photos.
 	brandKeys []string
@@ -254,6 +258,10 @@ func (s *Service) CreateVideoAd(ctx context.Context, tenantID, briefID uuid.UUID
 	}
 	if len(in.brandKeys) > 0 {
 		meta[metaBrandImageKeys] = in.brandKeys
+	}
+	// Set in the insert itself, so the Renderer's first read of the version already carries it.
+	if len(in.Autopilot) > 0 {
+		meta[MetaAutopilot] = in.Autopilot
 	}
 	if in.Script != nil {
 		return s.insertScriptedVideoAd(ctx, tenantID, brief, in, map[string]any{"end_card": card}, meta)
@@ -423,8 +431,9 @@ func (s *Service) UpdateScript(ctx context.Context, tenantID, id uuid.UUID, in S
 	// New words or scenes need a fresh look at the storyboard before a presenter render.
 	if sb, ok := meta["storyboard"].(map[string]any); ok && in.Script != nil {
 		sb = copyMap(sb)
-		delete(sb, "approved_at")
-		delete(sb, "approved_by")
+		for _, k := range []string{"approved_at", "approved_by", "approved_by_kind", "approved_by_agent"} {
+			delete(sb, k)
+		}
 		meta["storyboard"] = sb
 	}
 	if cats := restrictedCategories(scriptText(copyFields)...); len(cats) > 0 {
@@ -647,6 +656,8 @@ func (r *Renderer) writeScript(ctx context.Context, v *ent.CreativeVersion) {
 		return
 	}
 	r.logger.Info("video ad script ready", zap.String("version_id", v.ID.String()))
+	// An autopilot video in veto-window mode carries on to its storyboard.
+	r.notifyAutopilot(ctx, v, AutopilotScriptReady)
 }
 
 // adCall is marketflow-ai's POST /api/v1/internal/creative/ad body.

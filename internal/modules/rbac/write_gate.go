@@ -22,6 +22,8 @@ var (
 var adminWritePrefixes = []string{
 	"/tenant/profile", "/tenant/members", "/tenant/os-settings", "/tenant/marketing-context",
 	"/integrations", "/agents/team", "/custom-fields/defs",
+	// The Autopilot terms and the veto-window hold categories are autopilot settings.
+	"/agents/autopilot/auto-publish",
 }
 
 var (

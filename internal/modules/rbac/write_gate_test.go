@@ -39,6 +39,9 @@ func TestRequiredRoles(t *testing.T) {
 		{"POST", "/api/v1/agents/team/setup", admin},
 		{"PUT", "/api/v1/agents/custom/9/autopilot", admin},
 		{"POST", "/api/v1/agents/custom/9/autopilot/rollback", admin},
+		// Sprint 20 veto window: the terms are an admin setting; a veto is a member's call like an approval.
+		{"PUT", "/api/v1/agents/autopilot/auto-publish", admin},
+		{"POST", "/api/v1/agents/autopilot/posts/9/veto", member},
 		{"POST", "/api/v1/custom-fields/defs", admin},
 		{"POST", "/api/v1/short-links", member},
 		{"POST", "/api/v1/tenant/onboarding/dismiss", nil},

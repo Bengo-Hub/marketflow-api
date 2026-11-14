@@ -292,6 +292,8 @@ func (r *Renderer) SettleJob(ctx context.Context, id uuid.UUID, job Job) error {
 		if err == nil && settled && v.Kind == KindVideoAd {
 			// A WhatsApp turn's video: the finished ad's link goes to the requester.
 			r.notifyOSTurn(ctx, v, OSTurnRenderDone, []string{res.URL}, "")
+			// An autopilot video in veto-window mode: its post is scheduled after the window.
+			r.notifyAutopilot(ctx, v, AutopilotRenderDone)
 		}
 		return err
 	case job.Status == "failed" && job.Refunded:
