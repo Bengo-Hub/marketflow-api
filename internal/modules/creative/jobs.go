@@ -53,6 +53,12 @@ type Job struct {
 		// Video ads: the voice used and the scenes, kept for the scene cache.
 		Voice      string           `json:"voice"`
 		Scenes     []map[string]any `json:"scenes"`
+		// Voices are a two-voice UGC ad's voices by speaker (male, female); TwoVoiceNote says
+		// why an ad written for two voices was read by one.
+		Voices       map[string]string `json:"voices"`
+		TwoVoiceNote string            `json:"two_voice_note"`
+		// Music is the generated music, kept so the ad's revisions can reuse it.
+		Music map[string]any `json:"music"`
 		Storyboard *struct {
 			Actor   *storyboardActor  `json:"actor"`
 			Stills  []storyboardStill `json:"stills"`
@@ -73,6 +79,8 @@ type storyboardActor struct {
 	Prompt string `json:"prompt"`
 	Seed   int64  `json:"seed"`
 	Route  string `json:"route,omitempty"`
+	// Gender is the actor's look ("male", "female" or ""); later scripts follow it.
+	Gender string `json:"gender,omitempty"`
 }
 
 // storyboardStill is one scene's storyboard frame.
@@ -229,8 +237,18 @@ func (r *Renderer) SettleJob(ctx context.Context, id uuid.UUID, job Job) error {
 			}
 			meta["scene_cache"] = cache
 		}
+		if res.Music != nil {
+			// The generated music, kept so a revision with the same mood reuses it (WP1).
+			meta["music_cache"] = res.Music
+		}
 		if res.Voice != "" {
 			meta["voice_used"] = res.Voice
+		}
+		if len(res.Voices) > 0 {
+			meta["voices_used"] = res.Voices
+		}
+		if res.TwoVoiceNote != "" {
+			meta["two_voice_note"] = res.TwoVoiceNote
 		}
 		settled := false // this report moved the version, so its message goes once
 		err := withTx(ctx, r.db, func(tx *ent.Tx) error {

@@ -105,7 +105,7 @@ func (s *Service) ReviseVideoAd(ctx context.Context, tenantID, sourceID uuid.UUI
 	}
 	meta := map[string]any{}
 	for _, k := range []string{"seconds", "language", "photo_urls", "footage_urls", "video_kind", "voice", "delivery",
-		"voice_gender", "voice_accent", "actor_prompt", "storyboard", "scene_cache", "findings", "restricted_categories",
+		"voice_gender", "voice_accent", "actor_prompt", "storyboard", "scene_cache", "music_cache", "findings", "restricted_categories",
 		"music_url", "music_licensed_confirmed", metaBrandImageKeys} {
 		if val, ok := src.Metadata[k]; ok {
 			meta[k] = val
@@ -137,6 +137,8 @@ type storyboardCall struct {
 	Actor       map[string]any `json:"actor,omitempty"`
 	ActorPrompt string         `json:"actor_prompt,omitempty"`
 	Charge      bool           `json:"charge"`
+	// Delivery is the ad's voice delivery: "ugc" draws candid phone-style stills.
+	Delivery string `json:"delivery,omitempty"`
 }
 
 // startStoryboard starts a claimed version's storyboard job in marketflow-ai.
@@ -148,7 +150,9 @@ func (r *Renderer) startStoryboard(ctx context.Context, v *ent.CreativeVersion) 
 		return
 	}
 	call := storyboardCall{TenantID: v.TenantID.String(), VersionID: v.ID.String(), Format: v.Format, Kind: videoKind(v),
-		Scenes: script.Scenes, PhotoURLs: r.adPhotos(v), ActorPrompt: str(meta["actor_prompt"]), Charge: true}
+		Scenes: script.Scenes, PhotoURLs: r.adPhotos(v), Charge: true, Delivery: str(meta["delivery"]),
+		// The owner's description wins; the script writer's one-line actor is the fallback.
+		ActorPrompt: excerpt(firstNonEmpty(str(meta["actor_prompt"]), script.Actor), 300)}
 	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
 		if actor, ok := b.Metadata["actor"].(map[string]any); ok && str(actor["url"]) != "" {
 			call.Actor = actor
