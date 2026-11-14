@@ -21,20 +21,11 @@ type composeInput struct {
 	testimonials []*ent.Testimonial
 }
 
-// Claims every business must avoid (Consumer Protection Act 2012), and the Forever Living
-// rules from docs/compliance-rules.md for FBO tenants.
-var (
-	genericBannedClaims = []string{
-		"False or misleading claims about price, quality or results",
-	}
-	flpBannedClaims = []string{
-		"Saying a product cures, treats, heals or prevents any disease",
-		"Income promises: guaranteed income, get rich, passive income, financial freedom",
-		"Income figures or screenshots of earnings",
-		"Calling products FDA approved, a miracle or a wonder drug",
-		"Using Forever Living logos without authorisation",
-	}
-)
+// Claims every business must avoid (Consumer Protection Act 2012). Each business type adds its
+// own (tenant.BusinessTypes, Sprint 7 #34; the Forever Living ones follow docs/compliance-rules.md).
+var genericBannedClaims = []string{
+	"False or misleading claims about price, quality or results",
+}
 
 // itemLen matches marketingos' per-item limit, so a draft always saves.
 const itemLen = 300
@@ -43,7 +34,6 @@ const itemLen = 300
 func compose(in composeInput) Draft {
 	meta := in.tenant.Metadata
 	d := Draft{Current: in.current, Sources: []string{"profile"}}
-	isFLP := in.tenant.BusinessType == tenant.BusinessTypeFLP
 
 	// Offerings to link: best sellers for ordinary tenants, the website for the platform tenant.
 	if len(in.top) > 0 {
@@ -136,8 +126,8 @@ func compose(in composeInput) Draft {
 	}
 	if len(s.BannedClaims) == 0 {
 		s.BannedClaims = append(s.BannedClaims, genericBannedClaims...)
-		if isFLP {
-			s.BannedClaims = append(s.BannedClaims, flpBannedClaims...)
+		if bt, ok := tenant.LookupBusinessType(in.tenant.BusinessType); ok {
+			s.BannedClaims = append(s.BannedClaims, bt.BannedClaims...)
 		}
 	}
 	s.Offers = cap20(s.Offers)

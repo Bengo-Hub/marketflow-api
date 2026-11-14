@@ -39,6 +39,8 @@ var PublicMetadataKeys = []string{
 var ReservedMetadataKeys = []string{
 	marketingos.MetadataKey,
 	marketingos.DailyBriefKey,
+	// Written by the profile PATCH only when a business type is saved.
+	marketingos.BusinessTypeChosenKey,
 	OnboardingMetadataKey,
 	// The brand image list holds storage keys; only its own endpoints may write it.
 	brandimages.MetadataKey,

@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
+	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant/metastore"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -139,13 +141,21 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	if req.Country != nil {
 		upd = upd.SetCountry(strings.TrimSpace(*req.Country))
 	}
+	chosenAt := ""
 	if req.BusinessType != nil {
-		bt := strings.TrimSpace(*req.BusinessType)
-		if bt != BusinessTypeFLP && bt != BusinessTypeGeneric {
-			httpapi.Error(w, http.StatusBadRequest, "invalid_business_type", "business_type must be flp or generic", nil)
+		bt, ok := NormalizeBusinessType(*req.BusinessType)
+		if !ok {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_business_type", "business_type must be one of: "+strings.Join(businessTypeKeys(), ", "), nil)
+			return
+		}
+		if !businessTypeChangeAllowed(t.BusinessType, bt, callerIsPlatformOwner(r)) {
+			httpapi.Error(w, http.StatusForbidden, "business_type_admin_only", "Only a MarketFlow platform admin can switch a business to or from Forever Living. Contact support to change it.", nil)
 			return
 		}
 		upd = upd.SetBusinessType(bt)
+		// An explicit choice is final, "generic" included: chat auto-detect and widget personas
+		// no longer replace it (owner, 2026-11-14).
+		chosenAt = time.Now().UTC().Format(time.RFC3339)
 	}
 
 	if _, err := upd.Save(r.Context()); err != nil {
@@ -158,7 +168,11 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusInternalServerError, "save_failed", "could not save the profile", nil)
 		return
 	}
-	if patch := ProfileMetadataPatch(req.Metadata); len(patch) > 0 {
+	patch := ProfileMetadataPatch(req.Metadata)
+	if chosenAt != "" {
+		patch[marketingos.BusinessTypeChosenKey] = chosenAt
+	}
+	if len(patch) > 0 {
 		if err := metastore.SetKeys(r.Context(), tx.Client(), tenantID, patch); err != nil {
 			h.logger.Error("save profile metadata", zap.Error(err))
 			httpapi.Error(w, http.StatusInternalServerError, "save_failed", "could not save the profile", nil)
@@ -194,6 +208,26 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	audit.Tenant(r.Context(), h.db, h.logger, tenantID, "tenant.profile_updated", "tenant", &tenantID, map[string]any{"fields": changed})
 	httpapi.JSON(w, http.StatusOK, serializeTenant(updated))
+}
+
+// ListBusinessTypes handles GET /api/v1/tenant/profile/business-types: the business types an owner
+// can pick in onboarding and settings, each with a label and description (Sprint 7 #32).
+// @Summary List business types
+// @Tags Tenant
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Security bearerAuth
+// @Router /tenant/profile/business-types [get]
+func (h *Handler) ListBusinessTypes(w http.ResponseWriter, r *http.Request) {
+	httpapi.JSON(w, http.StatusOK, map[string]any{"business_types": BusinessTypes})
+}
+
+func businessTypeKeys() []string {
+	keys := make([]string, 0, len(BusinessTypes))
+	for _, t := range BusinessTypes {
+		keys = append(keys, t.Key)
+	}
+	return keys
 }
 
 func serializeTenant(t *ent.Tenant) map[string]any {
