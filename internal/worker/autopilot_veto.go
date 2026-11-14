@@ -18,7 +18,25 @@ func AutopilotGate(cfg *Config, db *ent.Client) custom_agents.AutoPublishGate {
 	custom_agents.SetDefaultVeto(cfg.Autopilot.DefaultVetoHours)
 	subs := subscriptions.NewClient(subscriptions.Config{ServiceURL: cfg.Subscriptions.URL, APIKey: cfg.Subscriptions.APIKey})
 	return custom_agents.AutoPublishGate{DB: db, HasFeature: subs.StrictHasFeature, TermsVersion: cfg.Autopilot.TermsVersion,
-		TermsEffectiveAt: cfg.Autopilot.TermsEffective(), CheckFeature: subs.StrictFeature}
+		TermsEffectiveAt: cfg.Autopilot.TermsEffective(), CheckFeature: subs.StrictFeature,
+		Terms: workerTermsSource(cfg), TermsPageURL: cfg.Autopilot.TermsPageURL}
+}
+
+// The worker builds several gates; they share one auth-api terms client (one cache, one last
+// known answer) per process.
+var (
+	workerTermsOnce sync.Once
+	workerTerms     custom_agents.TermsSource
+)
+
+func workerTermsSource(cfg *Config) custom_agents.TermsSource {
+	workerTermsOnce.Do(func() {
+		// A typed nil must not become a non-nil interface.
+		if c := cfg.Autopilot.TermsSource(cfg.AuthServiceURL, cfg.CrossServiceKey); c != nil {
+			workerTerms = c
+		}
+	})
+	return workerTerms
 }
 
 // AutopilotLapsedHook tells the autopublish pipeline that a run found the tenant's plan or terms

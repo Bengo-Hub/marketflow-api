@@ -40,6 +40,22 @@ var restrictedRe = func() map[string]*regexp.Regexp {
 	return out
 }()
 
+// RestrictedCategories lists the restricted categories the texts touch, sorted. The autopilot's
+// hold list uses it: a tenant that keeps a category for its own approval has every offering whose
+// name, category or description touches it wait for a person.
+func RestrictedCategories(texts ...string) []string { return restrictedCategories(texts...) }
+
+// RestrictedCategoryKeys are the restricted category keys, sorted (custom_agents.RestrictedHoldKeys
+// and the Studio's "Always ask me first for" list use the same keys).
+func RestrictedCategoryKeys() []string {
+	keys := make([]string, 0, len(restrictedTerms))
+	for k := range restrictedTerms {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 // restrictedCategories lists the categories the texts touch, sorted.
 func restrictedCategories(texts ...string) []string {
 	joined := strings.Join(texts, "\n")

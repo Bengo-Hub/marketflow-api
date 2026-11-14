@@ -113,7 +113,9 @@ func (p *Pipeline) Advance(ctx context.Context, tenantID, id uuid.UUID) error {
 	}
 	snap.StoryboardError, _ = v.Metadata["storyboard_error"].(string)
 	if t, err := p.DB.Tenant.Get(ctx, tenantID); err == nil {
-		snap.HeldCategory = custom_agents.HeldCategory(custom_agents.HoldCategories(t), brief.Offering)
+		// The tenant's "Always ask me first for" list: its categories and words, and the restricted
+		// categories it keeps, matched on the offering's own text too (owner 2026-11-14).
+		snap.HeldCategory = custom_agents.HeldFor(custom_agents.HoldCategories(t), brief.Offering, creative.RestrictedCategories)
 	}
 
 	step, why := nextStep(snap)
@@ -514,6 +516,10 @@ func (p *Pipeline) readGate(ctx context.Context, tenantID uuid.UUID) gateAnswer 
 		return gateAnswer{}
 	case !st.PlanAllows:
 		return gateAnswer{why: WhyPlanLapsed, known: true}
+	case st.TermsUnknown:
+		// auth-api's terms could not be read and nothing was known before: neither publish nor
+		// cancel on it; the next sweep asks again.
+		return gateAnswer{}
 	case !st.TermsAccepted:
 		return gateAnswer{why: WhyTermsChanged, known: true}
 	}

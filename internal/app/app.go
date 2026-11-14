@@ -325,10 +325,17 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// The pipeline is built further down with the Studio; an agent switched off, set back to
 	// approve-each or deleted has its waiting veto-window posts cancelled through it at once.
 	var autopilotPipeline *autopublish.Pipeline
+	// The Autopilot terms are auth-api's versioned legal document (owner 2026-11-14): one cached
+	// client for the settings page and the pipeline. A typed nil must not become a non-nil interface.
+	var autopilotTerms custom_agents.TermsSource
+	if c := cfg.Autopilot.TermsSource(cfg.Security.AuthServiceURL, cfg.CrossService.InternalServiceKey); c != nil {
+		autopilotTerms = c
+	}
 	customAgentServiceOpts := []func(*custom_agents.Service){custom_agents.WithPlatformTenant(cfg.Security.PlatformTenant),
 		custom_agents.WithCreditForecaster(custom_agents.NewCreditForecaster(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey)),
 		custom_agents.WithAutoPublishGate(strictFeature, cfg.Autopilot.TermsVersion),
 		custom_agents.WithTermsEffectiveAt(cfg.Autopilot.TermsEffective()),
+		custom_agents.WithTermsSource(autopilotTerms, cfg.Autopilot.TermsPageURL),
 		custom_agents.WithFeatureCheck(subsClient.StrictFeature),
 		custom_agents.WithAgentChanged(func(ctx context.Context, tenantID, agentID uuid.UUID) {
 			if autopilotPipeline != nil {
@@ -453,7 +460,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		Studio:  creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)),
 		Quoter:  creative.NewRenderer(entClient, cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey, logger).WithBrandImages(brandLinks),
 		Publish: pubStore,
-		Gate:    custom_agents.AutoPublishGate{DB: entClient, HasFeature: strictFeature, TermsVersion: cfg.Autopilot.TermsVersion, TermsEffectiveAt: cfg.Autopilot.TermsEffective(), CheckFeature: subsClient.StrictFeature},
+		Gate:    custom_agents.AutoPublishGate{DB: entClient, HasFeature: strictFeature, TermsVersion: cfg.Autopilot.TermsVersion, TermsEffectiveAt: cfg.Autopilot.TermsEffective(), CheckFeature: subsClient.StrictFeature, Terms: autopilotTerms, TermsPageURL: cfg.Autopilot.TermsPageURL},
 		Notif:   notifications.New(notifications.Config{BaseURL: cfg.CrossService.NotificationsURL, APIKey: cfg.CrossService.InternalServiceKey}),
 		Links:   autopublish.NewVetoLinks(encryption.KeyFromEnv(cfg.Security.EncryptionKey)),
 		AppURL:  cfg.CrossService.PortalURL, Config: cfg.Autopilot, Logger: logger})

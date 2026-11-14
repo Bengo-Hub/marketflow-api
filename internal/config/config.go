@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/bengobox/marketflow-api/internal/platform/legaldocs"
 	"github.com/caarlos0/env/v11"
 )
 
@@ -38,6 +39,20 @@ type AutopilotConfig struct {
 	TermsEffectiveAt string        `env:"TERMS_EFFECTIVE_AT"`
 	TermsAnnouncedAt string        `env:"TERMS_ANNOUNCED_AT"`
 	TermsNotice      time.Duration `env:"TERMS_NOTICE" envDefault:"336h"`
+	// The terms are a versioned auth-api legal document (owner 2026-11-14). Once a version is
+	// published there, its version and effective date replace TermsVersion and the dates above,
+	// and acceptances are recorded in auth-api; the metadata acceptance is still read as a
+	// fallback. TermsFromAuth false keeps config and metadata only.
+	TermsFromAuth bool `env:"TERMS_FROM_AUTH" envDefault:"true"`
+	// TermsDocType is the auth-api doc_type.
+	TermsDocType string `env:"TERMS_DOC_TYPE" envDefault:"MARKETFLOW_AUTOPUBLISH_TERMS"`
+	// TermsAuthURL is auth-api for the terms; empty uses the service's auth-api URL
+	// (MF_SECURITY_AUTH_SERVICE_URL).
+	TermsAuthURL string `env:"TERMS_AUTH_URL"`
+	// TermsCacheTTL is how long the document and each tenant's acceptances are cached.
+	TermsCacheTTL time.Duration `env:"TERMS_CACHE_TTL" envDefault:"5m"`
+	// TermsPageURL is the terms page on the accounts site (a version's page is <url>/<version>).
+	TermsPageURL string `env:"TERMS_PAGE_URL" envDefault:"https://accounts.codevertexafrica.com/legal/marketflow-autopublish-terms"`
 	// PipelineInterval is how often the worker carries veto-window videos on (the Renderer's
 	// reports carry them on at once; this sweep catches anything a report missed).
 	PipelineInterval time.Duration `env:"PIPELINE_INTERVAL" envDefault:"1m"`
@@ -52,6 +67,20 @@ type AutopilotConfig struct {
 	// from the first failed check for that post; then it is handed to the owner to approve by
 	// hand and its jobs are cancelled (owner 2026-11-14).
 	OutageHandover time.Duration `env:"OUTAGE_HANDOVER" envDefault:"24h"`
+}
+
+// TermsSource builds the auth-api terms client (nil when TermsFromAuth is off). authURL is the
+// service's auth-api URL, used when TermsAuthURL is empty; serviceKey is the S2S key. Build one per
+// process and share it, so the API and every gate use one cache.
+func (c AutopilotConfig) TermsSource(authURL, serviceKey string) *legaldocs.Client {
+	if !c.TermsFromAuth {
+		return nil
+	}
+	base := c.TermsAuthURL
+	if base == "" {
+		base = authURL
+	}
+	return legaldocs.New(legaldocs.Config{BaseURL: base, APIKey: serviceKey, DocType: c.TermsDocType, TTL: c.TermsCacheTTL})
 }
 
 // TermsEffective is when the current terms version applies: TermsEffectiveAt, else
