@@ -119,6 +119,11 @@ func main() {
 		logger.Warn("worker: redis not reachable at startup; scheduled jobs skip until it is", zap.Error(rerr))
 	}
 	sharedcache.SetLeaseClient(rdb)
+	// WhatsApp reply buttons, lists and media (Sprint 17): the 24-hour window and media limits.
+	waRichCfg, werr := creative.WhatsAppConfigFromEnv(os.Getenv)
+	if werr != nil {
+		logger.Warn("whatsapp rich sends: using the defaults", zap.Error(werr))
+	}
 
 	// ── DB (optional — enables auto-enrol + scheduler) ────────────────────
 	var entClient *ent.Client
@@ -207,7 +212,8 @@ func main() {
 		reg.Add(worker.NewWhatsAppAssistantHandler(entClient, rdb,
 			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
 			cfg.AuthServiceURL, cfg.CrossServiceKey,
-			cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, cfg.API.PortalURL, cfg.PlatformTenant, logger))
+			cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, cfg.API.PortalURL, cfg.PlatformTenant, logger).
+			WithRich(waRichCfg, cfg.API.SignupURL, cfg.API.SignupReplyEvery))
 	}
 	// The nurture scheduler is built before the consumers start, so the lead.created handler can
 	// kick it: an instant follow-up step (delay 0) then goes out within seconds, not a tick later.
@@ -301,7 +307,7 @@ func main() {
 			WithOSTurn(creative.NewWhatsAppTurnNotifier(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey,
 				creative.NewPlatformWhatsApp(entClient,
 					notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
-					cfg.PlatformTenant, "marketflow-worker"), logger)).Run(ctx)
+					cfg.PlatformTenant, "marketflow-worker").WithRich(rdb, waRichCfg), logger)).Run(ctx)
 		go creative.NewPurger(entClient, mediaStore, logger).Run(ctx)
 
 		// Organic publishing (Sprint 16): posts approved videos to connected accounts. Each

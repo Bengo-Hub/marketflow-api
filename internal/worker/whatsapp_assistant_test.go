@@ -29,7 +29,8 @@ func TestAssistantLookupAndAsk(t *testing.T) {
 				t.Errorf("ai key %q", r.Header.Get("X-API-Key"))
 			}
 			_ = json.NewDecoder(r.Body).Decode(&asked)
-			_, _ = w.Write([]byte(`{"pass":true,"verdict":{"reason":"marketing request","source":"jev"},"reply":"Here is the plan"}`))
+			_, _ = w.Write([]byte(`{"pass":true,"verdict":{"reason":"marketing request","source":"jev"},"reply":"Here is the plan",` +
+				`"interactive":{"body":"Here is the plan. Tap Approve, or reply YES 4821.","buttons":[{"id":"mf:yes:r1:4821","title":"Approve"},{"id":"mf:cancel:r1","title":"Cancel"}]}}`))
 		}
 	}))
 	defer srv.Close()
@@ -42,12 +43,17 @@ func TestAssistantLookupAndAsk(t *testing.T) {
 	if u, err := h.lookup(ctx, "+254712345678"); err != nil || u == nil || u.UserID == "" {
 		t.Fatalf("a known phone: %v %v", u, err)
 	}
-	a, err := h.ask(ctx, assistantTenant{ID: uuid.New(), Slug: "boi"}, "u1", "+254712345678", "make a video ad", true)
+	a, err := h.ask(ctx, assistantTenant{ID: uuid.New(), Slug: "boi"}, "u1", "+254712345678", "Approve", "mf:yes:r1:4821", true)
 	if err != nil || !a.Pass || a.Reply != "Here is the plan" {
 		t.Fatalf("ask: %+v %v", a, err)
 	}
-	// The verified number goes with the message: approval codes are bound to it.
-	if asked["tenant_slug"] != "boi" || asked["session_active"] != true || asked["portal_url"] != "https://mf.example" || asked["sender"] != "+254712345678" {
+	if a.Interactive == nil || len(a.Interactive.Buttons) != 2 || a.Interactive.Buttons[0].ID != "mf:yes:r1:4821" {
+		t.Fatalf("ask buttons: %+v", a.Interactive)
+	}
+	// The verified number goes with the message: approval codes are bound to it. A tap carries
+	// its button id.
+	if asked["tenant_slug"] != "boi" || asked["session_active"] != true || asked["portal_url"] != "https://mf.example" ||
+		asked["sender"] != "+254712345678" || asked["reply_id"] != "mf:yes:r1:4821" {
 		t.Fatalf("ask body: %v", asked)
 	}
 }
@@ -104,7 +110,7 @@ func TestAssistantApprovalTenant(t *testing.T) {
 	h := NewWhatsAppAssistantHandler(nil, nil, nil, "", "", srv.URL, "ai-key", "", "codevertex", zap.NewNop())
 	ctx := context.Background()
 
-	found, yes, err := h.approvalTenant(ctx, "u1", "254712345678", "YES 4821", []assistantTenant{a, b})
+	found, yes, err := h.approvalTenant(ctx, "u1", "254712345678", "YES 4821", "", []assistantTenant{a, b})
 	if err != nil || !yes || found == nil || found.ID != b.ID {
 		t.Fatalf("found = %+v %v %v", found, yes, err)
 	}
@@ -113,7 +119,7 @@ func TestAssistantApprovalTenant(t *testing.T) {
 	}
 	// A YES whose code is pending nowhere: no business, but still a YES (the worker then asks).
 	answer = `{"yes":true}`
-	if found, yes, err := h.approvalTenant(ctx, "u1", "254712345678", "YES 4821", []assistantTenant{a, b}); err != nil || !yes || found != nil {
+	if found, yes, err := h.approvalTenant(ctx, "u1", "254712345678", "Approve", "mf:yes:r1:4821", []assistantTenant{a, b}); err != nil || !yes || found != nil || asked["reply_id"] != "mf:yes:r1:4821" {
 		t.Fatalf("not found = %+v %v %v", found, yes, err)
 	}
 }

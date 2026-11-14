@@ -89,6 +89,15 @@ type App struct {
 // New constructs the application.
 // tenantExportHandler serves auth-api's SSO tenant backups (httpware/tenantexport). Nil without an
 // INTERNAL_SERVICE_KEY, so the export is never reachable unauthenticated.
+// whatsAppRichConfig reads the WhatsApp window and media limits; a bad value keeps its default.
+func whatsAppRichConfig(logger *zap.Logger) creative.WhatsAppConfig {
+	cfg, err := creative.WhatsAppConfigFromEnv(os.Getenv)
+	if err != nil {
+		logger.Warn("whatsapp rich sends: using the defaults", zap.Error(err))
+	}
+	return cfg
+}
+
 func tenantExportHandler(db *sql.DB, internalKey string) http.Handler {
 	if internalKey == "" {
 		return nil
@@ -395,7 +404,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			WithOSTurn(creative.NewWhatsAppTurnNotifier(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey,
 				creative.NewPlatformWhatsApp(entClient,
 					notifications.New(notifications.Config{BaseURL: cfg.CrossService.NotificationsURL, APIKey: cfg.CrossService.InternalServiceKey}),
-					cfg.Security.PlatformTenant, "marketflow-api"), logger)))
+					cfg.Security.PlatformTenant, "marketflow-api").
+					// Stills as images, the finished ad as a video and the render buttons, while the
+					// requester's 24-hour window is open (the worker marks it on each message).
+					WithRich(redisClient, whatsAppRichConfig(logger)), logger)))
 	// Boost, post and reply are also open to the Meta App Review account (owner 2026-11-12); the
 	// role gate keeps it to exactly those routes. Approving an ad stays with the approving roles.
 	reviewActionRoles := rbac.WithAppReviewer(creative.ApprovalRoles)

@@ -6,6 +6,7 @@ package worker
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/bengobox/marketflow-api/internal/config"
 	"github.com/caarlos0/env/v11"
@@ -76,6 +77,12 @@ type APIConfig struct {
 	// Empty uses the in-cluster defaults for pos, treasury, library, hospital, ordering,
 	// ticketing and projects.
 	CRMLinkServices string `env:"CRM_LINK_SERVICES"`
+	// SignupURL is where the WhatsApp assistant's Sign up button sends a number no MarketFlow
+	// user has verified (MF_WORKER_SIGNUP_URL). Empty uses PortalURL, whose home page signs up.
+	SignupURL string `env:"SIGNUP_URL"`
+	// SignupReplyEvery is how often one unknown number may get the sign-up reply
+	// (MF_WORKER_SIGNUP_REPLY_EVERY).
+	SignupReplyEvery time.Duration `env:"SIGNUP_REPLY_EVERY" envDefault:"720h"`
 }
 
 // NotificationsConfig carries the platform notifications-api coordinates.
