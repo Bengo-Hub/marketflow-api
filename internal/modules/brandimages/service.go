@@ -9,6 +9,7 @@ import (
 	"image"
 	_ "image/jpeg" // decoders for the size check
 	_ "image/png"
+	"net/http"
 	"strings"
 	"time"
 
@@ -49,6 +50,8 @@ type Image struct {
 	Bytes       int    `json:"bytes"`
 	Name        string `json:"name,omitempty"`
 	UploadedAt  string `json:"uploaded_at"`
+	// Source is the web address of a picture linked from the business's own website.
+	Source string `json:"source,omitempty"`
 }
 
 // View is an image as the portal sees it, with a short-lived link.
@@ -61,6 +64,8 @@ type View struct {
 	Bytes       int    `json:"bytes"`
 	Name        string `json:"name,omitempty"`
 	UploadedAt  string `json:"uploaded_at"`
+	// Source is set when the picture came from the business's website.
+	Source string `json:"source,omitempty"`
 }
 
 // Prefix is the key prefix of a tenant's brand images. A key outside it is never linked.
@@ -110,6 +115,9 @@ type Service struct {
 	cfg    Config
 	logger *zap.Logger
 	nowFn  func() time.Time
+	// Website imports (siteimport.go): the tenant's own sites and the public-only client.
+	siteLookup SiteLookup
+	web        *http.Client
 }
 
 // NewService builds the service and registers the media type with the configured size limit. A nil
@@ -146,7 +154,7 @@ func (s *Service) view(img Image) View {
 		}
 	}
 	return View{ID: img.ID, URL: link, ContentType: img.ContentType, Width: img.Width, Height: img.Height,
-		Bytes: img.Bytes, Name: img.Name, UploadedAt: img.UploadedAt}
+		Bytes: img.Bytes, Name: img.Name, UploadedAt: img.UploadedAt, Source: img.Source}
 }
 
 // CheckSize refuses a picture whose short side is below the minimum.
@@ -170,6 +178,11 @@ func (s *Service) CheckSize(data []byte) (width, height int, err error) {
 // images. The list grows in one conditional UPDATE, so two uploads at once can never pass the
 // maximum; the object of an upload that loses that race is deleted again.
 func (s *Service) Add(ctx context.Context, tenantID uuid.UUID, up *objectstore.Upload) (View, error) {
+	return s.add(ctx, tenantID, up, "")
+}
+
+// add stores one picture; source is the web address of a picture linked from the website.
+func (s *Service) add(ctx context.Context, tenantID uuid.UUID, up *objectstore.Upload, source string) (View, error) {
 	if !s.store.Enabled() {
 		return View{}, ErrUnavailable
 	}
@@ -196,7 +209,7 @@ func (s *Service) Add(ctx context.Context, tenantID uuid.UUID, up *objectstore.U
 		name = string([]rune(name)[:120])
 	}
 	img := Image{ID: uuid.NewString(), Key: key, ContentType: up.ContentType, Width: w, Height: h,
-		Bytes: len(up.Data), Name: name, UploadedAt: s.nowFn().UTC().Format(time.RFC3339)}
+		Bytes: len(up.Data), Name: name, UploadedAt: s.nowFn().UTC().Format(time.RFC3339), Source: source}
 	n, err := s.appendImage(ctx, tenantID, img)
 	if err == nil && n == 0 {
 		err = ErrFull

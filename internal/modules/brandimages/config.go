@@ -36,18 +36,28 @@ type Config struct {
 	// RenderLinkTTL is the lifetime of the links sent to marketflow-ai with a render, long enough
 	// for a queued video job to fetch them.
 	RenderLinkTTL time.Duration
+	// SiteSweepEvery is how often the sweep links website pictures for tenants below Min.
+	SiteSweepEvery time.Duration
+	// SiteRetryAfter is how long the sweep waits before reading the same tenant's site again.
+	SiteRetryAfter time.Duration
+	// SiteSweepLimit is the most tenants one sweep reads.
+	SiteSweepLimit int
 }
 
-// DefaultConfig is 3 to 5 images of at most 2 MB, at least 1024 px on the short side.
+// DefaultConfig is 3 to 5 images of at most 2 MB, at least 1024 px on the short side; the website
+// sweep runs daily, reads a site at most weekly and 50 tenants per run.
 func DefaultConfig() Config {
 	return Config{Min: 3, Max: 5, MaxBytes: 2 << 20, MinShortSide: 1024,
-		ListLinkTTL: 15 * time.Minute, RenderLinkTTL: time.Hour}
+		ListLinkTTL: 15 * time.Minute, RenderLinkTTL: time.Hour,
+		SiteSweepEvery: 24 * time.Hour, SiteRetryAfter: 7 * 24 * time.Hour, SiteSweepLimit: 50}
 }
 
 // ConfigFromEnv reads MF_BRAND_IMAGES_MIN, MF_BRAND_IMAGES_MAX, MF_BRAND_IMAGES_MAX_BYTES,
-// MF_BRAND_IMAGES_MIN_SIDE, MF_BRAND_IMAGES_LINK_TTL and MF_BRAND_IMAGES_RENDER_LINK_TTL. An unset
-// value keeps its default; a value that does not parse, or limits that contradict each other,
-// return the defaults with an error for the caller to log.
+// MF_BRAND_IMAGES_MIN_SIDE, MF_BRAND_IMAGES_LINK_TTL, MF_BRAND_IMAGES_RENDER_LINK_TTL,
+// MF_BRAND_IMAGES_SITE_SWEEP_EVERY, MF_BRAND_IMAGES_SITE_RETRY_AFTER and
+// MF_BRAND_IMAGES_SITE_SWEEP_LIMIT. An unset value keeps its default; a value that does not
+// parse, or limits that contradict each other, return the defaults with an error for the caller
+// to log.
 func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	cfg := DefaultConfig()
 	ints := []struct {
@@ -57,6 +67,7 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		{"MF_BRAND_IMAGES_MIN", &cfg.Min},
 		{"MF_BRAND_IMAGES_MAX", &cfg.Max},
 		{"MF_BRAND_IMAGES_MIN_SIDE", &cfg.MinShortSide},
+		{"MF_BRAND_IMAGES_SITE_SWEEP_LIMIT", &cfg.SiteSweepLimit},
 	}
 	for _, it := range ints {
 		if v := strings.TrimSpace(getenv(it.key)); v != "" {
@@ -80,6 +91,8 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	}{
 		{"MF_BRAND_IMAGES_LINK_TTL", &cfg.ListLinkTTL},
 		{"MF_BRAND_IMAGES_RENDER_LINK_TTL", &cfg.RenderLinkTTL},
+		{"MF_BRAND_IMAGES_SITE_SWEEP_EVERY", &cfg.SiteSweepEvery},
+		{"MF_BRAND_IMAGES_SITE_RETRY_AFTER", &cfg.SiteRetryAfter},
 	}
 	for _, it := range durations {
 		if v := strings.TrimSpace(getenv(it.key)); v != "" {

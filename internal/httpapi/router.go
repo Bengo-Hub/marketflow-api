@@ -24,6 +24,8 @@ type TenantSyncer interface {
 type RouterDeps struct {
 	// Limiter is the shared per-IP request limiter (nil disables it, e.g. in tests).
 	Limiter        *ratelimit.Limiter
+	// PublicLimits are the per-IP limits on the public write routes (per minute; 0 is off).
+	PublicLimits PublicLimits
 	Log            *zap.Logger
 	HealthHandler  http.HandlerFunc
 	MetricsHandler http.Handler
@@ -492,6 +494,8 @@ type BrandImageHandlers struct {
 	List   http.HandlerFunc
 	Upload http.HandlerFunc
 	Delete http.HandlerFunc
+	// ImportSite links pictures from the tenant's own website (optional).
+	ImportSite http.HandlerFunc
 }
 
 // OnboardingHandlers groups the setup checklist and the brand context draft.
@@ -596,6 +600,22 @@ type SegmentHandlers struct {
 	Update   http.HandlerFunc
 	Delete   http.HandlerFunc
 	Evaluate http.HandlerFunc
+}
+
+// PublicLimits are per-IP request limits per minute on the public write routes.
+type PublicLimits struct {
+	Leads    int
+	Bookings int
+	Events   int
+}
+
+// perIP returns a named per-IP limit of n a minute, with its own counter apart from the global
+// one, or a pass-through when there is no limiter or n is 0.
+func perIP(l *ratelimit.Limiter, name string, n int) func(http.Handler) http.Handler {
+	if l == nil || n <= 0 {
+		return func(next http.Handler) http.Handler { return next }
+	}
+	return l.MiddlewareWith(ratelimit.IPKey, ratelimit.Options{Name: name, Limit: n, Window: time.Minute})
 }
 
 // NewRouter wires HTTP routes.
@@ -994,6 +1014,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Get("/tenant/brand-images", deps.BrandImageHandlers.List)
 				r.Post("/tenant/brand-images", deps.BrandImageHandlers.Upload)
 				r.Delete("/tenant/brand-images/{id}", deps.BrandImageHandlers.Delete)
+				if deps.BrandImageHandlers.ImportSite != nil {
+					r.Post("/tenant/brand-images/import-site", deps.BrandImageHandlers.ImportSite)
+				}
 			}
 
 			// Marketing OS: brand context and team member overrides. The tenant
@@ -1276,17 +1299,20 @@ func NewRouter(deps RouterDeps) http.Handler {
 			r.Post("/tiktok/leads", deps.WebhookHandlers.TikTokLeads)
 		})
 
-		// Public API routes (no auth). Lead capture is public and rate-limited
-		// at the ingress layer; the handler enforces tenant lookup + basic validation.
+		// Public API routes (no auth). Each write has its own per-IP limit (Sprint 7 #61) on top of
+		// the global one; the handlers enforce tenant lookup and validation.
+		leadLimit := perIP(deps.Limiter, "public-leads", deps.PublicLimits.Leads)
+		bookLimit := perIP(deps.Limiter, "public-bookings", deps.PublicLimits.Bookings)
+		eventLimit := perIP(deps.Limiter, "public-events", deps.PublicLimits.Events)
 		r.Route("/public", func(r chi.Router) {
 			r.Get("/profile/{slug}", deps.PublicHandlers.GetProfile)
 			r.Get("/profile/{slug}/testimonials", deps.PublicHandlers.ListTestimonials)
 			r.Get("/funnels/{slug}", deps.PublicHandlers.GetFunnel)
-			r.With(deps.TrackLeadCreated).Post("/leads/{slug}", deps.PublicHandlers.CreateLead)
-			r.Post("/profile-events", deps.PublicHandlers.RecordProfileEvent)
-			r.Post("/funnels/{slug}/step-view", deps.PublicHandlers.FunnelStepView)
+			r.With(leadLimit, deps.TrackLeadCreated).Post("/leads/{slug}", deps.PublicHandlers.CreateLead)
+			r.With(eventLimit).Post("/profile-events", deps.PublicHandlers.RecordProfileEvent)
+			r.With(eventLimit).Post("/funnels/{slug}/step-view", deps.PublicHandlers.FunnelStepView)
 			r.Get("/availability/{slug}", deps.PublicHandlers.GetAvailability)
-			r.With(deps.TrackMeetingBooked).Post("/book/{slug}", deps.PublicHandlers.CreateBooking)
+			r.With(bookLimit, deps.TrackMeetingBooked).Post("/book/{slug}", deps.PublicHandlers.CreateBooking)
 		})
 	})
 

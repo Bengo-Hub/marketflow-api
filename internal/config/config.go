@@ -77,6 +77,12 @@ type SecurityConfig struct {
 	// quietly return to report-only. Set false only to diagnose, and the mismatch is then only
 	// logged ("tenant in request does not match the token").
 	EnforceTenantHeader bool `env:"ENFORCE_TENANT_HEADER" envDefault:"true"`
+	// Per-IP limits on the public write routes (Sprint 7 #61), on top of the global 300 a
+	// minute: lead forms and bookings are a few a minute from a real visitor; page events are
+	// frequent but cheap. 0 turns that limit off.
+	PublicLeadsPerMinute    int `env:"PUBLIC_LEADS_PER_MIN" envDefault:"10"`
+	PublicBookingsPerMinute int `env:"PUBLIC_BOOKINGS_PER_MIN" envDefault:"10"`
+	PublicEventsPerMinute   int `env:"PUBLIC_EVENTS_PER_MIN" envDefault:"120"`
 }
 
 type EventsConfig struct {

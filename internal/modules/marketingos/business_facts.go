@@ -4,21 +4,20 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"html"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
-	"syscall"
 	"time"
 	"unicode/utf8"
 
 	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/google/uuid"
+
+	"github.com/bengobox/marketflow-api/internal/platform/publicweb"
 )
 
 // Business facts: what the chat assistant may state as true about a business (its name, how to
@@ -221,38 +220,12 @@ const (
 	failedSiteWait = 30 * time.Minute
 )
 
-var errNotPublic = errors.New("address is not public")
+// siteClient fetches only public addresses (publicweb): internal ranges are refused at connect
+// time, after DNS, and it follows at most three https redirects.
+var siteClient = publicweb.Client(6*time.Second, 3)
 
-// siteClient fetches only public addresses: it refuses loopback, private, link-local and other
-// internal ranges at connect time (after DNS, so a name cannot point it inside), and follows at most
-// three redirects, each checked the same way.
-var siteClient = &http.Client{
-	Timeout: 6 * time.Second,
-	Transport: &http.Transport{
-		DialContext:           (&net.Dialer{Timeout: 4 * time.Second, Control: publicOnly}).DialContext,
-		TLSHandshakeTimeout:   4 * time.Second,
-		ResponseHeaderTimeout: 5 * time.Second,
-		MaxIdleConns:          10,
-	},
-	CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) >= 3 || req.URL.Scheme != "https" {
-			return errNotPublic
-		}
-		return nil
-	},
-}
-
-func publicOnly(_, address string, _ syscall.RawConn) error {
-	host, _, err := net.SplitHostPort(address)
-	if err != nil {
-		return err
-	}
-	ip := net.ParseIP(host)
-	if ip == nil || !ip.IsGlobalUnicast() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
-		return errNotPublic
-	}
-	return nil
-}
+// publicOnly is the connect-time check, kept under this name for the tests.
+var publicOnly = publicweb.PublicOnly
 
 // readSite reads one https page, through the day cache.
 func readSite(ctx context.Context, raw string) (siteFacts, error) {

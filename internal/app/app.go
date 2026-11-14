@@ -373,7 +373,43 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	if err != nil {
 		logger.Warn("object storage unavailable; brand image uploads off", zap.Error(err))
 	}
-	brandImagesHandler := brandimages.NewHandler(brandimages.NewService(entClient, mediaStore, brandImagesCfg, logger), logger)
+	brandImagesSvc := brandimages.NewService(entClient, mediaStore, brandImagesCfg, logger)
+	// Website pictures first (owner, 2026-11-14): a business that already shows itself on its own
+	// site (auth-api website and storefront) gets those pictures linked; it uploads only the rest.
+	if tenantSyncer != nil {
+		brandImagesSvc.WithSiteImport(func(ctx context.Context, tenantID uuid.UUID) ([]string, error) {
+			t, err := entClient.Tenant.Get(ctx, tenantID)
+			if err != nil {
+				return nil, err
+			}
+			p, err := tenantSyncer.AuthProfile(ctx, t.Slug)
+			if err != nil || p == nil {
+				return nil, err
+			}
+			var sites []string
+			for _, s := range []string{p.Website, p.Storefront} {
+				if s = strings.TrimSpace(s); s != "" {
+					sites = append(sites, s)
+				}
+			}
+			return sites, nil
+		})
+		go func() {
+			ticker := time.NewTicker(time.Hour)
+			defer ticker.Stop()
+			for {
+				if sharedcache.ClaimPeriod(ctx, "marketflow:brand-images-site", brandImagesCfg.SiteSweepEvery) {
+					brandImagesSvc.SweepSiteImports(ctx, brandImagesCfg.SiteRetryAfter, brandImagesCfg.SiteSweepLimit)
+				}
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+				}
+			}
+		}()
+	}
+	brandImagesHandler := brandimages.NewHandler(brandImagesSvc, logger)
 	brandLinks := brandimages.NewLinker(mediaStore, brandImagesCfg.RenderLinkTTL)
 	onboardingHandler := onboarding.NewHandler(onboarding.NewService(entClient, marketingOSService, tenantSyncer,
 		creative.NewTopOfferings(catalogueOfferings, cfg.CrossService.POSURL, cfg.CrossService.InternalServiceKey, logger),
@@ -492,6 +528,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 
 	router := httpapi.NewRouter(httpapi.RouterDeps{
 		Limiter:        ratelimit.NewLimiter(redisClient, logger, "marketflow"),
+		PublicLimits: httpapi.PublicLimits{Leads: cfg.Security.PublicLeadsPerMinute,
+			Bookings: cfg.Security.PublicBookingsPerMinute, Events: cfg.Security.PublicEventsPerMinute},
 		Log:            logger,
 		HealthHandler:  handlers.Health,
 		MetricsHandler: promhttp.Handler(),
@@ -742,6 +780,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			List:   brandImagesHandler.List,
 			Upload: brandImagesHandler.Upload,
 			Delete: brandImagesHandler.Delete,
+			ImportSite: brandImagesHandler.ImportSite,
 		},
 		MarketingOSHandlers: httpapi.MarketingOSHandlers{
 			GetBrandContext:   marketingOSHandler.GetBrandContext,

@@ -128,6 +128,39 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ImportSite handles POST /api/v1/tenant/brand-images/import-site.
+// @Summary Link brand images from the business's own website
+// @Description Reads the website and storefront on the tenant's account and stores up to the maximum number of brand images from the pictures found there (share image, structured data, page pictures). Each picture passes the same checks as an upload; logos, icons, SVG and GIF are skipped. Pictures already linked are not taken twice.
+// @Tags BrandImages
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Success 200 {object} ImportResult
+// @Failure 409 {object} httpapi.ErrorResponse
+// @Failure 422 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /tenant/brand-images/import-site [post]
+func (h *Handler) ImportSite(w http.ResponseWriter, r *http.Request) {
+	tid, ok := tenantOf(w, r)
+	if !ok {
+		return
+	}
+	if !h.svc.SiteImportEnabled() {
+		httpapi.Error(w, http.StatusServiceUnavailable, "import_unavailable", "Importing from a website is not configured", nil)
+		return
+	}
+	res, err := h.svc.ImportFromSite(r.Context(), tid)
+	if errors.Is(err, ErrNoSite) {
+		httpapi.Error(w, http.StatusUnprocessableEntity, "no_website",
+			"Add your website to your business details first, then try again", nil)
+		return
+	}
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, res)
+}
+
 func (h *Handler) fail(w http.ResponseWriter, err error) {
 	cfg := h.svc.Config()
 	switch {
