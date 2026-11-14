@@ -85,8 +85,28 @@ func TestComposeKeepsProfileValuesAndAddsFLPRules(t *testing.T) {
 	if d.Profile.ContactEmail != "" || d.Profile.WhatsApp != "" || d.Profile.LogoURL != "" {
 		t.Fatalf("auth values must not replace the profile's own: %+v", d.Profile)
 	}
-	if len(d.Suggested.BannedClaims) != len(genericBannedClaims)+len(flpBannedClaims) {
+	flp, _ := tenant.LookupBusinessType(tenant.BusinessTypeFLP)
+	if len(flp.BannedClaims) == 0 || len(d.Suggested.BannedClaims) != len(genericBannedClaims)+len(flp.BannedClaims) {
 		t.Fatalf("FLP rules missing: %v", d.Suggested.BannedClaims)
+	}
+}
+
+// Sprint 7 #34: the draft's banned claims follow the tenant's business type, and every type's
+// draft saves as it is.
+func TestComposeUsesBusinessTypeRules(t *testing.T) {
+	for _, bt := range tenant.BusinessTypes {
+		d := compose(composeInput{tenant: &ent.Tenant{Name: "Shop", BusinessType: bt.Key, Metadata: map[string]any{"bio": "We sell good things."}}})
+		got := d.Suggested.BannedClaims
+		if len(got) != len(genericBannedClaims)+len(bt.BannedClaims) {
+			t.Fatalf("%s: banned claims %v", bt.Key, got)
+		}
+		if err := (&d.Suggested).Validate(); err != nil {
+			t.Fatalf("%s: draft must save as is: %v", bt.Key, err)
+		}
+	}
+	d := compose(composeInput{tenant: &ent.Tenant{Name: "Chemist", BusinessType: "pharmacy", Metadata: map[string]any{}}})
+	if !strings.Contains(strings.Join(d.Suggested.BannedClaims, "|"), "prescription-only") {
+		t.Fatalf("pharmacy draft misses its rules: %v", d.Suggested.BannedClaims)
 	}
 }
 

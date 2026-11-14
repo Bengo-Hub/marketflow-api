@@ -363,6 +363,8 @@ type PublicHandlers struct {
 type TenantProfileHandlers struct {
 	Get    http.HandlerFunc
 	Update http.HandlerFunc
+	// BusinessTypes lists the business types an owner can pick (Sprint 7 #32).
+	BusinessTypes http.HandlerFunc
 }
 
 // TenantMemberHandlers groups team member management endpoints.
@@ -853,6 +855,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 			r.Route("/tenant/profile", func(r chi.Router) {
 				r.Get("/", deps.TenantProfileHandlers.Get)
 				r.Patch("/", deps.TenantProfileHandlers.Update)
+				if deps.TenantProfileHandlers.BusinessTypes != nil {
+					r.Get("/business-types", deps.TenantProfileHandlers.BusinessTypes)
+				}
 			})
 
 			// Tenant team member management

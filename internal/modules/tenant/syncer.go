@@ -159,6 +159,11 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 	businessType := BusinessTypeGeneric
 	if flp {
 		businessType = BusinessTypeFLP
+	} else if bt, _ := remote.Metadata["business_type"].(string); bt != "" {
+		// A known type in the auth metadata (restaurant, pharmacy...) is kept (Sprint 7 #32).
+		if known, ok := NormalizeBusinessType(bt); ok {
+			businessType = known
+		}
 	}
 
 	builder := s.client.Tenant.Create().

@@ -36,6 +36,16 @@ const KindTeamMember = "team_member"
 // Absent means on.
 const DailyBriefKey = "os_daily_brief"
 
+// BusinessTypeChosenKey in Tenant.metadata records when the business type was saved through the
+// profile (RFC 3339). Only the profile PATCH writes it (tenant.ReservedMetadataKeys).
+const BusinessTypeChosenKey = "business_type_chosen_at"
+
+// BusinessTypeChosen reports whether the owner or a platform admin ever saved a business type.
+func BusinessTypeChosen(meta map[string]any) bool {
+	v, _ := meta[BusinessTypeChosenKey].(string)
+	return v != ""
+}
+
 // Settings are the tenant's Marketing OS switches.
 type Settings struct {
 	DailyBrief bool `json:"daily_brief"`
@@ -147,7 +157,14 @@ var (
 
 // OSContext is what marketflow-ai reads for each request.
 type OSContext struct {
-	BusinessType     string           `json:"business_type"`
+	BusinessType string `json:"business_type"`
+	// BusinessTypeChosen is true once the owner (or a platform admin) saved a type through the
+	// profile (BusinessTypeChosenKey). Until then marketflow-ai lets a widget persona or the chat
+	// auto-detect replace a "generic" type; a chosen type, generic included, is final (owner,
+	// 2026-11-14).
+	BusinessTypeChosen bool `json:"business_type_chosen"`
+
+	MarketingContext string           `json:"marketing_context"`
 	MarketingContext string           `json:"marketing_context"`
 	Offerings        []string         `json:"offerings"`
 	Members          []MemberOverride `json:"members"`
@@ -392,6 +409,7 @@ func (s *Service) Context(ctx context.Context, tenantID uuid.UUID) (OSContext, e
 		return out, err
 	}
 	out.BusinessType = t.BusinessType
+	out.BusinessTypeChosen = BusinessTypeChosen(t.Metadata)
 	out.Exempt = s.platformSlug != "" && t.Slug == s.platformSlug
 	if raw, ok := t.Metadata[MetadataKey]; ok {
 		b, _ := json.Marshal(raw)

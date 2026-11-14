@@ -639,6 +639,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		TenantProfileHandlers: httpapi.TenantProfileHandlers{
 			Get:    tenantProfileHandler.GetProfile,
 			Update: tenantProfileHandler.UpdateProfile,
+			// The business types an owner can pick, with descriptions (Sprint 7 #32).
+			BusinessTypes: tenantProfileHandler.ListBusinessTypes,
 		},
 		TenantMemberHandlers: httpapi.TenantMemberHandlers{
 			List:       tenantMembersHandler.ListMembers,
