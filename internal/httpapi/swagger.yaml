@@ -222,6 +222,59 @@ definitions:
       source:
         type: string
     type: object
+  autopublish.PublicPost:
+    properties:
+      business:
+        type: string
+      can_cancel:
+        type: boolean
+      caption:
+        type: string
+      offering:
+        type: string
+      places:
+        items:
+          type: string
+        type: array
+      publish_at:
+        type: string
+      state:
+        type: string
+    type: object
+  autopublish.VetoResult:
+    properties:
+      cancelled:
+        type: integer
+      gone:
+        items:
+          $ref: '#/definitions/publishing.JobView'
+        type: array
+      message:
+        type: string
+      state:
+        type: string
+    type: object
+  brandimages.ImportResult:
+    properties:
+      added:
+        items:
+          $ref: '#/definitions/brandimages.View'
+        type: array
+      found:
+        type: integer
+      min:
+        type: integer
+      sites:
+        items:
+          type: string
+        type: array
+      skipped:
+        additionalProperties:
+          type: integer
+        type: object
+      total:
+        type: integer
+    type: object
   brandimages.View:
     properties:
       bytes:
@@ -233,6 +286,9 @@ definitions:
       id:
         type: string
       name:
+        type: string
+      source:
+        description: Source is set when the picture came from the business's website.
         type: string
       uploaded_at:
         type: string
@@ -537,6 +593,11 @@ definitions:
         type: string
       shot:
         type: string
+      speaker:
+        description: |-
+          Speaker is who reads the line in a two-voice UGC ad: "male", "female" or "" (one voice).
+          marketflow-ai reads two voices only for the ugc delivery.
+        type: string
       visual:
         type: string
       voiceover:
@@ -571,6 +632,12 @@ definitions:
         description: |-
           ActorPrompt describes the presenter for a new actor (presenter types); the brief's
           actor is kept once it exists.
+        type: string
+      approach:
+        description: |-
+          Approach is the ad template the script follows (educate, day-in-the-life, routine,
+          problem-agitate-solve, before-after, myth-fact, founder-story, testimonial, comparison,
+          unboxing-demo; marketflow-ai's library). "" lets marketflow-ai choose from the brief.
         type: string
       cta:
         type: string
@@ -634,6 +701,13 @@ definitions:
     type: object
   creative.VideoScript:
     properties:
+      actor:
+        type: string
+      approach:
+        description: |-
+          Approach is the ad template the script follows; Actor describes the on-screen presenter
+          in one line, used for the storyboard's actor when the owner gave no description.
+        type: string
       cta:
         type: string
       format:
@@ -655,6 +729,42 @@ definitions:
     properties:
       hours:
         type: integer
+    type: object
+  custom_agents.AutoPublishInput:
+    properties:
+      accept_terms:
+        type: boolean
+      hold_categories:
+        items:
+          type: string
+        type: array
+    type: object
+  custom_agents.AutoPublishStatus:
+    properties:
+      accepted_at:
+        type: string
+      can_auto_publish:
+        type: boolean
+      default_veto_hours:
+        type: integer
+      hold_categories:
+        items:
+          type: string
+        type: array
+      max_veto_hours:
+        type: integer
+      min_veto_hours:
+        type: integer
+      plan_allows:
+        type: boolean
+      terms:
+        items:
+          type: string
+        type: array
+      terms_accepted:
+        type: boolean
+      terms_version:
+        type: string
     type: object
   custom_agents.AutopilotConfig:
     properties:
@@ -2485,6 +2595,120 @@ paths:
       summary: Quote a boost
       tags:
       - Ads
+  /agents/autopilot/auto-publish:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/custom_agents.AutoPublishStatus'
+      security:
+      - bearerAuth: []
+      summary: Whether the tenant may publish autopilot videos after a veto window
+      tags:
+      - Custom Agents
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Terms and hold categories
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/custom_agents.AutoPublishInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/custom_agents.AutoPublishStatus'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Accept the Autopilot terms and set the hold categories
+      tags:
+      - Custom Agents
+  /agents/autopilot/posts:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Only this agent
+        in: query
+        name: agent_id
+        type: string
+      - description: 'Comma-separated: active, scheduled, held, vetoed, released,
+          failed'
+        in: query
+        name: state
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Ad autopilot posts in the veto window
+      tags:
+      - Custom Agents
+  /agents/autopilot/posts/{id}/veto:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Video ad version UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/autopublish.VetoResult'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Cancel an ad autopilot post in its veto window
+      tags:
+      - Custom Agents
   /agents/custom:
     get:
       parameters:
@@ -3494,6 +3718,34 @@ paths:
       summary: Merge duplicate contacts into one survivor
       tags:
       - Contacts
+  /creative/ad-templates:
+    get:
+      description: Every ad template (key, name, when to use it, the video kinds it
+        suits, whether it can use two voices, what it needs) and each video kind's
+        default, from marketflow-ai's template library.
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: The ad templates a video ad script can follow
+      tags:
+      - Creative
   /creative/assets/{id}/downloaded:
     post:
       parameters:
@@ -6165,6 +6417,53 @@ paths:
       summary: Update a pipeline stage
       tags:
       - Pipelines
+  /public/autopilot/veto/{token}:
+    get:
+      parameters:
+      - description: Cancel link token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/autopublish.PublicPost'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      summary: Read the post a cancel link points at
+      tags:
+      - Public
+    post:
+      parameters:
+      - description: Cancel link token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/autopublish.VetoResult'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      summary: Cancel a post from the emailed link
+      tags:
+      - Public
   /public/availability/{slug}:
     get:
       description: 'Returns open time slots for the tenant''s linked Google Calendar
@@ -7340,6 +7639,39 @@ paths:
       summary: Delete a brand image
       tags:
       - BrandImages
+  /tenant/brand-images/import-site:
+    post:
+      description: Reads the website and storefront on the tenant's account and stores
+        up to the maximum number of brand images from the pictures found there (share
+        image, structured data, page pictures). Each picture passes the same checks
+        as an upload; logos, icons, SVG and GIF are skipped. Pictures already linked
+        are not taken twice.
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/brandimages.ImportResult'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Link brand images from the business's own website
+      tags:
+      - BrandImages
   /tenant/market-research:
     get:
       parameters:
@@ -7701,6 +8033,21 @@ paths:
       security:
       - bearerAuth: []
       summary: Update tenant profile
+      tags:
+      - Tenant
+  /tenant/profile/business-types:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List business types
       tags:
       - Tenant
   /testimonials:

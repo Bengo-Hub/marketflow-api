@@ -1216,6 +1216,186 @@ const docTemplate = `{
                 }
             }
         },
+        "/agents/autopilot/auto-publish": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Custom Agents"
+                ],
+                "summary": "Whether the tenant may publish autopilot videos after a veto window",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/custom_agents.AutoPublishStatus"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Custom Agents"
+                ],
+                "summary": "Accept the Autopilot terms and set the hold categories",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Terms and hold categories",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/custom_agents.AutoPublishInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/custom_agents.AutoPublishStatus"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/agents/autopilot/posts": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Custom Agents"
+                ],
+                "summary": "Ad autopilot posts in the veto window",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this agent",
+                        "name": "agent_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated: active, scheduled, held, vetoed, released, failed",
+                        "name": "state",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/agents/autopilot/posts/{id}/veto": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Custom Agents"
+                ],
+                "summary": "Cancel an ad autopilot post in its veto window",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Video ad version UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/autopublish.VetoResult"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/agents/custom": {
             "get": {
                 "security": [
@@ -2791,6 +2971,47 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/creative/ad-templates": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Every ad template (key, name, when to use it, the video kinds it suits, whether it can use two voices, what it needs) and each video kind's default, from marketflow-ai's template library.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Creative"
+                ],
+                "summary": "The ad templates a video ad script can follow",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
                         }
                     }
                 }
@@ -6955,6 +7176,78 @@ const docTemplate = `{
                 }
             }
         },
+        "/public/autopilot/veto/{token}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public"
+                ],
+                "summary": "Read the post a cancel link points at",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cancel link token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/autopublish.PublicPost"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public"
+                ],
+                "summary": "Cancel a post from the emailed link",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cancel link token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/autopublish.VetoResult"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/public/availability/{slug}": {
             "get": {
                 "description": "Returns open time slots for the tenant's linked Google Calendar on the given date. ` + "`" + `connected: false` + "`" + ` means the tenant hasn't linked a calendar yet.",
@@ -8726,6 +9019,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/tenant/brand-images/import-site": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Reads the website and storefront on the tenant's account and stores up to the maximum number of brand images from the pictures found there (share image, structured data, page pictures). Each picture passes the same checks as an upload; logos, icons, SVG and GIF are skipped. Pictures already linked are not taken twice.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "BrandImages"
+                ],
+                "summary": "Link brand images from the business's own website",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/brandimages.ImportResult"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/tenant/brand-images/{id}": {
             "delete": {
                 "security": [
@@ -9338,6 +9677,31 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tenant/profile/business-types": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenant"
+                ],
+                "summary": "List business types",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -10059,6 +10423,87 @@ const docTemplate = `{
                 }
             }
         },
+        "autopublish.PublicPost": {
+            "type": "object",
+            "properties": {
+                "business": {
+                    "type": "string"
+                },
+                "can_cancel": {
+                    "type": "boolean"
+                },
+                "caption": {
+                    "type": "string"
+                },
+                "offering": {
+                    "type": "string"
+                },
+                "places": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "publish_at": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "autopublish.VetoResult": {
+            "type": "object",
+            "properties": {
+                "cancelled": {
+                    "type": "integer"
+                },
+                "gone": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/publishing.JobView"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "brandimages.ImportResult": {
+            "type": "object",
+            "properties": {
+                "added": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/brandimages.View"
+                    }
+                },
+                "found": {
+                    "type": "integer"
+                },
+                "min": {
+                    "type": "integer"
+                },
+                "sites": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "skipped": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "brandimages.View": {
             "type": "object",
             "properties": {
@@ -10075,6 +10520,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "source": {
+                    "description": "Source is set when the picture came from the business's website.",
                     "type": "string"
                 },
                 "uploaded_at": {
@@ -10530,6 +10979,10 @@ const docTemplate = `{
                 "shot": {
                     "type": "string"
                 },
+                "speaker": {
+                    "description": "Speaker is who reads the line in a two-voice UGC ad: \"male\", \"female\" or \"\" (one voice).\nmarketflow-ai reads two voices only for the ugc delivery.",
+                    "type": "string"
+                },
                 "visual": {
                     "type": "string"
                 },
@@ -10578,6 +11031,10 @@ const docTemplate = `{
             "properties": {
                 "actor_prompt": {
                     "description": "ActorPrompt describes the presenter for a new actor (presenter types); the brief's\nactor is kept once it exists.",
+                    "type": "string"
+                },
+                "approach": {
+                    "description": "Approach is the ad template the script follows (educate, day-in-the-life, routine,\nproblem-agitate-solve, before-after, myth-fact, founder-story, testimonial, comparison,\nunboxing-demo; marketflow-ai's library). \"\" lets marketflow-ai choose from the brief.",
                     "type": "string"
                 },
                 "cta": {
@@ -10662,6 +11119,13 @@ const docTemplate = `{
         "creative.VideoScript": {
             "type": "object",
             "properties": {
+                "actor": {
+                    "type": "string"
+                },
+                "approach": {
+                    "description": "Approach is the ad template the script follows; Actor describes the on-screen presenter\nin one line, used for the storyboard's actor when the owner gave no description.",
+                    "type": "string"
+                },
                 "cta": {
                     "type": "string"
                 },
@@ -10691,6 +11155,61 @@ const docTemplate = `{
             "properties": {
                 "hours": {
                     "type": "integer"
+                }
+            }
+        },
+        "custom_agents.AutoPublishInput": {
+            "type": "object",
+            "properties": {
+                "accept_terms": {
+                    "type": "boolean"
+                },
+                "hold_categories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "custom_agents.AutoPublishStatus": {
+            "type": "object",
+            "properties": {
+                "accepted_at": {
+                    "type": "string"
+                },
+                "can_auto_publish": {
+                    "type": "boolean"
+                },
+                "default_veto_hours": {
+                    "type": "integer"
+                },
+                "hold_categories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "max_veto_hours": {
+                    "type": "integer"
+                },
+                "min_veto_hours": {
+                    "type": "integer"
+                },
+                "plan_allows": {
+                    "type": "boolean"
+                },
+                "terms": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "terms_accepted": {
+                    "type": "boolean"
+                },
+                "terms_version": {
+                    "type": "string"
                 }
             }
         },
