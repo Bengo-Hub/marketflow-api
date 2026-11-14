@@ -13,6 +13,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
+	"github.com/bengobox/marketflow-api/internal/ent/testimonial"
 	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/google/uuid"
@@ -115,6 +116,10 @@ type VideoAdInput struct {
 	// WhatsApp or chat request, os_turn.go). When set, it is validated like an owner's edit
 	// and the version starts at script_ready: no script job and no second script charge.
 	Script *VideoScript `json:"script,omitempty"`
+	// Approach is the ad template the script follows (educate, day-in-the-life, routine,
+	// problem-agitate-solve, before-after, myth-fact, founder-story, testimonial, comparison,
+	// unboxing-demo; marketflow-ai's library). "" lets marketflow-ai choose from the brief.
+	Approach string `json:"approach"`
 
 	// brandKeys are the tenant's brand image keys, set by CreateVideoAd; validate keeps as many
 	// as fit after the offering's photos.
@@ -176,6 +181,9 @@ func (in *VideoAdInput) validate(brief *ent.CreativeBrief) error {
 	if len(in.Voice) > 100 || len(in.VoiceAccent) > 40 {
 		return invalid("voice or voice_accent is too long")
 	}
+	if in.Approach = strings.ToLower(strings.TrimSpace(in.Approach)); !validApproach(in.Approach) {
+		return invalid("approach is an ad template key such as myth-fact or day-in-the-life")
+	}
 	if len(in.PhotoURLs) == 0 {
 		in.PhotoURLs = strs(brief.Offering["photo_urls"])
 	}
@@ -235,7 +243,8 @@ func (s *Service) CreateVideoAd(ctx context.Context, tenantID, briefID uuid.UUID
 	meta := map[string]any{"stage": StageScript, "seconds": in.Seconds, "language": in.Language,
 		"photo_urls": in.PhotoURLs, "footage_urls": in.FootageURLs, "video_kind": in.Kind}
 	for k, v := range map[string]string{"voice": in.Voice, "delivery": in.Delivery, "voice_gender": in.VoiceGender,
-		"voice_accent": in.VoiceAccent, "actor_prompt": strings.TrimSpace(in.ActorPrompt), "music_url": in.MusicURL} {
+		"voice_accent": in.VoiceAccent, "actor_prompt": strings.TrimSpace(in.ActorPrompt), "music_url": in.MusicURL,
+		"approach": in.Approach} {
 		if v != "" {
 			meta[k] = v
 		}
@@ -267,6 +276,10 @@ type VideoScript struct {
 	CTA    string        `json:"cta"`
 	// Mood is a few words on how the background music should feel; it goes to the render.
 	Mood string `json:"mood,omitempty"`
+	// Approach is the ad template the script follows; Actor describes the on-screen presenter
+	// in one line, used for the storyboard's actor when the owner gave no description.
+	Approach string `json:"approach,omitempty"`
+	Actor    string `json:"actor,omitempty"`
 }
 
 // ScriptScene is one scene of a script.
@@ -280,13 +293,34 @@ type ScriptScene struct {
 	Caption   string  `json:"caption"`
 	// SFX is an optional short sound cue played at the scene's start (marketflow-ai renders it).
 	SFX string `json:"sfx,omitempty"`
+	// Speaker is who reads the line in a two-voice UGC ad: "male", "female" or "" (one voice).
+	// marketflow-ai reads two voices only for the ugc delivery.
+	Speaker string `json:"speaker,omitempty"`
 }
 
-// Script sound limits, the same as marketflow-ai's.
+// Script sound, approach and actor limits, the same as marketflow-ai's.
 const (
 	maxSceneSFX   = 60
 	maxScriptMood = 120
+	maxApproach   = 40
+	maxScriptActor = 300
 )
+
+// scriptSpeakers are the speakers a scene may have.
+var scriptSpeakers = map[string]bool{"": true, "male": true, "female": true}
+
+// validApproach reports an empty approach or a template key: lowercase letters and hyphens.
+func validApproach(a string) bool {
+	if len(a) > maxApproach {
+		return false
+	}
+	for _, r := range a {
+		if !(r >= 'a' && r <= 'z') && r != '-' {
+			return false
+		}
+	}
+	return true
+}
 
 func (v *VideoScript) validate(photos, footage int, kind string) error {
 	if len(v.Scenes) < 2 || len(v.Scenes) > maxAdScenes {
@@ -295,11 +329,20 @@ func (v *VideoScript) validate(photos, footage int, kind string) error {
 	if v.Mood = strings.TrimSpace(v.Mood); utf8.RuneCountInString(v.Mood) > maxScriptMood {
 		return invalid(fmt.Sprintf("the music mood is up to %d characters", maxScriptMood))
 	}
+	if v.Approach = strings.ToLower(strings.TrimSpace(v.Approach)); !validApproach(v.Approach) {
+		return invalid("the script's approach is an ad template key such as myth-fact")
+	}
+	if v.Actor = strings.TrimSpace(v.Actor); utf8.RuneCountInString(v.Actor) > maxScriptActor {
+		return invalid(fmt.Sprintf("the actor description is up to %d characters", maxScriptActor))
+	}
 	chars := 0
 	for i := range v.Scenes {
 		sc := &v.Scenes[i]
 		sc.Voiceover, sc.Caption = strings.TrimSpace(sc.Voiceover), strings.TrimSpace(sc.Caption)
 		sc.Visual = strings.TrimSpace(sc.Visual)
+		if sc.Speaker = strings.ToLower(strings.TrimSpace(sc.Speaker)); !scriptSpeakers[sc.Speaker] {
+			return invalid(fmt.Sprintf("scene %d: the speaker is male, female or empty", i+1))
+		}
 		if sc.SFX = strings.TrimSpace(sc.SFX); utf8.RuneCountInString(sc.SFX) > maxSceneSFX {
 			return invalid(fmt.Sprintf("scene %d: the sound cue is up to %d characters", i+1, maxSceneSFX))
 		}
@@ -458,6 +501,78 @@ type scriptCall struct {
 	// context). With names, the writer uses only those; with a style only, names of that style.
 	ActorNameStyle string   `json:"actor_name_style,omitempty"`
 	ActorNames     []string `json:"actor_names,omitempty"`
+	// Delivery is the owner's voice delivery: "ugc" makes a creator-style script, which may be
+	// written for two voices taking turns. Approach is the asked-for ad template, if any.
+	Delivery string `json:"delivery,omitempty"`
+	Approach string `json:"approach,omitempty"`
+	// Reviews are the business's published reviews ("quote | who said it"), the only ones the
+	// testimonial template may quote (owner, 2026-11-14: any review already on the public page).
+	Reviews []string `json:"reviews,omitempty"`
+	// PresenterSpeaker is the gender of the actor already saved on the brief: presenter lines
+	// follow it, so the voice matches the face (owner, 2026-11-14).
+	PresenterSpeaker string `json:"presenter_speaker,omitempty"`
+}
+
+// maxScriptReviews is the most published reviews sent with one script call.
+const maxScriptReviews = 5
+
+// publishedReviews returns the tenant's published reviews for the script writer, best rated and
+// in display order first. A read failure sends none: the testimonial template is then not used.
+func (r *Renderer) publishedReviews(ctx context.Context, tenantID uuid.UUID) []string {
+	rows, err := r.db.Testimonial.Query().
+		Where(testimonial.TenantID(tenantID), testimonial.IsPublished(true)).
+		Order(ent.Desc(testimonial.FieldRating), ent.Asc(testimonial.FieldDisplayOrder)).
+		Limit(maxScriptReviews).All(ctx)
+	if err != nil {
+		r.logger.Warn("published reviews not read for the script", zap.String("tenant", tenantID.String()), zap.Error(err))
+		return nil
+	}
+	out := make([]string, 0, len(rows))
+	for _, t := range rows {
+		body := strings.Join(strings.Fields(t.Body), " ")
+		if body == "" {
+			continue
+		}
+		who := strings.TrimSpace(t.AuthorName)
+		if role := strings.TrimSpace(t.AuthorRole); role != "" {
+			who += ", " + role
+		}
+		out = append(out, excerpt(body, 400)+" | "+excerpt(who, 120))
+	}
+	return out
+}
+
+// briefActorGender is the gender of the actor saved on a brief: the recorded one, else read
+// from its description ("" when it says neither).
+func briefActorGender(meta map[string]any) string {
+	actor, ok := meta["actor"].(map[string]any)
+	if !ok || str(actor["url"]) == "" {
+		return ""
+	}
+	switch g := strings.ToLower(str(actor["gender"])); g {
+	case "male", "female":
+		return g
+	}
+	words := " " + strings.Join(strings.FieldsFunc(strings.ToLower(str(actor["prompt"])), func(c rune) bool {
+		return c < 'a' || c > 'z'
+	}), " ") + " "
+	has := func(list ...string) bool {
+		for _, w := range list {
+			if strings.Contains(words, " "+w+" ") {
+				return true
+			}
+		}
+		return false
+	}
+	m := has("man", "male", "guy", "boy", "father", "dad", "gentleman", "mwanamume", "kijana", "he", "his", "him")
+	f := has("woman", "female", "lady", "girl", "mother", "mum", "mom", "mwanamke", "she", "her")
+	switch {
+	case m && !f:
+		return "male"
+	case f && !m:
+		return "female"
+	}
+	return ""
 }
 
 // writeScript runs a claimed video ad's script step: marketflow-ai writes and
@@ -479,7 +594,9 @@ func (r *Renderer) writeScript(ctx context.Context, v *ent.CreativeVersion) {
 	call := scriptCall{TenantID: v.TenantID.String(), VersionID: v.ID.String(), Offering: excerpt(name, 300),
 		Facts: offeringFacts(b.Offering), Objective: b.Objective, Audience: b.Audience, Language: str(meta["language"]),
 		Seconds: intOf(meta["seconds"]), Photos: adPhotoCount(meta), Footage: len(strs(meta["footage_urls"])),
-		Kind: videoKind(v), Charge: true, BrandPhotos: len(strs(meta[metaBrandImageKeys]))}
+		Kind: videoKind(v), Charge: true, BrandPhotos: len(strs(meta[metaBrandImageKeys])),
+		Delivery: str(meta["delivery"]), Approach: str(meta["approach"]),
+		PresenterSpeaker: briefActorGender(b.Metadata), Reviews: r.publishedReviews(ctx, v.TenantID)}
 	if t, err := r.db.Tenant.Get(ctx, v.TenantID); err == nil {
 		call.ActorNameStyle, call.ActorNames = marketingos.ActorNaming(t.Metadata)
 	}
@@ -561,6 +678,8 @@ type adCall struct {
 	Seed       int64             `json:"seed,omitempty"`
 	Stills     map[string]string `json:"stills,omitempty"`
 	SceneCache []any             `json:"scene_cache,omitempty"`
+	// MusicCache is the earlier version's generated music, reused for the same mood (WP1).
+	MusicCache map[string]any `json:"music_cache,omitempty"`
 	// Mood is the script's music mood, for the generated score.
 	Mood string `json:"mood,omitempty"`
 }
@@ -625,6 +744,9 @@ func (r *Renderer) adCallFor(ctx context.Context, v *ent.CreativeVersion, script
 	}
 	if cache, ok := meta["scene_cache"].([]any); ok {
 		call.SceneCache = cache
+	}
+	if music, ok := meta["music_cache"].(map[string]any); ok {
+		call.MusicCache = music
 	}
 	return call
 }

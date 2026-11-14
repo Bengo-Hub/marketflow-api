@@ -511,6 +511,7 @@ type CreativeHandlers struct {
 	Downloaded        http.HandlerFunc // POST /creative/assets/{id}/downloaded
 	ListBriefs        http.HandlerFunc
 	SearchOfferings   http.HandlerFunc
+	AdTemplates       http.HandlerFunc // GET /creative/ad-templates (the Studio's template picker)
 	CreateBrief       http.HandlerFunc
 	GetBrief          http.HandlerFunc
 	UpdateBrief       http.HandlerFunc
@@ -1044,6 +1045,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Route("/creative", func(r chi.Router) {
 					r.Get("/briefs", deps.CreativeHandlers.ListBriefs)
 					r.Get("/offerings", deps.CreativeHandlers.SearchOfferings)
+					if deps.CreativeHandlers.AdTemplates != nil {
+						r.Get("/ad-templates", deps.CreativeHandlers.AdTemplates)
+					}
 					r.Post("/briefs", deps.CreativeHandlers.CreateBrief)
 					r.Get("/briefs/{id}", deps.CreativeHandlers.GetBrief)
 					r.Put("/briefs/{id}", deps.CreativeHandlers.UpdateBrief)

@@ -816,6 +816,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Downloaded:        creativeHandler.Downloaded,
 			ListBriefs:        creativeHandler.ListBriefs,
 			SearchOfferings:   creativeHandler.SearchOfferings,
+			AdTemplates:       creativeHandler.AdTemplates,
 			CreateBrief:       creativeHandler.CreateBrief,
 			GetBrief:          creativeHandler.GetBrief,
 			UpdateBrief:       creativeHandler.UpdateBrief,
