@@ -74,7 +74,7 @@ func (CreativeAsset) Indexes() []ent.Index {
 	return []ent.Index{
 		// The hourly purge reads only live expiring files.
 		index.Fields("expires_at").
-			Annotations(entsql.IndexWhere("purged_at IS NULL AND expires_at IS NOT NULL")),
+			Annotations(entsql.IndexWhere("((purged_at IS NULL) AND (expires_at IS NOT NULL))")),
 		index.Fields("tenant_id", "version_id"),
 	}
 }

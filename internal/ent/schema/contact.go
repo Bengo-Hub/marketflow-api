@@ -152,9 +152,9 @@ func (Contact) Indexes() []ent.Index {
 		// catches the resulting constraint violation and re-resolves the winner instead of erroring.
 		index.Fields("tenant_id", "email_normalized").
 			Unique().
-			Annotations(entsql.IndexWhere("email_normalized <> ''")),
+			Annotations(entsql.IndexWhere("((email_normalized)::text <> ''::text)")),
 		index.Fields("tenant_id", "phone_subscriber_digits").
 			Unique().
-			Annotations(entsql.IndexWhere("phone_subscriber_digits <> ''")),
+			Annotations(entsql.IndexWhere("((phone_subscriber_digits)::text <> ''::text)")),
 	}
 }

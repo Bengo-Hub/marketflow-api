@@ -106,8 +106,10 @@ func (Activity) Indexes() []ent.Index {
 		// The social inbox lists one tenant's comments and DMs newest first.
 		index.Fields("tenant_id", "activity_type", "performed_at"),
 		// The intent tagger reads only untagged inbox items, oldest first.
+		// Partial index predicates are written exactly as Postgres stores them (pg_get_expr):
+		// Atlas compares them as text, so any other spelling rebuilds the index on every migrate.
 		index.Fields("performed_at").
 			StorageKey("activities_inbox_pending").
-			Annotations(entsql.IndexWhere("activity_type IN ('comment', 'dm') AND metadata->>'intent_status' = 'pending'")),
+			Annotations(entsql.IndexWhere("(((activity_type)::text = ANY ((ARRAY['comment'::character varying, 'dm'::character varying])::text[])) AND ((metadata ->> 'intent_status'::text) = 'pending'::text))")),
 	}
 }

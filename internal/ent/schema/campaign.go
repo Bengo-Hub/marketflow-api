@@ -139,6 +139,6 @@ func (Campaign) Indexes() []ent.Index {
 		// The ads launch worker reads only boosts still launching.
 		index.Fields("updated_at").
 			StorageKey("campaigns_launching").
-			Annotations(entsql.IndexWhere("status = 'launching'")),
+			Annotations(entsql.IndexWhere("((status)::text = 'launching'::text)")),
 	}
 }

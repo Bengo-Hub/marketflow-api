@@ -158,9 +158,9 @@ func (Tenant) Indexes() []ent.Index {
 		index.Fields("business_type"),
 		index.Fields("fbo_distrib_id").
 			Unique().
-			Annotations(entsql.IndexWhere("fbo_distrib_id IS NOT NULL AND fbo_distrib_id != ''")),
+			Annotations(entsql.IndexWhere("((fbo_distrib_id IS NOT NULL) AND ((fbo_distrib_id)::text <> ''::text))")),
 		index.Fields("whatsapp_number").
 			Unique().
-			Annotations(entsql.IndexWhere("whatsapp_number IS NOT NULL AND whatsapp_number != ''")),
+			Annotations(entsql.IndexWhere("((whatsapp_number IS NOT NULL) AND ((whatsapp_number)::text <> ''::text))")),
 	}
 }

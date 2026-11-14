@@ -79,7 +79,7 @@ func (PublishJob) Indexes() []ent.Index {
 	return []ent.Index{
 		// The scheduler reads only jobs that still have to run, oldest first.
 		index.Fields("status", "scheduled_at").
-			Annotations(entsql.IndexWhere("status IN ('pending', 'uploading', 'processing')")),
+			Annotations(entsql.IndexWhere("((status)::text = ANY ((ARRAY['pending'::character varying, 'uploading'::character varying, 'processing'::character varying])::text[]))")),
 		// The calendar lists a tenant's jobs by time, with keyset pagination.
 		index.Fields("tenant_id", "scheduled_at", "id"),
 		index.Fields("tenant_id", "asset_id"),

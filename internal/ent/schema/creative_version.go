@@ -91,6 +91,6 @@ func (CreativeVersion) Indexes() []ent.Index {
 		// The render queue: only the few rows in flight, whatever the table size.
 		index.Fields("created_at").
 			StorageKey("creativeversion_render_queue").
-			Annotations(entsql.IndexWhere("status IN ('queued', 'rendering')")),
+			Annotations(entsql.IndexWhere("((status)::text = ANY ((ARRAY['queued'::character varying, 'rendering'::character varying])::text[]))")),
 	}
 }

@@ -130,7 +130,7 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{ActivitiesColumns[12]},
 				Annotation: &entsql.IndexAnnotation{
-					Where: "activity_type IN ('comment', 'dm') AND metadata->>'intent_status' = 'pending'",
+					Where: "(((activity_type)::text = ANY ((ARRAY['comment'::character varying, 'dm'::character varying])::text[])) AND ((metadata ->> 'intent_status'::text) = 'pending'::text))",
 				},
 			},
 		},
@@ -395,7 +395,7 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{CampaignsColumns[22]},
 				Annotation: &entsql.IndexAnnotation{
-					Where: "status = 'launching'",
+					Where: "((status)::text = 'launching'::text)",
 				},
 			},
 		},
@@ -630,7 +630,7 @@ var (
 				Unique:  true,
 				Columns: []*schema.Column{ContactsColumns[23], ContactsColumns[3]},
 				Annotation: &entsql.IndexAnnotation{
-					Where: "email_normalized <> ''",
+					Where: "((email_normalized)::text <> ''::text)",
 				},
 			},
 			{
@@ -638,7 +638,7 @@ var (
 				Unique:  true,
 				Columns: []*schema.Column{ContactsColumns[23], ContactsColumns[4]},
 				Annotation: &entsql.IndexAnnotation{
-					Where: "phone_subscriber_digits <> ''",
+					Where: "((phone_subscriber_digits)::text <> ''::text)",
 				},
 			},
 		},
@@ -680,7 +680,7 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{CreativeAssetsColumns[10]},
 				Annotation: &entsql.IndexAnnotation{
-					Where: "purged_at IS NULL AND expires_at IS NOT NULL",
+					Where: "((purged_at IS NULL) AND (expires_at IS NOT NULL))",
 				},
 			},
 			{
@@ -767,7 +767,7 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{CreativeVersionsColumns[14]},
 				Annotation: &entsql.IndexAnnotation{
-					Where: "status IN ('queued', 'rendering')",
+					Where: "((status)::text = ANY ((ARRAY['queued'::character varying, 'rendering'::character varying])::text[]))",
 				},
 			},
 		},
@@ -1726,7 +1726,7 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{PublishJobsColumns[8], PublishJobsColumns[7]},
 				Annotation: &entsql.IndexAnnotation{
-					Where: "status IN ('pending', 'uploading', 'processing')",
+					Where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'uploading'::character varying, 'processing'::character varying])::text[]))",
 				},
 			},
 			{
@@ -2078,7 +2078,7 @@ var (
 				Unique:  true,
 				Columns: []*schema.Column{TenantsColumns[4]},
 				Annotation: &entsql.IndexAnnotation{
-					Where: "fbo_distrib_id IS NOT NULL AND fbo_distrib_id != ''",
+					Where: "((fbo_distrib_id IS NOT NULL) AND ((fbo_distrib_id)::text <> ''::text))",
 				},
 			},
 			{
@@ -2086,7 +2086,7 @@ var (
 				Unique:  true,
 				Columns: []*schema.Column{TenantsColumns[5]},
 				Annotation: &entsql.IndexAnnotation{
-					Where: "whatsapp_number IS NOT NULL AND whatsapp_number != ''",
+					Where: "((whatsapp_number IS NOT NULL) AND ((whatsapp_number)::text <> ''::text))",
 				},
 			},
 		},
