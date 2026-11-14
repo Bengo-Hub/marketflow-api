@@ -1344,6 +1344,65 @@ const docTemplate = `{
                 }
             }
         },
+        "/agents/autopilot/posts/{id}/jobs/{job_id}/veto": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Custom Agents"
+                ],
+                "summary": "Cancel one account's ad autopilot post in its veto window",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Video ad version UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Publish job UUID of the account's post",
+                        "name": "job_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/autopublish.VetoResult"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/agents/autopilot/posts/{id}/veto": {
             "post": {
                 "security": [
@@ -3310,6 +3369,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/creative/briefs/{id}/ppb-approval": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Creative"
+                ],
+                "summary": "Whether an ad needs a PPB advert approval reference (pharmacies)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Brief UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/creative.PPBStatus"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/creative/briefs/{id}/versions": {
             "post": {
                 "security": [
@@ -3478,6 +3583,96 @@ const docTemplate = `{
                     },
                     "503": {
                         "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/creative/ppb-approvals": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Creative"
+                ],
+                "summary": "List PPB advert approval references (pharmacies)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Creative"
+                ],
+                "summary": "Save a product's PPB advert approval reference (owner or admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Product and reference",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/creative.ppbSetRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/httpapi.ErrorResponse"
                         }
@@ -10928,6 +11123,56 @@ const docTemplate = `{
                 }
             }
         },
+        "creative.PPBApproval": {
+            "type": "object",
+            "properties": {
+                "entered_at": {
+                    "type": "string"
+                },
+                "entered_by": {
+                    "type": "string"
+                },
+                "offering_key": {
+                    "type": "string"
+                },
+                "offering_name": {
+                    "type": "string"
+                },
+                "reference": {
+                    "type": "string"
+                }
+            }
+        },
+        "creative.PPBStatus": {
+            "type": "object",
+            "properties": {
+                "approval": {
+                    "$ref": "#/definitions/creative.PPBApproval"
+                },
+                "caption_line": {
+                    "description": "CaptionLine is the line the ad carries (\"PPB approval ref. ...\"), set once a reference exists.",
+                    "type": "string"
+                },
+                "medicine": {
+                    "description": "Medicine is true when the ad's product reads as a medicine.",
+                    "type": "boolean"
+                },
+                "offering_key": {
+                    "type": "string"
+                },
+                "offering_name": {
+                    "type": "string"
+                },
+                "pharmacy": {
+                    "description": "Pharmacy is true when the tenant's business type is pharmacy.",
+                    "type": "boolean"
+                },
+                "required": {
+                    "description": "Required is true when the ad's product needs a reference (pharmacy and medicine); its\npromotional versions are held until one is entered, availability posts are not.",
+                    "type": "boolean"
+                }
+            }
+        },
         "creative.ReviseInput": {
             "type": "object",
             "properties": {
@@ -11150,6 +11395,21 @@ const docTemplate = `{
                 }
             }
         },
+        "creative.ppbSetRequest": {
+            "type": "object",
+            "properties": {
+                "offering_key": {
+                    "type": "string"
+                },
+                "offering_name": {
+                    "type": "string"
+                },
+                "reference": {
+                    "description": "Reference is the Board's advert approval reference; empty removes the product's reference.",
+                    "type": "string"
+                }
+            }
+        },
         "creative.reviewLinkRequest": {
             "type": "object",
             "properties": {
@@ -11196,7 +11456,13 @@ const docTemplate = `{
                 "min_veto_hours": {
                     "type": "integer"
                 },
+                "new_terms_pending": {
+                    "type": "boolean"
+                },
                 "plan_allows": {
+                    "type": "boolean"
+                },
+                "plan_unknown": {
                     "type": "boolean"
                 },
                 "terms": {
@@ -11207,6 +11473,9 @@ const docTemplate = `{
                 },
                 "terms_accepted": {
                     "type": "boolean"
+                },
+                "terms_effective_at": {
+                    "type": "string"
                 },
                 "terms_version": {
                     "type": "string"

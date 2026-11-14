@@ -558,6 +558,43 @@ definitions:
         description: standard (default) or premium
         type: string
     type: object
+  creative.PPBApproval:
+    properties:
+      entered_at:
+        type: string
+      entered_by:
+        type: string
+      offering_key:
+        type: string
+      offering_name:
+        type: string
+      reference:
+        type: string
+    type: object
+  creative.PPBStatus:
+    properties:
+      approval:
+        $ref: '#/definitions/creative.PPBApproval'
+      caption_line:
+        description: CaptionLine is the line the ad carries ("PPB approval ref. ..."),
+          set once a reference exists.
+        type: string
+      medicine:
+        description: Medicine is true when the ad's product reads as a medicine.
+        type: boolean
+      offering_key:
+        type: string
+      offering_name:
+        type: string
+      pharmacy:
+        description: Pharmacy is true when the tenant's business type is pharmacy.
+        type: boolean
+      required:
+        description: |-
+          Required is true when the ad's product needs a reference (pharmacy and medicine); its
+          promotional versions are held until one is entered, availability posts are not.
+        type: boolean
+    type: object
   creative.ReviseInput:
     properties:
       cta:
@@ -725,6 +762,17 @@ definitions:
           $ref: '#/definitions/creative.ScriptScene'
         type: array
     type: object
+  creative.ppbSetRequest:
+    properties:
+      offering_key:
+        type: string
+      offering_name:
+        type: string
+      reference:
+        description: Reference is the Board's advert approval reference; empty removes
+          the product's reference.
+        type: string
+    type: object
   creative.reviewLinkRequest:
     properties:
       hours:
@@ -755,7 +803,11 @@ definitions:
         type: integer
       min_veto_hours:
         type: integer
+      new_terms_pending:
+        type: boolean
       plan_allows:
+        type: boolean
+      plan_unknown:
         type: boolean
       terms:
         items:
@@ -763,6 +815,8 @@ definitions:
         type: array
       terms_accepted:
         type: boolean
+      terms_effective_at:
+        type: string
       terms_version:
         type: string
     type: object
@@ -2676,6 +2730,44 @@ paths:
       summary: Ad autopilot posts in the veto window
       tags:
       - Custom Agents
+  /agents/autopilot/posts/{id}/jobs/{job_id}/veto:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Video ad version UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Publish job UUID of the account's post
+        in: path
+        name: job_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/autopublish.VetoResult'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Cancel one account's ad autopilot post in its veto window
+      tags:
+      - Custom Agents
   /agents/autopilot/posts/{id}/veto:
     post:
       parameters:
@@ -3933,6 +4025,35 @@ paths:
       summary: Create the lead page for an existing ad
       tags:
       - Creative
+  /creative/briefs/{id}/ppb-approval:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Brief UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/creative.PPBStatus'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Whether an ad needs a PPB advert approval reference (pharmacies)
+      tags:
+      - Creative
   /creative/briefs/{id}/versions:
     post:
       consumes:
@@ -4043,6 +4164,63 @@ paths:
       security:
       - bearerAuth: []
       summary: Search the tenant's catalogue for a brief's offering
+      tags:
+      - Creative
+  /creative/ppb-approvals:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: List PPB advert approval references (pharmacies)
+      tags:
+      - Creative
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Product and reference
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/creative.ppbSetRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Save a product's PPB advert approval reference (owner or admin)
       tags:
       - Creative
   /creative/versions/{id}:
