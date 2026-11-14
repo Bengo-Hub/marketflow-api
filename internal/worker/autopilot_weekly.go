@@ -139,9 +139,11 @@ func (w *AutopilotWeekly) send(ctx context.Context, a *ent.CustomAgent, s WeekSu
 	if err != nil || len(emails) == 0 {
 		return
 	}
-	body := fmt.Sprintf("Your agent \"%s\" this week:\n\nAds made: %d\nAI credits used: %d\nAd spend: %.0f\nLeads: %d", a.Name, s.AdsMade, s.Credits, s.Spend, s.Leads)
+	// Blank lines between figures: the email renders paragraphs and folds a single line break
+	// into a space, which ran every figure into one line.
+	body := fmt.Sprintf("Your agent \"%s\" this week:\n\nAds made: %d\n\nAI credits used: %d\n\nAd spend: %.0f\n\nLeads: %d", a.Name, s.AdsMade, s.Credits, s.Spend, s.Leads)
 	if s.Leads > 0 {
-		body += fmt.Sprintf("\nCost per lead: %.0f", s.CPL)
+		body += fmt.Sprintf("\n\nCost per lead: %.0f", s.CPL)
 	}
 	body += "\n\nSee the details in MarketFlow: " + w.appURL
 	for _, email := range emails {
