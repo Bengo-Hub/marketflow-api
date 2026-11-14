@@ -85,7 +85,11 @@ func (p *Purger) PurgeDiscarded(ctx context.Context, window time.Duration) (int,
 	rows, err := p.db.CreativeVersion.Query().
 		Where(creativeversion.ApprovedAtIsNil(), func(s *entsql.Selector) {
 			col := s.C(creativeversion.FieldMetadata)
-			s.Where(entsql.ExprP("("+col+"->>'"+metaDiscardedAt+"') IS NOT NULL AND ("+col+"->>'"+metaDiscardedAt+"')::timestamptz < ?", cutoff))
+			// The builder numbers the argument for Postgres ($n); a raw "?" was sent as is.
+			s.Where(entsql.P(func(b *entsql.Builder) {
+				b.WriteString("(" + col + "->>'" + metaDiscardedAt + "') IS NOT NULL AND (" + col + "->>'" + metaDiscardedAt + "')::timestamptz < ")
+				b.Arg(cutoff)
+			}))
 		}).
 		Limit(purgeBatch).All(ctx)
 	if err != nil {

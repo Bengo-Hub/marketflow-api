@@ -149,7 +149,7 @@ func IsMedicineOffering(offering map[string]any, title string) bool {
 // stocking Coartem", "We are open till 9pm") has none of them and is not held.
 var promotionalRe = regexp.MustCompile(`(?i)\b(` +
 	// price
-	`(kes|ksh|kshs|sh|shs)\.?\s*\d|\d[\d,]*\s*bob|prices?|bei|` +
+	`(kes|ksh|kshs|sh|shs)\.?\s*\d[\d,.]*|\d[\d,]*\s*bob|prices?|bei|` +
 	// offer
 	`\d+\s*%\s*(off|discount)|discount\w*|offers?|deals?|promos?|promotions?|sale|save|free|cheap\w*|half\s+price|punguzo|ofa|zawadi|bure|` +
 	// call to buy
