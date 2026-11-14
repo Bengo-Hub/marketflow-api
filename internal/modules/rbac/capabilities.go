@@ -86,6 +86,9 @@ var appReviewerCapabilities = []Capability{
 	readable("/publishing/accounts"),
 	readable("/publishing/jobs"),
 	postable("/publishing/jobs"),
+	// Delete from platform, so the reviewer can see instagram_manage_contents in use (owner
+	// 2026-11-14: in the current App Review submission).
+	postable("/publishing/jobs/{id}/delete-from-platform"),
 
 	// Leads from the Page and the ads.
 	readable("/leads"),

@@ -160,6 +160,22 @@ func TestMetaLoginParams(t *testing.T) {
 	if q.Get("scope") != "pages_show_list,ads_read,instagram_basic" {
 		t.Errorf("scopes from settings are normalised: %q", q.Get("scope"))
 	}
+	// Delete from platform (owner 2026-11-14): Instagram publishing brings its delete permission.
+	q = url.Values{}
+	metaLoginParams(q, map[string]string{"scopes": "pages_show_list,instagram_basic,instagram_content_publish"})
+	if q.Get("scope") != "pages_show_list,instagram_basic,instagram_content_publish,instagram_manage_contents" {
+		t.Errorf("instagram_manage_contents rides with instagram_content_publish: %q", q.Get("scope"))
+	}
+	q = url.Values{}
+	metaLoginParams(q, map[string]string{"scopes": "instagram_manage_contents,instagram_content_publish"})
+	if q.Get("scope") != "instagram_manage_contents,instagram_content_publish" {
+		t.Errorf("never asked twice: %q", q.Get("scope"))
+	}
+	q = url.Values{}
+	metaLoginParams(q, map[string]string{"scopes": "pages_show_list,ads_read"})
+	if strings.Contains(q.Get("scope"), "instagram_manage_contents") {
+		t.Errorf("no Instagram publishing, no delete permission: %q", q.Get("scope"))
+	}
 	q = url.Values{}
 	metaLoginParams(q, map[string]string{"scopes": "ads_read", "login_config_id": "123"})
 	if q.Get("config_id") != "123" || q.Get("scope") != "" || q.Get("override_default_response_type") != "true" {

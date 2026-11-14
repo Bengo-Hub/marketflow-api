@@ -243,9 +243,36 @@ func metaLoginParams(q url.Values, creds map[string]string) {
 	}
 	scope := metaScope
 	if s := strings.Join(strings.Fields(strings.ReplaceAll(creds["scopes"], ",", " ")), ","); s != "" {
-		scope = s
+		scope = withCompanionScopes(s)
 	}
 	q.Set("scope", scope)
+}
+
+// metaCompanionScopes are permissions that ride along with one already in the settings list.
+// Delete from platform (owner 2026-11-14, in the current App Review submission): a list that
+// lets MarketFlow publish to Instagram also asks to delete what it published there. With a Login
+// for Business configuration the permission is added in Meta's dashboard instead.
+var metaCompanionScopes = map[string][]string{
+	"instagram_content_publish": {"instagram_manage_contents"},
+}
+
+// withCompanionScopes appends each companion of a listed permission once, keeping the order.
+func withCompanionScopes(list string) string {
+	have := strings.Split(list, ",")
+	seen := make(map[string]bool, len(have))
+	for _, s := range have {
+		seen[s] = true
+	}
+	out := have
+	for _, s := range have {
+		for _, c := range metaCompanionScopes[s] {
+			if !seen[c] {
+				seen[c] = true
+				out = append(out, c)
+			}
+		}
+	}
+	return strings.Join(out, ",")
 }
 
 // MetaAuthorize returns the consent URL for connecting a Facebook Page.

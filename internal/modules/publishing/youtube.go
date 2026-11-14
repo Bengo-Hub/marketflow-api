@@ -35,6 +35,12 @@ type YouTubeShorts struct {
 	HTTP       *http.Client
 }
 
+// The YouTube Data API v3 bases, shared by the worker (uploads) and the API (deletes).
+const (
+	YouTubeUploadBase = "https://www.googleapis.com/upload/youtube/v3"
+	YouTubeAPIBase    = "https://www.googleapis.com/youtube/v3"
+)
+
 // ErrSessionExpired means the resumable session is gone (404); the runner clears the state and
 // calls Start again.
 var ErrSessionExpired = errors.New("youtube upload session expired")

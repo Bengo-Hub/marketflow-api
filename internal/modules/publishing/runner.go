@@ -90,7 +90,7 @@ func NewRunner(store Store, accounts Accounts, switches Switches, adapters ...Ad
 // are recorded on the job.
 func (r *Runner) Step(ctx context.Context, j *Job) error {
 	switch j.Status {
-	case StatusPublished, StatusFailed, StatusCancelled:
+	case StatusPublished, StatusFailed, StatusCancelled, StatusDeletedOnPlatform:
 		return nil
 	}
 	ad, ok := r.Adapters[j.Platform]

@@ -33,6 +33,14 @@ type Handler struct {
 	CanPost func(ctx context.Context, tenantID uuid.UUID) bool
 	// OnJobDone runs after a job is cancelled from the calendar (the worker covers the rest).
 	OnJobDone func(ctx context.Context, jobID string)
+	// CanDelete gates deleting a published post from the platform (owner 2026-11-14: the
+	// approving roles, owner and admin); nil falls back to CanPost.
+	CanDelete func(ctx context.Context, tenantID uuid.UUID) bool
+	// Deleters are the platform adapters that can delete a post, by platform. A platform with
+	// none answers delete_unsupported with its manual steps.
+	Deleters map[string]Deleter
+	// Tokens loads the connected account with its decrypted token; nil uses Store.
+	Tokens Accounts
 }
 
 // allowed answers 403 when the caller may not post for the tenant.
@@ -70,6 +78,15 @@ type JobView struct {
 	Error       string     `json:"error,omitempty"`
 	Attempts    int        `json:"attempts"`
 	PublishedAt *time.Time `json:"published_at,omitempty"`
+	// CanDeleteOnPlatform: a published post the platform's API lets MarketFlow delete, with the
+	// account's current permissions. When false on a published post, DeleteReason and DeleteSteps
+	// say how to delete it on the platform instead.
+	CanDeleteOnPlatform bool       `json:"can_delete_on_platform"`
+	DeleteReason        string     `json:"delete_unavailable_reason,omitempty"`
+	DeleteSteps         []string   `json:"delete_steps,omitempty"`
+	DeleteHelpURL       string     `json:"delete_help_url,omitempty"`
+	DeletedAt           *time.Time `json:"deleted_at,omitempty"`
+	DeletedBy           string     `json:"deleted_by,omitempty"`
 }
 
 const maxAccountsPerPost = 10
@@ -216,6 +233,9 @@ type AccountView struct {
 	DisplayName string `json:"display_name"`
 	Enabled     bool   `json:"enabled"`         // the platform switch is on
 	NeedsReauth bool   `json:"needs_reconnect"` // a required permission is missing
+	// NeedsReconnectToDelete: the account can post but was connected before MarketFlow asked to
+	// delete posts; reconnecting grants it (owner 2026-11-14).
+	NeedsReconnectToDelete bool `json:"needs_reconnect_to_delete"`
 }
 
 // Accounts handles GET /api/v1/publishing/accounts: the tenant's active accounts that take an
@@ -256,7 +276,7 @@ func (h *Handler) Accounts(w http.ResponseWriter, r *http.Request) {
 			enabled[p] = on
 		}
 		out = append(out, AccountView{ID: a.ID.String(), Platform: p, DisplayName: a.DisplayName, Enabled: on,
-			NeedsReauth: len(MissingScopes(p, a.Scopes)) > 0})
+			NeedsReauth: len(MissingScopes(p, a.Scopes)) > 0, NeedsReconnectToDelete: NeedsReconnectToDelete(p, a.Scopes)})
 	}
 	httpapi.JSON(w, http.StatusOK, map[string]any{"data": out})
 }
@@ -332,9 +352,8 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		last := rows[len(rows)-1]
 		resp.NextCursor = pagination.EncodeCursor(last.ID, last.ScheduledAt)
 	}
-	for _, row := range rows {
-		resp.Data = append(resp.Data, view(row))
-	}
+	// can_delete_on_platform needs each published post's account scopes: one query for the page.
+	resp.Data = append(resp.Data, h.Store.Views(r.Context(), tid, rows)...)
 	httpapi.JSON(w, http.StatusOK, resp)
 }
 
@@ -411,7 +430,7 @@ func (h *Handler) transition(w http.ResponseWriter, r *http.Request, from []stri
 		h.fail(w, err)
 		return
 	}
-	httpapi.JSON(w, http.StatusOK, view(row))
+	httpapi.JSON(w, http.StatusOK, h.Store.Views(r.Context(), tid, []*ent.PublishJob{row})[0])
 }
 
 func view(row *ent.PublishJob) JobView {
@@ -421,11 +440,18 @@ func view(row *ent.PublishJob) JobView {
 			planned = t
 		}
 	}
-	return JobView{
+	v := JobView{
 		ID: row.ID.String(), AssetID: row.AssetID.String(), AccountID: row.ConnectedAccountID.String(),
 		Platform: row.Platform, Caption: row.Caption, PlannedAt: planned, Status: row.Status,
 		Permalink: row.Permalink, Error: row.Error, Attempts: row.Attempts, PublishedAt: row.PublishedAt,
 	}
+	if s, ok := row.Metadata["deleted_at"].(string); ok {
+		if t, err := time.Parse(time.RFC3339, s); err == nil {
+			v.DeletedAt = &t
+		}
+	}
+	v.DeletedBy, _ = row.Metadata["deleted_by"].(string)
+	return v
 }
 
 func tenantOf(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
