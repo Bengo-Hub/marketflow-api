@@ -190,6 +190,9 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			httpapi.Error(w, http.StatusBadRequest, "invalid_agent", err.Error(), nil)
 			return
 		}
+		if autopilotPlanReply(w, err) {
+			return
+		}
 		h.logger.Error("failed to update custom agent", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "update_failed", "failed to update custom agent", nil)
 		return

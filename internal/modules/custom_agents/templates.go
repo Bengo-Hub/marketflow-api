@@ -135,6 +135,12 @@ func (s *Service) Hire(ctx context.Context, tenantID, templateID uuid.UUID) (*en
 		}
 		return nil, err
 	}
+	// Hiring an Autopilot template creates an ad autopilot (switched off): the plan must include it.
+	if isAutopilotAgent(tpl) {
+		if err := s.checkAutopilot(ctx, tenantID, uuid.Nil, false); err != nil {
+			return nil, err
+		}
+	}
 	meta := map[string]any{}
 	for k, v := range tpl.Metadata {
 		if k != "template" && k != "versions" {
@@ -201,6 +207,8 @@ func (h *Handler) HireTemplate(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case errors.Is(err, ErrNotTemplate):
 		httpapi.Error(w, http.StatusNotFound, "not_found", "template not found", nil)
+		return
+	case err != nil && autopilotPlanReply(w, err):
 		return
 	case err != nil:
 		h.logger.Error("hire agent template", zap.Error(err))

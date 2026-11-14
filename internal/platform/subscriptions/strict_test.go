@@ -45,3 +45,39 @@ func TestStrictHasFeature(t *testing.T) {
 		t.Error("not wired means not granted")
 	}
 }
+
+// max_autopilot_agents (owner, 2026-11-14) is read strictly: an outage is not known, a plan
+// without the key says so, and -1 comes through as unlimited.
+func TestStrictLimit(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/tenants/lim-three/subscription":
+			_, _ = w.Write([]byte(`{"features":["marketflow_autopilot"],"limits":{"max_autopilot_agents":3}}`))
+		case "/api/v1/tenants/lim-unlimited/subscription":
+			_, _ = w.Write([]byte(`{"features":["marketflow_autopilot"],"limits":{"max_autopilot_agents":-1}}`))
+		case "/api/v1/tenants/lim-none/subscription":
+			_, _ = w.Write([]byte(`{"features":[],"limits":{}}`))
+		default:
+			http.Error(w, "down", http.StatusServiceUnavailable)
+		}
+	}))
+	defer srv.Close()
+	c := NewClient(Config{ServiceURL: srv.URL})
+	ctx := context.Background()
+	if n, has, known := c.StrictLimit(ctx, "lim-three", "max_autopilot_agents"); n != 3 || !has || !known {
+		t.Errorf("three: %d %v %v", n, has, known)
+	}
+	if n, has, known := c.StrictLimit(ctx, "lim-unlimited", "max_autopilot_agents"); n != -1 || !has || !known {
+		t.Errorf("unlimited: %d %v %v", n, has, known)
+	}
+	if _, has, known := c.StrictLimit(ctx, "lim-none", "max_autopilot_agents"); has || !known {
+		t.Errorf("no key: has=%v known=%v", has, known)
+	}
+	if _, _, known := c.StrictLimit(ctx, "lim-outage", "max_autopilot_agents"); known {
+		t.Error("an outage must not be a known answer")
+	}
+	var nilClient *Client
+	if _, _, known := nilClient.StrictLimit(ctx, "lim-three", "max_autopilot_agents"); known {
+		t.Error("not wired is not known")
+	}
+}

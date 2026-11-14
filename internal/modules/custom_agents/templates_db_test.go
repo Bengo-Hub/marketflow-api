@@ -44,7 +44,7 @@ func TestAgentTemplatesStoreAndHire(t *testing.T) {
 			"category": "ads", "industries": []string{"retail", "beauty"}, "description": "A promo ad every week", "version": 2}}).SaveX(ctx)
 	db.CustomAgent.Create().SetTenantID(pid).SetName("Own agent").SetTriggerType("manual").ExecX(ctx)
 
-	s := NewService(db, zap.NewNop(), WithPlatformTenant(slug))
+	s := NewService(db, zap.NewNop(), WithPlatformTenant(slug), allowAutopilotPlan(-1))
 	all, err := s.ListTemplates(ctx, "")
 	if err != nil || len(all) != 1 || all[0].Version != 2 || all[0].Kind != KindAdAutopilot {
 		t.Fatalf("store: %+v %v", all, err)

@@ -37,7 +37,9 @@ func TestSaveAndRollbackAutopilot(t *testing.T) {
 	})
 	a := db.CustomAgent.Create().SetTenantID(tid).SetName("Ads").SetTriggerType("manual").
 		SetMetadata(map[string]any{"template_ref": map[string]any{"id": "t1"}}).SaveX(ctx)
-	s := NewService(db, zap.NewNop())
+	// The plan includes Autopilot with unlimited agents; autopilot_plan_db_test.go covers the gate.
+	plan := allowAutopilotPlan(-1)
+	s := NewService(db, zap.NewNop(), plan)
 
 	cfg := okConfig()
 	offers := []map[string]any{{"name": "Blender"}}
@@ -74,7 +76,7 @@ func TestSaveAndRollbackAutopilot(t *testing.T) {
 		t.Fatalf("auto-publish without the plan feature gate is refused: %v", err)
 	}
 	// With the plan feature, the veto window still needs the current terms.
-	gated := NewService(db, zap.NewNop(), WithAutoPublishGate(func(context.Context, string, string) bool { return true }, "v-test"))
+	gated := NewService(db, zap.NewNop(), plan, WithAutoPublishGate(func(context.Context, string, string) bool { return true }, "v-test"))
 	if _, err := gated.SaveAutopilot(ctx, tid, a.ID, AutopilotInput{Config: cfg, Offerings: offers}); !errors.Is(err, ErrAutoPublishNotAllowed) {
 		t.Fatalf("auto-publish before the terms are accepted: %v", err)
 	}
@@ -91,11 +93,11 @@ func TestSaveAndRollbackAutopilot(t *testing.T) {
 		t.Fatalf("the veto window gets the default: %+v", saved)
 	}
 	// A new terms version asks again; a lapsed plan refuses (fail closed).
-	newer := NewService(db, zap.NewNop(), WithAutoPublishGate(func(context.Context, string, string) bool { return true }, "v-next"))
+	newer := NewService(db, zap.NewNop(), plan, WithAutoPublishGate(func(context.Context, string, string) bool { return true }, "v-next"))
 	if _, err := newer.SaveAutopilot(ctx, tid, a.ID, AutopilotInput{Config: cfg, Offerings: offers}); !errors.Is(err, ErrAutoPublishNotAllowed) {
 		t.Fatalf("a new terms version must be accepted again: %v", err)
 	}
-	lapsed := NewService(db, zap.NewNop(), WithAutoPublishGate(func(context.Context, string, string) bool { return false }, "v-test"))
+	lapsed := NewService(db, zap.NewNop(), plan, WithAutoPublishGate(func(context.Context, string, string) bool { return false }, "v-test"))
 	if _, err := lapsed.SaveAutopilot(ctx, tid, a.ID, AutopilotInput{Config: cfg, Offerings: offers}); !errors.Is(err, ErrAutoPublishNotAllowed) {
 		t.Fatalf("without the plan feature: %v", err)
 	}

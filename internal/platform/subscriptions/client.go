@@ -156,6 +156,22 @@ func (c *Client) StrictHasFeature(ctx context.Context, tenantID, featureCode str
 	return false
 }
 
+// StrictLimit reads one numeric plan limit (max_autopilot_agents) the way StrictFeature reads a
+// feature: known is false when the snapshot could not be read, and the caller must then refuse.
+// has is false when the plan carries no such key. -1 means unlimited. The demo bypass grants
+// nothing here either.
+func (c *Client) StrictLimit(ctx context.Context, tenantID, key string) (n int, has, known bool) {
+	if c == nil || tenantID == "" {
+		return 0, false, false
+	}
+	e := c.cachedEntitlements(ctx, tenantID)
+	if e == nil {
+		return 0, false, false
+	}
+	n, has = e.Limits[key]
+	return n, has, true
+}
+
 // StrictFeature is StrictHasFeature that also says whether the answer is definite. known is
 // false when the snapshot could not be read (an outage, a timeout, a non-200 answer): the caller
 // must not act on has then. The autopilot's veto window cancels waiting posts only on a definite
