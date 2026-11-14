@@ -2,12 +2,14 @@ package webhooks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
@@ -40,6 +42,15 @@ type PublicHandler struct {
 	logger             *zap.Logger
 	// hasFeature reads a plan feature for the public profile (white label); nil means none.
 	hasFeature func(ctx context.Context, tenantID, feature string) bool
+	// cache holds public profile responses (Sprint 7 #58); nil reads the database every time.
+	cache *sharedcache.Aside
+}
+
+// WithCache serves public profiles from Redis for tenantmod.PublicProfileCacheTTL. The tenant
+// profile handler must share the same cache so a save drops the entry.
+func (h *PublicHandler) WithCache(c *sharedcache.Aside) *PublicHandler {
+	h.cache = c
+	return h
 }
 
 // WithFeatureCheck sets the plan feature check the public profile uses (subscriptions
@@ -84,32 +95,48 @@ func (h *PublicHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_slug", "slug is required", nil)
 		return
 	}
+	// Served from Redis for a short while (Sprint 7 #58): the page is the busiest public read and
+	// each build also asks subscriptions-api about white label. A profile save drops the entry; a
+	// profile that is not found is never cached.
+	profile, err := sharedcache.GetOrSet(r.Context(), h.cache, tenantmod.PublicProfileCacheKey(slug), tenantmod.PublicProfileCacheTTL,
+		func(ctx context.Context) (map[string]any, error) { return h.publicProfile(ctx, slug) })
+	if err != nil {
+		httpapi.Error(w, http.StatusNotFound, "not_found", "profile not found", nil)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, profile)
+}
 
+// errProfileNotFound means no active tenant answers to the slug or distributor ID.
+var errProfileNotFound = errors.New("profile not found")
+
+// publicProfile builds the public profile of the tenant the slug names.
+func (h *PublicHandler) publicProfile(ctx context.Context, slug string) (map[string]any, error) {
 	// Lookup priority: slug exact match first, then fbo_distrib_id fallback.
 	// Two-step to avoid ambiguity when slug and distrib_id overlap across tenants.
 	t, err := h.entClient.Tenant.Query().
 		Where(tenant.SlugEQ(slug), tenant.StatusEQ("active")).
-		Only(r.Context())
+		Only(ctx)
 	if err != nil {
 		// Fallback: try fbo_distrib_id
 		t, err = h.entClient.Tenant.Query().
 			Where(tenant.FboDistribIDEQ(slug), tenant.StatusEQ("active")).
-			First(r.Context())
+			First(ctx)
 		if err != nil {
 			// Profile not found in local DB. Try JIT sync if a syncer is available.
 			if h.tenantSyncer != nil {
 				h.logger.Info("tenant not found locally, attempting JIT sync", zap.String("slug", slug))
-				_, syncErr := h.tenantSyncer.SyncTenant(r.Context(), slug)
+				_, syncErr := h.tenantSyncer.SyncTenant(ctx, slug)
 				if syncErr == nil {
 					// Retry lookup after sync
 					t, err = h.entClient.Tenant.Query().
 						Where(tenant.SlugEQ(slug), tenant.StatusEQ("active")).
-						Only(r.Context())
+						Only(ctx)
 					if err != nil {
 						// Try distrib_id fallback after sync
 						t, err = h.entClient.Tenant.Query().
 							Where(tenant.FboDistribIDEQ(slug), tenant.StatusEQ("active")).
-							First(r.Context())
+							First(ctx)
 					}
 				} else {
 					h.logger.Error("JIT sync failed", zap.String("slug", slug), zap.Error(syncErr))
@@ -117,8 +144,7 @@ func (h *PublicHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if err != nil || t == nil {
-				httpapi.Error(w, http.StatusNotFound, "not_found", "profile not found", nil)
-				return
+				return nil, errProfileNotFound
 			}
 		}
 	}
@@ -148,9 +174,8 @@ func (h *PublicHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	profile["metadata"] = tenantmod.PublicMetadata(t.Metadata)
 	// White label (owner, 2026-11-12: the Business plan's white_label feature): the public pages
 	// hide "Powered by Codevertex". Checked fail closed, so an outage keeps the badge.
-	profile["white_label"] = h.hasFeature != nil && h.hasFeature(r.Context(), t.ID.String(), "white_label")
-
-	httpapi.JSON(w, http.StatusOK, profile)
+	profile["white_label"] = h.hasFeature != nil && h.hasFeature(ctx, t.ID.String(), "white_label")
+	return profile, nil
 }
 
 // ListTestimonials handles GET /api/v1/public/profile/{slug}/testimonials.

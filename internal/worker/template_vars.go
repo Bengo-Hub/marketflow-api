@@ -20,6 +20,12 @@ var _ = splitName
 // dot-separated nested paths (e.g. {{ metadata.city }}).
 var templatePlaceholder = regexp.MustCompile(`\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}`)
 
+// emailBrandKeys are the variables only the email layout reads.
+var emailBrandKeys = []string{"brand_note", "brand_logo_url", "brand_primary_color"}
+
+// hexColorRe is a #rgb or #rrggbb colour, the only form passed to the email layout's styles.
+var hexColorRe = regexp.MustCompile(`^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$`)
+
 // resolveNurtureVariables returns the full variable map that a nurture step
 // should ship to notifications-api. It augments the step's own `variables`
 // map (static copy) with dynamic per-lead / per-tenant attributes so
@@ -73,6 +79,17 @@ func resolveNurtureVariables(
 	if err == nil {
 		putIfEmpty(vars, "fbo_name", tn.Name)
 		putIfEmpty(vars, "tenant_slug", tn.Slug)
+		// Email branding (Sprint 7 #48). notifications-api's shared layout already prints the
+		// logo, brand colour, name, email and phone from auth-api; the business's own closing line
+		// goes under them as brand_note. The profile logo and colour only fill in where auth-api
+		// has none (its values win in the layout).
+		putIfEmpty(vars, "brand_note", tenantmod.EmailFooter(tn.Metadata))
+		if l, _ := tn.Metadata["logo_url"].(string); strings.HasPrefix(l, "https://") {
+			putIfEmpty(vars, "brand_logo_url", l)
+		}
+		if c, _ := tn.Metadata["brand_primary_color"].(string); hexColorRe.MatchString(c) {
+			putIfEmpty(vars, "brand_primary_color", c)
+		}
 		// The public link follows the tenant type: FLP tenants have their MarketFlow page at
 		// /p/{slug}; every other tenant's public face is its ordering storefront.
 		if strings.EqualFold(tn.BusinessType, tenantmod.BusinessTypeFLP) {

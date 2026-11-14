@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
@@ -23,6 +24,9 @@ type Handler struct {
 	// CanApprove tells whether the caller holds an approving role (owner or admin). Only they
 	// may change the AI label (owner 2026-11-14); nil allows every caller.
 	CanApprove func(ctx context.Context, tenantID uuid.UUID) bool
+	// ProfileCache holds the public profile responses (Sprint 7 #58); a save drops the tenant's
+	// entries. Nil when Redis is not configured.
+	ProfileCache *sharedcache.Aside
 }
 
 func NewHandler(db *ent.Client, logger *zap.Logger) *Handler {
@@ -101,6 +105,10 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := ValidateAILabel(req.Metadata); err != nil {
 			httpapi.Error(w, http.StatusBadRequest, "invalid_ai_label", err.Error(), nil)
+			return
+		}
+		if err := ValidateReportSettings(req.Metadata); err != nil {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_report_settings", err.Error(), nil)
 			return
 		}
 		// Owner 2026-11-14: only owners and admins change the AI label. A form that sends the
@@ -205,7 +213,16 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	committed = true
+	// The public page reads a cached copy (Sprint 7 #58); drop it under the old and new names so
+	// the change shows at once.
 	updated, err := h.db.Tenant.Get(r.Context(), tenantID)
+	if h.ProfileCache != nil {
+		keys := PublicProfileCacheKeys(t)
+		if err == nil {
+			keys = append(keys, PublicProfileCacheKeys(updated)...)
+		}
+		h.ProfileCache.Invalidate(r.Context(), keys...)
+	}
 	if err != nil {
 		httpapi.Error(w, http.StatusInternalServerError, "save_failed", "saved, but could not read the profile back", nil)
 		return
