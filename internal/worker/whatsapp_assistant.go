@@ -56,6 +56,12 @@ type WhatsAppAssistantHandler struct {
 
 	// platform sends the replies from the platform number (made on first use).
 	platform *creative.PlatformWhatsApp
+
+	// Reply buttons, lists, media and the sign-up button (whatsapp_assistant_rich.go).
+	rich        bool
+	richCfg     creative.WhatsAppConfig
+	signupURL   string
+	signupEvery time.Duration
 }
 
 // AssistantRoles may use the assistant: the same roles that approve an ad.
@@ -87,6 +93,8 @@ type waInbound struct {
 	Type          string `json:"type"`
 	Text          string `json:"text"`
 	ContactName   string `json:"contact_name"`
+	// ReplyID is the id of a tapped reply button or list row (Text is then its title).
+	ReplyID string `json:"reply_id"`
 }
 
 func (h *WhatsAppAssistantHandler) Handle(ctx context.Context, msg jetstream.Msg) error {
@@ -117,6 +125,9 @@ func (h *WhatsAppAssistantHandler) Handle(ctx context.Context, msg jetstream.Msg
 
 func (h *WhatsAppAssistantHandler) process(ctx context.Context, in waInbound) error {
 	sender := "+" + strings.TrimPrefix(in.From, "+")
+	// Every message opens the sender's 24-hour window, inside which buttons, lists and media
+	// may be sent (the API pod reads the same mark for the storyboard and finished-ad messages).
+	creative.MarkWhatsAppInbound(ctx, h.rdb, in.From, h.window())
 	if n, err := h.rdb.Incr(ctx, "mf:wa:rate:"+in.From).Result(); err == nil {
 		if n == 1 {
 			h.rdb.Expire(ctx, "mf:wa:rate:"+in.From, time.Hour)
@@ -134,8 +145,12 @@ func (h *WhatsAppAssistantHandler) process(ctx context.Context, in waInbound) er
 	}
 	if user == nil {
 		// Not a business user: maybe a lead answering the instant follow-up (Sprint 23).
-		_, err := h.handleLeadReply(ctx, in)
-		return err
+		handled, err := h.handleLeadReply(ctx, in)
+		if err != nil || handled {
+			return err
+		}
+		// Nobody we know: one Sign up button, when the message asks for marketing work.
+		return h.signupReply(ctx, in)
 	}
 
 	// 3. Which of their businesses use MarketFlow with an approving role.
@@ -156,10 +171,10 @@ func (h *WhatsAppAssistantHandler) process(ctx context.Context, in waInbound) er
 	ansKey := "mf:wa:ans:" + in.WaMessageID
 	var ans assistAnswer
 	if cached, err := h.rdb.Get(ctx, ansKey).Bytes(); err == nil && json.Unmarshal(cached, &ans) == nil {
-		return h.reply(ctx, in, ans.Reply)
+		return h.replyRich(ctx, in, ans.Reply, ans.Interactive)
 	}
 	active := h.rdb.Exists(ctx, "mf:wa:session:"+in.From).Val() == 1
-	ans, err = h.ask(ctx, chosen, user.UserID, sender, in.Text, active)
+	ans, err = h.ask(ctx, chosen, user.UserID, sender, in.Text, in.ReplyID, active)
 	if err != nil {
 		return err
 	}
@@ -176,7 +191,7 @@ func (h *WhatsAppAssistantHandler) process(ctx context.Context, in waInbound) er
 	if ans.Reply == "" {
 		return nil
 	}
-	return h.reply(ctx, in, ans.Reply)
+	return h.replyRich(ctx, in, ans.Reply, ans.Interactive)
 }
 
 type phoneUser struct {
@@ -275,7 +290,12 @@ func (h *WhatsAppAssistantHandler) pickTenant(ctx context.Context, in waInbound,
 		return tenants[0], false, nil
 	}
 	pickKey := "mf:wa:pick:" + in.From
-	if n, err := strconv.Atoi(strings.TrimSpace(in.Text)); err == nil {
+	// A typed number, or a tapped row of the business list.
+	n, err := strconv.Atoi(strings.TrimSpace(in.Text))
+	if tapped, ok := tenantPickRow(in.ReplyID); ok {
+		n, err = tapped, nil
+	}
+	if err == nil {
 		if h.rdb.Exists(ctx, pickKey).Val() == 1 && n >= 1 && n <= len(tenants) {
 			t := tenants[n-1]
 			h.rdb.Del(ctx, pickKey)
@@ -294,7 +314,7 @@ func (h *WhatsAppAssistantHandler) pickTenant(ctx context.Context, in waInbound,
 	// code for this user and number (it is not used here). A YES with no code pending anywhere
 	// gets the business question, never silence.
 	isYes := false
-	if found, yes, err := h.approvalTenant(ctx, userID, in.From, in.Text, tenants); err != nil {
+	if found, yes, err := h.approvalTenant(ctx, userID, in.From, in.Text, in.ReplyID, tenants); err != nil {
 		h.logger.Warn("whatsapp assistant: approval lookup failed", zap.Error(err))
 	} else if found != nil {
 		h.rdb.Set(ctx, "mf:wa:session:"+in.From, found.ID.String(), assistantSession)
@@ -312,7 +332,7 @@ func (h *WhatsAppAssistantHandler) pickTenant(ctx context.Context, in waInbound,
 		fmt.Fprintf(&b, "\n%d. %s", i+1, t.Name)
 	}
 	h.rdb.Set(ctx, pickKey, "1", assistantPickTTL)
-	return assistantTenant{}, true, h.reply(ctx, in, b.String())
+	return assistantTenant{}, true, h.replyRich(ctx, in, b.String(), tenantPickList(tenants))
 }
 
 // looksLikeMarketing is a cheap word check used only to decide whether to ask which business a
@@ -330,12 +350,13 @@ func looksLikeMarketing(text string) bool {
 
 // approvalTenant asks marketflow-ai whether text is an approval reply ("YES <code>") and which of
 // the tenants holds that pending code for this user and number. found is nil when none does.
-func (h *WhatsAppAssistantHandler) approvalTenant(ctx context.Context, userID, from, text string, tenants []assistantTenant) (*assistantTenant, bool, error) {
+func (h *WhatsAppAssistantHandler) approvalTenant(ctx context.Context, userID, from, text, replyID string, tenants []assistantTenant) (*assistantTenant, bool, error) {
 	ids := make([]string, 0, len(tenants))
 	for _, t := range tenants {
 		ids = append(ids, t.ID.String())
 	}
-	body, _ := json.Marshal(map[string]any{"user_id": userID, "sender": "+" + strings.TrimPrefix(from, "+"), "text": text, "tenant_ids": ids})
+	body, _ := json.Marshal(map[string]any{"user_id": userID, "sender": "+" + strings.TrimPrefix(from, "+"), "text": text,
+		"reply_id": replyID, "tenant_ids": ids})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.aiURL+"/api/v1/internal/os/approval-tenant", bytes.NewReader(body))
 	if err != nil {
 		return nil, false, err
@@ -372,14 +393,18 @@ type assistAnswer struct {
 		Source string `json:"source"`
 	} `json:"verdict"`
 	Reply string `json:"reply"`
+	// Interactive is the same answer with reply buttons or a list (the quote's Approve, Cheaper
+	// option and Cancel; a missing field's choices), sent instead of Reply in the window.
+	Interactive *notifications.WhatsAppInteractive `json:"interactive,omitempty"`
 }
 
 // ask sends the message to marketflow-ai with the sender's verified number, which its approval
-// codes ("Reply YES <code>") and the messages about a turn's video are bound to.
-func (h *WhatsAppAssistantHandler) ask(ctx context.Context, t assistantTenant, userID, sender, text string, active bool) (assistAnswer, error) {
+// codes ("Reply YES <code>") and the messages about a turn's video are bound to. replyID is a
+// tapped button or list row; marketflow-ai checks its code like a typed YES.
+func (h *WhatsAppAssistantHandler) ask(ctx context.Context, t assistantTenant, userID, sender, text, replyID string, active bool) (assistAnswer, error) {
 	body, _ := json.Marshal(map[string]any{
 		"tenant_id": t.ID.String(), "tenant_slug": t.Slug, "user_id": userID, "sender": sender, "text": text,
-		"session_active": active, "portal_url": h.portalURL,
+		"reply_id": replyID, "session_active": active, "portal_url": h.portalURL,
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.aiURL+"/api/v1/internal/os/whatsapp-ask", bytes.NewReader(body))
 	if err != nil {
@@ -409,8 +434,17 @@ func (h *WhatsAppAssistantHandler) reply(ctx context.Context, in waInbound, text
 	if h.notif == nil {
 		return nil
 	}
+	return h.sender().Send(ctx, in.From, text, "wa-assist-"+in.WaMessageID)
+}
+
+// sender is the platform-number sender, made on first use; with WithRich it may send buttons,
+// lists and media inside the window.
+func (h *WhatsAppAssistantHandler) sender() *creative.PlatformWhatsApp {
 	if h.platform == nil {
 		h.platform = creative.NewPlatformWhatsApp(h.db, h.notif, h.platformTen, "marketflow-worker")
+		if h.rich {
+			h.platform.WithRich(h.rdb, h.richCfg)
+		}
 	}
-	return h.platform.Send(ctx, in.From, text, "wa-assist-"+in.WaMessageID)
+	return h.platform
 }

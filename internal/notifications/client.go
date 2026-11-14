@@ -43,6 +43,101 @@ type Message struct {
 	Body           string
 	Metadata       map[string]string
 	IdempotencyKey string // sent as the Idempotency-Key header
+	// WhatsApp makes a free-form WhatsApp send a reply-button, list, media or link-button
+	// message (notifications-api internal/providers/whatsapp/interactive.go). Meta takes these
+	// only inside the recipient's 24-hour window; the caller checks it. Body is the text above
+	// the buttons, or a media message's caption.
+	WhatsApp *WhatsAppRich
+}
+
+// WhatsAppButton is one reply button (title up to 20 characters); its id comes back on the
+// webhook when tapped.
+type WhatsAppButton struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+// WhatsAppListRow is one row of a list message (title up to 24 characters).
+type WhatsAppListRow struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
+}
+
+// WhatsAppList is a list message: one section of up to 10 rows behind a button.
+type WhatsAppList struct {
+	Button  string            `json:"button"`
+	Section string            `json:"section,omitempty"`
+	Rows    []WhatsAppListRow `json:"rows"`
+}
+
+// WhatsAppMedia is an image or video Meta fetches by link.
+type WhatsAppMedia struct {
+	Type    string `json:"type"`
+	Link    string `json:"link"`
+	Caption string `json:"caption,omitempty"`
+}
+
+// WhatsAppInteractive is marketflow-ai's rich form of an assistant message: the media first,
+// one message each, then Body with Buttons or a List.
+type WhatsAppInteractive struct {
+	Body    string          `json:"body,omitempty"`
+	Footer  string          `json:"footer,omitempty"`
+	Buttons []WhatsAppButton `json:"buttons,omitempty"`
+	List    *WhatsAppList   `json:"list,omitempty"`
+	Media   []WhatsAppMedia `json:"media,omitempty"`
+}
+
+// WhatsAppRich is what one send carries: reply buttons, a list, one media item or one link
+// button. FallbackText is sent instead when Meta refuses the interactive message.
+type WhatsAppRich struct {
+	Buttons      []WhatsAppButton
+	List         *WhatsAppList
+	MediaType    string
+	MediaLink    string
+	CTAText      string
+	CTAURL       string
+	Footer       string
+	FallbackText string
+}
+
+// metadata writes the rich send as notifications-api's metadata keys.
+func (r *WhatsAppRich) metadata(into map[string]any) {
+	if r == nil {
+		return
+	}
+	switch {
+	case r.MediaType != "" && r.MediaLink != "":
+		into["media_type"] = r.MediaType
+		into["media_link"] = r.MediaLink
+	case len(r.Buttons) > 0:
+		btns := make([]map[string]string, 0, len(r.Buttons))
+		for _, b := range r.Buttons {
+			btns = append(btns, map[string]string{"id": b.ID, "title": b.Title})
+		}
+		into["interactive_buttons"] = btns
+	case r.List != nil && len(r.List.Rows) > 0:
+		rows := make([]map[string]string, 0, len(r.List.Rows))
+		for _, row := range r.List.Rows {
+			rows = append(rows, map[string]string{"id": row.ID, "title": row.Title, "description": row.Description})
+		}
+		into["interactive_list_rows"] = rows
+		if r.List.Button != "" {
+			into["interactive_list_button"] = r.List.Button
+		}
+		if r.List.Section != "" {
+			into["interactive_list_section"] = r.List.Section
+		}
+	case r.CTAText != "" && r.CTAURL != "":
+		into["cta_button_text"] = r.CTAText
+		into["cta_button_url"] = r.CTAURL
+	}
+	if r.Footer != "" {
+		into["interactive_footer"] = r.Footer
+	}
+	if r.FallbackText != "" {
+		into["fallback_text"] = r.FallbackText
+	}
 }
 
 // bodyTemplate renders a ready-made Body (email: data.paragraphs; sms, whatsapp: data.body).
@@ -79,6 +174,9 @@ func toRequest(tenantID string, msg Message) (sendRequest, error) {
 	}
 	for k, v := range msg.Metadata {
 		req.Metadata[k] = v
+	}
+	if msg.Channel == ChannelWhatsApp {
+		msg.WhatsApp.metadata(req.Metadata)
 	}
 	if msg.Subject != "" {
 		req.Metadata["subject"] = msg.Subject

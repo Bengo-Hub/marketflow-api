@@ -13,6 +13,7 @@ import (
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
@@ -174,6 +175,22 @@ func (h *Handler) OSTurnEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tid, err := uuid.Parse(in.TenantID)
+	if in.Event == OSTurnDiscarded {
+		// A WhatsApp Discard: the draft is kept for DiscardPurgeAfter, then deleted unless the
+		// owner acts on it. Nothing is sent.
+		vid, verr := uuid.Parse(in.VersionID)
+		if err != nil || verr != nil {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_request", "tenant_id and version_id are required", nil)
+			return
+		}
+		if _, err := h.svc.MarkDiscarded(r.Context(), tid, vid, DiscardPurgeAfter); err != nil {
+			h.logger.Warn("discard not recorded", zap.String("version_id", in.VersionID), zap.Error(err))
+			httpapi.Error(w, http.StatusInternalServerError, "internal", "the discard was not recorded", nil)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	if err != nil || in.RunID == "" || in.Event != OSTurnMediaFailed || strings.TrimSpace(in.Error) == "" {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_request", "tenant_id, run_id, event media_failed and error are required", nil)
 		return
@@ -211,6 +228,12 @@ type PlatformWhatsApp struct {
 
 	mu sync.Mutex
 	id uuid.UUID
+
+	// rdb, cfg and probe are set by WithRich (whatsapp_rich.go): the 24-hour window and the
+	// media size check. Without them every send is plain text.
+	rdb   *redis.Client
+	cfg   WhatsAppConfig
+	probe *http.Client
 }
 
 // NewPlatformWhatsApp builds the sender; slug is the platform tenant and source the metadata
@@ -222,20 +245,7 @@ func NewPlatformWhatsApp(db *ent.Client, notif *notifications.Client, platformSl
 // Send sends one text; idempotencyKey makes a retried send go once. Without a notifications
 // client nothing is sent.
 func (p *PlatformWhatsApp) Send(ctx context.Context, to, text, idempotencyKey string) error {
-	if p == nil || p.notif == nil {
-		return nil
-	}
-	id, err := p.platformID(ctx)
-	if err != nil {
-		return err
-	}
-	return p.notif.Send(ctx, id.String(), notifications.Message{
-		Channel:        "whatsapp",
-		Recipient:      "+" + strings.TrimPrefix(to, "+"),
-		Body:           text,
-		Metadata:       map[string]string{"source": p.source, "kind": "whatsapp_assistant"},
-		IdempotencyKey: idempotencyKey,
-	})
+	return p.send(ctx, to, text, idempotencyKey, nil)
 }
 
 // platformID looks the platform tenant up once.
@@ -297,11 +307,14 @@ func (n *WhatsAppTurnNotifier) Notify(ctx context.Context, note OSTurnNote) {
 	var msg struct {
 		To   string `json:"to"`
 		Text string `json:"text"`
+		// Interactive is the stills as images with Make the video, Change and Discard, or the
+		// finished ad as a video; sent instead of Text while the requester's window is open.
+		Interactive *notifications.WhatsAppInteractive `json:"interactive"`
 	}
 	if json.Unmarshal(data, &msg) != nil || msg.To == "" || strings.TrimSpace(msg.Text) == "" {
 		return
 	}
-	if err := n.send.Send(ctx, msg.To, msg.Text, note.Key); err != nil {
+	if err := n.send.SendRich(ctx, msg.To, msg.Text, msg.Interactive, note.Key); err != nil {
 		n.logger.Warn("turn video message not sent", zap.String("run_id", note.RunID), zap.Error(err))
 	}
 }

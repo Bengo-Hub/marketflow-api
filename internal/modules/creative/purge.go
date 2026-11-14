@@ -69,6 +69,12 @@ func (p *Purger) Run(ctx context.Context) {
 			} else if n > 0 {
 				p.logger.Info("creative drafts purged", zap.Int("files", n))
 			}
+			// Discarded drafts nobody acted on go for good once their files are gone.
+			if n, err := p.PurgeDiscarded(ctx, DiscardPurgeAfter); err != nil {
+				p.logger.Warn("discarded draft purge failed", zap.Error(err))
+			} else if n > 0 {
+				p.logger.Info("discarded drafts deleted", zap.Int("versions", n))
+			}
 		}
 	}
 }
