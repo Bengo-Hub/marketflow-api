@@ -165,7 +165,6 @@ type OSContext struct {
 	BusinessTypeChosen bool `json:"business_type_chosen"`
 
 	MarketingContext string           `json:"marketing_context"`
-	MarketingContext string           `json:"marketing_context"`
 	Offerings        []string         `json:"offerings"`
 	Members          []MemberOverride `json:"members"`
 	Features         map[string]bool  `json:"features,omitempty"`

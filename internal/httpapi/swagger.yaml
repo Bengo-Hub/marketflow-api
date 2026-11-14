@@ -1594,9 +1594,27 @@ definitions:
         type: string
       attempts:
         type: integer
+      can_delete_on_platform:
+        description: |-
+          CanDeleteOnPlatform: a published post the platform's API lets MarketFlow delete, with the
+          account's current permissions. When false on a published post, DeleteReason and DeleteSteps
+          say how to delete it on the platform instead.
+        type: boolean
       caption:
         type: string
       connected_account_id:
+        type: string
+      delete_help_url:
+        type: string
+      delete_steps:
+        items:
+          type: string
+        type: array
+      delete_unavailable_reason:
+        type: string
+      deleted_at:
+        type: string
+      deleted_by:
         type: string
       error:
         type: string
@@ -7028,6 +7046,43 @@ paths:
       security:
       - bearerAuth: []
       summary: Cancel a scheduled post
+      tags:
+      - Publishing
+  /publishing/jobs/{id}/delete-from-platform:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Job UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/publishing.JobView'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Delete a published post from its platform
       tags:
       - Publishing
   /publishing/jobs/{id}/move:

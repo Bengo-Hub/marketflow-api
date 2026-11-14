@@ -8023,6 +8023,64 @@
                 }
             }
         },
+        "/publishing/jobs/{id}/delete-from-platform": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Publishing"
+                ],
+                "summary": "Delete a published post from its platform",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Job UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/publishing.JobView"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/publishing/jobs/{id}/move": {
             "post": {
                 "security": [
@@ -12611,10 +12669,32 @@
                 "attempts": {
                     "type": "integer"
                 },
+                "can_delete_on_platform": {
+                    "description": "CanDeleteOnPlatform: a published post the platform's API lets MarketFlow delete, with the\naccount's current permissions. When false on a published post, DeleteReason and DeleteSteps\nsay how to delete it on the platform instead.",
+                    "type": "boolean"
+                },
                 "caption": {
                     "type": "string"
                 },
                 "connected_account_id": {
+                    "type": "string"
+                },
+                "delete_help_url": {
+                    "type": "string"
+                },
+                "delete_steps": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "delete_unavailable_reason": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "deleted_by": {
                     "type": "string"
                 },
                 "error": {

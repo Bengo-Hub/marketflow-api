@@ -94,17 +94,19 @@ func TestFitSize(t *testing.T) {
 func TestImportFromSite(t *testing.T) {
 	db := openDB(t)
 	tid := seedTenant(t, db)
-	big := jpegOf(t, 1200, 1100)
+	// Two different pictures: identical ones would be one picture (the duplicate check).
+	pics := map[string][]byte{"/a.jpg": photoOf(t, 1200, 1100, false), "/b.jpg": photoOf(t, 1200, 1100, true), "/logo.jpg": photoOf(t, 1200, 1100, false)}
 	small := jpegOf(t, 400, 400) // more than 2x below the minimum: refused, never enlarged
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write([]byte(`<meta property="og:image" content="/a.jpg"><img src="/logo.jpg"><img src="/b.jpg"><img src="/small.jpg">`))
 	})
-	for _, p := range []string{"/a.jpg", "/b.jpg", "/logo.jpg"} {
+	for p, data := range pics {
+		data := data
 		mux.HandleFunc(p, func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "image/jpeg")
-			_, _ = w.Write(big)
+			_, _ = w.Write(data)
 		})
 	}
 	mux.HandleFunc("/small.jpg", func(w http.ResponseWriter, r *http.Request) {
