@@ -45,16 +45,43 @@ func WebsiteOfferings(db *ent.Client, site *WebsiteCatalog, platformSlug string)
 			list []WebsiteProduct
 		}{{"PRODUCT", c.Products}, {"SERVICE", c.Services}} {
 			for _, p := range group.list {
-				desc := p.Tagline
-				if desc == "" {
-					desc = p.Description
-				}
 				out = append(out, creative.Offering{Source: "website", SourceID: p.ID, Type: group.kind, Name: p.Name,
-					Description: desc})
+					Description: productLine(p)})
 			}
 		}
 		return out, nil
 	}
+}
+
+// productLine describes a Power Suite product or service line for the Studio and the platform
+// tenant's knowledge base (Sprint 7 #36): the summary, up to four highlights and where to sign up,
+// so Vera answers "where do I get the POS?" with the product's own link.
+func productLine(p WebsiteProduct) string {
+	desc := strings.TrimSpace(p.Tagline)
+	if desc == "" {
+		desc = strings.TrimSpace(p.Description)
+	}
+	parts := []string{}
+	if desc != "" {
+		parts = append(parts, strings.TrimRight(desc, "."))
+	}
+	points := p.Highlights
+	if len(points) == 0 {
+		points = p.Features
+	}
+	if len(points) > 4 {
+		points = points[:4]
+	}
+	if len(points) > 0 {
+		parts = append(parts, strings.Join(points, ", "))
+	}
+	if u := strings.TrimSpace(p.URL); strings.HasPrefix(u, "https://") {
+		parts = append(parts, "Get it at "+u)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, ". ") + "."
 }
 
 // courseLine is a course's duration, mode and summary; the picker trims it.

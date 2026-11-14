@@ -411,6 +411,12 @@ func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 	// may also render templates, but MarketFlow is the source of truth for
 	// lead-specific placeholders so we substitute here.
 	vars := resolveNurtureVariables(ctx, h.db, asMap(stepDef, "variables"), leadRow, enrollment.TenantID)
+	if channel != "email" {
+		// The branding keys only mean something to the email layout.
+		for _, k := range emailBrandKeys {
+			delete(vars, k)
+		}
+	}
 	renderedBody := renderTemplate(asString(stepDef, "body"), vars)
 	renderedSubject := renderTemplate(asString(stepDef, "subject"), vars)
 

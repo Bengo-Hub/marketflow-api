@@ -349,6 +349,8 @@ func main() {
 
 		// Ad autopilots (Sprint 20): each agent's week by email, on Mondays.
 		go worker.NewAutopilotWeekly(entClient, tokenNotif, cfg.API.PortalURL, logger).Run(ctx)
+		// Every business's week by email, on Mondays (Sprint 7 #52), unless the owner turned it off.
+		go worker.NewWeeklyReport(entClient, tokenNotif, cfg.API.PortalURL, logger).Run(ctx)
 
 		// Competitor ad intel (Sprint 24): each tenant's competitors scanned once a week.
 		go worker.NewCompetitorScan(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).Run(ctx)

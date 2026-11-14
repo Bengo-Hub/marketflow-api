@@ -581,6 +581,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// Testimonial CRUD + public reader for /p/{slug}
 	testimonialHandler := testimonials.NewHandler(entClient, logger)
 	tenantProfileHandler := tenant.NewHandler(entClient, logger)
+	// One cache for the public profile reads and the profile saves that drop them (Sprint 7 #58).
+	publicProfileCache := sharedcache.New(redisClient, logger)
+	tenantProfileHandler.ProfileCache = publicProfileCache
 	// Owner 2026-11-14: only the approving roles change the AI label.
 	tenantProfileHandler.CanApprove = func(ctx context.Context, tenantID uuid.UUID) bool {
 		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
@@ -599,7 +602,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// Public handlers
 	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, leadService, meetingService, availabilitySvc, testimonialHandler, tenantSyncer, logger).
 		// White label hides "Powered by Codevertex" (Business plan); fail closed, never the demo bypass.
-		WithFeatureCheck(subsClient.StrictHasFeature)
+		WithFeatureCheck(subsClient.StrictHasFeature).
+		WithCache(publicProfileCache)
 
 	// Tenant backups are made from the SSO client area (auth-api collects this service's
 	// /api/v1/s2s/tenant-export); the platform pg_dumpall covers disaster recovery.
@@ -613,7 +617,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	router := httpapi.NewRouter(httpapi.RouterDeps{
 		Limiter:        ratelimit.NewLimiter(redisClient, logger, "marketflow"),
 		PublicLimits: httpapi.PublicLimits{Leads: cfg.Security.PublicLeadsPerMinute,
-			Bookings: cfg.Security.PublicBookingsPerMinute, Events: cfg.Security.PublicEventsPerMinute},
+			Bookings: cfg.Security.PublicBookingsPerMinute, Events: cfg.Security.PublicEventsPerMinute,
+			Reads: cfg.Security.PublicReadsPerMinute, Webhooks: cfg.Security.WebhooksPerMinute},
 		Log:            logger,
 		HealthHandler:  handlers.Health,
 		MetricsHandler: promhttp.Handler(),
@@ -739,6 +744,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			CampaignMetrics: analyticsHandler.CampaignMetrics,
 			SequenceMetrics: analyticsHandler.SequenceMetrics,
 			ProfileMetrics:  analyticsHandler.ProfileMetrics,
+			ROI:             analyticsHandler.ROI,
+			Report:          analyticsHandler.Report,
 		},
 		IntegrationsHandlers: httpapi.IntegrationsHandlers{
 			AvailableIntegrations:             integrationsHandler.AvailableIntegrations,

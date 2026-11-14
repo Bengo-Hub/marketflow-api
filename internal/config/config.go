@@ -160,6 +160,12 @@ type SecurityConfig struct {
 	PublicLeadsPerMinute    int `env:"PUBLIC_LEADS_PER_MIN" envDefault:"10"`
 	PublicBookingsPerMinute int `env:"PUBLIC_BOOKINGS_PER_MIN" envDefault:"10"`
 	PublicEventsPerMinute   int `env:"PUBLIC_EVENTS_PER_MIN" envDefault:"120"`
+	// The public reads (profile, funnel and booking pages, short links, review links, OAuth
+	// callbacks) and the provider webhooks get their own per-IP counters too. A visitor loads a
+	// page and a few of its parts; Meta and TikTok send webhooks from a shared pool of addresses,
+	// so theirs is set well above any real burst.
+	PublicReadsPerMinute int `env:"PUBLIC_READS_PER_MIN" envDefault:"120"`
+	WebhooksPerMinute    int `env:"WEBHOOKS_PER_MIN" envDefault:"600"`
 }
 
 type EventsConfig struct {

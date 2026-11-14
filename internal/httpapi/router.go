@@ -318,6 +318,8 @@ type AnalyticsHandlers struct {
 	CampaignMetrics http.HandlerFunc
 	SequenceMetrics http.HandlerFunc
 	ProfileMetrics  http.HandlerFunc
+	ROI             http.HandlerFunc // GET /analytics/roi: return on each campaign
+	Report          http.HandlerFunc // GET /analytics/report: the report as pdf, csv or xlsx
 }
 
 // IntegrationsHandlers groups OAuth authorize + callback endpoints
@@ -621,11 +623,14 @@ type SegmentHandlers struct {
 	Evaluate http.HandlerFunc
 }
 
-// PublicLimits are per-IP request limits per minute on the public write routes.
+// PublicLimits are per-IP request limits per minute on the public routes, each with its own
+// counter (Sprint 7 #61).
 type PublicLimits struct {
 	Leads    int
 	Bookings int
 	Events   int
+	Reads    int // public pages and their JSON, short links, review links, OAuth callbacks
+	Webhooks int // Meta and TikTok webhooks, Meta's data deletion and deauthorize callbacks
 }
 
 // perIP returns a named per-IP limit of n a minute, with its own counter apart from the global
@@ -661,6 +666,11 @@ func NewRouter(deps RouterDeps) http.Handler {
 	if deps.Limiter != nil {
 		r.Use(deps.Limiter.Middleware(ratelimit.IPKey, 300, time.Minute))
 	}
+	// Per-endpoint public limits (Sprint 7 #61): each group of public routes has its own counter,
+	// so a scraper hammering profile pages cannot use up a webhook sender's allowance or the
+	// other way round.
+	readLimit := perIP(deps.Limiter, "public-reads", deps.PublicLimits.Reads)
+	hookLimit := perIP(deps.Limiter, "public-webhooks", deps.PublicLimits.Webhooks)
 
 	// Base URL redirects to Swagger docs
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -900,6 +910,13 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Get("/campaigns/{id}", deps.AnalyticsHandlers.CampaignMetrics)
 				r.Get("/sequences/{id}", deps.AnalyticsHandlers.SequenceMetrics)
 				r.Get("/profile", deps.AnalyticsHandlers.ProfileMetrics)
+				// Sprint 7 #54 and #51: campaign return, and the whole report as PDF, CSV or Excel.
+				if deps.AnalyticsHandlers.ROI != nil {
+					r.Get("/roi", deps.AnalyticsHandlers.ROI)
+				}
+				if deps.AnalyticsHandlers.Report != nil {
+					r.Get("/report", deps.AnalyticsHandlers.Report)
+				}
 			})
 
 			// Per-tenant integration OAuth flows. authorize returns the
@@ -1320,27 +1337,27 @@ func NewRouter(deps RouterDeps) http.Handler {
 		// OAuth callbacks (public). The provider redirects the browser here without a bearer
 		// token, so inside the authenticated group every connect ended in a 401. The HMAC-signed,
 		// 10-minute state names the tenant. The paths are registered with Meta, TikTok and Google.
-		r.Get("/integrations/google/callback", deps.IntegrationsHandlers.GoogleCallback)
-		r.Get("/integrations/meta/callback", deps.IntegrationsHandlers.MetaCallback)
+		r.With(readLimit).Get("/integrations/google/callback", deps.IntegrationsHandlers.GoogleCallback)
+		r.With(readLimit).Get("/integrations/meta/callback", deps.IntegrationsHandlers.MetaCallback)
 		// Meta's required data deletion and deauthorize callbacks (signed_request,
 		// verified with the app secret) and the public status of a deletion request.
 		if deps.IntegrationsHandlers.MetaDataDeletion != nil {
-			r.Post("/integrations/meta/data-deletion", deps.IntegrationsHandlers.MetaDataDeletion)
-			r.Post("/integrations/meta/deauthorize", deps.IntegrationsHandlers.MetaDeauthorize)
-			r.Get("/public/data-deletion/{code}", deps.IntegrationsHandlers.MetaDeletionStatus)
+			r.With(hookLimit).Post("/integrations/meta/data-deletion", deps.IntegrationsHandlers.MetaDataDeletion)
+			r.With(hookLimit).Post("/integrations/meta/deauthorize", deps.IntegrationsHandlers.MetaDeauthorize)
+			r.With(readLimit).Get("/public/data-deletion/{code}", deps.IntegrationsHandlers.MetaDeletionStatus)
 		}
-		r.Get("/integrations/tiktok/callback", deps.IntegrationsHandlers.TikTokCallback)
+		r.With(readLimit).Get("/integrations/tiktok/callback", deps.IntegrationsHandlers.TikTokCallback)
 
 		// Webhook routes (public, no auth — signature-verified by each handler)
 		r.Route("/webhooks", func(r chi.Router) {
-			r.Get("/meta/leadgen", deps.WebhookHandlers.MetaVerify)
-			r.Post("/meta/leadgen", deps.WebhookHandlers.MetaLeadgen)
+			r.With(hookLimit).Get("/meta/leadgen", deps.WebhookHandlers.MetaVerify)
+			r.With(hookLimit).Post("/meta/leadgen", deps.WebhookHandlers.MetaLeadgen)
 			// Internal peer only: a service key, never public (audit MF #6).
 			if deps.RequireAuthHandler != nil {
 				r.With(deps.RequireAuthHandler, requireServiceCaller).
 					Post("/notifications/delivery", deps.WebhookHandlers.NotificationsDelivery)
 			}
-			r.Post("/tiktok/leads", deps.WebhookHandlers.TikTokLeads)
+			r.With(hookLimit).Post("/tiktok/leads", deps.WebhookHandlers.TikTokLeads)
 		})
 
 		// Public API routes (no auth). Each write has its own per-IP limit (Sprint 7 #61) on top of
@@ -1349,18 +1366,18 @@ func NewRouter(deps RouterDeps) http.Handler {
 		bookLimit := perIP(deps.Limiter, "public-bookings", deps.PublicLimits.Bookings)
 		eventLimit := perIP(deps.Limiter, "public-events", deps.PublicLimits.Events)
 		r.Route("/public", func(r chi.Router) {
-			r.Get("/profile/{slug}", deps.PublicHandlers.GetProfile)
-			r.Get("/profile/{slug}/testimonials", deps.PublicHandlers.ListTestimonials)
-			r.Get("/funnels/{slug}", deps.PublicHandlers.GetFunnel)
+			r.With(readLimit).Get("/profile/{slug}", deps.PublicHandlers.GetProfile)
+			r.With(readLimit).Get("/profile/{slug}/testimonials", deps.PublicHandlers.ListTestimonials)
+			r.With(readLimit).Get("/funnels/{slug}", deps.PublicHandlers.GetFunnel)
 			r.With(leadLimit, deps.TrackLeadCreated).Post("/leads/{slug}", deps.PublicHandlers.CreateLead)
 			r.With(eventLimit).Post("/profile-events", deps.PublicHandlers.RecordProfileEvent)
 			r.With(eventLimit).Post("/funnels/{slug}/step-view", deps.PublicHandlers.FunnelStepView)
-			r.Get("/availability/{slug}", deps.PublicHandlers.GetAvailability)
+			r.With(readLimit).Get("/availability/{slug}", deps.PublicHandlers.GetAvailability)
 			r.With(bookLimit, deps.TrackMeetingBooked).Post("/book/{slug}", deps.PublicHandlers.CreateBooking)
 			// The heads-up email's "Cancel this post" link (signed, expiring token), limited per
 			// IP like the other public writes.
 			if deps.CustomAgentHandlers.PublicVetoView != nil {
-				r.Get("/autopilot/veto/{token}", deps.CustomAgentHandlers.PublicVetoView)
+				r.With(readLimit).Get("/autopilot/veto/{token}", deps.CustomAgentHandlers.PublicVetoView)
 				r.With(bookLimit).Post("/autopilot/veto/{token}", deps.CustomAgentHandlers.PublicVetoPost)
 			}
 		})
@@ -1368,17 +1385,17 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 	// Public short link redirect (no auth required)
 	// GET /s/{code} → 302 redirect to target URL
-	r.Get("/s/{code}", deps.ShortLinkHandlers.Redirect)
+	r.With(readLimit).Get("/s/{code}", deps.ShortLinkHandlers.Redirect)
 
 	// Public funnel hosting — server-rendered HTML landing page (no auth).
-	r.Get("/f/{slug}", deps.PublicHandlers.RenderFunnel)
+	r.With(readLimit).Get("/f/{slug}", deps.PublicHandlers.RenderFunnel)
 
 	// Public FBO profile page (no auth required)
-	r.Get("/p/{slug}", deps.PublicHandlers.GetProfile)
+	r.With(readLimit).Get("/p/{slug}", deps.PublicHandlers.GetProfile)
 
 	// Public creative review link (HMAC token, expiring, revocable) → 302 to the draft.
 	if deps.CreativeHandlers.OpenReview != nil {
-		r.Get("/r/{token}", deps.CreativeHandlers.OpenReview)
+		r.With(readLimit).Get("/r/{token}", deps.CreativeHandlers.OpenReview)
 	}
 
 	return r
