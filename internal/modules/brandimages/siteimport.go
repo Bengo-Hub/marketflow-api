@@ -131,6 +131,8 @@ func (s *Service) ImportFromSite(ctx context.Context, tenantID uuid.UUID) (Impor
 		candidates = candidates[:maxCandidates]
 	}
 	res.Found = len(candidates)
+	// Pictures the business already has, uploaded by hand or linked before, by how they look.
+	known := s.existingHashes(ctx, have)
 
 	for _, c := range candidates {
 		if res.Total >= s.cfg.Max {
@@ -152,6 +154,11 @@ func (s *Service) ImportFromSite(ctx context.Context, tenantID uuid.UUID) (Impor
 			res.Skipped["unsupported"]++
 			continue
 		}
+		h, hashed := dHash(raw)
+		if hashed && nearAny(h, known) {
+			res.Skipped["duplicate"]++ // the same picture is already among the brand images
+			continue
+		}
 		up, err := objectstore.Prepare(raw, MediaType)
 		if err != nil {
 			res.Skipped["unsupported"]++
@@ -169,6 +176,9 @@ func (s *Service) ImportFromSite(ctx context.Context, tenantID uuid.UUID) (Impor
 		default:
 			res.Added = append(res.Added, v)
 			res.Total++
+			if hashed {
+				known = append(known, h) // the same picture twice on the site is linked once
+			}
 		}
 	}
 	s.markImported(ctx, tenantID, len(res.Added))
@@ -270,7 +280,11 @@ func LastImport(meta map[string]any) time.Time {
 // SweepSiteImports imports website pictures for tenants that are below the minimum and whose site
 // was not read in the last `again`. At most `limit` tenants per call; best effort, logged.
 func (s *Service) SweepSiteImports(ctx context.Context, again time.Duration, limit int) {
-	if s.siteLookup == nil || !s.store.Enabled() {
+	if !s.store.Enabled() {
+		return
+	}
+	s.retryOrphans(ctx) // files whose delete failed earlier
+	if s.siteLookup == nil {
 		return
 	}
 	tenants, err := s.db.Tenant.Query().Where(enttenant.Status("active")).All(ctx)

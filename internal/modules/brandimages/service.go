@@ -52,6 +52,9 @@ type Image struct {
 	UploadedAt  string `json:"uploaded_at"`
 	// Source is the web address of a picture linked from the business's own website.
 	Source string `json:"source,omitempty"`
+	// Hash is the picture's difference hash (16 hex digits), so a website import skips pictures
+	// the business already has (dedupe.go).
+	Hash string `json:"hash,omitempty"`
 }
 
 // View is an image as the portal sees it, with a short-lived link.
@@ -210,6 +213,9 @@ func (s *Service) add(ctx context.Context, tenantID uuid.UUID, up *objectstore.U
 	}
 	img := Image{ID: uuid.NewString(), Key: key, ContentType: up.ContentType, Width: w, Height: h,
 		Bytes: len(up.Data), Name: name, UploadedAt: s.nowFn().UTC().Format(time.RFC3339), Source: source}
+	if h, ok := dHash(up.Data); ok {
+		img.Hash = formatHash(h)
+	}
 	n, err := s.appendImage(ctx, tenantID, img)
 	if err == nil && n == 0 {
 		err = ErrFull
@@ -283,9 +289,12 @@ func (s *Service) Delete(ctx context.Context, tenantID uuid.UUID, id string) err
 	if err != nil {
 		return fmt.Errorf("remove brand image: %w", err)
 	}
+	// Hard delete (owner, 2026-11-14): the stored file goes too. A failed delete is recorded and
+	// retried by the daily sweep, so the file never stays in storage.
 	if s.store.Enabled() {
 		if err := s.store.Delete(ctx, found.Key); err != nil && !errors.Is(err, objectstore.ErrNotFound) {
-			s.logger.Warn("brand image object not deleted", zap.String("key", found.Key), zap.Error(err))
+			s.logger.Warn("brand image object not deleted; queued for retry", zap.String("key", found.Key), zap.Error(err))
+			s.rememberOrphan(ctx, tenantID, found.Key)
 		}
 	}
 	return nil

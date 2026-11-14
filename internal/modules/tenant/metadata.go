@@ -44,6 +44,9 @@ var ReservedMetadataKeys = []string{
 	OnboardingMetadataKey,
 	// The brand image list holds storage keys; only its own endpoints may write it.
 	brandimages.MetadataKey,
+	// The website import's last run and the files whose delete is being retried.
+	brandimages.ImportMarkerKey,
+	brandimages.OrphanKey,
 	// A pharmacy's PPB advert approval references, written only by PUT /creative/ppb-approvals
 	// (creative.PPBApprovalsMetadataKey; owner, 2026-11-14).
 	PPBApprovalsMetadataKey,
