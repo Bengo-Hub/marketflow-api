@@ -521,6 +521,25 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		return rbacService.CallerHasAnyRole(ctx, tenantID, reviewActionRoles...)
 	}
 	publishingHandler.OnJobDone = afterUse.CheckJob
+	// Delete from platform (owner 2026-11-14): the approving roles (owner, admin) plus the app
+	// reviewer, who must show instagram_manage_contents in App Review; members cannot. Only where
+	// the platform's API allows it (TikTok has no delete, so it is left out and answers with its
+	// manual steps).
+	publishingHandler.CanDelete = func(ctx context.Context, tenantID uuid.UUID) bool {
+		return rbacService.CallerHasAnyRole(ctx, tenantID, reviewActionRoles...)
+	}
+	{
+		pubSecret := meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret)
+		deleters := []publishing.Deleter{
+			publishing.NewFacebookReels(meta.GraphURL).WithProof(pubSecret),
+			publishing.NewInstagramReels(meta.GraphURL).WithProof(pubSecret),
+			publishing.NewYouTubeShorts(publishing.YouTubeUploadBase, publishing.YouTubeAPIBase, ""),
+		}
+		publishingHandler.Deleters = make(map[string]publishing.Deleter, len(deleters))
+		for _, d := range deleters {
+			publishingHandler.Deleters[d.Platform()] = d
+		}
+	}
 
 	segmentHandler := segments.NewHandler(segmentService, logger)
 
@@ -912,12 +931,13 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Delete:  inboxHandler.Delete,
 		},
 		PublishingHandlers: httpapi.PublishingHandlers{
-			Accounts: publishingHandler.Accounts,
-			Schedule: publishingHandler.Schedule,
-			List:     publishingHandler.List,
-			Cancel:   publishingHandler.Cancel,
-			Retry:    publishingHandler.Retry,
-			Move:     publishingHandler.Move,
+			Accounts:           publishingHandler.Accounts,
+			Schedule:           publishingHandler.Schedule,
+			List:               publishingHandler.List,
+			Cancel:             publishingHandler.Cancel,
+			Retry:              publishingHandler.Retry,
+			Move:               publishingHandler.Move,
+			DeleteFromPlatform: publishingHandler.DeleteFromPlatform,
 		},
 		SegmentHandlers: httpapi.SegmentHandlers{
 			Create:   segmentHandler.Create,

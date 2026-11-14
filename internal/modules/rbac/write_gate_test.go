@@ -44,6 +44,10 @@ func TestRequiredRoles(t *testing.T) {
 		{"POST", "/api/v1/agents/autopilot/posts/9/veto", member},
 		{"POST", "/api/v1/custom-fields/defs", admin},
 		{"POST", "/api/v1/short-links", member},
+		// Publishing writes pass the gate as members' work; the handler then keeps delete from
+		// platform to the approving roles and the app reviewer (owner 2026-11-14).
+		{"POST", "/api/v1/publishing/jobs/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/cancel", member},
+		{"POST", "/api/v1/publishing/jobs/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/delete-from-platform", member},
 		{"POST", "/api/v1/tenant/onboarding/dismiss", nil},
 		{"OPTIONS", "/api/v1/leads", nil},
 		// Owner 2026-11-12: starting a connection is admin only, even though it is a GET.
@@ -132,6 +136,8 @@ func TestGateAppReviewer(t *testing.T) {
 		{"reviewer boosts", "POST", "/api/v1/ads/boosts", reviewer, 200},
 		{"reviewer pauses a boost", "POST", "/api/v1/ads/boosts/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/pause", reviewer, 200},
 		{"reviewer posts", "POST", "/api/v1/publishing/jobs", reviewer, 200},
+		{"reviewer deletes a post from the platform", "POST", "/api/v1/publishing/jobs/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/delete-from-platform", reviewer, 200},
+		{"reviewer cannot cancel a post", "POST", "/api/v1/publishing/jobs/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/cancel", reviewer, 403},
 		{"reviewer replies", "POST", "/api/v1/inbox/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/reply", reviewer, 200},
 		{"reviewer hides a comment", "POST", "/api/v1/inbox/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/hide", reviewer, 200},
 		{"reviewer deletes a comment", "DELETE", "/api/v1/inbox/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b", reviewer, 200},

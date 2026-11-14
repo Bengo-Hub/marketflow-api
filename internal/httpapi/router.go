@@ -578,6 +578,8 @@ type PublishingHandlers struct {
 	Cancel   http.HandlerFunc
 	Retry    http.HandlerFunc
 	Move     http.HandlerFunc
+	// DeleteFromPlatform deletes a published post from its platform, where the API allows it.
+	DeleteFromPlatform http.HandlerFunc
 }
 
 // CustomAgentHandlers groups custom agent HTTP handlers.
@@ -1154,6 +1156,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Post("/jobs/{id}/cancel", deps.PublishingHandlers.Cancel)
 					r.Post("/jobs/{id}/retry", deps.PublishingHandlers.Retry)
 					r.Post("/jobs/{id}/move", deps.PublishingHandlers.Move)
+					if deps.PublishingHandlers.DeleteFromPlatform != nil {
+						r.Post("/jobs/{id}/delete-from-platform", deps.PublishingHandlers.DeleteFromPlatform)
+					}
 				})
 			}
 

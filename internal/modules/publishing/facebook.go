@@ -163,10 +163,16 @@ func (f *FacebookReels) do(req *http.Request, out any) error {
 			Error struct {
 				Message string `json:"message"`
 				Type    string `json:"type"`
+				// UserMsg is Meta's plain explanation, when it sends one (the message may be "Fatal").
+				UserMsg string `json:"error_user_msg"`
 			} `json:"error"`
 		}
 		if json.Unmarshal(body, &ge) == nil && ge.Error.Message != "" {
-			return fmt.Errorf("%d %s: %s", resp.StatusCode, ge.Error.Type, ge.Error.Message)
+			msg := ge.Error.Message
+			if ge.Error.UserMsg != "" && ge.Error.UserMsg != msg {
+				msg += " (" + ge.Error.UserMsg + ")"
+			}
+			return fmt.Errorf("%d %s: %s", resp.StatusCode, ge.Error.Type, msg)
 		}
 		return fmt.Errorf("status %d", resp.StatusCode)
 	}

@@ -43,6 +43,10 @@ func TestAppReviewerAllowList(t *testing.T) {
 		{"GET", "/api/v1/publishing/accounts", true},
 		{"GET", "/api/v1/publishing/jobs", true},
 		{"POST", "/api/v1/publishing/jobs", true},
+		// Owner 2026-11-14: delete from platform is in the App Review submission
+		// (instagram_manage_contents), so the reviewer may use it; cancel stays closed.
+		{"POST", "/api/v1/publishing/jobs/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/delete-from-platform", true},
+		{"GET", "/api/v1/publishing/jobs/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/delete-from-platform", false},
 		// Leads.
 		{"GET", "/api/v1/leads", true},
 		{"GET", "/api/v1/leads/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b", true},

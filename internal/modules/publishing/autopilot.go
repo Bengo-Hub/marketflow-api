@@ -249,9 +249,5 @@ func (s *EntStore) JobsByID(ctx context.Context, tenantID uuid.UUID, ids []uuid.
 	if err != nil {
 		return nil, err
 	}
-	out := make([]JobView, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, view(r))
-	}
-	return out, nil
+	return s.Views(ctx, tenantID, rows), nil
 }

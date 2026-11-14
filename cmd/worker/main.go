@@ -340,7 +340,7 @@ func main() {
 		pubRunner := publishing.NewRunner(pubStore, pubStore, pubStore,
 			publishing.NewFacebookReels(meta.GraphURL).WithProof(metaSecret),
 			publishing.NewInstagramReels(meta.GraphURL).WithProof(metaSecret),
-			publishing.NewYouTubeShorts("https://www.googleapis.com/upload/youtube/v3", "https://www.googleapis.com/youtube/v3",
+			publishing.NewYouTubeShorts(publishing.YouTubeUploadBase, publishing.YouTubeAPIBase,
 				os.Getenv("MF_PUBLISHING_YOUTUBE_PRIVACY")),
 			publishing.NewTikTokDirect("https://open.tiktokapis.com", os.Getenv("MF_PUBLISHING_TIKTOK_PRIVACY"),
 				os.Getenv("MF_PUBLISHING_TIKTOK_PULL") == "true"))
