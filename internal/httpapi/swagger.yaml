@@ -786,6 +786,11 @@ definitions:
         items:
           type: string
         type: array
+      terms_version:
+        description: |-
+          TermsVersion is the version the person read (terms_version from GET); when set and a newer
+          version was published since, the acceptance is refused with 409 terms_changed.
+        type: string
     type: object
   custom_agents.AutoPublishStatus:
     properties:
@@ -815,7 +820,13 @@ definitions:
         type: array
       terms_accepted:
         type: boolean
+      terms_document:
+        type: boolean
       terms_effective_at:
+        type: string
+      terms_unknown:
+        type: boolean
+      terms_url:
         type: string
       terms_version:
         type: string
@@ -2711,6 +2722,14 @@ paths:
             $ref: '#/definitions/custom_agents.AutoPublishStatus'
         "403":
           description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "409":
+          description: 'terms_changed: a newer terms version was published'
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "503":
+          description: 'terms_unavailable: auth-api could not record the acceptance'
           schema:
             $ref: '#/definitions/httpapi.ErrorResponse'
       security:

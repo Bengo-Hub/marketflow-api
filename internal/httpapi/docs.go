@@ -1294,6 +1294,18 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/httpapi.ErrorResponse"
                         }
+                    },
+                    "409": {
+                        "description": "terms_changed: a newer terms version was published",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "terms_unavailable: auth-api could not record the acceptance",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -11487,6 +11499,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "terms_version": {
+                    "description": "TermsVersion is the version the person read (terms_version from GET); when set and a newer\nversion was published since, the acceptance is refused with 409 terms_changed.",
+                    "type": "string"
                 }
             }
         },
@@ -11532,7 +11548,16 @@ const docTemplate = `{
                 "terms_accepted": {
                     "type": "boolean"
                 },
+                "terms_document": {
+                    "type": "boolean"
+                },
                 "terms_effective_at": {
+                    "type": "string"
+                },
+                "terms_unknown": {
+                    "type": "boolean"
+                },
+                "terms_url": {
                     "type": "string"
                 },
                 "terms_version": {
