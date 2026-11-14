@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/bengobox/marketflow-api/internal/ent"
 )
 
 func okConfig() AutopilotConfig {
@@ -55,5 +57,47 @@ func TestEnvelopeAndCredits(t *testing.T) {
 	}
 	if !c.CreditsFit(150, 50) || c.CreditsFit(151, 50) {
 		t.Fatal("credit ceiling")
+	}
+}
+
+// The default veto window is 4 hours (owner 2026-11-14) and config may move it only inside the
+// allowed range.
+func TestSetDefaultVeto(t *testing.T) {
+	old := DefaultVeto
+	t.Cleanup(func() { DefaultVeto = old })
+	SetDefaultVeto(6)
+	if DefaultVeto != 6 {
+		t.Fatalf("default: %d", DefaultVeto)
+	}
+	for _, bad := range []int{0, -1, MaxVetoHours + 1} {
+		SetDefaultVeto(bad)
+		if DefaultVeto != 6 {
+			t.Fatalf("%d must be ignored, default is %d", bad, DefaultVeto)
+		}
+	}
+	c := okConfig()
+	c.Approval, c.VetoHours = AutoPublish, MaxVetoHours+1
+	if err := c.Validate(true); err == nil || !strings.Contains(err.Error(), "veto window") {
+		t.Fatalf("a window past the maximum: %v", err)
+	}
+}
+
+// The tenant's hold categories match an offering's category or type, without regard to case.
+func TestHeldCategory(t *testing.T) {
+	hold := HoldCategories(&ent.Tenant{Metadata: map[string]any{HoldCategoriesKey: []any{" Alcohol", "services"}}})
+	if len(hold) != 2 || hold[0] != "alcohol" {
+		t.Fatalf("hold: %v", hold)
+	}
+	if got := HeldCategory(hold, map[string]any{"category": "ALCOHOL"}); got != "alcohol" {
+		t.Fatalf("category: %q", got)
+	}
+	if got := HeldCategory(hold, map[string]any{"type": "services"}); got != "services" {
+		t.Fatalf("type: %q", got)
+	}
+	if got := HeldCategory(hold, map[string]any{"category": "skin care"}); got != "" {
+		t.Fatalf("not held: %q", got)
+	}
+	if len(HoldCategories(nil)) != 0 {
+		t.Fatal("no tenant, no hold")
 	}
 }

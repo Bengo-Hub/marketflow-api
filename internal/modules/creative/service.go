@@ -549,9 +549,20 @@ func (s *Service) Discard(ctx context.Context, tenantID, id uuid.UUID) (*ent.Cre
 	return s.decide(ctx, tenantID, id, StatusRejected, nil)
 }
 
-// decide moves a version out of review in one transaction: the status change is
-// conditional on the version still being in review, so two clicks agree.
+// approvalChannel is where an approval came from (metadata.approval.channel).
+type approvalChannel string
+
+// ApprovalVetoWindow marks an autopilot video approved because its veto window passed without a
+// veto: no person approved it, and the evidence says so.
+const ApprovalVetoWindow approvalChannel = "veto_window_elapsed"
+
 func (s *Service) decide(ctx context.Context, tenantID, id uuid.UUID, status string, by *uuid.UUID) (*ent.CreativeVersion, error) {
+	return s.decideVia(ctx, tenantID, id, status, by, "portal")
+}
+
+// decideVia moves a version out of review in one transaction: the status change is
+// conditional on the version still being in review, so two clicks agree.
+func (s *Service) decideVia(ctx context.Context, tenantID, id uuid.UUID, status string, by *uuid.UUID, channel approvalChannel) (*ent.CreativeVersion, error) {
 	now := s.nowFn()
 	from := []string{StatusReady}
 	if status == StatusRejected {
@@ -592,7 +603,7 @@ func (s *Service) decide(ctx context.Context, tenantID, id uuid.UUID, status str
 		return nil, err
 	}
 	if status == StatusApproved {
-		if err := recordApproval(ctx, tx, id, by, now); err != nil {
+		if err := recordApproval(ctx, tx, id, by, now, channel); err != nil {
 			return nil, err
 		}
 		if err := supersedeSiblings(ctx, tx, id, now.Add(supersededTTL)); err != nil {
@@ -608,12 +619,12 @@ func (s *Service) decide(ctx context.Context, tenantID, id uuid.UUID, status str
 // recordApproval keeps the approval evidence (gate G5): who approved, where,
 // when, and the checksum of exactly the file they saw (the poster image or the
 // motion poster clip), so a later dispute can show which one was approved.
-func recordApproval(ctx context.Context, tx *ent.Tx, id uuid.UUID, by *uuid.UUID, at time.Time) error {
+func recordApproval(ctx context.Context, tx *ent.Tx, id uuid.UUID, by *uuid.UUID, at time.Time, channel approvalChannel) error {
 	v, err := tx.CreativeVersion.Get(ctx, id)
 	if err != nil {
 		return err
 	}
-	evidence := map[string]any{"channel": "portal", "at": at.UTC().Format(time.RFC3339)}
+	evidence := map[string]any{"channel": string(channel), "at": at.UTC().Format(time.RFC3339)}
 	if by != nil {
 		evidence["user_id"] = by.String()
 	}

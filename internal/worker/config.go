@@ -30,6 +30,11 @@ type Config struct {
 	CrossServiceKey string `env:"MF_CROSS_INTERNAL_SERVICE_KEY"`
 	// PlatformTenant is the platform owner's tenant slug (it sends platform-number replies).
 	PlatformTenant string `env:"MF_SECURITY_PLATFORM_TENANT" envDefault:"codevertex"`
+	// Autopilot is the ad autopilot's veto-window mode, the same MF_AUTOPILOT_* env as the API.
+	Autopilot config.AutopilotConfig `envPrefix:"MF_AUTOPILOT_"`
+	// Subscriptions is subscriptions-api (same MF_SUBSCRIPTIONS_* env as the API), read strictly
+	// for the autopilot_auto_publish plan feature at each veto-window step.
+	Subscriptions config.SubscriptionsConfig `envPrefix:"MF_SUBSCRIPTIONS_"`
 }
 
 type DatabaseConfig struct {
@@ -100,6 +105,10 @@ func LoadConfig() (*Config, error) {
 	}
 	if c.CrossServiceKey == "" {
 		c.CrossServiceKey = c.API.InternalServiceKey
+	}
+	// The same fallback as the API's: the S2S key is uniform across services.
+	if c.Subscriptions.APIKey == "" {
+		c.Subscriptions.APIKey = firstSet(os.Getenv("INTERNAL_SERVICE_KEY"), c.API.InternalServiceKey)
 	}
 	return c, nil
 }

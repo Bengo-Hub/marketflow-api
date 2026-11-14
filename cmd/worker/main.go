@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	sharedcache "github.com/Bengo-Hub/cache"
+	ratelimit "github.com/Bengo-Hub/shared-ratelimit"
 	"log"
 	"net/http"
 	"os"
@@ -35,6 +36,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/Bengo-Hub/httpware/objectstore"
 	"github.com/bengobox/marketflow-api/internal/modules/adsmanager"
+	"github.com/bengobox/marketflow-api/internal/modules/autopublish"
 	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/publishing"
@@ -192,7 +194,8 @@ func main() {
 		// New item drafts (Sprint 20): agents that opted in draft a launch ad, at most one a day.
 		reg.Add(worker.NewNewItemAdsHandler(entClient, worker.NewAutopilotRunner(entClient,
 			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
-			cfg.API.PortalURL, logger).WithForecast(custom_agents.NewCreditForecaster(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey)), logger))
+			cfg.API.PortalURL, logger).WithForecast(custom_agents.NewCreditForecaster(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey)).
+			WithAutoPublishGate(worker.AutopilotGate(cfg, entClient)), logger))
 		// Knowledge base sync (Sprint 25): item events keep synced entries current.
 		reg.Add(worker.NewKBItemHandlers(entClient, knowledge.NewSync(entClient, rawDB), logger)...)
 		// Erasure in maskani (privacy.party_anonymised): delete the CRM contact only when no other
@@ -295,19 +298,37 @@ func main() {
 		if cfgErr != nil {
 			logger.Warn("brand image limits: using the defaults", zap.Error(cfgErr))
 		}
-		go creative.NewRenderer(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).
-			WithBrandImages(brandimages.NewLinker(mediaStore, brandImagesCfg.RenderLinkTTL)).
-			// The fallback poll settles jobs too, so it sends a WhatsApp turn's messages as well.
-			WithOSTurn(creative.NewWhatsAppTurnNotifier(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey,
-				creative.NewPlatformWhatsApp(entClient,
-					notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
-					cfg.PlatformTenant, "marketflow-worker"), logger)).Run(ctx)
-		go creative.NewPurger(entClient, mediaStore, logger).Run(ctx)
-
 		// Organic publishing (Sprint 16): posts approved videos to connected accounts. Each
 		// platform stays off until its ProviderSetting publishing/<platform>_enabled switch is
 		// set, after its app review passes.
 		pubStore := &publishing.EntStore{DB: entClient, Keys: keys}
+
+		// Ad autopilot veto window (Sprint 20, owner 2026-11-14): an auto_publish agent's video goes
+		// storyboard, render and an organic post after the window, through the Studio's own charges,
+		// refunds, daily render cap and the agent's monthly ceiling. The Renderer hands each settled
+		// step on; the sweep catches anything missed and closes ended windows.
+		renderLinks := brandimages.NewLinker(mediaStore, brandImagesCfg.RenderLinkTTL)
+		afterUse := &creative.AfterUse{DB: entClient, Notify: creative.EmailAfterUse(entClient, tokenNotif, cfg.API.PortalURL, logger), Logger: logger}
+		autopilotStudio := creative.NewService(entClient, logger)
+		if rdb != nil {
+			autopilotStudio = autopilotStudio.WithQuota(ratelimit.NewQuota(rdb))
+		}
+		autopilotPipeline := autopublish.New(autopublish.Deps{DB: entClient, Studio: autopilotStudio,
+			Quoter:  creative.NewRenderer(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).WithBrandImages(renderLinks),
+			Publish: pubStore, Gate: worker.AutopilotGate(cfg, entClient), Notif: tokenNotif,
+			Links:    autopublish.NewVetoLinks(encryption.KeyFromEnv(os.Getenv("MF_SECURITY_ENCRYPTION_KEY"))),
+			AfterUse: afterUse, AppURL: cfg.API.PortalURL, Config: cfg.Autopilot, Logger: logger})
+		go autopilotPipeline.Run(ctx)
+
+		go creative.NewRenderer(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).
+			WithBrandImages(renderLinks).
+			// The fallback poll settles jobs too, so it sends a WhatsApp turn's messages as well.
+			WithOSTurn(creative.NewWhatsAppTurnNotifier(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey,
+				creative.NewPlatformWhatsApp(entClient,
+					notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
+					cfg.PlatformTenant, "marketflow-worker"), logger)).
+			WithAutopilot(autopilotPipeline).Run(ctx)
+		go creative.NewPurger(entClient, mediaStore, logger).Run(ctx)
 		pubRunner := publishing.NewRunner(pubStore, pubStore, pubStore,
 			publishing.NewFacebookReels(meta.GraphURL).WithProof(metaSecret),
 			publishing.NewInstagramReels(meta.GraphURL).WithProof(metaSecret),
@@ -351,8 +372,7 @@ func main() {
 		pubWorker := publishing.NewWorker(pubStore, pubRunner, logger)
 		pubWorker.OnFailed = worker.NewPublishFailureNotice(entClient, tokenNotif, cfg.API.PortalURL, logger).Notify
 		// Owner 2026-11-10: an approved video is removed 48 hours after it is used; the client is
-		// emailed the link first.
-		afterUse := &creative.AfterUse{DB: entClient, Notify: creative.EmailAfterUse(entClient, tokenNotif, cfg.API.PortalURL, logger), Logger: logger}
+		// emailed the link first (afterUse is built with the autopilot pipeline above).
 		pubWorker.OnDone = func(ctx context.Context, j *publishing.Job) { afterUse.CheckJob(ctx, j.ID) }
 		go pubWorker.Run(ctx)
 	}

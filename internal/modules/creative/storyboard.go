@@ -62,6 +62,25 @@ func (s *Service) MakeStoryboard(ctx context.Context, tenantID, id uuid.UUID) (*
 
 // ApproveStoryboard records the owner's approval of the stills.
 func (s *Service) ApproveStoryboard(ctx context.Context, tenantID, id uuid.UUID, by *uuid.UUID) (*ent.CreativeVersion, error) {
+	return s.approveStoryboard(ctx, tenantID, id, func(sb map[string]any) {
+		sb["approved_by_kind"] = "person"
+		if by != nil {
+			sb["approved_by"] = by.String()
+		}
+	})
+}
+
+// ApproveStoryboardByAgent records an autopilot agent's approval of the stills in veto-window
+// mode. It is kept apart from a person's approval: approved_by_kind "agent" and approved_by_agent
+// carry the agent, approved_by stays empty.
+func (s *Service) ApproveStoryboardByAgent(ctx context.Context, tenantID, id, agentID uuid.UUID) (*ent.CreativeVersion, error) {
+	return s.approveStoryboard(ctx, tenantID, id, func(sb map[string]any) {
+		sb["approved_by_kind"] = "agent"
+		sb["approved_by_agent"] = agentID.String()
+	})
+}
+
+func (s *Service) approveStoryboard(ctx context.Context, tenantID, id uuid.UUID, mark func(map[string]any)) (*ent.CreativeVersion, error) {
 	v, err := s.version(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
@@ -73,9 +92,7 @@ func (s *Service) ApproveStoryboard(ctx context.Context, tenantID, id uuid.UUID,
 	meta := copyMap(v.Metadata)
 	sb = copyMap(sb)
 	sb["approved_at"] = s.nowFn().UTC().Format(time.RFC3339)
-	if by != nil {
-		sb["approved_by"] = by.String()
-	}
+	mark(sb)
 	meta["storyboard"] = sb
 	n, err := s.db.CreativeVersion.Update().
 		Where(creativeversion.ID(id), creativeversion.TenantID(tenantID), creativeversion.StatusEQ(StatusScriptReady)).
@@ -165,9 +182,12 @@ func (r *Renderer) failStoryboard(ctx context.Context, id uuid.UUID, msg string)
 	}
 	meta := copyMap(v.Metadata)
 	meta["stage"], meta["storyboard_error"] = StageScript, excerpt(msg, 480)
-	_ = r.db.CreativeVersion.Update().
+	n, err := r.db.CreativeVersion.Update().
 		Where(creativeversion.ID(id), creativeversion.StatusIn(StatusRendering, StatusQueued)).
-		SetStatus(StatusScriptReady).SetMetadata(meta).Exec(ctx)
+		SetStatus(StatusScriptReady).SetMetadata(meta).Save(ctx)
+	if err == nil && n > 0 {
+		r.notifyAutopilot(ctx, v, AutopilotStoryboardError)
+	}
 }
 
 // settleStoryboard records a storyboard job's outcome: the stills and the actor on the
@@ -220,6 +240,8 @@ func (r *Renderer) settleStoryboard(ctx context.Context, v *ent.CreativeVersion,
 		if settled {
 			// A WhatsApp turn's video: the stills go to the requester with the render code.
 			r.notifyOSTurn(ctx, v, OSTurnStoryboardReady, stillLinks(sb.Stills), "")
+			// An autopilot video in veto-window mode: the agent approves the stills and renders.
+			r.notifyAutopilot(ctx, v, AutopilotStoryboardReady)
 		}
 		return nil
 	case job.Status == "failed" && job.Refunded:

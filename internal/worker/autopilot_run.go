@@ -6,10 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	entsql "entgo.io/ent/dialect/sql"
 	"github.com/bengobox/marketflow-api/internal/ent"
-	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
-	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
@@ -20,8 +17,10 @@ import (
 
 // AutopilotRunner runs an ad_autopilot agent (Sprint 20) in deterministic code: the config picks
 // the offering, language and tier; the creative module then writes the script with its normal
-// gates and charges. A run ends at a draft for the owner to review. It never approves, posts or
-// spends: an agent can never approve its own work.
+// gates and charges. In approve-each mode a run ends at a draft for the owner to review. In the
+// veto-window mode (auto_publish, owner 2026-11-14) the version is marked for the autopublish
+// pipeline, which carries it on to an organic post after the window unless the owner vetoes it.
+// A run never spends on ads.
 type AutopilotRunner struct {
 	db       *ent.Client
 	creative *creative.Service
@@ -30,6 +29,15 @@ type AutopilotRunner struct {
 	logger   *zap.Logger
 	now      func() time.Time
 	forecast func(ctx context.Context, tenantID uuid.UUID) (custom_agents.CreditForecast, error)
+	// gate re-checks the plan feature and the terms at each run; the zero gate allows nothing, so
+	// an auto_publish agent's run falls back to approve-each.
+	gate custom_agents.AutoPublishGate
+}
+
+// WithAutoPublishGate lets veto-window runs go ahead when the plan and terms still allow them.
+func (r *AutopilotRunner) WithAutoPublishGate(g custom_agents.AutoPublishGate) *AutopilotRunner {
+	r.gate = g
+	return r
 }
 
 func NewAutopilotRunner(db *ent.Client, notif *notifications.Client, appURL string, logger *zap.Logger) *AutopilotRunner {
@@ -60,26 +68,40 @@ type AutopilotResult struct {
 	VersionID string `json:"version_id"`
 	Offering  string `json:"offering"`
 	Run       int    `json:"autopilot_run"`
+	// VetoWindow is true when the draft carries on by itself to a post after the veto window.
+	VetoWindow bool `json:"veto_window,omitempty"`
 }
 
 // Run makes this run's brief and script draft. The rotation counts the agent's earlier finished
 // runs, so a failed run retries the same offering.
 func (r *AutopilotRunner) Run(ctx context.Context, a *ent.CustomAgent) (AutopilotResult, error) {
-	return r.run(ctx, a, nil)
+	return r.run(ctx, a, nil, uuid.Nil)
+}
+
+// RunWithID is Run for a run already recorded as an AgentRun: the brief and the veto-window steps
+// carry the run id, so every later step is traced to it.
+func (r *AutopilotRunner) RunWithID(ctx context.Context, a *ent.CustomAgent, runID uuid.UUID) (AutopilotResult, error) {
+	return r.run(ctx, a, nil, runID)
 }
 
 // RunForItem drafts an ad for one new catalogue item instead of the next rotated offering, through
 // the same ceiling and credit checks.
-func (r *AutopilotRunner) RunForItem(ctx context.Context, a *ent.CustomAgent, offering map[string]any) (AutopilotResult, error) {
-	return r.run(ctx, a, offering)
+func (r *AutopilotRunner) RunForItem(ctx context.Context, a *ent.CustomAgent, offering map[string]any, runID uuid.UUID) (AutopilotResult, error) {
+	return r.run(ctx, a, offering, runID)
 }
 
-func (r *AutopilotRunner) run(ctx context.Context, a *ent.CustomAgent, only map[string]any) (AutopilotResult, error) {
+func (r *AutopilotRunner) run(ctx context.Context, a *ent.CustomAgent, only map[string]any, runID uuid.UUID) (AutopilotResult, error) {
 	cfg, offerings, err := custom_agents.ReadAutopilot(a)
 	if err != nil {
 		return AutopilotResult{}, err
 	}
-	// Auto-publish is not honoured here yet: every run ends at a draft, whatever the mode.
+	// The saved config passed the gate when it was saved; the plan or the terms may have changed
+	// since, so a veto-window run checks again and falls back to approve-each when they no longer
+	// allow it (heldWhy says why, for the email).
+	vetoMode, heldWhy := false, ""
+	if cfg.Approval == custom_agents.AutoPublish {
+		vetoMode, heldWhy = r.gate.Allowed(ctx, a.TenantID)
+	}
 	if err := cfg.Validate(cfg.Approval == custom_agents.AutoPublish); err != nil {
 		return AutopilotResult{}, err
 	}
@@ -116,47 +138,58 @@ func (r *AutopilotRunner) run(ctx context.Context, a *ent.CustomAgent, only map[
 	if err != nil {
 		return AutopilotResult{}, err
 	}
+	if runID != uuid.Nil {
+		b.Metadata["autopilot_run_id"] = runID.String()
+	}
+	if cfg.Approval == custom_agents.AutoPublish && !vetoMode {
+		// This run is approve-each: the brief says so, so the Studio and the reports agree.
+		b.Metadata["approval_mode"] = custom_agents.ApproveEach
+		b.Metadata["veto_fallback"] = heldWhy
+	}
 	brief, err := r.creative.CreateBrief(ctx, a.TenantID, nil, creative.BriefInput{
 		Title: &b.Title, Offering: b.Offering, Objective: &b.Objective, Language: &b.Language, Metadata: b.Metadata,
 	})
 	if err != nil {
 		return AutopilotResult{}, fmt.Errorf("brief: %w", err)
 	}
-	version, err := r.creative.CreateVideoAd(ctx, a.TenantID, brief.ID, creative.VideoAdInput{Kind: b.Tier, Language: b.Language})
+	in := creative.VideoAdInput{Kind: b.Tier, Language: b.Language}
+	if vetoMode {
+		in.Autopilot = VetoStart(a.ID, runID, n, cfg.VetoHours, r.now())
+	}
+	version, err := r.creative.CreateVideoAd(ctx, a.TenantID, brief.ID, in)
 	if err != nil {
 		return AutopilotResult{}, fmt.Errorf("script: %w", err)
 	}
 	name, _ := b.Offering["name"].(string)
-	r.tell(ctx, a, name, brief.ID.String())
-	return AutopilotResult{BriefID: brief.ID.String(), VersionID: version.ID.String(), Offering: name, Run: n}, nil
+	veto := 0
+	if vetoMode {
+		veto = cfg.VetoHours
+	}
+	r.tell(ctx, a, name, brief.ID.String(), veto, heldWhy)
+	return AutopilotResult{BriefID: brief.ID.String(), VersionID: version.ID.String(), Offering: name, Run: n, VetoWindow: vetoMode}, nil
 }
 
-// creditsThisMonth sums what this agent's drafts really cost since the 1st, from the versions of
-// its briefs (the tenant's status and created_at index keeps the brief read small).
+// VetoStart is a veto-window video's first metadata.autopilot: the agent and run that own it and
+// the first step, taken by the agent.
+func VetoStart(agentID, runID uuid.UUID, run, vetoHours int, now time.Time) map[string]any {
+	ap := map[string]any{
+		"agent_id": agentID.String(), "run": run, "mode": "veto_window", "state": "active", "veto_hours": vetoHours,
+		"steps": []any{map[string]any{"step": "script_requested", "by": "agent:" + agentID.String(), "at": now.UTC().Format(time.RFC3339)}},
+	}
+	if runID != uuid.Nil {
+		ap["run_id"] = runID.String()
+	}
+	return ap
+}
+
+// creditsThisMonth sums what this agent's drafts really cost since the 1st.
 func (r *AutopilotRunner) creditsThisMonth(ctx context.Context, a *ent.CustomAgent) (int, error) {
-	now := r.now().UTC()
-	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
-	ids, err := r.db.CreativeBrief.Query().
-		Where(creativebrief.TenantID(a.TenantID), creativebrief.CreatedAtGTE(start), func(s *entsql.Selector) {
-			s.Where(entsql.P(func(b *entsql.Builder) {
-				b.WriteString(s.C(creativebrief.FieldMetadata) + "->>'autopilot_agent_id' = ").Arg(a.ID.String())
-			}))
-		}).IDs(ctx)
-	if err != nil || len(ids) == 0 {
-		return 0, err
-	}
-	var totals []struct {
-		Sum int `json:"sum"`
-	}
-	if err := r.db.CreativeVersion.Query().Where(creativeversion.BriefIDIn(ids...)).
-		Aggregate(ent.Sum(creativeversion.FieldCredits)).Scan(ctx, &totals); err != nil || len(totals) == 0 {
-		return 0, err
-	}
-	return totals[0].Sum, nil
+	return custom_agents.CreditsThisMonth(ctx, r.db, a.TenantID, a.ID, r.now())
 }
 
-// tell emails the tenant's admins that a draft waits for their review.
-func (r *AutopilotRunner) tell(ctx context.Context, a *ent.CustomAgent, offering, briefID string) {
+// tell emails the tenant's admins that a draft waits for their review, or, in veto-window mode,
+// that it carries on and a heads-up comes before anything is posted.
+func (r *AutopilotRunner) tell(ctx context.Context, a *ent.CustomAgent, offering, briefID string, vetoHours int, heldWhy string) {
 	if r.notif == nil {
 		return
 	}
@@ -166,6 +199,15 @@ func (r *AutopilotRunner) tell(ctx context.Context, a *ent.CustomAgent, offering
 	}
 	link := r.portalLink(ctx, a, "/studio/"+briefID)
 	body := fmt.Sprintf("Your agent \"%s\" drafted a new ad for %s. Nothing is posted or paid for until you approve it.\n\nReview it here: %s", a.Name, offering, link)
+	if vetoHours > 0 {
+		body = fmt.Sprintf("Your agent \"%s\" drafted a new ad for %s. It now makes the storyboard and the video by itself, within your monthly credit ceiling. "+
+			"Before anything is posted you get another email saying what will be posted, where and when, with a link to cancel it. "+
+			"The post goes out %d hours after that email unless you cancel it. Paid boosts always wait for your approval.\n\nFollow it here: %s",
+			a.Name, offering, vetoHours, link)
+	} else if heldWhy != "" {
+		body = fmt.Sprintf("Your agent \"%s\" drafted a new ad for %s. It is set to post after a veto window, but this one waits for your approval because %s. Nothing is posted or paid for until you approve it.\n\nReview it here: %s",
+			a.Name, offering, heldWhy, link)
+	}
 	for _, email := range emails {
 		if err := r.notif.Send(ctx, a.TenantID.String(), notifications.Message{
 			Channel: "email", Recipient: email, Subject: "A new ad draft is ready for your review", Body: body,
@@ -211,7 +253,7 @@ func (r *AutopilotRunner) tellShort(ctx context.Context, a *ent.CustomAgent, fc 
 
 // runAutopilot makes a scheduled or button run and records its outcome.
 func (c *CustomAgentExecutionConsumer) runAutopilot(ctx context.Context, a *ent.CustomAgent, runID uuid.UUID) {
-	res, err := c.autopilot.Run(ctx, a)
+	res, err := c.autopilot.RunWithID(ctx, a, runID)
 	c.autopilot.record(ctx, a, runID, res, err)
 }
 

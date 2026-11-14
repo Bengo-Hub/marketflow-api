@@ -586,6 +586,14 @@ type CustomAgentHandlers struct {
 	RollbackAutopilot http.HandlerFunc
 	// DryRunAutopilot previews the next run and the month's credits, spending nothing.
 	DryRunAutopilot http.HandlerFunc
+	// The veto-window mode (Sprint 20, owner 2026-11-14): whether the tenant may use it and its
+	// terms, the agents' posts in their window, the signed-in veto, and the public cancel link.
+	GetAutoPublish http.HandlerFunc
+	PutAutoPublish http.HandlerFunc
+	AutopilotPosts http.HandlerFunc
+	AutopilotVeto  http.HandlerFunc
+	PublicVetoView http.HandlerFunc // Public: GET /public/autopilot/veto/{token}
+	PublicVetoPost http.HandlerFunc // Public: POST /public/autopilot/veto/{token}
 }
 
 // SegmentHandlers groups segment management HTTP handlers.
@@ -963,6 +971,14 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Get("/agents/templates", deps.CustomAgentHandlers.Templates)
 					r.Post("/agents/templates/{id}/hire", deps.CustomAgentHandlers.HireTemplate)
 				}
+				if deps.CustomAgentHandlers.GetAutoPublish != nil {
+					r.Get("/agents/autopilot/auto-publish", deps.CustomAgentHandlers.GetAutoPublish)
+					r.Put("/agents/autopilot/auto-publish", deps.CustomAgentHandlers.PutAutoPublish)
+				}
+				if deps.CustomAgentHandlers.AutopilotPosts != nil {
+					r.Get("/agents/autopilot/posts", deps.CustomAgentHandlers.AutopilotPosts)
+					r.Post("/agents/autopilot/posts/{id}/veto", deps.CustomAgentHandlers.AutopilotVeto)
+				}
 				r.Route("/agents/custom", func(r chi.Router) {
 					r.Post("/", deps.CustomAgentHandlers.Create)
 					r.Get("/", deps.CustomAgentHandlers.List)
@@ -1287,6 +1303,11 @@ func NewRouter(deps RouterDeps) http.Handler {
 			r.Post("/funnels/{slug}/step-view", deps.PublicHandlers.FunnelStepView)
 			r.Get("/availability/{slug}", deps.PublicHandlers.GetAvailability)
 			r.With(deps.TrackMeetingBooked).Post("/book/{slug}", deps.PublicHandlers.CreateBooking)
+			// The heads-up email's "Cancel this post" link (signed, expiring token).
+			if deps.CustomAgentHandlers.PublicVetoView != nil {
+				r.Get("/autopilot/veto/{token}", deps.CustomAgentHandlers.PublicVetoView)
+				r.Post("/autopilot/veto/{token}", deps.CustomAgentHandlers.PublicVetoPost)
+			}
 		})
 	})
 

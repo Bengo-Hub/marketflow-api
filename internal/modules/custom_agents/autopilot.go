@@ -58,12 +58,26 @@ var (
 // Autopilot limits.
 const (
 	MaxOfferings  = 20
-	DefaultVeto   = 12
 	MinVetoHours  = 1
 	MaxVetoHours  = 72
 	MaxCreditCap  = 5000
 	MaxPeriodDays = 90
 )
+
+// DefaultVeto is the veto window an auto_publish agent gets when it sets none: 4 hours (owner
+// 2026-11-14), overridden by MF_AUTOPILOT_DEFAULT_VETO_HOURS through SetDefaultVeto.
+var DefaultVeto = 4
+
+// SetDefaultVeto sets the default veto window, kept inside MinVetoHours..MaxVetoHours; 0 or a
+// value outside the range leaves the default as it is.
+func SetDefaultVeto(hours int) {
+	if hours >= MinVetoHours && hours <= MaxVetoHours {
+		DefaultVeto = hours
+	}
+}
+
+// AutoPublishFeature is the plan feature that allows the veto-window mode.
+const AutoPublishFeature = "autopilot_auto_publish"
 
 // ErrAutoPublishNotAllowed means the plan or the terms do not allow auto-publish.
 var ErrAutoPublishNotAllowed = errors.New("auto-publish needs the Autopilot plan feature and the Autopilot terms")

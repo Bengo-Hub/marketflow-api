@@ -144,6 +144,8 @@ func (r *Renderer) notifyOSTurn(ctx context.Context, v *ent.CreativeVersion, eve
 // it only after a conditional update moved the version to failed (one row), so it goes once;
 // a failure before the render stage (the script, the storyboard) sends nothing.
 func (r *Renderer) notifyRenderFailed(ctx context.Context, id uuid.UUID, msg string) {
+	// An autopilot video stops at a failed draft and the owner is told.
+	r.notifyAutopilotByID(ctx, id, AutopilotRenderFailed)
 	if r.osTurn == nil {
 		return
 	}
