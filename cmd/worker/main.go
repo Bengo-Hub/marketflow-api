@@ -200,7 +200,7 @@ func main() {
 		reg.Add(worker.NewNewItemAdsHandler(entClient, worker.NewAutopilotRunner(entClient,
 			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
 			cfg.API.PortalURL, logger).WithForecast(custom_agents.NewCreditForecaster(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey)).
-			WithAutoPublishGate(worker.AutopilotGate(cfg, entClient)), logger))
+			WithAutoPublishGate(worker.AutopilotGate(cfg, entClient)).WithLapsedHook(reg.AutopilotLapsed()), logger))
 		// Knowledge base sync (Sprint 25): item events keep synced entries current.
 		reg.Add(worker.NewKBItemHandlers(entClient, knowledge.NewSync(entClient, rawDB), logger)...)
 		// Erasure in maskani (privacy.party_anonymised): delete the CRM contact only when no other
@@ -324,6 +324,8 @@ func main() {
 			Publish: pubStore, Gate: worker.AutopilotGate(cfg, entClient), Notif: tokenNotif,
 			Links:    autopublish.NewVetoLinks(encryption.KeyFromEnv(os.Getenv("MF_SECURITY_ENCRYPTION_KEY"))),
 			AfterUse: afterUse, AppURL: cfg.API.PortalURL, Config: cfg.Autopilot, Logger: logger})
+		// A run that finds the plan lapsed or new terms unaccepted cancels the waiting posts now.
+		reg.AutopilotLapsed().Set(autopilotPipeline.AutoPublishLapsed)
 		go autopilotPipeline.Run(ctx)
 
 		go creative.NewRenderer(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).

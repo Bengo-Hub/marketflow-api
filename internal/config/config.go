@@ -31,6 +31,13 @@ type AutopilotConfig struct {
 	DefaultVetoHours int `env:"DEFAULT_VETO_HOURS" envDefault:"4"`
 	// TermsVersion is the Autopilot terms version tenants accept; a new one asks everyone again.
 	TermsVersion string `env:"TERMS_VERSION" envDefault:"2026-11-14"`
+	// A new terms version applies from its effective date (owner 2026-11-14). Until then a tenant
+	// that accepted an earlier version keeps auto-publishing; from then on it pauses until it
+	// accepts the new one. TermsEffectiveAt (RFC 3339) sets the date outright; otherwise it is
+	// TermsAnnouncedAt (RFC 3339) plus TermsNotice. With neither set the version applies at once.
+	TermsEffectiveAt string        `env:"TERMS_EFFECTIVE_AT"`
+	TermsAnnouncedAt string        `env:"TERMS_ANNOUNCED_AT"`
+	TermsNotice      time.Duration `env:"TERMS_NOTICE" envDefault:"336h"`
 	// PipelineInterval is how often the worker carries veto-window videos on (the Renderer's
 	// reports carry them on at once; this sweep catches anything a report missed).
 	PipelineInterval time.Duration `env:"PIPELINE_INTERVAL" envDefault:"1m"`
@@ -41,6 +48,27 @@ type AutopilotConfig struct {
 	VetoLinkGrace time.Duration `env:"VETO_LINK_GRACE" envDefault:"168h"`
 	// QuoteRetries is how many failed render quotes a video tolerates before it waits for a person.
 	QuoteRetries int `env:"QUOTE_RETRIES" envDefault:"5"`
+	// OutageHandover is how long a scheduled post keeps waiting while the plan cannot be checked,
+	// from the first failed check for that post; then it is handed to the owner to approve by
+	// hand and its jobs are cancelled (owner 2026-11-14).
+	OutageHandover time.Duration `env:"OUTAGE_HANDOVER" envDefault:"24h"`
+}
+
+// TermsEffective is when the current terms version applies: TermsEffectiveAt, else
+// TermsAnnouncedAt plus TermsNotice (14 days by default), else the zero time (at once). A value
+// that does not parse counts as unset.
+func (c AutopilotConfig) TermsEffective() time.Time {
+	if t, err := time.Parse(time.RFC3339, c.TermsEffectiveAt); err == nil {
+		return t.UTC()
+	}
+	if t, err := time.Parse(time.RFC3339, c.TermsAnnouncedAt); err == nil {
+		notice := c.TermsNotice
+		if notice <= 0 {
+			notice = 14 * 24 * time.Hour
+		}
+		return t.UTC().Add(notice)
+	}
+	return time.Time{}
 }
 
 type SubscriptionsConfig struct {

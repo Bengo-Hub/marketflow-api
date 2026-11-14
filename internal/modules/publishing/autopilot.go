@@ -29,6 +29,9 @@ type VetoRequest struct {
 	Platforms []string
 	Caption   string
 	At        time.Time
+	// NoAILabel leaves out each platform's AI flag, when the owner turned the AI label off
+	// (creative.AILabelKey, owner 2026-11-14). The zero value keeps the label.
+	NoAILabel bool
 }
 
 // VetoSchedule is what was scheduled and which accounts were left out, with the reason.
@@ -54,7 +57,7 @@ func (s *EntStore) ScheduleForVeto(ctx context.Context, req VetoRequest) (VetoSc
 	}
 	fps, _ := asset.Metadata["fps"].(float64)
 	video := Video{URL: asset.URL, Bytes: asset.Bytes, DurationMS: asset.DurationMs, Width: asset.Width, Height: asset.Height, FPS: fps}
-	post := Post{Caption: strings.TrimSpace(req.Caption), AIGenerated: true}
+	post := Post{Caption: strings.TrimSpace(req.Caption), AIGenerated: !req.NoAILabel}
 	// Stored to the second, the same as planned_at, so a veto can tell a waiting job from a claimed one.
 	at := req.At.UTC().Truncate(time.Second)
 	seen := map[uuid.UUID]bool{}
@@ -97,7 +100,7 @@ func (s *EntStore) ScheduleForVeto(ctx context.Context, req VetoRequest) (VetoSc
 			SetScheduledAt(at).
 			SetDedupeKey(key).
 			SetMetadata(map[string]any{
-				"ai_generated":  true,
+				"ai_generated":  post.AIGenerated,
 				"made_for_kids": false,
 				"planned_at":    at.Format(time.RFC3339),
 				"autopilot": map[string]any{
@@ -185,6 +188,53 @@ func (s *EntStore) CancelForVeto(ctx context.Context, tenantID uuid.UUID, jobIDs
 		}
 	}
 	return out, nil
+}
+
+// PostponeForVeto moves a tenant's waiting autopilot jobs that fall due before until to until,
+// planned time included, so a veto still tells a waiting job from a claimed one. The autopilot
+// uses it while the plan cannot be checked (owner 2026-11-14: a post whose window ends during an
+// outage waits until a check succeeds). Each move is one conditional UPDATE, so a job the
+// worker claimed meanwhile is left alone. It returns how many jobs moved.
+func (s *EntStore) PostponeForVeto(ctx context.Context, tenantID uuid.UUID, jobIDs []uuid.UUID, until time.Time) (int, error) {
+	if len(jobIDs) == 0 {
+		return 0, nil
+	}
+	until = until.UTC().Truncate(time.Second)
+	rows, err := s.DB.PublishJob.Query().
+		Where(publishjob.IDIn(jobIDs...), publishjob.TenantIDEQ(tenantID), publishjob.StatusEQ(StatusPending),
+			publishjob.ScheduledAtLT(until)).
+		All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	moved := 0
+	for _, row := range rows {
+		planned := row.ScheduledAt
+		if raw, ok := row.Metadata["planned_at"].(string); ok {
+			if t, err := time.Parse(time.RFC3339, raw); err == nil {
+				planned = t
+			}
+		}
+		if row.ScheduledAt.After(planned.Add(claimTolerance)) {
+			continue // claimed by the worker: on its way already
+		}
+		meta := make(map[string]any, len(row.Metadata)+1)
+		for k, v := range row.Metadata {
+			meta[k] = v
+		}
+		meta["planned_at"] = until.Format(time.RFC3339)
+		n, err := s.DB.PublishJob.Update().
+			Where(publishjob.IDEQ(row.ID), publishjob.TenantIDEQ(tenantID), publishjob.StatusEQ(StatusPending),
+				publishjob.ScheduledAtEQ(row.ScheduledAt)).
+			SetScheduledAt(until).
+			SetMetadata(meta).
+			Save(ctx)
+		if err != nil {
+			return moved, err
+		}
+		moved += n
+	}
+	return moved, nil
 }
 
 // JobsByID returns a tenant's jobs, for the agent dashboard.

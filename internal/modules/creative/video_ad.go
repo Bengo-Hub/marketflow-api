@@ -470,16 +470,25 @@ func (s *Service) RenderVideoAd(ctx context.Context, tenantID, id uuid.UUID) (*e
 	if isPresenter(videoKind(v)) && !storyboardApproved(v) {
 		return nil, fmt.Errorf("%w: approve the storyboard before rendering a presenter ad", ErrConflict)
 	}
+	meta := copyMap(v.Metadata)
+	// A pharmacy's medicine ad is not rendered before its PPB approval reference is entered; with
+	// one, the reference goes on the end card (ppb_approval.go). Checked before the daily cap is taken.
+	ppbCopy, err := s.ppbForRender(ctx, tenantID, v, meta)
+	if err != nil {
+		return nil, err
+	}
 	if err := s.checkDailyCap(ctx, tenantID); err != nil {
 		return nil, err
 	}
-	meta := copyMap(v.Metadata)
 	meta["stage"] = StageRender
 	delete(meta, "attempts") // the render's attempts count from zero
-	n, err := s.db.CreativeVersion.Update().
+	upd := s.db.CreativeVersion.Update().
 		Where(creativeversion.ID(id), creativeversion.TenantID(tenantID), creativeversion.StatusEQ(StatusScriptReady)).
-		SetStatus(StatusQueued).SetMetadata(meta).ClearError().
-		Save(ctx)
+		SetStatus(StatusQueued).SetMetadata(meta).ClearError()
+	if ppbCopy != nil {
+		upd.SetCopy(ppbCopy)
+	}
+	n, err := upd.Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -693,6 +702,9 @@ type adCall struct {
 	MusicCache map[string]any `json:"music_cache,omitempty"`
 	// Mood is the script's music mood, for the generated score.
 	Mood string `json:"mood,omitempty"`
+	// AILabel is the tenant's AI label choice (AILabelKey): false leaves out the on-screen
+	// "AI-generated" note on presenter ads. Always sent; marketflow-ai treats a missing value as on.
+	AILabel bool `json:"ai_label"`
 }
 
 // adPhotos is a video ad's photos as marketflow-ai fetches them: the offering's links, then
@@ -732,7 +744,8 @@ func (r *Renderer) adCallFor(ctx context.Context, v *ent.CreativeVersion, script
 		VoiceAccent: str(meta["voice_accent"]), Language: str(meta["language"]), Scenes: script.Scenes,
 		PhotoURLs: r.adPhotos(v), FootageURLs: strs(meta["footage_urls"]),
 		Headline: str(card["headline"]), Subline: str(card["subline"]), Price: str(card["price"]), CTA: str(card["cta"]),
-		Charge: charge, Kind: videoKind(v), MusicURL: str(meta["music_url"]), Mood: script.Mood}
+		Charge: charge, Kind: videoKind(v), MusicURL: str(meta["music_url"]), Mood: script.Mood,
+		AILabel: TenantAILabel(ctx, r.db, v.TenantID)}
 	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
 		brand, _ := b.Metadata["brand"].(map[string]any)
 		call.Accent, call.LogoURL = str(brand["accent"]), str(brand["logo_url"])

@@ -155,3 +155,23 @@ func (c *Client) StrictHasFeature(ctx context.Context, tenantID, featureCode str
 	}
 	return false
 }
+
+// StrictFeature is StrictHasFeature that also says whether the answer is definite. known is
+// false when the snapshot could not be read (an outage, a timeout, a non-200 answer): the caller
+// must not act on has then. The autopilot's veto window cancels waiting posts only on a definite
+// "not included" (owner, 2026-11-14).
+func (c *Client) StrictFeature(ctx context.Context, tenantID, featureCode string) (has, known bool) {
+	if c == nil || tenantID == "" {
+		return false, false
+	}
+	e := c.cachedEntitlements(ctx, tenantID)
+	if e == nil {
+		return false, false
+	}
+	for _, f := range e.Features {
+		if f == featureCode {
+			return true, true
+		}
+	}
+	return false, true
+}

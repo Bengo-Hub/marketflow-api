@@ -44,7 +44,14 @@ var ReservedMetadataKeys = []string{
 	OnboardingMetadataKey,
 	// The brand image list holds storage keys; only its own endpoints may write it.
 	brandimages.MetadataKey,
+	// A pharmacy's PPB advert approval references, written only by PUT /creative/ppb-approvals
+	// (creative.PPBApprovalsMetadataKey; owner, 2026-11-14).
+	PPBApprovalsMetadataKey,
 }
+
+// PPBApprovalsMetadataKey mirrors creative.PPBApprovalsMetadataKey (this package may not import
+// creative); a creative test checks the two agree and that the key is reserved.
+const PPBApprovalsMetadataKey = "ppb_approvals"
 
 // OnboardingMetadataKey holds the setup checklist state ({dismissed_at, completed_at}),
 // written only by the onboarding endpoints.

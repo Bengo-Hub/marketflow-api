@@ -91,6 +91,8 @@ var BusinessTypes = []BusinessTypeInfo{
 		BannedClaims: []string{
 			"Cure or guaranteed result claims, or \"no side effects\"",
 			"Promoting prescription-only medicines to the public",
+			"Discounts, offers or giveaways on any medicine, general sale medicines included",
+			"Medicine adverts without the PPB advert approval reference",
 			"\"No prescription needed\"",
 			"Treatment claims for serious diseases such as diabetes, cancer or HIV",
 		}},

@@ -11,12 +11,20 @@ import (
 // (metadata.restricted_categories) so the reviewer sees it before approving
 // and the ad publisher can apply the stricter targeting rules (age limits,
 // special ad categories).
+// The owner's Restricted Categories for auto-publish (2026-11-14) are health, medicine and weight
+// loss; alcohol, tobacco and betting; finance and credit; politics and children's products. A
+// hit makes an autopilot video wait for a person.
 var restrictedTerms = map[string][]string{
-	"health":    {"cure", "cures", "treat", "treats", "heal", "heals", "weight loss", "lose weight", "diabetes", "cancer", "hypertension", "detox", "miracle", "guaranteed results"},
-	"finance":   {"loan", "loans", "credit", "invest", "investment", "returns", "forex", "crypto", "double your money", "guaranteed income", "earn per day"},
-	"alcohol":   {"beer", "wine", "whisky", "whiskey", "vodka", "gin", "spirits", "liquor", "happy hour"},
-	"betting":   {"bet", "betting", "jackpot", "odds", "casino", "sportpesa", "gamble"},
-	"politics":  {"vote", "election", "campaign rally", "candidate", "party manifesto"},
+	"health": {"cure", "cures", "treat", "treats", "heal", "heals", "weight loss", "lose weight", "slimming", "diabetes", "cancer",
+		"hypertension", "detox", "miracle", "guaranteed results", "medicine", "medicines", "tablets", "capsules", "supplement",
+		"supplements", "pharmacy", "prescription", "dawa"},
+	"finance": {"loan", "loans", "credit", "invest", "investment", "returns", "forex", "crypto", "double your money", "guaranteed income",
+		"earn per day", "insurance", "mkopo", "mikopo"},
+	"alcohol":  {"beer", "wine", "whisky", "whiskey", "vodka", "gin", "spirits", "liquor", "happy hour"},
+	"tobacco":  {"cigarette", "cigarettes", "tobacco", "shisha", "hookah", "vape", "vapes", "vaping", "e-cigarette", "nicotine", "snus"},
+	"betting":  {"bet", "betting", "jackpot", "odds", "casino", "sportpesa", "gamble"},
+	"politics": {"vote", "election", "campaign rally", "candidate", "party manifesto"},
+	"children": {"for kids", "for children", "for babies", "for toddlers", "baby formula", "infant formula", "kids toys", "watoto"},
 	"education": {"guaranteed job", "certified in", "accredited", "100% pass"},
 }
 

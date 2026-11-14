@@ -1,9 +1,13 @@
 package worker
 
 import (
+	"context"
+	"sync"
+
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/platform/subscriptions"
+	"github.com/google/uuid"
 )
 
 // AutopilotGate is the ad autopilot's veto-window gate in the worker (Sprint 20, owner
@@ -13,5 +17,38 @@ import (
 func AutopilotGate(cfg *Config, db *ent.Client) custom_agents.AutoPublishGate {
 	custom_agents.SetDefaultVeto(cfg.Autopilot.DefaultVetoHours)
 	subs := subscriptions.NewClient(subscriptions.Config{ServiceURL: cfg.Subscriptions.URL, APIKey: cfg.Subscriptions.APIKey})
-	return custom_agents.AutoPublishGate{DB: db, HasFeature: subs.StrictHasFeature, TermsVersion: cfg.Autopilot.TermsVersion}
+	return custom_agents.AutoPublishGate{DB: db, HasFeature: subs.StrictHasFeature, TermsVersion: cfg.Autopilot.TermsVersion,
+		TermsEffectiveAt: cfg.Autopilot.TermsEffective(), CheckFeature: subs.StrictFeature}
+}
+
+// AutopilotLapsedHook tells the autopublish pipeline that a run found the tenant's plan or terms
+// no longer allow the veto-window mode, so its posts still waiting are cancelled at once (owner
+// 2026-11-14). The pipeline is built after the consumers, so it is bound late (Set); unset, the
+// pipeline's sweep does the same within a minute.
+type AutopilotLapsedHook struct {
+	mu sync.RWMutex
+	fn func(ctx context.Context, tenantID uuid.UUID)
+}
+
+// Set binds the hook (autopublish.Pipeline.AutoPublishLapsed).
+func (h *AutopilotLapsedHook) Set(fn func(ctx context.Context, tenantID uuid.UUID)) {
+	if h == nil {
+		return
+	}
+	h.mu.Lock()
+	h.fn = fn
+	h.mu.Unlock()
+}
+
+// Call tells the pipeline, when bound.
+func (h *AutopilotLapsedHook) Call(ctx context.Context, tenantID uuid.UUID) {
+	if h == nil {
+		return
+	}
+	h.mu.RLock()
+	fn := h.fn
+	h.mu.RUnlock()
+	if fn != nil {
+		fn(ctx, tenantID)
+	}
 }

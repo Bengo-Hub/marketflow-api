@@ -106,6 +106,48 @@ func (h *Handler) Veto(w http.ResponseWriter, r *http.Request) {
 	h.vetoReply(w, res, err)
 }
 
+// VetoJob handles POST /api/v1/agents/autopilot/posts/{id}/jobs/{job_id}/veto: cancels the
+// agent's post of this video on one account only (owner 2026-11-14). The other accounts' posts
+// still go out when the window ends. The approving roles only. 409 too_late when that account's
+// post already went out.
+// @Summary Cancel one account's ad autopilot post in its veto window
+// @Tags Custom Agents
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Video ad version UUID"
+// @Param job_id path string true "Publish job UUID of the account's post"
+// @Success 200 {object} VetoResult
+// @Failure 403 {object} httpapi.ErrorResponse
+// @Failure 409 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /agents/autopilot/posts/{id}/jobs/{job_id}/veto [post]
+func (h *Handler) VetoJob(w http.ResponseWriter, r *http.Request) {
+	tid, ok := tenantOf(w, r)
+	if !ok {
+		return
+	}
+	if h.CanApprove != nil && !h.CanApprove(r.Context(), tid) {
+		httpapi.Error(w, http.StatusForbidden, "forbidden", "only the account owner or an admin can cancel a post", nil)
+		return
+	}
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_id", "invalid id", nil)
+		return
+	}
+	jobID, err := uuid.Parse(chi.URLParam(r, "job_id"))
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_id", "invalid job id", nil)
+		return
+	}
+	by := "user"
+	if c, ok := authclient.ClaimsFromContext(r.Context()); ok && c != nil && c.Subject != "" {
+		by = "user:" + c.Subject
+	}
+	res, err := h.P.VetoJob(r.Context(), tid, id, jobID, by)
+	h.vetoReply(w, res, err)
+}
+
 // PublicView handles the public GET /api/v1/public/autopilot/veto/{token}: what the emailed
 // cancel link points at, for the confirmation page. Nothing changes.
 // @Summary Read the post a cancel link points at

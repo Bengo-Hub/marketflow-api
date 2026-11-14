@@ -148,11 +148,18 @@ func TestAutopilotRunVetoWindow(t *testing.T) {
 		t.Fatalf("the brief names the run: %v", b.Metadata)
 	}
 
+	// Owner 2026-11-14: the failed gate also tells the pipeline to cancel the posts already waiting.
+	hook := &AutopilotLapsedHook{}
+	var told []uuid.UUID
+	hook.Set(func(_ context.Context, tenantID uuid.UUID) { told = append(told, tenantID) })
 	lapsed := NewAutopilotRunner(db, nil, "https://mf.example", zap.NewNop()).WithAutoPublishGate(custom_agents.AutoPublishGate{
-		DB: db, HasFeature: func(context.Context, string, string) bool { return false }, TermsVersion: "v1"})
+		DB: db, HasFeature: func(context.Context, string, string) bool { return false }, TermsVersion: "v1"}).WithLapsedHook(hook)
 	res, err = lapsed.RunWithID(ctx, a, uuid.New())
 	if err != nil || res.VetoWindow {
 		t.Fatalf("a lapsed plan runs approve-each: %+v %v", res, err)
+	}
+	if len(told) != 1 || told[0] != tid {
+		t.Fatalf("the pipeline must be told to cancel the waiting posts: %v", told)
 	}
 	if v := db.CreativeVersion.GetX(ctx, uuid.MustParse(res.VersionID)); v.Metadata["autopilot"] != nil {
 		t.Fatalf("an approve-each draft is not the pipeline's: %v", v.Metadata)

@@ -54,6 +54,9 @@ func New(d Deps) *Pipeline {
 	if d.Config.PipelineSettle <= 0 {
 		d.Config.PipelineSettle = 2 * time.Minute
 	}
+	if d.Config.OutageHandover <= 0 {
+		d.Config.OutageHandover = 24 * time.Hour
+	}
 	return &Pipeline{Deps: d, logger: d.Logger.Named("autopublish"), now: time.Now}
 }
 
@@ -67,7 +70,9 @@ func (p *Pipeline) Settled(ctx context.Context, tenantID, versionID uuid.UUID, e
 // Advance takes the next step of one veto-window video. It is safe to call at any time and from
 // any replica: it reads the current state, and each step is claimed by a conditional update.
 func (p *Pipeline) Advance(ctx context.Context, tenantID, id uuid.UUID) error {
-	v, err := p.DB.CreativeVersion.Query().Where(creativeversion.ID(id), creativeversion.TenantID(tenantID)).Only(ctx)
+	// One plan and terms answer per tenant per sweep (or per call, outside a sweep).
+	ctx = withGateCache(ctx)
+	v, err :=p.DB.CreativeVersion.Query().Where(creativeversion.ID(id), creativeversion.TenantID(tenantID)).Only(ctx)
 	if err != nil {
 		return err
 	}
@@ -80,6 +85,11 @@ func (p *Pipeline) Advance(ctx context.Context, tenantID, id uuid.UUID) error {
 		return p.release(ctx, v, st)
 	case StateActive:
 	default:
+		return nil
+	}
+	// Owner 2026-11-14: while the plan or terms cannot be read, the video waits for the next sweep
+	// instead of falling back to approve-each on a guess.
+	if !p.gateCheck(ctx, tenantID).known {
 		return nil
 	}
 	brief, err := p.Studio.Brief(ctx, tenantID, v.BriefID)
@@ -125,6 +135,11 @@ func (p *Pipeline) Advance(ctx context.Context, tenantID, id uuid.UUID) error {
 	case stepHold:
 		return p.hold(ctx, v, st, brief, agent, why)
 	case stepStoryboard:
+		if why, err := p.ppbHeld(ctx, v); err != nil {
+			return err
+		} else if why != "" {
+			return p.hold(ctx, v, st, brief, agent, why)
+		}
 		if used, err := custom_agents.CreditsThisMonth(ctx, p.DB, tenantID, agent.ID, p.now()); err == nil && used >= cfg.CreditCap {
 			return p.hold(ctx, v, st, brief, agent, fmt.Sprintf("the agent reached this month's credit ceiling of %d", cfg.CreditCap))
 		}
@@ -174,8 +189,8 @@ func (p *Pipeline) agent(ctx context.Context, tenantID uuid.UUID, agentID string
 	case cfg.Approval != custom_agents.AutoPublish:
 		return a, cfg, false, "the agent is now set to wait for your approval of each ad"
 	}
-	if ok, why := p.Gate.Allowed(ctx, tenantID); !ok {
-		return a, cfg, false, why
+	if gc := p.gateCheck(ctx, tenantID); gc.why != "" {
+		return a, cfg, false, gc.why
 	}
 	if cfg.VetoHours < custom_agents.MinVetoHours || cfg.VetoHours > custom_agents.MaxVetoHours {
 		cfg.VetoHours = custom_agents.DefaultVeto
@@ -189,6 +204,13 @@ func (p *Pipeline) render(ctx context.Context, v *ent.CreativeVersion, st *State
 	today := p.now().UTC().Format("2006-01-02")
 	if day, _ := st.Raw["daily_cap_day"].(string); day == today {
 		return nil // today's renders are used up; tomorrow's sweep tries again
+	}
+	// A pharmacy's medicine ad waits for its PPB approval reference before anything is quoted or
+	// spent (pharmacy hand-off 2026-11-14).
+	if why, err := p.ppbHeld(ctx, v); err != nil {
+		return err
+	} else if why != "" {
+		return p.hold(ctx, v, st, brief, agent, why)
 	}
 	q, err := p.Quoter.QuoteRenderCredits(ctx, v)
 	if err != nil {
@@ -231,6 +253,12 @@ func (p *Pipeline) render(ctx context.Context, v *ent.CreativeVersion, st *State
 // schedule posts the finished video to the agent's accounts at now + VetoHours and sends the
 // heads-up. Nowhere to post leaves a ready draft for the owner.
 func (p *Pipeline) schedule(ctx context.Context, v *ent.CreativeVersion, st *State, brief *ent.CreativeBrief, agent *ent.CustomAgent, cfg custom_agents.AutopilotConfig) error {
+	// The reference may have been removed after the render: no post is scheduled without it.
+	if why, err := p.ppbHeld(ctx, v); err != nil {
+		return err
+	} else if why != "" {
+		return p.hold(ctx, v, st, brief, agent, why)
+	}
 	// No post without its heads-up: without a way to email the cancel link, the owner decides.
 	if p.Links == nil || p.Notif == nil {
 		return p.hold(ctx, v, st, brief, agent, "the heads-up email with the cancel link cannot be sent right now")
@@ -257,6 +285,8 @@ func (p *Pipeline) schedule(ctx context.Context, v *ent.CreativeVersion, st *Sta
 	out, err := p.Publish.ScheduleForVeto(ctx, publishing.VetoRequest{
 		TenantID: v.TenantID, AssetID: asset.ID, VersionID: v.ID, AgentID: agent.ID,
 		AccountIDs: cfg.AccountIDs, Platforms: cfg.Platforms, Caption: Caption(v, brief), At: at,
+		// The owner's AI label choice (owner 2026-11-14): off leaves out the platforms' AI flag.
+		NoAILabel: !creative.TenantAILabel(ctx, p.DB, v.TenantID),
 	})
 	if err != nil {
 		return err
@@ -312,7 +342,13 @@ func (p *Pipeline) release(ctx context.Context, v *ent.CreativeVersion, st *Stat
 	// Owner 2026-11-14: an agent switched off, set back to approve-each or deleted while its post
 	// waits in the window has that post cancelled at once, and the owner is told.
 	if why := p.agentOff(ctx, v.TenantID, st.AgentID); why != "" {
-		return p.cancelForAgent(ctx, v, st, ids, why)
+		return p.cancelForAgent(ctx, v, st, ids, ActorAgentOff, why)
+	}
+	// Owner 2026-11-14: a definite lapsed plan or new terms the tenant has not accepted cancel the
+	// waiting posts the same way, at once, with their own reason in the email.
+	gc := p.gateCheck(ctx, v.TenantID)
+	if gc.known && gc.why != "" {
+		return p.cancelForAgent(ctx, v, st, ids, ActorAutoPublishLapsed, gc.why)
 	}
 	switch v.Status {
 	case creative.StatusRejected, creative.StatusSuperseded, creative.StatusFailed:
@@ -321,6 +357,37 @@ func (p *Pipeline) release(ctx context.Context, v *ent.CreativeVersion, st *Stat
 			return err
 		}
 		return p.decide(ctx, v, st, StateVetoed, "studio", "the video was discarded or replaced in the studio")
+	}
+	if !gc.known {
+		// Owner 2026-11-14: an answer that is not definite (an outage, a timeout) never cancels.
+		// Nothing is released either: jobs about to fall due are moved on, so a post whose window
+		// ends during the outage waits until a check succeeds. After OutageHandover from the first
+		// failed check for this post, the post is handed to the owner instead (its jobs are
+		// cancelled, so nothing goes out unchecked) and the owner is emailed once.
+		first, seen := planCheckFailedAt(st)
+		if !seen {
+			first = p.now().UTC()
+			if err := creative.SetAutopilotState(ctx, p.DB, v, map[string]any{planCheckFailedKey: first.Format(time.RFC3339)}); err != nil {
+				return ignoreConflict(err)
+			}
+		} else if p.now().Sub(first) >= p.Config.OutageHandover {
+			return p.holdScheduled(ctx, v, st, ids, fmt.Sprintf("your plan could not be checked for %s, so the agent will not post it by itself", humanHours(p.Config.OutageHandover)))
+		}
+		if _, err := p.Publish.PostponeForVeto(ctx, v.TenantID, ids, p.now().Add(3*p.Config.PipelineInterval)); err != nil {
+			return err
+		}
+		return nil
+	}
+	if _, seen := planCheckFailedAt(st); seen {
+		// The check succeeds again: a later outage counts from its own first failure.
+		if err := creative.SetAutopilotState(ctx, p.DB, v, map[string]any{planCheckFailedKey: nil}); err != nil {
+			return ignoreConflict(err)
+		}
+		fresh, err := p.DB.CreativeVersion.Get(ctx, v.ID)
+		if err != nil {
+			return err
+		}
+		v, st = fresh, readState(fresh)
 	}
 	if st.PublishAt.IsZero() || p.now().Before(st.PublishAt) {
 		return nil
@@ -348,6 +415,11 @@ func (p *Pipeline) release(ctx context.Context, v *ent.CreativeVersion, st *Stat
 			by = "user:" + v.ApprovedBy.String()
 		}
 	} else if _, err := p.Studio.ApproveAfterVeto(ctx, v.TenantID, v.ID); err != nil {
+		if errors.Is(err, creative.ErrPPBApprovalRequired) {
+			// A pharmacy's medicine ad without its PPB approval reference is never approved by the
+			// window: its waiting posts are cancelled and it waits for the owner.
+			return p.holdScheduled(ctx, v, st, ids, ppbReason(err))
+		}
 		return ignoreConflict(err)
 	}
 	if v, err = p.DB.CreativeVersion.Get(ctx, v.ID); err != nil {
@@ -368,9 +440,89 @@ func (p *Pipeline) release(ctx context.Context, v *ent.CreativeVersion, st *Stat
 // ActorAgentOff is recorded as the canceller when the agent was turned off during the window.
 const ActorAgentOff = "agent_turned_off"
 
+// ActorAutoPublishLapsed is recorded as the canceller when the tenant's plan or terms stopped
+// allowing the veto-window mode during the window.
+const ActorAutoPublishLapsed = "auto_publish_lapsed"
+
+// The reasons in the cancel email when the tenant no longer may auto-publish (owner 2026-11-14).
+const (
+	WhyPlanLapsed   = "your plan no longer includes auto-publish"
+	WhyTermsChanged = "new auto-publish terms need your acceptance"
+)
+
+// planCheckFailedKey records on metadata.autopilot when the plan check first failed for a
+// scheduled post, cleared once a check succeeds (owner 2026-11-14).
+const planCheckFailedKey = "plan_check_failed_at"
+
+// planCheckFailedAt reads planCheckFailedKey; seen is false when it is unset.
+func planCheckFailedAt(st *State) (time.Time, bool) {
+	s, _ := st.Raw[planCheckFailedKey].(string)
+	t, err := time.Parse(time.RFC3339, s)
+	return t, err == nil
+}
+
+// humanHours writes a duration for the owner's email: "24 hours", "90 minutes".
+func humanHours(d time.Duration) string {
+	if d >= time.Hour && d%time.Hour == 0 {
+		if d == time.Hour {
+			return "1 hour"
+		}
+		return fmt.Sprintf("%d hours", int(d/time.Hour))
+	}
+	return fmt.Sprintf("%d minutes", int(d/time.Minute))
+}
+
+// gateAnswer is one tenant's plan and terms answer. why is set when the tenant definitely no
+// longer may auto-publish; known is false when the answer could not be read (an outage, a
+// timeout, the tenant unreadable), and then nothing is cancelled for it.
+type gateAnswer struct {
+	why   string
+	known bool
+}
+
+type gateCacheKey struct{}
+
+// withGateCache gives ctx a per-sweep cache of gate answers, unless it already has one.
+func withGateCache(ctx context.Context) context.Context {
+	if _, ok := ctx.Value(gateCacheKey{}).(map[uuid.UUID]gateAnswer); ok {
+		return ctx
+	}
+	return context.WithValue(ctx, gateCacheKey{}, map[uuid.UUID]gateAnswer{})
+}
+
+// gateCheck reads the tenant's plan and terms once per sweep (owner 2026-11-14): every video of
+// the tenant in the same sweep shares the answer. The sweep walks its videos one at a time, so
+// the map needs no lock.
+func (p *Pipeline) gateCheck(ctx context.Context, tenantID uuid.UUID) gateAnswer {
+	cache, _ := ctx.Value(gateCacheKey{}).(map[uuid.UUID]gateAnswer)
+	if a, ok := cache[tenantID]; ok {
+		return a
+	}
+	a := p.readGate(ctx, tenantID)
+	if cache != nil {
+		cache[tenantID] = a
+	}
+	return a
+}
+
+// readGate asks the gate: the plan feature (strict, and definite only when the snapshot was read)
+// and the terms with their effective date.
+func (p *Pipeline) readGate(ctx context.Context, tenantID uuid.UUID) gateAnswer {
+	st, err := p.Gate.Status(ctx, tenantID)
+	switch {
+	case err != nil || st.PlanUnknown:
+		return gateAnswer{}
+	case !st.PlanAllows:
+		return gateAnswer{why: WhyPlanLapsed, known: true}
+	case !st.TermsAccepted:
+		return gateAnswer{why: WhyTermsChanged, known: true}
+	}
+	return gateAnswer{known: true}
+}
+
 // agentOff returns why the agent no longer posts by itself (switched off, set back to
-// approve-each, deleted), or "" while it still does. A lapsed plan is not this: a post already
-// announced stays, and the owner can still veto it.
+// approve-each, deleted), or "" while it still does. A lapsed plan or new terms are checked
+// apart (autoPublishLapsed).
 func (p *Pipeline) agentOff(ctx context.Context, tenantID uuid.UUID, agentID string) string {
 	aid, err := uuid.Parse(agentID)
 	if err != nil {
@@ -392,14 +544,15 @@ func (p *Pipeline) agentOff(ctx context.Context, tenantID uuid.UUID, agentID str
 	return ""
 }
 
-// cancelForAgent cancels the waiting posts of a video whose agent was turned off, records it apart
-// from the agent's steps, and emails the owner what was cancelled.
-func (p *Pipeline) cancelForAgent(ctx context.Context, v *ent.CreativeVersion, st *State, ids []uuid.UUID, why string) error {
+// cancelForAgent cancels the waiting posts of a video whose agent was turned off, or whose tenant
+// no longer may auto-publish, records it apart from the agent's steps with by as the canceller,
+// and emails the owner and admins what was cancelled.
+func (p *Pipeline) cancelForAgent(ctx context.Context, v *ent.CreativeVersion, st *State, ids []uuid.UUID, by, why string) error {
 	out, err := p.Publish.CancelForVeto(ctx, v.TenantID, ids)
 	if err != nil {
 		return err
 	}
-	if err := p.decide(ctx, v, st, StateVetoed, ActorAgentOff, why); err != nil {
+	if err := p.decide(ctx, v, st, StateVetoed, by, why); err != nil {
 		return err
 	}
 	if out.Cancelled > 0 {
@@ -413,18 +566,35 @@ func (p *Pipeline) cancelForAgent(ctx context.Context, v *ent.CreativeVersion, s
 // to approve-each or deleted (custom_agents.WithAgentChanged). The sweep does the same within a
 // minute if this call is missed.
 func (p *Pipeline) AgentChanged(ctx context.Context, tenantID, agentID uuid.UUID) {
-	rows, err := p.DB.CreativeVersion.Query().
+	p.advanceWaiting(ctx, tenantID, "agent change", autopilotAgentIs(agentID.String()))
+}
+
+// AutoPublishLapsed cancels the tenant's veto-window posts still waiting when a run found that the
+// plan or the terms no longer allow the mode (owner 2026-11-14). Each post's release checks the
+// plan and terms again before it cancels, and the sweep does the same within a minute if this
+// call is missed.
+func (p *Pipeline) AutoPublishLapsed(ctx context.Context, tenantID uuid.UUID) {
+	p.advanceWaiting(ctx, tenantID, "auto-publish lapsed")
+}
+
+// advanceWaiting advances the tenant's scheduled veto-window videos that match where, so each one
+// whose agent or tenant no longer allows the post is cancelled now.
+func (p *Pipeline) advanceWaiting(ctx context.Context, tenantID uuid.UUID, what string, where ...func(*entsql.Selector)) {
+	ctx = withGateCache(ctx)
+	q :=p.DB.CreativeVersion.Query().
 		Where(creativeversion.TenantID(tenantID), creativeversion.KindEQ(creative.KindVideoAd),
-			creativeversion.CreatedAtGT(p.now().AddDate(0, 0, -30)), autopilotStateIn(StateScheduled), autopilotAgentIs(agentID.String())).
-		Limit(sweepBatch).
-		All(ctx)
+			creativeversion.CreatedAtGT(p.now().AddDate(0, 0, -30)), autopilotStateIn(StateScheduled))
+	for _, w := range where {
+		q = q.Where(w)
+	}
+	rows, err := q.Limit(sweepBatch).All(ctx)
 	if err != nil {
-		p.logger.Warn("autopilot agent change: posts not read", zap.String("agent", agentID.String()), zap.Error(err))
+		p.logger.Warn("autopilot "+what+": posts not read", zap.String("tenant", tenantID.String()), zap.Error(err))
 		return
 	}
 	for _, v := range rows {
 		if err := p.Advance(ctx, tenantID, v.ID); err != nil {
-			p.logger.Warn("autopilot agent change: post not cancelled", zap.String("version_id", v.ID.String()), zap.Error(err))
+			p.logger.Warn("autopilot "+what+": post not cancelled", zap.String("version_id", v.ID.String()), zap.Error(err))
 		}
 	}
 }
@@ -456,6 +626,39 @@ func (p *Pipeline) decide(ctx context.Context, v *ent.CreativeVersion, st *State
 	p.audit(ctx, v, event, by, map[string]any{"run_id": st.RunID, "agent_id": st.AgentID, "note": note})
 	p.trace(ctx, st.RunID, map[string]any{"step": state, "version_id": v.ID.String(), "decided_by": by, "at": at})
 	return nil
+}
+
+// ppbHeld returns why a pharmacy's medicine ad must wait for its PPB approval reference, or ""
+// when it need not (creative.CheckPPBApprovalForVersion, pharmacy hand-off 2026-11-14: only a
+// version whose words promote the medicine is held, a plain availability post is not).
+func (p *Pipeline) ppbHeld(ctx context.Context, v *ent.CreativeVersion) (string, error) {
+	_, err := p.Studio.CheckPPBApprovalForVersion(ctx, v.TenantID, v)
+	switch {
+	case err == nil:
+		return "", nil
+	case errors.Is(err, creative.ErrPPBApprovalRequired):
+		return ppbReason(err), nil
+	}
+	return "", err
+}
+
+// ppbReason is the hold reason for the owner's email; the email carries the Studio link where the
+// reference is entered.
+func ppbReason(err error) string {
+	var req *creative.PPBApprovalRequiredError
+	if errors.As(err, &req) && req.OfferingName != "" {
+		return fmt.Sprintf("it advertises a medicine (%s) and needs its Pharmacy and Poisons Board approval reference. Enter the reference in the studio, then approve the ad", req.OfferingName)
+	}
+	return "it advertises a medicine and needs its Pharmacy and Poisons Board approval reference. Enter the reference in the studio, then approve the ad"
+}
+
+// holdScheduled cancels a scheduled video's waiting posts and hands it to the owner with why.
+func (p *Pipeline) holdScheduled(ctx context.Context, v *ent.CreativeVersion, st *State, ids []uuid.UUID, why string) error {
+	if _, err := p.Publish.CancelForVeto(ctx, v.TenantID, ids); err != nil {
+		return err
+	}
+	brief, _ := p.Studio.Brief(ctx, v.TenantID, v.BriefID)
+	return p.hold(ctx, v, st, brief, nil, why)
 }
 
 // hold moves the video to approve-each: it waits for a person and the owner is emailed why.
@@ -564,6 +767,7 @@ const sweepBatch = 50
 
 // Sweep advances every veto-window video that is active and still, or scheduled.
 func (p *Pipeline) Sweep(ctx context.Context) {
+	ctx = withGateCache(ctx)
 	still := p.now().Add(-p.Config.PipelineSettle)
 	// Each state has its own batch, so open windows waiting for their end never crowd out videos
 	// still being made.
@@ -624,10 +828,34 @@ func Caption(v *ent.CreativeVersion, brief *ent.CreativeBrief) string {
 		parts = append(parts, brief.Title)
 	}
 	out := strings.Join(parts, "\n\n")
-	if r := []rune(out); len(r) > 2000 {
-		out = string(r[:2000])
+	// A pharmacy's medicine ad always shows its PPB approval reference (pharmacy hand-off
+	// 2026-11-14): the approved version's metadata.ppb_approval.caption_line ends the caption and
+	// is never cut by the length limit.
+	line := ppbCaptionLine(v)
+	limit := 2000
+	if line != "" {
+		limit -= len([]rune(line)) + 2
+	}
+	if r := []rune(out); len(r) > limit {
+		out = string(r[:limit])
+	}
+	if line != "" && !strings.Contains(out, line) {
+		if out != "" {
+			out += "\n\n"
+		}
+		out += line
 	}
 	return out
+}
+
+// ppbCaptionLine is the version's "PPB approval ref. ..." line, or "".
+func ppbCaptionLine(v *ent.CreativeVersion) string {
+	if v == nil {
+		return ""
+	}
+	ppb, _ := v.Metadata[creative.MetaPPBApproval].(map[string]any)
+	s, _ := ppb["caption_line"].(string)
+	return strings.TrimSpace(s)
 }
 
 func skippedText(skipped map[string]string) string {

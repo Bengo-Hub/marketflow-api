@@ -539,6 +539,10 @@ type CreativeHandlers struct {
 	CreateReviewLink  http.HandlerFunc
 	RevokeReviewLinks http.HandlerFunc
 	OpenReview        http.HandlerFunc // Public — GET /r/{token}
+	// PPB advert approval references of a pharmacy's medicine ads (owner, 2026-11-14).
+	ListPPBApprovals http.HandlerFunc // GET /creative/ppb-approvals
+	SetPPBApproval   http.HandlerFunc // PUT /creative/ppb-approvals (owner or admin)
+	BriefPPBApproval http.HandlerFunc // GET /creative/briefs/{id}/ppb-approval
 }
 
 // AdsHandlers groups the paid ads routes (Sprint 18).
@@ -599,8 +603,10 @@ type CustomAgentHandlers struct {
 	PutAutoPublish http.HandlerFunc
 	AutopilotPosts http.HandlerFunc
 	AutopilotVeto  http.HandlerFunc
-	PublicVetoView http.HandlerFunc // Public: GET /public/autopilot/veto/{token}
-	PublicVetoPost http.HandlerFunc // Public: POST /public/autopilot/veto/{token}
+	// AutopilotVetoJob cancels one account's post of a video (owner 2026-11-14); the others stay.
+	AutopilotVetoJob http.HandlerFunc
+	PublicVetoView   http.HandlerFunc // Public: GET /public/autopilot/veto/{token}
+	PublicVetoPost   http.HandlerFunc // Public: POST /public/autopilot/veto/{token}
 }
 
 // SegmentHandlers groups segment management HTTP handlers.
@@ -1004,6 +1010,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				if deps.CustomAgentHandlers.AutopilotPosts != nil {
 					r.Get("/agents/autopilot/posts", deps.CustomAgentHandlers.AutopilotPosts)
 					r.Post("/agents/autopilot/posts/{id}/veto", deps.CustomAgentHandlers.AutopilotVeto)
+					if deps.CustomAgentHandlers.AutopilotVetoJob != nil {
+						r.Post("/agents/autopilot/posts/{id}/jobs/{job_id}/veto", deps.CustomAgentHandlers.AutopilotVetoJob)
+					}
 				}
 				r.Route("/agents/custom", func(r chi.Router) {
 					r.Post("/", deps.CustomAgentHandlers.Create)
@@ -1094,6 +1103,11 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Get("/versions/{id}/quote", deps.CreativeHandlers.QuoteVideoAd)
 					r.Post("/versions/{id}/review-link", deps.CreativeHandlers.CreateReviewLink)
 					r.Delete("/versions/{id}/review-link", deps.CreativeHandlers.RevokeReviewLinks)
+					if deps.CreativeHandlers.ListPPBApprovals != nil {
+						r.Get("/ppb-approvals", deps.CreativeHandlers.ListPPBApprovals)
+						r.Put("/ppb-approvals", deps.CreativeHandlers.SetPPBApproval)
+						r.Get("/briefs/{id}/ppb-approval", deps.CreativeHandlers.BriefPPBApproval)
+					}
 				})
 			}
 

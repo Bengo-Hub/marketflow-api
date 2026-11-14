@@ -74,7 +74,13 @@ type Registry struct {
 	db       *ent.Client
 	logger   *zap.Logger
 	handlers []Handler
+	// autopilotLapsed is bound to the autopublish pipeline once it is built (AutopilotLapsed).
+	autopilotLapsed *AutopilotLapsedHook
 }
+
+// AutopilotLapsed is the hook the autopilot runs call when the plan or terms no longer allow the
+// veto-window mode; bind it with Set once the autopublish pipeline exists.
+func (r *Registry) AutopilotLapsed() *AutopilotLapsedHook { return r.autopilotLapsed }
 
 // NewRegistry constructs a Registry with the four core handlers.
 // db/rawDB may be nil — handlers that require DB access (lead auto-enrol,
@@ -96,10 +102,12 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, keys *encryption.Ke
 		logger:     logger.Named("agent.lead-scorer"),
 		hc:         agentHTTP,
 	}
+	lapsed := &AutopilotLapsedHook{}
 	return &Registry{
-		cfg:    cfg,
-		db:     db,
-		logger: logger,
+		cfg:             cfg,
+		db:              db,
+		logger:          logger,
+		autopilotLapsed: lapsed,
 		handlers: []Handler{
 			&NurtureStepHandler{cfg: cfg, db: db, notif: notif, logger: logger.Named("nurture")},
 			&EmbeddingHandler{cfg: cfg, db: db, rawDB: rawDB, logger: logger.Named("embedding")},
@@ -151,7 +159,7 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, keys *encryption.Ke
 				logger:     logger.Named("agent.custom-execution"),
 				hc:         agentHTTP,
 				autopilot: NewAutopilotRunner(db, notif, cfg.API.PortalURL, logger).WithForecast(custom_agents.NewCreditForecaster(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey)).
-					WithAutoPublishGate(AutopilotGate(cfg, db)),
+					WithAutoPublishGate(AutopilotGate(cfg, db)).WithLapsedHook(lapsed),
 			},
 		},
 	}

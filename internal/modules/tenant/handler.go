@@ -1,6 +1,7 @@
 package tenant
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -19,6 +20,9 @@ import (
 type Handler struct {
 	db     *ent.Client
 	logger *zap.Logger
+	// CanApprove tells whether the caller holds an approving role (owner or admin). Only they
+	// may change the AI label (owner 2026-11-14); nil allows every caller.
+	CanApprove func(ctx context.Context, tenantID uuid.UUID) bool
 }
 
 func NewHandler(db *ent.Client, logger *zap.Logger) *Handler {
@@ -94,6 +98,22 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		if err := ValidateSalesSettings(req.Metadata); err != nil {
 			httpapi.Error(w, http.StatusBadRequest, "invalid_sales_settings", err.Error(), nil)
 			return
+		}
+		if err := ValidateAILabel(req.Metadata); err != nil {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_ai_label", err.Error(), nil)
+			return
+		}
+		// Owner 2026-11-14: only owners and admins change the AI label. A form that sends the
+		// stored value back unchanged is not a change.
+		if v, ok := req.Metadata[AILabelKey]; ok {
+			if AILabelChanged(t.Metadata, v) {
+				if h.CanApprove != nil && !h.CanApprove(r.Context(), tenantID) {
+					httpapi.Error(w, http.StatusForbidden, "forbidden", "only the account owner or an admin can change the AI label", nil)
+					return
+				}
+			} else {
+				delete(req.Metadata, AILabelKey)
+			}
 		}
 	}
 

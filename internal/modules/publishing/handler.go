@@ -135,7 +135,8 @@ func (h *Handler) Schedule(w http.ResponseWriter, r *http.Request) {
 	}
 	fps, _ := asset.Metadata["fps"].(float64)
 	video := Video{URL: asset.URL, Bytes: asset.Bytes, DurationMS: asset.DurationMs, Width: asset.Width, Height: asset.Height, FPS: fps}
-	post := Post{Caption: strings.TrimSpace(in.Caption), AIGenerated: true, MadeForKids: in.MadeForKids}
+	// The owner's AI label choice covers posts scheduled by hand too (owner 2026-11-14).
+	post := Post{Caption: strings.TrimSpace(in.Caption), AIGenerated: aiLabelOn(ctx, h.Store.DB, tid), MadeForKids: in.MadeForKids}
 
 	type target struct {
 		acc      *ent.ConnectedAccount
@@ -188,7 +189,7 @@ func (h *Handler) Schedule(w http.ResponseWriter, r *http.Request) {
 			SetScheduledAt(when).
 			SetDedupeKey(key).
 			SetMetadata(map[string]any{
-				"ai_generated":  true,
+				"ai_generated":  post.AIGenerated,
 				"made_for_kids": post.MadeForKids,
 				"planned_at":    when.Format(time.RFC3339),
 			})

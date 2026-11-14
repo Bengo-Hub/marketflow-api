@@ -138,6 +138,8 @@ func (h *Handler) fail(w http.ResponseWriter, err error) {
 	switch {
 	case ent.IsNotFound(err):
 		httpapi.Error(w, http.StatusNotFound, "not_found", "not found", nil)
+	case errors.Is(err, ErrPPBApprovalRequired):
+		writePPBRequired(w, err) // 409 ppb_approval_required (ppb_approval.go)
 	case errors.Is(err, ErrInvalid):
 		httpapi.Error(w, http.StatusBadRequest, "invalid_request", err.Error(), nil)
 	case errors.Is(err, ErrConflict):

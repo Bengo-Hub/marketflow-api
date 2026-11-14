@@ -328,6 +328,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	customAgentServiceOpts := []func(*custom_agents.Service){custom_agents.WithPlatformTenant(cfg.Security.PlatformTenant),
 		custom_agents.WithCreditForecaster(custom_agents.NewCreditForecaster(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey)),
 		custom_agents.WithAutoPublishGate(strictFeature, cfg.Autopilot.TermsVersion),
+		custom_agents.WithTermsEffectiveAt(cfg.Autopilot.TermsEffective()),
+		custom_agents.WithFeatureCheck(subsClient.StrictFeature),
 		custom_agents.WithAgentChanged(func(ctx context.Context, tenantID, agentID uuid.UUID) {
 			if autopilotPipeline != nil {
 				autopilotPipeline.AgentChanged(ctx, tenantID, agentID)
@@ -451,7 +453,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		Studio:  creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)),
 		Quoter:  creative.NewRenderer(entClient, cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey, logger).WithBrandImages(brandLinks),
 		Publish: pubStore,
-		Gate:    custom_agents.AutoPublishGate{DB: entClient, HasFeature: strictFeature, TermsVersion: cfg.Autopilot.TermsVersion},
+		Gate:    custom_agents.AutoPublishGate{DB: entClient, HasFeature: strictFeature, TermsVersion: cfg.Autopilot.TermsVersion, TermsEffectiveAt: cfg.Autopilot.TermsEffective(), CheckFeature: subsClient.StrictFeature},
 		Notif:   notifications.New(notifications.Config{BaseURL: cfg.CrossService.NotificationsURL, APIKey: cfg.CrossService.InternalServiceKey}),
 		Links:   autopublish.NewVetoLinks(encryption.KeyFromEnv(cfg.Security.EncryptionKey)),
 		AppURL:  cfg.CrossService.PortalURL, Config: cfg.Autopilot, Logger: logger})
@@ -553,6 +555,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// Testimonial CRUD + public reader for /p/{slug}
 	testimonialHandler := testimonials.NewHandler(entClient, logger)
 	tenantProfileHandler := tenant.NewHandler(entClient, logger)
+	// Owner 2026-11-14: only the approving roles change the AI label.
+	tenantProfileHandler.CanApprove = func(ctx context.Context, tenantID uuid.UUID) bool {
+		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
+	}
 	tenantMembersHandler := tenant.NewMembersHandler(rbacService, entClient, cfg.Security.AuthServiceURL, cfg.CrossService.InternalServiceKey, logger)
 	// Register MarketFlow's own SSO roles (marketflow_admin, marketflow_member) so invites can
 	// grant them; in the background, a failure only means the next start tries again.
@@ -828,6 +834,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			PutAutoPublish:    customAgentHandler.PutAutoPublish,
 			AutopilotPosts:    autopublishHandler.Posts,
 			AutopilotVeto:     autopublishHandler.Veto,
+			AutopilotVetoJob:  autopublishHandler.VetoJob,
 			PublicVetoView:    autopublishHandler.PublicView,
 			PublicVetoPost:    autopublishHandler.PublicVeto,
 		},
@@ -888,6 +895,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			CreateReviewLink:  creativeHandler.CreateReviewLink,
 			RevokeReviewLinks: creativeHandler.RevokeReviewLinks,
 			OpenReview:        creativeHandler.OpenReview,
+			ListPPBApprovals:  creativeHandler.ListPPBApprovals,
+			SetPPBApproval:    creativeHandler.SetPPBApproval,
+			BriefPPBApproval:  creativeHandler.BriefPPBApproval,
 		},
 		AdsHandlers: httpapi.AdsHandlers{
 			Accounts: adsHandler.Accounts, CreateKES: adsHandler.CreateKESAccount, Quote: adsHandler.Quote, Boost: adsHandler.Boost,

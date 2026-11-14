@@ -160,6 +160,83 @@ func (p *Pipeline) Veto(ctx context.Context, tenantID, versionID uuid.UUID, by s
 	return res, nil
 }
 
+// VetoJob cancels the post of a scheduled veto-window video on one account only (owner
+// 2026-11-14): the same conditional cancel as a veto, recorded with by as the actor. The video stays
+// scheduled while another account's post still waits; once every account's post is cancelled it
+// is vetoed like a whole-post veto. The emailed link and the main Cancel button still use Veto,
+// which stops every account.
+func (p *Pipeline) VetoJob(ctx context.Context, tenantID, versionID, jobID uuid.UUID, by string) (VetoResult, error) {
+	v, err := p.DB.CreativeVersion.Query().Where(creativeversion.ID(versionID), creativeversion.TenantID(tenantID)).Only(ctx)
+	if err != nil {
+		return VetoResult{}, err
+	}
+	st := readState(v)
+	if st == nil {
+		return VetoResult{}, ErrNotVetoable
+	}
+	ids := parseIDs(st.JobIDs)
+	known := false
+	for _, id := range ids {
+		if id == jobID {
+			known = true
+		}
+	}
+	if !known {
+		return VetoResult{}, &ent.NotFoundError{}
+	}
+	switch st.State {
+	case StateVetoed:
+		return VetoResult{State: StateVetoed, Message: "This post was already cancelled."}, nil
+	case StateReleased:
+		jobs, _ := p.Publish.JobsByID(ctx, tenantID, []uuid.UUID{jobID})
+		return VetoResult{State: StateReleased, Gone: jobs, Message: "The veto window has ended and the post went ahead."}, ErrTooLate
+	case StateScheduled:
+	default:
+		return VetoResult{State: st.State, Message: "The agent is no longer handling this video; it waits for you in the studio."}, ErrNotVetoable
+	}
+	out, err := p.Publish.CancelForVeto(ctx, tenantID, []uuid.UUID{jobID})
+	if err != nil {
+		return VetoResult{}, err
+	}
+	if out.Cancelled == 0 && len(out.Gone) > 0 {
+		return VetoResult{State: st.State, Gone: out.Gone, Message: "Too late to cancel: this account's post is already on its way to the platform."}, ErrTooLate
+	}
+	if out.Cancelled > 0 {
+		p.audit(ctx, v, "autopilot.account_post_vetoed", by, map[string]any{"run_id": st.RunID, "agent_id": st.AgentID, "job_id": jobID.String()})
+		p.trace(ctx, st.RunID, map[string]any{"step": "account_post_vetoed", "version_id": v.ID.String(), "job_id": jobID.String(), "decided_by": by})
+	}
+	jobs, err := p.Publish.JobsByID(ctx, tenantID, ids)
+	if err != nil {
+		return VetoResult{}, err
+	}
+	waiting := 0
+	for _, j := range jobs {
+		if j.Status != publishing.StatusCancelled {
+			waiting++
+		}
+	}
+	if waiting > 0 {
+		return VetoResult{State: StateScheduled, Cancelled: out.Cancelled,
+			Message: fmt.Sprintf("Cancelled on this account. %d other account(s) still get the post.", waiting)}, nil
+	}
+	// Every account's post is cancelled now: the video is vetoed, the same as a whole-post veto.
+	decision := map[string]any{"outcome": StateVetoed, "by": by, "at": p.now().UTC().Format(time.RFC3339)}
+	if err := markBriefVetoed(ctx, p.DB, tenantID, v.BriefID, decision); err != nil {
+		return VetoResult{}, err
+	}
+	if v, err = p.DB.CreativeVersion.Get(ctx, versionID); err != nil {
+		return VetoResult{}, err
+	}
+	if err := creative.SetAutopilotState(ctx, p.DB, v, map[string]any{"state": StateVetoed, "decision": decision}); err != nil &&
+		!errors.Is(err, creative.ErrConflict) {
+		return VetoResult{}, err
+	}
+	p.audit(ctx, v, "autopilot.post_vetoed", by, map[string]any{"run_id": st.RunID, "agent_id": st.AgentID, "cancelled": out.Cancelled})
+	p.trace(ctx, st.RunID, map[string]any{"step": StateVetoed, "version_id": v.ID.String(), "decided_by": by})
+	return VetoResult{State: StateVetoed, Cancelled: out.Cancelled,
+		Message: "Cancelled. That was the last account, so nothing will be posted; the video stays in your studio."}, nil
+}
+
 // PostView is one veto-window video for the agent dashboard.
 type PostView struct {
 	VersionID string               `json:"version_id"`

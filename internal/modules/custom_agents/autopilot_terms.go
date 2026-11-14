@@ -40,11 +40,13 @@ const maxHoldCategories = 20
 // TermsSummary is what the owner accepts, shown next to the switch. The draft under review is
 // marketflow/docs/autopilot-auto-publish-terms-draft.md; keep the two the same.
 var TermsSummary = []string{
-	"The agent posts a finished video to the accounts you chose when the veto window ends, unless you cancel it first.",
-	"Before each post you get an email saying what will be posted, where and when, with a link to cancel it.",
-	"A video that touches a restricted category, or that the compliance review flags, always waits for your approval.",
-	"The agent never starts a paid boost or ad. Each one needs your approval and a funded ad account.",
-	"Posts go out under your business name. You can switch back to approving each ad at any time.",
+	"When the veto window ends, the agent posts the finished video to the accounts you chose, unless you or an admin cancel it first.",
+	"Before each post we email you what will go out, where and when, with a link that cancels it. Anyone holding that link can cancel.",
+	"Paid boosts and ads never start by themselves. Each one needs your approval and a funded ad account.",
+	"A video in a restricted category, in one of your hold categories, flagged by the compliance review or over your credit ceiling waits for your approval.",
+	"The videos are made with AI and go out under your business name. A post you did not cancel counts as approved by you.",
+	"Switching the agent off, or back to approving each ad, cancels every post still waiting.",
+	"When these terms change you accept them again. Until then every video waits for your approval.",
 }
 
 // AutoPublishGate decides whether a tenant may use the veto-window mode.
@@ -53,6 +55,16 @@ type AutoPublishGate struct {
 	// HasFeature reads a plan feature strictly (subscriptions StrictHasFeature); nil allows nothing.
 	HasFeature   func(ctx context.Context, tenantID, feature string) bool
 	TermsVersion string
+	// TermsEffectiveAt is when TermsVersion applies (owner 2026-11-14: 14 days after it is
+	// announced). Before it, a tenant that accepted an earlier version still counts as accepted;
+	// the zero time applies the version at once.
+	TermsEffectiveAt time.Time
+	// Now is the clock; nil is time.Now.
+	Now func() time.Time
+	// CheckFeature, when set, replaces HasFeature and says whether its answer is definite
+	// (subscriptions StrictFeature). An answer that is not definite never cancels a waiting post
+	// (owner 2026-11-14); Status reports it as PlanUnknown.
+	CheckFeature func(ctx context.Context, tenantID, feature string) (has, known bool)
 }
 
 // Allowed reports whether the tenant may auto-publish now, and why not.
@@ -71,10 +83,17 @@ func (g AutoPublishGate) Allowed(ctx context.Context, tenantID uuid.UUID) (bool,
 }
 
 // AutoPublishStatus is what the settings page shows about the veto-window mode.
+// TermsEffectiveAt is when TermsVersion applies, when a date is set (RFC 3339). NewTermsPending is
+// true while the tenant runs on an earlier accepted version before that date: it should accept
+// the new terms before then, or auto-publish pauses. PlanUnknown is true when the plan could not
+// be read just now (PlanAllows is then false, and nothing waiting is cancelled for it).
 type AutoPublishStatus struct {
 	PlanAllows       bool     `json:"plan_allows"`
+	PlanUnknown      bool     `json:"plan_unknown,omitempty"`
 	TermsAccepted    bool     `json:"terms_accepted"`
 	TermsVersion     string   `json:"terms_version"`
+	TermsEffectiveAt string   `json:"terms_effective_at,omitempty"`
+	NewTermsPending  bool     `json:"new_terms_pending,omitempty"`
 	AcceptedAt       string   `json:"accepted_at,omitempty"`
 	CanAutoPublish   bool     `json:"can_auto_publish"`
 	HoldCategories   []string `json:"hold_categories"`
@@ -95,15 +114,34 @@ func (g AutoPublishGate) Status(ctx context.Context, tenantID uuid.UUID) (AutoPu
 	if err != nil {
 		return st, err
 	}
-	st.PlanAllows = g.HasFeature != nil && g.HasFeature(ctx, tenantID.String(), AutoPublishFeature)
+	if g.CheckFeature != nil {
+		has, known := g.CheckFeature(ctx, tenantID.String(), AutoPublishFeature)
+		st.PlanAllows, st.PlanUnknown = has && known, !known
+	} else {
+		st.PlanAllows = g.HasFeature != nil && g.HasFeature(ctx, tenantID.String(), AutoPublishFeature)
+	}
+	if !g.TermsEffectiveAt.IsZero() {
+		st.TermsEffectiveAt = g.TermsEffectiveAt.UTC().Format(time.RFC3339)
+	}
 	if terms, ok := t.Metadata[TermsKey].(map[string]any); ok {
 		v, _ := terms["version"].(string)
 		st.TermsAccepted = v != "" && v == st.TermsVersion
 		st.AcceptedAt, _ = terms["accepted_at"].(string)
+		// An earlier accepted version still counts until the new one's effective date.
+		if !st.TermsAccepted && v != "" && g.now().Before(g.TermsEffectiveAt) {
+			st.TermsAccepted, st.NewTermsPending = true, true
+		}
 	}
 	st.HoldCategories = HoldCategories(t)
 	st.CanAutoPublish = st.PlanAllows && st.TermsAccepted
 	return st, nil
+}
+
+func (g AutoPublishGate) now() time.Time {
+	if g.Now != nil {
+		return g.Now()
+	}
+	return time.Now()
 }
 
 func (g AutoPublishGate) version() string {
@@ -159,8 +197,19 @@ type AutoPublishInput struct {
 // WithAutoPublishGate wires the plan feature check and the terms version.
 func WithAutoPublishGate(hasFeature func(ctx context.Context, tenantID, feature string) bool, termsVersion string) func(*Service) {
 	return func(s *Service) {
-		s.gate = AutoPublishGate{DB: s.client, HasFeature: hasFeature, TermsVersion: termsVersion}
+		s.gate.DB, s.gate.HasFeature, s.gate.TermsVersion = s.client, hasFeature, termsVersion
 	}
+}
+
+// WithFeatureCheck sets the gate's definite feature check (subscriptions StrictFeature).
+func WithFeatureCheck(check func(ctx context.Context, tenantID, feature string) (has, known bool)) func(*Service) {
+	return func(s *Service) { s.gate.CheckFeature = check }
+}
+
+// WithTermsEffectiveAt sets when the current terms version applies (config
+// AutopilotConfig.TermsEffective); the zero time applies it at once.
+func WithTermsEffectiveAt(at time.Time) func(*Service) {
+	return func(s *Service) { s.gate.TermsEffectiveAt = at }
 }
 
 // autoPublishGate is the service's gate; without WithAutoPublishGate nothing is allowed.

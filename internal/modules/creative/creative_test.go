@@ -374,6 +374,10 @@ func TestRestrictedCategories(t *testing.T) {
 	if got := restrictedCategories("Feel better", "Payment credited instantly"); len(got) != 0 {
 		t.Fatalf("partial words flagged: %v", got)
 	}
+	// The owner's auto-publish list (2026-11-14) adds tobacco, children's products, medicines and insurance.
+	if got := strings.Join(restrictedCategories("New vapes in stock", "Toys for kids", "Car insurance deals", "Vitamin supplements"), ","); got != "children,finance,health,tobacco" {
+		t.Fatalf("owner list: %v", got)
+	}
 
 	db := openDB(t)
 	s := NewService(db, zap.NewNop())

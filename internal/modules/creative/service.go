@@ -354,6 +354,7 @@ func (s *Service) CreateVersion(ctx context.Context, tenantID, briefID uuid.UUID
 	if err := s.checkDailyCap(ctx, tenantID); err != nil {
 		return nil, err
 	}
+	in.Subline = s.ppbPosterLine(ctx, tenantID, briefID, in.Subline)
 	copyFields := map[string]any{"prompt": in.Prompt, "headline": in.Headline, "subline": in.Subline, "price": in.Price, "cta": in.CTA}
 	meta := map[string]any{}
 	if len(in.PhotoURLs) > 0 {
@@ -467,6 +468,7 @@ func (s *Service) Revise(ctx context.Context, tenantID, sourceID uuid.UUID, in R
 		}
 		copyFields[k] = t
 	}
+	copyFields["subline"] = s.ppbPosterLine(ctx, tenantID, src.BriefID, str(copyFields["subline"]))
 	if err := s.checkLiveDrafts(ctx, tenantID); err != nil {
 		return nil, err
 	}
@@ -568,6 +570,11 @@ func (s *Service) decideVia(ctx context.Context, tenantID, id uuid.UUID, status 
 	if status == StatusRejected {
 		from = append(from, StatusFailed, StatusScriptReady)
 	}
+	// A pharmacy's medicine ad stays a draft until its PPB approval reference is entered (ppb_approval.go).
+	ppb, err := s.ppbHold(ctx, tenantID, id, status)
+	if err != nil {
+		return nil, err
+	}
 	tx, err := s.db.Tx(ctx)
 	if err != nil {
 		return nil, err
@@ -604,6 +611,9 @@ func (s *Service) decideVia(ctx context.Context, tenantID, id uuid.UUID, status 
 	}
 	if status == StatusApproved {
 		if err := recordApproval(ctx, tx, id, by, now, channel); err != nil {
+			return nil, err
+		}
+		if err := stampPPBApproval(ctx, tx, id, ppb); err != nil {
 			return nil, err
 		}
 		if err := supersedeSiblings(ctx, tx, id, now.Add(supersededTTL)); err != nil {

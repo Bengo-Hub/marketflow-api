@@ -85,6 +85,21 @@ func TestCaption(t *testing.T) {
 	}
 }
 
+// Pharmacy hand-off 2026-11-14: an approved medicine ad's caption always ends with its PPB
+// approval line, even when the words would fill the length limit.
+func TestCaptionCarriesThePPBLine(t *testing.T) {
+	ppb := map[string]any{creative.MetaPPBApproval: map[string]any{"reference": "PPB/ADV/123", "caption_line": "PPB approval ref. PPB/ADV/123"}}
+	v := &ent.CreativeVersion{Metadata: ppb, Copy: map[string]any{"end_card": map[string]any{"headline": "Panadol 500mg", "cta": "Order on WhatsApp"}}}
+	if got := Caption(v, nil); got != "Panadol 500mg\n\nOrder on WhatsApp\n\nPPB approval ref. PPB/ADV/123" {
+		t.Fatalf("caption: %q", got)
+	}
+	long := &ent.CreativeVersion{Metadata: ppb, Copy: map[string]any{"end_card": map[string]any{"headline": strings.Repeat("a", 2500)}}}
+	got := Caption(long, nil)
+	if len([]rune(got)) > 2000 || !strings.HasSuffix(got, "PPB approval ref. PPB/ADV/123") {
+		t.Fatalf("the line survives the limit: %d %q", len([]rune(got)), got[len(got)-40:])
+	}
+}
+
 // The heads-up says what, where and when, carries the cancel link and never offers a paid boost.
 func TestBuildHeadsUp(t *testing.T) {
 	at := time.Date(2026, 11, 16, 11, 0, 0, 0, time.UTC)

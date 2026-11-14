@@ -32,11 +32,21 @@ type AutopilotRunner struct {
 	// gate re-checks the plan feature and the terms at each run; the zero gate allows nothing, so
 	// an auto_publish agent's run falls back to approve-each.
 	gate custom_agents.AutoPublishGate
+	// lapsed is told when the gate fails for an auto_publish agent, so the tenant's posts still
+	// waiting in a veto window are cancelled at once; nil leaves that to the pipeline's sweep.
+	lapsed *AutopilotLapsedHook
 }
 
 // WithAutoPublishGate lets veto-window runs go ahead when the plan and terms still allow them.
 func (r *AutopilotRunner) WithAutoPublishGate(g custom_agents.AutoPublishGate) *AutopilotRunner {
 	r.gate = g
+	return r
+}
+
+// WithLapsedHook cancels the tenant's waiting veto-window posts when a run finds the plan or the
+// terms no longer allow the mode (owner 2026-11-14).
+func (r *AutopilotRunner) WithLapsedHook(h *AutopilotLapsedHook) *AutopilotRunner {
+	r.lapsed = h
 	return r
 }
 
@@ -101,6 +111,11 @@ func (r *AutopilotRunner) run(ctx context.Context, a *ent.CustomAgent, only map[
 	vetoMode, heldWhy := false, ""
 	if cfg.Approval == custom_agents.AutoPublish {
 		vetoMode, heldWhy = r.gate.Allowed(ctx, a.TenantID)
+		if !vetoMode {
+			// Posts already waiting in a window are cancelled now, not only new runs held: the
+			// pipeline checks the plan and terms itself before it cancels, and emails the owner.
+			r.lapsed.Call(ctx, a.TenantID)
+		}
 	}
 	if err := cfg.Validate(cfg.Approval == custom_agents.AutoPublish); err != nil {
 		return AutopilotResult{}, err
