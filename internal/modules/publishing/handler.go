@@ -41,6 +41,10 @@ type Handler struct {
 	Deleters map[string]Deleter
 	// Tokens loads the connected account with its decrypted token; nil uses Store.
 	Tokens Accounts
+	// WhatsApp holds the checks the WhatsApp approve and post route needs (whatsapp_publish.go).
+	WhatsApp WhatsAppPublishDeps
+	// Kick asks the worker to run now; nil leaves it to its next tick.
+	Kick func()
 }
 
 // allowed answers 403 when the caller may not post for the tenant.

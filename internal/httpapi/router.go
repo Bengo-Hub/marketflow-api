@@ -580,6 +580,9 @@ type PublishingHandlers struct {
 	Move     http.HandlerFunc
 	// DeleteFromPlatform deletes a published post from its platform, where the API allows it.
 	DeleteFromPlatform http.HandlerFunc
+	// OSTurnPublish is S2S POST /internal/creative/os-turn/publish: approve and post a finished
+	// ad from WhatsApp (Sprint 17), organic only.
+	OSTurnPublish http.HandlerFunc
 }
 
 // CustomAgentHandlers groups custom agent HTTP handlers.
@@ -1283,6 +1286,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					}
 					if deps.CreativeHandlers.OSTurnEvent != nil {
 						r.Post("/creative/os-turn/events", deps.CreativeHandlers.OSTurnEvent)
+					}
+					if deps.PublishingHandlers.OSTurnPublish != nil {
+						r.Post("/creative/os-turn/publish", deps.PublishingHandlers.OSTurnPublish)
 					}
 					if deps.ContactHandlers.GetByEmail != nil {
 						r.Get("/contacts/by-email", deps.ContactHandlers.GetByEmail)

@@ -13,6 +13,25 @@ import (
 // NoticeRoles are the roles told about account-level events (tokens, posts, files).
 var NoticeRoles = []string{"marketflow_admin", "fbo_owner"}
 
+// AuthUserHasAnyRole reports whether the auth-api user is an active MarketFlow user of the tenant
+// holding one of roles, read from MarketFlow's own role table (never auth-api's role list). Used
+// where there is no signed-in request to check: an approval redeemed on WhatsApp. An error counts
+// as no.
+func AuthUserHasAnyRole(ctx context.Context, db *ent.Client, tenantID, authUserID uuid.UUID, roles []string) bool {
+	if db == nil || authUserID == uuid.Nil || len(roles) == 0 {
+		return false
+	}
+	ok, err := db.UserRoleAssignment.Query().
+		Where(
+			userroleassignment.TenantID(tenantID),
+			userroleassignment.HasRoleWith(marketflowrole.RoleCodeIn(roles...)),
+			userroleassignment.HasUserWith(marketflowuser.TenantID(tenantID), marketflowuser.AuthServiceUserID(authUserID),
+				marketflowuser.Status("active")),
+		).
+		Exist(ctx)
+	return err == nil && ok
+}
+
 // TenantAdminEmails returns the emails of the tenant's active users holding one of roles
 // (deduplicated, at most 20). Shared by the API and the worker jobs that email admins.
 func TenantAdminEmails(ctx context.Context, db *ent.Client, tenantID uuid.UUID, roles []string) ([]string, error) {

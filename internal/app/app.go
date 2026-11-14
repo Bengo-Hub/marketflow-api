@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/Bengo-Hub/httpware/objectstore"
@@ -95,6 +96,15 @@ func whatsAppRichConfig(logger *zap.Logger) creative.WhatsAppConfig {
 	cfg, err := creative.WhatsAppConfigFromEnv(os.Getenv)
 	if err != nil {
 		logger.Warn("whatsapp rich sends: using the defaults", zap.Error(err))
+	}
+	return cfg
+}
+
+// whatsAppTemplateConfig reads the utility template names for outside the window (MF_WA_TPL_*).
+func whatsAppTemplateConfig(logger *zap.Logger) creative.WhatsAppTemplateConfig {
+	cfg, err := creative.WhatsAppTemplateConfigFromEnv(os.Getenv)
+	if err != nil {
+		logger.Warn("whatsapp templates: using the defaults", zap.Error(err))
 	}
 	return cfg
 }
@@ -484,7 +494,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 					cfg.Security.PlatformTenant, "marketflow-api").
 					// The storyboard link, the finished ad as a video and the render buttons, while
 					// the requester's 24-hour window is open (the worker marks it on each message).
-					WithRich(redisClient, whatsAppRichConfig(logger)), logger)).
+					WithRich(redisClient, whatsAppRichConfig(logger)).
+					// Outside the window: the approved mf_video_ready template, or nothing.
+					WithTemplates(whatsAppTemplateConfig(logger), logger), logger)).
 			WithAutopilot(autopilotPipeline))
 	// Boost, post and reply are also open to the Meta App Review account (owner 2026-11-12); the
 	// role gate keeps it to exactly those routes. Approving an ad stays with the approving roles.
@@ -528,6 +540,22 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		return rbacService.CallerHasAnyRole(ctx, tenantID, reviewActionRoles...)
 	}
 	publishingHandler.OnJobDone = afterUse.CheckJob
+	// Approve and post from WhatsApp (Sprint 17): marketflow-ai redeems the code, this route does
+	// the Studio's approve and organic post with the same checks; never paid ads.
+	waApprover := creative.NewService(entClient, logger)
+	publishingHandler.WhatsApp = publishing.WhatsAppPublishDeps{
+		IsApprover: func(ctx context.Context, tenantID, authUserID uuid.UUID) bool {
+			return rbac.AuthUserHasAnyRole(ctx, entClient, tenantID, authUserID, creative.ApprovalRoles)
+		},
+		NeedsReview: creative.FlaggedForReview,
+		Approve: func(ctx context.Context, tenantID, versionID, by uuid.UUID) error {
+			_, err := waApprover.ApproveFromWhatsApp(ctx, tenantID, versionID, by)
+			if errors.Is(err, creative.ErrPPBApprovalRequired) {
+				return fmt.Errorf("%w: %w", publishing.ErrPPBHold, err)
+			}
+			return err
+		},
+	}
 	// Delete from platform (owner 2026-11-14): the approving roles (owner, admin) plus the app
 	// reviewer, who must show instagram_manage_contents in App Review; members cannot. Only where
 	// the platform's API allows it (TikTok has no delete, so it is left out and answers with its
@@ -945,6 +973,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Retry:              publishingHandler.Retry,
 			Move:               publishingHandler.Move,
 			DeleteFromPlatform: publishingHandler.DeleteFromPlatform,
+			OSTurnPublish:      publishingHandler.OSTurnPublish,
 		},
 		SegmentHandlers: httpapi.SegmentHandlers{
 			Create:   segmentHandler.Create,

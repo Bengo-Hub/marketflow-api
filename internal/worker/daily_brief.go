@@ -10,9 +10,11 @@ import (
 
 	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/bengobox/marketflow-api/internal/platform/reqid"
@@ -59,6 +61,10 @@ type DailyBrief struct {
 	// the client timeout.
 	aiMu        sync.Mutex
 	aiDownUntil time.Time
+
+	// rdb and wa send the brief on WhatsApp too (daily_brief_whatsapp.go); nil keeps it email only.
+	rdb *redis.Client
+	wa  *creative.PlatformWhatsApp
 }
 
 // NewDailyBrief builds the job.
@@ -167,6 +173,10 @@ func (j *DailyBrief) forTenant(ctx context.Context, tenantID uuid.UUID) (bool, e
 			j.logger.Warn("daily brief not sent", zap.String("tenant", tenantID.String()), zap.Error(err))
 			continue
 		}
+		delivered = true
+	}
+	// WhatsApp (Sprint 17): the template outside the window, only once Meta approved it.
+	if j.sendWhatsApp(ctx, t, date, dayStart.AddDate(0, 0, -1), words) > 0 {
 		delivered = true
 	}
 	return delivered, nil

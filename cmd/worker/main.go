@@ -126,6 +126,11 @@ func main() {
 	if werr != nil {
 		logger.Warn("whatsapp rich sends: using the defaults", zap.Error(werr))
 	}
+	// The utility templates for outside the window (MF_WA_TPL_*), sent only once Meta approved them.
+	waTplCfg, terr := creative.WhatsAppTemplateConfigFromEnv(os.Getenv)
+	if terr != nil {
+		logger.Warn("whatsapp templates: using the defaults", zap.Error(terr))
+	}
 
 	// ── DB (optional — enables auto-enrol + scheduler) ────────────────────
 	var entClient *ent.Client
@@ -217,6 +222,11 @@ func main() {
 			cfg.AuthServiceURL, cfg.CrossServiceKey,
 			cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, cfg.API.PortalURL, cfg.PlatformTenant, logger).
 			WithRich(waRichCfg, cfg.API.SignupURL, cfg.API.SignupReplyEvery))
+		// A WhatsApp Buy credits purchase was paid: marketflow-ai resumes what waited (Sprint 17).
+		reg.Add(worker.NewWhatsAppTopupPaidHandler(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey,
+			creative.NewPlatformWhatsApp(entClient,
+				notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
+				cfg.PlatformTenant, "marketflow-worker").WithRich(rdb, waRichCfg), logger))
 	}
 	// The nurture scheduler is built before the consumers start, so the lead.created handler can
 	// kick it: an instant follow-up step (delay 0) then goes out within seconds, not a tick later.
@@ -255,7 +265,12 @@ func main() {
 		// Marketing OS daily brief: 06:30 tenant time, once per tenant per day, to
 		// the tenant's admins. Numbers from marketflow-api, wording from marketflow-ai.
 		go worker.NewDailyBrief(entClient, marketingos.NewService(entClient, nil, logger), tokenNotif,
-			cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, cfg.API.PortalURL, logger).Run(ctx)
+			cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, cfg.API.PortalURL, logger).
+			// Also on WhatsApp to assistant users: in the window as text, outside it as the
+			// approved mf_daily_brief template, else email only (Sprint 17).
+			WithWhatsApp(rdb, creative.NewPlatformWhatsApp(entClient, tokenNotif, cfg.PlatformTenant, "marketflow-worker").
+				WithRich(rdb, waRichCfg).WithTemplates(waTplCfg, logger)).
+			Run(ctx)
 
 		// Scheduled custom agents: daily or weekly at the tenant's local time.
 		go worker.NewAgentSchedules(entClient, agentSvc, logger).Run(ctx)
@@ -334,7 +349,7 @@ func main() {
 			WithOSTurn(creative.NewWhatsAppTurnNotifier(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey,
 				creative.NewPlatformWhatsApp(entClient,
 					notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
-					cfg.PlatformTenant, "marketflow-worker").WithRich(rdb, waRichCfg), logger)).
+					cfg.PlatformTenant, "marketflow-worker").WithRich(rdb, waRichCfg).WithTemplates(waTplCfg, logger), logger)).
 			WithAutopilot(autopilotPipeline).Run(ctx)
 		go creative.NewPurger(entClient, mediaStore, logger).Run(ctx)
 		pubRunner := publishing.NewRunner(pubStore, pubStore, pubStore,
@@ -381,7 +396,14 @@ func main() {
 		pubWorker.OnFailed = worker.NewPublishFailureNotice(entClient, tokenNotif, cfg.API.PortalURL, logger).Notify
 		// Owner 2026-11-10: an approved video is removed 48 hours after it is used; the client is
 		// emailed the link first (afterUse is built with the autopilot pipeline above).
-		pubWorker.OnDone = func(ctx context.Context, j *publishing.Job) { afterUse.CheckJob(ctx, j.ID) }
+		// Approve and post from WhatsApp (Sprint 17): the requester hears once every post is done.
+		pubResult := worker.NewWhatsAppPublishResult(entClient, rdb,
+			creative.NewPlatformWhatsApp(entClient, tokenNotif, cfg.PlatformTenant, "marketflow-worker").
+				WithRich(rdb, waRichCfg).WithTemplates(waTplCfg, logger), cfg.API.PortalURL, logger)
+		pubWorker.OnDone = func(ctx context.Context, j *publishing.Job) {
+			afterUse.CheckJob(ctx, j.ID)
+			pubResult.Check(ctx, j.ID)
+		}
 		go pubWorker.Run(ctx)
 	}
 

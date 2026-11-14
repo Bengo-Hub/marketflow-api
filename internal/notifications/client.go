@@ -11,6 +11,7 @@ import (
 	"html"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -48,6 +49,44 @@ type Message struct {
 	// only inside the recipient's 24-hour window; the caller checks it. Body is the text above
 	// the buttons, or a media message's caption.
 	WhatsApp *WhatsAppRich
+	// Template makes a WhatsApp send a Meta template (business-initiated, any time): the only
+	// way to write outside the 24-hour window. It wins over WhatsApp. Body is still required as
+	// the text notifications-api records.
+	Template *WhatsAppTemplate
+	// PlatformDialCode is the dial code notifications-api adds to a local number ("254").
+	PlatformDialCode string
+}
+
+// WhatsAppTemplate is one approved Meta template send: its name, language (default en_US), body
+// parameters in order (no newlines) and the URL button's suffix.
+type WhatsAppTemplate struct {
+	Name        string
+	Language    string
+	Params      []string
+	ButtonParam string
+}
+
+// metadata writes the template send as notifications-api's metadata keys
+// (internal/providers/whatsapp/metacloud.go).
+func (t *WhatsAppTemplate) metadata(into map[string]any) {
+	if t == nil || t.Name == "" {
+		return
+	}
+	into["template_name"] = t.Name
+	lang := t.Language
+	if lang == "" {
+		lang = "en_US"
+	}
+	into["template_language"] = lang
+	params := make([]string, 0, len(t.Params))
+	for _, p := range t.Params {
+		// Meta refuses a parameter with a newline or a tab, or more than four spaces in a row.
+		params = append(params, strings.Join(strings.Fields(p), " "))
+	}
+	into["template_params"] = params
+	if t.ButtonParam != "" {
+		into["template_button_param"] = t.ButtonParam
+	}
 }
 
 // WhatsAppButton is one reply button (title up to 20 characters); its id comes back on the
@@ -176,7 +215,14 @@ func toRequest(tenantID string, msg Message) (sendRequest, error) {
 		req.Metadata[k] = v
 	}
 	if msg.Channel == ChannelWhatsApp {
-		msg.WhatsApp.metadata(req.Metadata)
+		if msg.Template != nil && msg.Template.Name != "" {
+			msg.Template.metadata(req.Metadata)
+		} else {
+			msg.WhatsApp.metadata(req.Metadata)
+		}
+		if msg.PlatformDialCode != "" {
+			req.Metadata["default_dial_code"] = msg.PlatformDialCode
+		}
 	}
 	if msg.Subject != "" {
 		req.Metadata["subject"] = msg.Subject
@@ -358,6 +404,48 @@ func (c *Client) CreateBroadcast(ctx context.Context, req BroadcastRequest) (*Br
 		return nil, err
 	}
 	return &out, nil
+}
+
+// TemplateStatus is Meta's review status of one template (APPROVED, PENDING, REJECTED, MISSING ...).
+type TemplateStatus struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	Reason string `json:"reason,omitempty"`
+}
+
+// TemplateStatuses calls GET /api/v1/s2s/whatsapp/templates/status (internal key): the review
+// status of the named templates on tenantID's own WhatsApp Business Account, keyed by name.
+func (c *Client) TemplateStatuses(ctx context.Context, tenantID string, names []string) (map[string]TemplateStatus, error) {
+	if c.baseURL == "" || c.apiKey == "" {
+		return nil, fmt.Errorf("notifications: base URL or service key not configured")
+	}
+	q := url.Values{"tenant_id": {tenantID}, "names": {strings.Join(names, ",")}}
+	hr, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v1/s2s/whatsapp/templates/status?"+q.Encode(), nil)
+	if err != nil {
+		return nil, err
+	}
+	hr.Header.Set("User-Agent", c.userAgent)
+	hr.Header.Set("X-API-Key", c.apiKey)
+	resp, err := c.http.Do(hr)
+	if err != nil {
+		return nil, fmt.Errorf("notifications template status: %w", err)
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 256<<10))
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("notifications template status %d: %s", resp.StatusCode, truncate(string(raw), 200))
+	}
+	var out struct {
+		Templates []TemplateStatus `json:"templates"`
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, err
+	}
+	m := make(map[string]TemplateStatus, len(out.Templates))
+	for _, t := range out.Templates {
+		m[t.Name] = t
+	}
+	return m, nil
 }
 
 func truncate(s string, n int) string {

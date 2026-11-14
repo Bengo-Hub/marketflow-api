@@ -558,6 +558,24 @@ type approvalChannel string
 // veto: no person approved it, and the evidence says so.
 const ApprovalVetoWindow approvalChannel = "veto_window_elapsed"
 
+// ApprovalWhatsApp marks a video approved by its owner or admin on WhatsApp (Approve and post,
+// Sprint 17): a single-use code bound to the run, the user and the verified number was redeemed.
+const ApprovalWhatsApp approvalChannel = "whatsapp"
+
+// ApproveFromWhatsApp approves a version waiting for review for the user who tapped Approve and
+// post on WhatsApp, with the same transaction, PPB hold and evidence as the Studio's Approve.
+// A version already approved is returned as it is.
+func (s *Service) ApproveFromWhatsApp(ctx context.Context, tenantID, id, by uuid.UUID) (*ent.CreativeVersion, error) {
+	v, err := s.version(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if v.Status == StatusApproved {
+		return v, nil
+	}
+	return s.decideVia(ctx, tenantID, id, StatusApproved, &by, ApprovalWhatsApp)
+}
+
 func (s *Service) decide(ctx context.Context, tenantID, id uuid.UUID, status string, by *uuid.UUID) (*ent.CreativeVersion, error) {
 	return s.decideVia(ctx, tenantID, id, status, by, "portal")
 }

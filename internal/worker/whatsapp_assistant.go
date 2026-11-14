@@ -178,9 +178,22 @@ func (h *WhatsAppAssistantHandler) process(ctx context.Context, in waInbound) er
 	if err != nil {
 		return err
 	}
+	otp := ans.OTP
+	ans.OTP = nil // a one-time code is sent once and never kept
 	if ans.Pass && ans.Reply != "" {
 		if b, err := json.Marshal(ans); err == nil {
 			h.rdb.Set(ctx, ansKey, b, time.Hour)
+		}
+	}
+	if ans.Pass {
+		// The numbers the daily brief may go to on WhatsApp: approving users who wrote to the
+		// assistant from their verified number lately (daily_brief_whatsapp.go).
+		RememberAssistantNumber(ctx, h.rdb, chosen.ID, user.UserID, sender)
+	}
+	if otp != nil && otp.Code != "" && h.notif != nil {
+		// Only ever to the verified number that wrote, whatever the answer names.
+		if err := h.sender().SendOTP(ctx, sender, otp.Code, "wa-otp-"+in.WaMessageID); err != nil {
+			h.logger.Warn("whatsapp assistant: confirmation code not sent", zap.Error(err))
 		}
 	}
 	if !ans.Pass {
@@ -396,6 +409,12 @@ type assistAnswer struct {
 	// Interactive is the same answer with reply buttons or a list (the quote's Approve, Cheaper
 	// option and Cancel; a missing field's choices), sent instead of Reply in the window.
 	Interactive *notifications.WhatsAppInteractive `json:"interactive,omitempty"`
+	// OTP is a one-time code to send to the sender by the auth_otp template: an approval above
+	// the spend threshold waits for it (Sprint 17). It is never cached with the answer.
+	OTP *struct {
+		To   string `json:"to"`
+		Code string `json:"code"`
+	} `json:"otp,omitempty"`
 }
 
 // ask sends the message to marketflow-ai with the sender's verified number, which its approval

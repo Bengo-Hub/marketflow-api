@@ -236,6 +236,9 @@ type PlatformWhatsApp struct {
 	rdb   *redis.Client
 	cfg   WhatsAppConfig
 	probe *http.Client
+	// tpl is set by WithTemplates (whatsapp_templates.go): the utility templates for outside the
+	// window, sent only once Meta approved them.
+	tpl *templateGate
 }
 
 // NewPlatformWhatsApp builds the sender; slug is the platform tenant and source the metadata
@@ -312,8 +315,24 @@ func (n *WhatsAppTurnNotifier) Notify(ctx context.Context, note OSTurnNote) {
 		// Interactive is the stills as images with Make the video, Change and Discard, or the
 		// finished ad as a video; sent instead of Text while the requester's window is open.
 		Interactive *notifications.WhatsAppInteractive `json:"interactive"`
+		// Template is the utility template for outside the window (video ready).
+		Template *struct {
+			Kind   string `json:"kind"`
+			Button string `json:"button"`
+		} `json:"template"`
 	}
 	if json.Unmarshal(data, &msg) != nil || msg.To == "" || strings.TrimSpace(msg.Text) == "" {
+		return
+	}
+	if msg.Template != nil && n.send.rdb != nil && !n.send.InWindow(ctx, msg.To) {
+		// Outside the window a ready video goes only as its approved template, never as free
+		// text Meta would refuse; until Meta approves it the Studio shows the video.
+		params := n.send.videoReadyParams(ctx, note.TenantID, note.VersionID)
+		if sent, err := n.send.SendTemplate(ctx, msg.To, msg.Template.Kind, params, msg.Template.Button, msg.Text, note.Key+"-tpl"); err != nil {
+			n.logger.Warn("turn video template not sent", zap.String("run_id", note.RunID), zap.Error(err))
+		} else if !sent {
+			n.logger.Info("turn video message held: window closed and the template is not approved", zap.String("run_id", note.RunID))
+		}
 		return
 	}
 	if err := n.send.SendRich(ctx, msg.To, msg.Text, msg.Interactive, note.Key); err != nil {
