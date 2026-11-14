@@ -612,6 +612,8 @@ type CustomAgentHandlers struct {
 	AutopilotVetoJob http.HandlerFunc
 	PublicVetoView   http.HandlerFunc // Public: GET /public/autopilot/veto/{token}
 	PublicVetoPost   http.HandlerFunc // Public: POST /public/autopilot/veto/{token}
+	// GetAutopilotPlan is the plan's Autopilot allowance (owner 2026-11-14): included, limit, active.
+	GetAutopilotPlan http.HandlerFunc
 }
 
 // SegmentHandlers groups segment management HTTP handlers.
@@ -1011,6 +1013,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				if deps.CustomAgentHandlers.GetAutoPublish != nil {
 					r.Get("/agents/autopilot/auto-publish", deps.CustomAgentHandlers.GetAutoPublish)
 					r.Put("/agents/autopilot/auto-publish", deps.CustomAgentHandlers.PutAutoPublish)
+				}
+				if deps.CustomAgentHandlers.GetAutopilotPlan != nil {
+					r.Get("/agents/autopilot/plan", deps.CustomAgentHandlers.GetAutopilotPlan)
 				}
 				if deps.CustomAgentHandlers.AutopilotPosts != nil {
 					r.Get("/agents/autopilot/posts", deps.CustomAgentHandlers.AutopilotPosts)

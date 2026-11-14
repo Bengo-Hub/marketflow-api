@@ -32,6 +32,10 @@ type Service struct {
 	// onChanged cancels an agent's waiting veto-window posts when it is switched off, set back to
 	// approve-each or deleted (WithAgentChanged); nil leaves them to the worker's sweep.
 	onChanged func(ctx context.Context, tenantID, agentID uuid.UUID)
+	// planFeature and planLimit read marketflow_autopilot and max_autopilot_agents strictly
+	// (autopilot_plan.go, WithAutopilotPlan); nil planFeature allows no Autopilot agent.
+	planFeature func(ctx context.Context, tenantID, feature string) (has, known bool)
+	planLimit   func(ctx context.Context, tenantID, key string) (n int, has, known bool)
 }
 
 // NewService creates a new custom agents service.
@@ -169,6 +173,12 @@ func (s *Service) Update(ctx context.Context, tenantID, agentID uuid.UUID, in Up
 		}
 		if err := ValidateTrigger(tt, cfg); err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrInvalid, err)
+		}
+	}
+	// Switching an ad autopilot on needs the plan feature and a free slot (autopilot_plan.go).
+	if in.IsActive != nil && *in.IsActive && !existing.IsActive && isAutopilotAgent(existing) {
+		if err := s.checkAutopilot(ctx, tenantID, existing.ID, true); err != nil {
+			return nil, err
 		}
 	}
 	builder := existing.Update()

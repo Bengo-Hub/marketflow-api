@@ -56,6 +56,11 @@ func (s *Service) SaveAutopilot(ctx context.Context, tenantID, agentID uuid.UUID
 	if err != nil {
 		return nil, err
 	}
+	// The agent becomes (or stays) an ad autopilot: the plan must include Autopilot, and a
+	// switched-on agent turning into one takes a slot under max_autopilot_agents.
+	if err := s.checkAutopilot(ctx, tenantID, a.ID, a.IsActive && !isAutopilotAgent(a)); err != nil {
+		return nil, err
+	}
 	versions := readVersions(a)
 	next := 1
 	if n := len(versions); n > 0 {
@@ -205,6 +210,7 @@ func (h *Handler) autopilotReply(w http.ResponseWriter, a *ent.CustomAgent, err 
 	switch {
 	case err == nil:
 		httpapi.JSON(w, http.StatusOK, a)
+	case autopilotPlanReply(w, err):
 	case errors.Is(err, ErrInvalid):
 		httpapi.Error(w, http.StatusBadRequest, "invalid_autopilot", err.Error(), nil)
 	case errors.Is(err, ErrAutoPublishNotAllowed):

@@ -347,6 +347,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		custom_agents.WithTermsEffectiveAt(cfg.Autopilot.TermsEffective()),
 		custom_agents.WithTermsSource(autopilotTerms, cfg.Autopilot.TermsPageURL),
 		custom_agents.WithFeatureCheck(subsClient.StrictFeature),
+		// Autopilot agents (owner 2026-11-14): marketflow_autopilot and max_autopilot_agents, read
+		// strictly; the platform tenant is exempt.
+		custom_agents.WithAutopilotPlan(subsClient.StrictFeature, subsClient.StrictLimit),
 		custom_agents.WithAgentChanged(func(ctx context.Context, tenantID, agentID uuid.UUID) {
 			if autopilotPipeline != nil {
 				autopilotPipeline.AgentChanged(ctx, tenantID, agentID)
@@ -885,6 +888,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			RollbackAutopilot: customAgentHandler.RollbackAutopilot,
 			DryRunAutopilot:   customAgentHandler.DryRunAutopilot,
 			GetAutoPublish:    customAgentHandler.GetAutoPublish,
+			GetAutopilotPlan:  customAgentHandler.GetAutopilotPlan,
 			PutAutoPublish:    customAgentHandler.PutAutoPublish,
 			AutopilotPosts:    autopublishHandler.Posts,
 			AutopilotVeto:     autopublishHandler.Veto,
