@@ -151,7 +151,7 @@ func runProbe(ctx context.Context, ptype, pname string, s map[string]string) (st
 			return "Threads app credentials present; the OAuth test runs when a tenant connects Threads", true
 		}
 		return probeMetaApp(ctx, c, s["app_id"], s["app_secret"])
-	case "google_ads", "google_calendar":
+	case "google_ads", "google_calendar", "youtube":
 		return probeGoogleOAuthClient(ctx, c, s["client_id"])
 	case "linkedin_ads", "tiktok_ads", "x_ads":
 		if s["client_id"] != "" || s["app_id"] != "" || s["consumer_key"] != "" {

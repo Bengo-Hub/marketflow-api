@@ -336,7 +336,9 @@ type IntegrationsHandlers struct {
 	MetaDeletionStatus                http.HandlerFunc // Public
 	TikTokAuthorize                   http.HandlerFunc
 	TikTokCallback                    http.HandlerFunc
-	ListTenant                        http.HandlerFunc
+	YouTubeAuthorize                  http.HandlerFunc
+	YouTubeCallback                   http.HandlerFunc
+	ListTenant                       http.HandlerFunc
 	DisconnectTenant                  http.HandlerFunc
 }
 
@@ -934,6 +936,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Put("/google/business-hours", deps.IntegrationsHandlers.UpdateGoogleCalendarBusinessHours)
 				r.Get("/meta/authorize", deps.IntegrationsHandlers.MetaAuthorize)
 				r.Get("/tiktok/authorize", deps.IntegrationsHandlers.TikTokAuthorize)
+				if deps.IntegrationsHandlers.YouTubeAuthorize != nil {
+					r.Get("/youtube/authorize", deps.IntegrationsHandlers.YouTubeAuthorize)
+				}
 				r.Get("/", deps.IntegrationsHandlers.ListTenant)
 				r.Delete("/{provider}", deps.IntegrationsHandlers.DisconnectTenant)
 			})
@@ -1363,6 +1368,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 			r.With(readLimit).Get("/public/data-deletion/{code}", deps.IntegrationsHandlers.MetaDeletionStatus)
 		}
 		r.With(readLimit).Get("/integrations/tiktok/callback", deps.IntegrationsHandlers.TikTokCallback)
+		if deps.IntegrationsHandlers.YouTubeCallback != nil {
+			r.With(readLimit).Get("/integrations/youtube/callback", deps.IntegrationsHandlers.YouTubeCallback)
+		}
 
 		// Webhook routes (public, no auth — signature-verified by each handler)
 		r.Route("/webhooks", func(r chi.Router) {

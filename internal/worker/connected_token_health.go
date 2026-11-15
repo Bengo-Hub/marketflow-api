@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,8 +21,9 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
-	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
+	"github.com/bengobox/marketflow-api/internal/integrations/google"
+	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/modules/rbac"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 )
@@ -33,7 +35,8 @@ import (
 //
 // expires_at holds the token's own expiry, or Meta's data-access expiry when the token itself
 // does not expire (Page tokens), or a recheck date when Meta reports neither. TikTok Marketing API
-// tokens do not expire and are not checked.
+// tokens do not expire and are not checked. YouTube channels are renewed through their refresh
+// token instead (checkGoogle); their expires_at stays empty.
 const (
 	tokenHealthBatch      = 200
 	tokenHealthMaxBatches = 20
@@ -57,6 +60,8 @@ type ConnectedTokenHealth struct {
 	// appToken returns Meta's app access token (app_id|app_secret); a field so tests need not
 	// write the platform's provider settings.
 	appToken func(context.Context) (string, bool)
+	// youtube renews YouTube channel tokens; a refused renewal is the sign to reconnect.
+	youtube *google.Tokens
 }
 
 // metaAppToken reads the platform Meta app credentials.
@@ -79,6 +84,7 @@ func NewConnectedTokenHealth(db *ent.Client, keys *encryption.KeyProvider, notif
 		logger:    logger.Named("connected-token-health"),
 	}
 	j.appToken = j.metaAppToken
+	j.youtube = google.NewTokens(db, keys)
 	return j
 }
 
@@ -131,13 +137,35 @@ func (j *ConnectedTokenHealth) check(ctx context.Context, now time.Time) (int, i
 	if j.keys == nil || !j.keys.Configured(ctx) {
 		return 0, 0, nil
 	}
-	appToken, ok := j.appToken(ctx)
-	if !ok {
-		j.logger.Info("meta app credentials not configured; token check skipped")
-		return 0, 0, nil
-	}
-
 	notices := map[uuid.UUID][]tokenNotice{}
+	checked := 0
+	if appToken, ok := j.appToken(ctx); ok {
+		n, err := j.checkMeta(ctx, appToken, now, notices)
+		checked += n
+		if err != nil {
+			return checked, 0, err
+		}
+	} else {
+		j.logger.Info("meta app credentials not configured; meta token check skipped")
+	}
+	if j.youtube != nil {
+		n, err := j.checkGoogle(ctx, notices)
+		checked += n
+		if err != nil {
+			return checked, 0, err
+		}
+	}
+	sent := 0
+	for tid, list := range notices {
+		if j.notify(ctx, tid, list) {
+			sent++
+		}
+	}
+	return checked, sent, nil
+}
+
+// checkMeta checks the due Meta tokens with debug_token and adds the accounts to tell about.
+func (j *ConnectedTokenHealth) checkMeta(ctx context.Context, appToken string, now time.Time, notices map[uuid.UUID][]tokenNotice) (int, error) {
 	checked := 0
 	var after uuid.UUID
 	for batch := 0; batch < tokenHealthMaxBatches; batch++ {
@@ -160,12 +188,12 @@ func (j *ConnectedTokenHealth) check(ctx context.Context, now time.Time) (int, i
 		}
 		rows, err := q.All(ctx)
 		if err != nil {
-			return checked, 0, err
+			return checked, err
 		}
 		for _, acc := range rows {
 			after = acc.ID
 			if ctx.Err() != nil {
-				return checked, 0, ctx.Err()
+				return checked, ctx.Err()
 			}
 			n, ok := j.checkOne(ctx, acc, appToken, now)
 			checked++
@@ -177,13 +205,58 @@ func (j *ConnectedTokenHealth) check(ctx context.Context, now time.Time) (int, i
 			break
 		}
 	}
-	sent := 0
-	for tid, list := range notices {
-		if j.notify(ctx, tid, list) {
-			sent++
+	return checked, nil
+}
+
+// checkGoogle renews each active YouTube channel's access token once a day. The renewal is the
+// check: Google answers invalid_grant once the person revoked access or the grant lapsed
+// (google.Tokens then marks the row expired), and a daily use keeps a refresh token from
+// lapsing after six months without use. Google down or slow is left for the next run.
+func (j *ConnectedTokenHealth) checkGoogle(ctx context.Context, notices map[uuid.UUID][]tokenNotice) (int, error) {
+	checked := 0
+	var after uuid.UUID
+	for batch := 0; batch < tokenHealthMaxBatches; batch++ {
+		q := j.db.ConnectedAccount.Query().
+			Where(
+				connectedaccount.Platform("google"),
+				connectedaccount.AccountType("youtube_channel"),
+				connectedaccount.Status("active"),
+				connectedaccount.RefreshCiphertextNEQ(""),
+			).
+			Order(ent.Asc(connectedaccount.FieldID)).
+			Limit(tokenHealthBatch)
+		if after != uuid.Nil {
+			q = q.Where(connectedaccount.IDGT(after))
+		}
+		rows, err := q.All(ctx)
+		if err != nil {
+			return checked, err
+		}
+		for _, acc := range rows {
+			after = acc.ID
+			if ctx.Err() != nil {
+				return checked, ctx.Err()
+			}
+			checked++
+			_, err := j.youtube.Refresh(ctx, acc)
+			var te *google.TokenError
+			if err == nil || !errors.As(err, &te) || !te.Revoked() {
+				if err != nil {
+					j.logger.Warn("youtube token not renewed", zap.String("account", acc.ID.String()), zap.Error(err))
+				}
+				continue
+			}
+			name := acc.DisplayName
+			if name == "" {
+				name = acc.ExternalID
+			}
+			notices[acc.TenantID] = append(notices[acc.TenantID], tokenNotice{Name: name, Type: acc.AccountType, Expired: true})
+		}
+		if len(rows) < tokenHealthBatch {
+			break
 		}
 	}
-	return checked, sent, nil
+	return checked, nil
 }
 
 // checkOne updates one account from debug_token and says whether the tenant must be told.
@@ -322,7 +395,7 @@ func (j *ConnectedTokenHealth) notify(ctx context.Context, tenantID uuid.UUID, l
 	if slug, err := j.tenantSlug(ctx, tenantID); err == nil && slug != "" {
 		link = j.appURL + "/" + slug + "/settings/integrations"
 	}
-	body := "MarketFlow can no longer post, read leads or run ads for these accounts unless someone in your business connects Meta again:\n\n" +
+	body := "MarketFlow can no longer post, read leads or run ads for these accounts unless someone in your business connects them again:\n\n" +
 		strings.Join(lines, "\n") + "\n\nReconnect here: " + link
 	key := "conn-token-" + tenantID.String() + "-" + hex.EncodeToString(sig.Sum(nil))[:16]
 	sent := false
@@ -330,7 +403,7 @@ func (j *ConnectedTokenHealth) notify(ctx context.Context, tenantID uuid.UUID, l
 		err := j.notif.Send(ctx, tenantID.String(), notifications.Message{
 			Channel:        "email",
 			Recipient:      email,
-			Subject:        "Reconnect your Meta accounts in MarketFlow",
+			Subject:        "Reconnect your accounts in MarketFlow",
 			Body:           body,
 			Metadata:       map[string]string{"source": "marketflow-worker", "kind": "connected_token_health"},
 			IdempotencyKey: key + "-" + email,

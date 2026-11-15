@@ -28,8 +28,21 @@ type accountSummary struct {
 // platformProvider maps a connected account's platform to the provider type the page keys on.
 var platformProvider = map[string]string{PlatformMeta: "meta_ads", PlatformTikTok: "tiktok_ads"}
 
+// accountTypeProvider wins over platformProvider for an account type that is its own connection
+// on a platform with several (a YouTube channel on Google).
+var accountTypeProvider = map[string]string{AccountYouTubeChannel: providerYouTube}
+
+// providerOf is the provider type a connected account shows under ("" for none).
+func providerOf(a *ent.ConnectedAccount) string {
+	if p, ok := accountTypeProvider[a.AccountType]; ok {
+		return p
+	}
+	return platformProvider[a.Platform]
+}
+
 var accountTypeOrder = map[string]int{
 	AccountFacebookPage: 0, AccountInstagramBusiness: 1, AccountMetaAdAccount: 2, AccountTikTokAdvertiser: 3,
+	AccountYouTubeChannel: 4,
 }
 
 // accountSummaries groups a tenant's connected accounts by provider type: the default Page
@@ -41,8 +54,8 @@ var accountTypeOrder = map[string]int{
 func accountSummaries(rows []*ent.ConnectedAccount, defaultPageID string, authFailures map[uuid.UUID]time.Time, now time.Time) map[string][]accountSummary {
 	out := map[string][]accountSummary{}
 	for _, a := range rows {
-		prov, ok := platformProvider[a.Platform]
-		if !ok || a.Status == "revoked" {
+		prov := providerOf(a)
+		if prov == "" || a.Status == "revoked" {
 			continue
 		}
 		s := accountSummary{Type: a.AccountType, ExternalID: a.ExternalID, Name: a.DisplayName}

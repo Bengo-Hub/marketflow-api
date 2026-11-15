@@ -32,9 +32,10 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
-	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/integrations/google"
+	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	chirouter "github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -51,6 +52,10 @@ type Handler struct {
 	metaAppSecret     string
 	deletionStatusURL string
 	portalURL         string // where connect callbacks send the browser back to
+	// YouTube connect (youtube.go): Google's token and revoke endpoints and the Data API base;
+	// the zero values are Google's own, tests point them at a fake.
+	googleOAuth    google.OAuth
+	youtubeAPIBase string
 }
 
 // NewHandler constructs a Handler.
@@ -630,6 +635,14 @@ func (h *Handler) ListTenant(w http.ResponseWriter, r *http.Request) {
 		for _, g := range grouped {
 			g.Accounts = by[g.Provider]
 		}
+		// A YouTube connection has no tenant ProviderSetting rows: its channels are the
+		// connection, so the card shows connected while one is not disconnected.
+		for _, prov := range accountOnlyProviders {
+			if list := by[prov]; len(list) > 0 && grouped[prov+":oauth"] == nil {
+				grouped[prov+":oauth"] = &summary{Provider: prov, Name: "oauth", Connected: true,
+					Fields: map[string]string{}, Accounts: list}
+			}
+		}
 	}
 	out := make([]*summary, 0, len(grouped))
 	for _, v := range grouped {
@@ -674,7 +687,7 @@ func (h *Handler) AvailableIntegrations(w http.ResponseWriter, r *http.Request) 
 // @Tags Integrations
 // @Produce json
 // @Param X-Tenant-ID header string true "Tenant UUID"
-// @Param provider path string true "Provider type (google_calendar | meta_ads)"
+// @Param provider path string true "Provider type (google_calendar | meta_ads | tiktok_ads | youtube)"
 // @Success 200 {object} map[string]string
 // @Security bearerAuth
 // @Router /integrations/{provider} [delete]
@@ -701,6 +714,9 @@ func (h *Handler) DisconnectTenant(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httpapi.Error(w, http.StatusInternalServerError, "disconnect_failed", err.Error(), nil)
 		return
+	}
+	if provider == providerYouTube {
+		h.revokeYouTubeGrants(r.Context(), tenantID)
 	}
 	revoked, err := h.revokeAccounts(r.Context(), tenantID, provider)
 	if err != nil {

@@ -24,14 +24,17 @@ func TestOAuthCallbacksArePublic(t *testing.T) {
 		IntegrationsHandlers: IntegrationsHandlers{
 			GoogleCallback: stub, MetaCallback: stub, TikTokCallback: stub,
 			MetaAuthorize: stub, ListTenant: stub,
+			YouTubeAuthorize: stub, YouTubeCallback: stub,
 		},
 	})
 	for path, want := range map[string]int{
-		"/api/v1/integrations/google/callback?code=x&state=y": http.StatusTeapot,
-		"/api/v1/integrations/meta/callback?code=x&state=y":   http.StatusTeapot,
-		"/api/v1/integrations/tiktok/callback?auth_code=x":    http.StatusTeapot,
-		"/api/v1/integrations/meta/authorize":                 http.StatusUnauthorized,
-		"/api/v1/integrations/":                               http.StatusUnauthorized,
+		"/api/v1/integrations/youtube/callback?code=x&state=y": http.StatusTeapot,
+		"/api/v1/integrations/youtube/authorize":               http.StatusUnauthorized,
+		"/api/v1/integrations/google/callback?code=x&state=y":  http.StatusTeapot,
+		"/api/v1/integrations/meta/callback?code=x&state=y":    http.StatusTeapot,
+		"/api/v1/integrations/tiktok/callback?auth_code=x":     http.StatusTeapot,
+		"/api/v1/integrations/meta/authorize":                  http.StatusUnauthorized,
+		"/api/v1/integrations/":                                http.StatusUnauthorized,
 	} {
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))

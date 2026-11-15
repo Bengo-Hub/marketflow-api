@@ -22,16 +22,26 @@ import (
 const (
 	PlatformMeta   = "meta"
 	PlatformTikTok = "tiktok"
+	PlatformGoogle = "google"
 
 	AccountFacebookPage      = "facebook_page"
 	AccountInstagramBusiness = "instagram_business"
 	AccountMetaAdAccount     = "meta_ad_account"
 	AccountTikTokAdvertiser  = "tiktok_advertiser"
+	AccountYouTubeChannel    = "youtube_channel"
 )
 
 // providerPlatforms maps a ProviderSetting provider_type to the ConnectedAccount platform it
 // connects, so a disconnect revokes both.
-var providerPlatforms = map[string]string{"meta_ads": PlatformMeta, "tiktok_ads": PlatformTikTok}
+var providerPlatforms = map[string]string{"meta_ads": PlatformMeta, "tiktok_ads": PlatformTikTok, providerYouTube: PlatformGoogle}
+
+// providerAccountTypes narrows a disconnect to the provider's own account types where one
+// platform has several connections: disconnecting YouTube must not touch a Google Ads customer.
+var providerAccountTypes = map[string][]string{providerYouTube: {AccountYouTubeChannel}}
+
+// accountOnlyProviders keep no tenant ProviderSetting rows: their ConnectedAccount rows are the
+// whole connection.
+var accountOnlyProviders = []string{providerYouTube}
 
 // account is one external asset found at connect time.
 type account struct {
@@ -40,6 +50,7 @@ type account struct {
 	ExternalID  string
 	DisplayName string
 	Token       string
+	Refresh     string // a refresh token (Google), stored as ciphertext like the token
 	Scopes      []string
 	Metadata    map[string]any
 }
@@ -88,6 +99,13 @@ func (h *Handler) saveAccounts(ctx context.Context, tenantID, authUserID string,
 			}
 			b.SetTokenCiphertext(sealed)
 		}
+		if a.Refresh != "" {
+			sealed, err := h.keys.Encrypt(ctx, a.Refresh)
+			if err != nil {
+				return fmt.Errorf("seal %s refresh token: %w", a.Type, err)
+			}
+			b.SetRefreshCiphertext(sealed)
+		}
 		builders = append(builders, b)
 	}
 	return h.db.ConnectedAccount.CreateBulk(builders...).
@@ -112,12 +130,16 @@ func (h *Handler) revokeAccounts(ctx context.Context, tenantID, provider string)
 	if !ok || err != nil {
 		return 0, nil
 	}
-	return h.db.ConnectedAccount.Update().
+	u := h.db.ConnectedAccount.Update().
 		Where(
 			connectedaccount.TenantID(tid),
 			connectedaccount.Platform(platform),
 			connectedaccount.StatusNEQ("revoked"),
-		).
+		)
+	if types := providerAccountTypes[provider]; len(types) > 0 {
+		u = u.Where(connectedaccount.AccountTypeIn(types...))
+	}
+	return u.
 		SetStatus("revoked").
 		ClearTokenCiphertext().
 		ClearRefreshCiphertext().

@@ -102,6 +102,15 @@ func (r *Runner) Step(ctx context.Context, j *Job) error {
 	}
 	acct, err := r.Accounts.Account(ctx, j.TenantID, j.AccountID)
 	if err != nil {
+		// A token that could not be renewed: a refused grant needs a reconnect (the message is
+		// what the integrations card reads), anything else is retried with backoff.
+		var te *AccountTokenError
+		if errors.As(err, &te) {
+			if te.Reconnect {
+				return r.fail(ctx, j, te.Error())
+			}
+			return r.retry(ctx, j, err)
+		}
 		return r.fail(ctx, j, "the connected account is gone or was disconnected; reconnect it and post again")
 	}
 
