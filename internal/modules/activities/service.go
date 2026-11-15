@@ -40,6 +40,8 @@ type CreateInput struct {
 	Source          *string
 	ExternalRef     *string
 	PerformedAt     *time.Time
+	// Metadata carries extra context without a schema change (a consumed event's id, say).
+	Metadata map[string]any
 }
 
 // ListInput filters activities. EntityType and EntityID are optional: empty lists the whole
@@ -90,6 +92,9 @@ func (s *Service) Log(ctx context.Context, in CreateInput) (*ent.Activity, error
 	}
 	if in.ExternalRef != nil {
 		builder.SetNillableExternalRef(in.ExternalRef)
+	}
+	if len(in.Metadata) > 0 {
+		builder.SetMetadata(in.Metadata)
 	}
 
 	result, err := builder.Save(ctx)

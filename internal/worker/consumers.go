@@ -128,6 +128,8 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, keys *encryption.Ke
 			&POSSaleFinalizedHandler{db: db, svc: activitySvc, logger: logger.Named("crm-pos-sale")},
 			&POSAppointmentCompletedHandler{db: db, svc: activitySvc, logger: logger.Named("crm-pos-appt")},
 			&TreasuryPaymentSucceededHandler{db: db, svc: activitySvc, logger: logger.Named("crm-treasury")},
+			// Timeline entries other services request (ticketing-api: ticket opened and resolved)
+			&CRMActivityRequestedHandler{db: db, svc: activitySvc, logger: logger.Named("crm-activity-requested")},
 			// Sprint 10 background AI agents
 			leadScorer,
 			&ActivityLoggedLeadScorerAgent{LeadScorerAgent: leadScorer},
