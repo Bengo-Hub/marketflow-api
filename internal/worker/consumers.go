@@ -110,6 +110,8 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, keys *encryption.Ke
 		autopilotLapsed: lapsed,
 		handlers: []Handler{
 			&NurtureStepHandler{cfg: cfg, db: db, notif: notif, logger: logger.Named("nurture")},
+			// How each nurture message did, from notifications-api (sequence analytics)
+			&NurtureEngagementHandler{db: db, logger: logger.Named("nurture-engagement")},
 			&EmbeddingHandler{cfg: cfg, db: db, rawDB: rawDB, logger: logger.Named("embedding")},
 			&ChatCompletedHandler{db: db, logger: logger.Named("audit")},
 			&LeadCreatedHandler{cfg: cfg, db: db, logger: logger.Named("lead")},
@@ -128,6 +130,8 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, keys *encryption.Ke
 			&POSSaleFinalizedHandler{db: db, svc: activitySvc, logger: logger.Named("crm-pos-sale")},
 			&POSAppointmentCompletedHandler{db: db, svc: activitySvc, logger: logger.Named("crm-pos-appt")},
 			&TreasuryPaymentSucceededHandler{db: db, svc: activitySvc, logger: logger.Named("crm-treasury")},
+			// Timeline entries other services request (ticketing-api: ticket opened and resolved)
+			&CRMActivityRequestedHandler{db: db, svc: activitySvc, logger: logger.Named("crm-activity-requested")},
 			// Sprint 10 background AI agents
 			leadScorer,
 			&ActivityLoggedLeadScorerAgent{LeadScorerAgent: leadScorer},
