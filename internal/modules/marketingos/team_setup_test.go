@@ -20,9 +20,16 @@ func TestSetupTeamOnDB(t *testing.T) {
 	if _, err := s.UpsertTeamMember(ctx, tid, MemberOverride{Key: "research_analyst", Disabled: true}); err != nil {
 		t.Fatal(err)
 	}
+	if done, err := s.TeamSetupDone(ctx, tid); err != nil || done {
+		t.Fatalf("no setup yet: done=%t err=%v", done, err)
+	}
 	first, err := s.SetupTeam(ctx, tid)
 	if err != nil {
 		t.Fatal(err)
+	}
+	// only_first refuses from now on (handler.setup reads this).
+	if done, err := s.TeamSetupDone(ctx, tid); err != nil || !done {
+		t.Fatalf("first setup recorded: done=%t err=%v", done, err)
 	}
 	if !first.First || fitOf(first.Members, "seo_specialist").Enabled || !fitOf(first.Members, "seo_specialist").Changed {
 		t.Fatalf("first setup switches SEO off: %+v", first)

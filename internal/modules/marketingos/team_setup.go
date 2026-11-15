@@ -201,6 +201,16 @@ func (s *Service) SetupTeam(ctx context.Context, tenantID uuid.UUID) (TeamSetup,
 	return out, nil
 }
 
+// TeamSetupDone says whether the tenant has had its first team setup.
+func (s *Service) TeamSetupDone(ctx context.Context, tenantID uuid.UUID) (bool, error) {
+	t, err := s.db.Tenant.Get(ctx, tenantID)
+	if err != nil {
+		return false, err
+	}
+	_, done := t.Metadata[TeamSetupKey].(map[string]any)
+	return done, nil
+}
+
 // SetupTeamIfNew runs the first setup once, for onboarding: a tenant that already has one is
 // left alone. Errors are logged, never returned, because it runs after the owner's own save.
 func (s *Service) SetupTeamIfNew(ctx context.Context, tenantID uuid.UUID) {
