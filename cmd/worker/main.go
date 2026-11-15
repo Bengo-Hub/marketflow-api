@@ -343,7 +343,8 @@ func main() {
 			publishing.NewYouTubeShorts(publishing.YouTubeUploadBase, publishing.YouTubeAPIBase,
 				os.Getenv("MF_PUBLISHING_YOUTUBE_PRIVACY")),
 			publishing.NewTikTokDirect("https://open.tiktokapis.com", os.Getenv("MF_PUBLISHING_TIKTOK_PRIVACY"),
-				os.Getenv("MF_PUBLISHING_TIKTOK_PULL") == "true"))
+				os.Getenv("MF_PUBLISHING_TIKTOK_PULL") == "true").
+				WithPullPrefix(os.Getenv("MF_PUBLISHING_TIKTOK_PULL_PREFIX")))
 		// Paid ads (Sprint 18): moves confirmed boosts through PAUSED creation, review and funding.
 		go adsmanager.NewWorker(entClient, keys, meta.NewClient("").WithSecret(meta.PlatformSecret(entClient, keys, os.Getenv("MF_META_APP_SECRET"))), logger).Run(ctx)
 

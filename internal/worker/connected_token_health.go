@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	entsql "entgo.io/ent/dialect/sql"
 	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -211,8 +212,19 @@ func (j *ConnectedTokenHealth) checkOne(ctx context.Context, acc *ent.ConnectedA
 		notice.Expired = true
 		return notice, true
 	}
-	renewBy := renewDate(st, now)
-	if err := upd.SetExpiresAt(renewBy).Exec(ctx); err != nil {
+	renewBy, basis := renewDate(st, now)
+	// expiry_basis tells the integrations page whether expires_at is a real expiry or only the
+	// next recheck, so a recheck date never shows as "expires soon" on the card. Merged with
+	// jsonb || so the keys written at connect time stay.
+	patch, _ := json.Marshal(map[string]string{"expiry_basis": basis})
+	value := entsql.ExprFunc(func(b *entsql.Builder) {
+		b.WriteString("(COALESCE(" + connectedaccount.FieldMetadata + ", '{}'::jsonb) || ")
+		b.Arg(string(patch))
+		b.WriteString("::jsonb)")
+	})
+	upd = upd.SetExpiresAt(renewBy).
+		Modify(func(u *entsql.UpdateBuilder) { u.Set(connectedaccount.FieldMetadata, value) })
+	if err := upd.Exec(ctx); err != nil {
 		j.logger.Warn("record token expiry", zap.String("account", acc.ID.String()), zap.Error(err))
 		return notice, false
 	}
@@ -221,18 +233,20 @@ func (j *ConnectedTokenHealth) checkOne(ctx context.Context, acc *ent.ConnectedA
 }
 
 // renewDate is the earliest of the token's expiry and its data-access expiry, or a recheck date
-// when Meta reports neither.
-func renewDate(st tokenStatus, now time.Time) time.Time {
+// when Meta reports neither, with what the date is: "token", "data_access" or "recheck".
+func renewDate(st tokenStatus, now time.Time) (time.Time, string) {
 	var d time.Time
-	for _, t := range []time.Time{st.ExpiresAt, st.DataUntil} {
-		if !t.IsZero() && (d.IsZero() || t.Before(d)) {
-			d = t
-		}
+	basis := ""
+	if !st.ExpiresAt.IsZero() {
+		d, basis = st.ExpiresAt, "token"
+	}
+	if !st.DataUntil.IsZero() && (d.IsZero() || st.DataUntil.Before(d)) {
+		d, basis = st.DataUntil, "data_access"
 	}
 	if d.IsZero() {
-		return now.Add(tokenRecheckAfter)
+		return now.Add(tokenRecheckAfter), "recheck"
 	}
-	return d
+	return d, basis
 }
 
 func (j *ConnectedTokenHealth) debugToken(ctx context.Context, token, appToken string) (tokenStatus, error) {

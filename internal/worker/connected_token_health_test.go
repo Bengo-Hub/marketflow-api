@@ -31,17 +31,20 @@ func TestRenewDate(t *testing.T) {
 	now := time.Date(2026, 10, 22, 0, 0, 0, 0, time.UTC)
 	in3, in90 := now.Add(72*time.Hour), now.Add(90*24*time.Hour)
 	cases := []struct {
-		name string
-		st   tokenStatus
-		want time.Time
+		name  string
+		st    tokenStatus
+		want  time.Time
+		basis string
 	}{
-		{"token expiry first", tokenStatus{Valid: true, ExpiresAt: in3, DataUntil: in90}, in3},
-		{"data access only (page token)", tokenStatus{Valid: true, DataUntil: in90}, in90},
-		{"neither: recheck later", tokenStatus{Valid: true}, now.Add(tokenRecheckAfter)},
+		{"token expiry first", tokenStatus{Valid: true, ExpiresAt: in3, DataUntil: in90}, in3, "token"},
+		{"data access first", tokenStatus{Valid: true, ExpiresAt: in90, DataUntil: in3}, in3, "data_access"},
+		{"data access only (page token)", tokenStatus{Valid: true, DataUntil: in90}, in90, "data_access"},
+		{"neither: recheck later", tokenStatus{Valid: true}, now.Add(tokenRecheckAfter), "recheck"},
 	}
 	for _, c := range cases {
-		if got := renewDate(c.st, now); !got.Equal(c.want) {
-			t.Errorf("%s: %v, want %v", c.name, got, c.want)
+		got, basis := renewDate(c.st, now)
+		if !got.Equal(c.want) || basis != c.basis {
+			t.Errorf("%s: %v %q, want %v %q", c.name, got, basis, c.want, c.basis)
 		}
 	}
 }
@@ -165,6 +168,10 @@ func TestConnectedTokenHealth(t *testing.T) {
 	}
 	if a := get("TOK-PAGE"); a.ExpiresAt == nil || !a.ExpiresAt.Equal(page) {
 		t.Errorf("a page token is rechecked at its data-access expiry: %+v", a.ExpiresAt)
+	}
+	// The integrations card reads what the date means (account_health.go).
+	if a := get("TOK-SOON"); a.Metadata["expiry_basis"] != "token" {
+		t.Errorf("expiry basis recorded with the date: %+v", a.Metadata)
 	}
 
 	mu.Lock()

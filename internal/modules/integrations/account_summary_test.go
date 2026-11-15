@@ -2,6 +2,7 @@ package integrations
 
 import (
 	"testing"
+	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 )
@@ -18,10 +19,15 @@ func TestAccountSummaries(t *testing.T) {
 		{Platform: PlatformTikTok, AccountType: AccountTikTokAdvertiser, ExternalID: "77", DisplayName: "TT", Status: "active"},
 		{Platform: PlatformMeta, AccountType: AccountFacebookPage, ExternalID: "gone", DisplayName: "Old", Status: "revoked"},
 	}
-	got := accountSummaries(rows, "1380")
+	got := accountSummaries(rows, "1380", nil, time.Now())
 	meta := got["meta_ads"]
 	if len(meta) != 4 {
 		t.Fatalf("meta: want 4 active accounts, got %+v", meta)
+	}
+	for _, s := range meta {
+		if s.Health != healthOK {
+			t.Errorf("an account with no expiry and no errors is ok: %+v", s)
+		}
 	}
 	if meta[0].ExternalID != "1380" || !meta[0].Default || meta[0].PictureURL != metaGraphURL+"/1380/picture?type=square" {
 		t.Errorf("default Page first with its public picture: %+v", meta[0])

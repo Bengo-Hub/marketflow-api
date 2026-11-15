@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -25,15 +26,49 @@ import (
 type TikTokDirect struct {
 	API     string // https://open.tiktokapis.com
 	Privacy string // a privacy_level the creator allows; SELF_ONLY until audited
-	Pull    bool   // PULL_FROM_URL instead of FILE_UPLOAD
-	HTTP    *http.Client
+	Pull    bool   // PULL_FROM_URL instead of FILE_UPLOAD, for videos under PullPrefix
+	// PullPrefix is the URL prefix verified in the TikTok developer portal. A video outside it
+	// (a provider-hosted link) goes as FILE_UPLOAD, because TikTok refuses to pull from an
+	// unverified prefix with url_ownership_unverified.
+	PullPrefix string
+	HTTP       *http.Client
 }
+
+// DefaultTikTokPullPrefix is MarketFlow's public media prefix, the one to verify with TikTok.
+const DefaultTikTokPullPrefix = "https://media.codevertexafrica.com/marketflow/"
 
 func NewTikTokDirect(api, privacy string, pull bool) *TikTokDirect {
 	if privacy == "" {
 		privacy = "SELF_ONLY"
 	}
-	return &TikTokDirect{API: strings.TrimSuffix(api, "/"), Privacy: privacy, Pull: pull, HTTP: noRedirectClient(5 * time.Minute)}
+	return &TikTokDirect{API: strings.TrimSuffix(api, "/"), Privacy: privacy, Pull: pull,
+		PullPrefix: DefaultTikTokPullPrefix, HTTP: noRedirectClient(5 * time.Minute)}
+}
+
+// WithPullPrefix replaces the verified prefix (MF_PUBLISHING_TIKTOK_PULL_PREFIX); "" keeps it.
+func (t *TikTokDirect) WithPullPrefix(prefix string) *TikTokDirect {
+	if prefix = strings.TrimSpace(prefix); prefix != "" {
+		t.PullPrefix = prefix
+	}
+	return t
+}
+
+// canPull says whether TikTok may pull this video itself: pulling is on and the URL is an
+// https URL under the verified prefix, compared after parsing so "..", a different host or a
+// look-alike host such as media.codevertexafrica.com.evil.example never matches.
+func (t *TikTokDirect) canPull(videoURL string) bool {
+	if !t.Pull || t.PullPrefix == "" || videoURL == "" {
+		return false
+	}
+	u, err := url.Parse(videoURL)
+	p, perr := url.Parse(t.PullPrefix)
+	if err != nil || perr != nil || u.Scheme != "https" || p.Scheme != "https" {
+		return false
+	}
+	if !strings.EqualFold(u.Host, p.Host) || u.User != nil || strings.Contains(u.Path, "..") {
+		return false
+	}
+	return strings.HasPrefix(u.Path, p.Path)
 }
 
 func (*TikTokDirect) Platform() string { return TikTok }
@@ -77,34 +112,50 @@ func (t *TikTokDirect) Start(ctx context.Context, a Account, v Video, p Post) (U
 		"disable_stitch":  ci.StitchDisabled,
 		"is_aigc":         p.AIGenerated,
 	}
-	source := map[string]any{"source": "PULL_FROM_URL", "video_url": v.URL}
-	if !t.Pull {
-		if v.Bytes <= 0 {
-			return UploadState{}, fmt.Errorf("tiktok init: unknown file size")
-		}
-		chunk, count := tiktokChunks(v.Bytes)
-		source = map[string]any{"source": "FILE_UPLOAD", "video_size": v.Bytes, "chunk_size": chunk, "total_chunk_count": count}
+	pull := t.canPull(v.URL)
+	out, err := t.initPost(ctx, a, v, postInfo, pull)
+	if err != nil && pull && strings.Contains(err.Error(), "url_ownership_unverified") {
+		// The prefix is not verified (yet) in the developer portal: send the bytes instead.
+		pull = false
+		out, err = t.initPost(ctx, a, v, postInfo, false)
 	}
-	var out struct {
-		PublishID string `json:"publish_id"`
-		UploadURL string `json:"upload_url"`
-	}
-	if err := t.call(ctx, a, "/v2/post/publish/video/init/", map[string]any{"post_info": postInfo, "source_info": source}, &out); err != nil {
+	if err != nil {
 		return UploadState{}, fmt.Errorf("tiktok init: %w", err)
 	}
-	if out.PublishID == "" || (!t.Pull && out.UploadURL == "") {
+	if out.PublishID == "" || (!pull && out.UploadURL == "") {
 		return UploadState{}, fmt.Errorf("tiktok init: no publish_id or upload_url in the answer")
 	}
 	st := UploadState{SessionURI: out.UploadURL, ExternalID: out.PublishID}
-	if t.Pull {
+	if pull {
+		st.SessionURI = ""
 		st.Offset = v.Bytes // TikTok pulls the file itself
 	}
 	return st, nil
 }
 
-// Upload PUTs the chunk at st.ChunkIndex.
+type tiktokInit struct {
+	PublishID string `json:"publish_id"`
+	UploadURL string `json:"upload_url"`
+}
+
+// initPost calls video/init with PULL_FROM_URL or FILE_UPLOAD.
+func (t *TikTokDirect) initPost(ctx context.Context, a Account, v Video, postInfo map[string]any, pull bool) (tiktokInit, error) {
+	source := map[string]any{"source": "PULL_FROM_URL", "video_url": v.URL}
+	if !pull {
+		if v.Bytes <= 0 {
+			return tiktokInit{}, fmt.Errorf("unknown file size")
+		}
+		chunk, count := tiktokChunks(v.Bytes)
+		source = map[string]any{"source": "FILE_UPLOAD", "video_size": v.Bytes, "chunk_size": chunk, "total_chunk_count": count}
+	}
+	var out tiktokInit
+	err := t.call(ctx, a, "/v2/post/publish/video/init/", map[string]any{"post_info": postInfo, "source_info": source}, &out)
+	return out, err
+}
+
+// Upload PUTs the chunk at st.ChunkIndex. A pulled video has no upload URL and nothing to send.
 func (t *TikTokDirect) Upload(ctx context.Context, _ Account, v Video, st UploadState) (UploadState, error) {
-	if t.Pull {
+	if st.SessionURI == "" {
 		st.Offset = v.Bytes
 		return st, nil
 	}
