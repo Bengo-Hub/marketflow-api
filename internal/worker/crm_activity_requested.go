@@ -7,15 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqljson"
 	eventslib "github.com/Bengo-Hub/shared-events"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go/jetstream"
 	"go.uber.org/zap"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
-	"github.com/bengobox/marketflow-api/internal/ent/activity"
 	"github.com/bengobox/marketflow-api/internal/modules/activities"
 )
 
@@ -133,7 +130,7 @@ func (r crmActivityRequested) input() activities.CreateInput {
 		Source:       &source,
 		ExternalRef:  opt(r.req.ExternalRef),
 		PerformedAt:  &at,
-		Metadata:     map[string]any{activityEventIDKey: r.eventID, "event_subject": CRMActivityRequestedSubject},
+		Metadata:     eventMetadata(r.eventID, CRMActivityRequestedSubject),
 	}
 }
 
@@ -175,17 +172,10 @@ func (h *CRMActivityRequestedHandler) Handle(ctx context.Context, msg jetstream.
 	return nil
 }
 
-// alreadyLogged reports whether this event's Activity exists, keyed on metadata.event_id
-// within the entity's own timeline (the tenant and entity index keeps the lookup narrow).
+// alreadyLogged reports whether this event's Activity exists, keyed on metadata.event_id only:
+// a ticket resolved, reopened and resolved again is two events with the same type and ref.
 func (h *CRMActivityRequestedHandler) alreadyLogged(ctx context.Context, r crmActivityRequested) (bool, error) {
-	return h.db.Activity.Query().
-		Where(
-			activity.TenantID(r.tenantID),
-			activity.EntityType(r.entity),
-			activity.EntityID(r.entityID),
-			func(s *sql.Selector) {
-				s.Where(sqljson.ValueEQ(activity.FieldMetadata, r.eventID, sqljson.Path(activityEventIDKey)))
-			},
-		).
-		Exist(ctx)
+	return activityLogged(ctx, h.db, activityKey{
+		tenantID: r.tenantID, entity: r.entity, entityID: r.entityID, eventID: r.eventID,
+	})
 }
