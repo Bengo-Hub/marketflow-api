@@ -790,6 +790,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			MetaDeletionStatus:                integrationsHandler.MetaDeletionStatus,
 			TikTokAuthorize:                   integrationsHandler.TikTokAuthorize,
 			TikTokCallback:                    integrationsHandler.TikTokCallback,
+			YouTubeAuthorize:                  integrationsHandler.YouTubeAuthorize,
+			YouTubeCallback:                   integrationsHandler.YouTubeCallback,
 			ListTenant:                        integrationsHandler.ListTenant,
 			DisconnectTenant:                  integrationsHandler.DisconnectTenant,
 		},

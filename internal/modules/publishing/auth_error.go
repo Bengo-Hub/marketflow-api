@@ -22,6 +22,9 @@ var reconnectMarkers = []string{
 	"401 autherror",
 	"invalid credentials",
 	"invalid_grant",
+	// MarketFlow's own wording when a stored grant was refused while renewing the token
+	// (AccountTokenError).
+	"no longer accepts this connection",
 }
 
 // NeedsReconnect says whether a recorded publishing error means the connected account must be

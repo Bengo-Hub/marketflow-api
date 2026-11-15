@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/bengobox/marketflow-api/internal/ent/publishjob"
+	"github.com/bengobox/marketflow-api/internal/integrations/google"
 	"github.com/google/uuid"
 )
 
@@ -37,6 +38,8 @@ const ClaimLease = 15 * time.Minute
 type EntStore struct {
 	DB   *ent.Client
 	Keys *encryption.KeyProvider
+	// YouTube renews YouTube channel access tokens; nil uses google.NewTokens(DB, Keys).
+	YouTube TokenSource
 }
 
 // Claim takes up to limit due jobs. Each is claimed by one conditional UPDATE (still running,
@@ -169,7 +172,22 @@ func (s *EntStore) Account(ctx context.Context, tenantID, accountID string) (Acc
 	if err != nil {
 		return Account{}, err
 	}
-	if acc.TokenCiphertext == "" || s.Keys == nil {
+	if s.Keys == nil {
+		return Account{}, errors.New("no token")
+	}
+	if acc.AccountType == accountYouTubeChannel {
+		// Google access tokens last an hour; the refresh token stored at connect renews them.
+		src := s.YouTube
+		if src == nil {
+			src = google.NewTokens(s.DB, s.Keys)
+		}
+		tok, err := src.AccessToken(ctx, acc)
+		if err != nil {
+			return Account{}, &AccountTokenError{Platform: YouTube, Err: err, Reconnect: googleNeedsReconnect(err)}
+		}
+		return Account{ID: acc.ID.String(), ExternalID: acc.ExternalID, Token: tok, Scopes: acc.Scopes}, nil
+	}
+	if acc.TokenCiphertext == "" {
 		return Account{}, errors.New("no token")
 	}
 	tok, err := s.Keys.Decrypt(ctx, acc.TokenCiphertext)
@@ -177,6 +195,39 @@ func (s *EntStore) Account(ctx context.Context, tenantID, accountID string) (Acc
 		return Account{}, err
 	}
 	return Account{ID: acc.ID.String(), ExternalID: acc.ExternalID, Token: tok, Scopes: acc.Scopes}, nil
+}
+
+// accountYouTubeChannel is the ConnectedAccount type of a YouTube channel.
+const accountYouTubeChannel = "youtube_channel"
+
+// TokenSource renews a connected account's short-lived access token before use (YouTube).
+type TokenSource interface {
+	AccessToken(ctx context.Context, acc *ent.ConnectedAccount) (string, error)
+}
+
+// AccountTokenError means the account exists but no working token could be had for it. With
+// Reconnect the platform refused the stored grant and only connecting again fixes it; otherwise
+// it is worth another try later (the platform was down).
+type AccountTokenError struct {
+	Platform  string
+	Err       error
+	Reconnect bool
+}
+
+func (e *AccountTokenError) Error() string {
+	if e.Reconnect {
+		return Title(e.Platform) + " no longer accepts this connection (" + e.Err.Error() +
+			"). Connect it again on the Integrations page, then retry the post"
+	}
+	return Title(e.Platform) + " token could not be renewed: " + e.Err.Error()
+}
+
+func (e *AccountTokenError) Unwrap() error { return e.Err }
+
+// googleNeedsReconnect: Google said invalid_grant, or the row has no refresh token at all.
+func googleNeedsReconnect(err error) bool {
+	var te *google.TokenError
+	return errors.Is(err, google.ErrNoRefreshToken) || (errors.As(err, &te) && te.Revoked())
 }
 
 // Enabled reads the platform switch: ProviderSetting tenant "platform", provider_type
