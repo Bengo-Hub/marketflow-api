@@ -124,8 +124,10 @@ func (h *Handler) PutBrandContext(w http.ResponseWriter, r *http.Request) {
 // @Tags MarketingOS
 // @Produce json
 // @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param only_first query bool false "Run only the first setup; 409 when one was already done"
 // @Success 200 {object} TeamSetup
 // @Failure 403 {object} httpapi.ErrorResponse
+// @Failure 409 {object} httpapi.ErrorResponse
 // @Security bearerAuth
 // @Router /agents/team/setup [post]
 func (h *Handler) SetupTeam(w http.ResponseWriter, r *http.Request) {
@@ -148,7 +150,21 @@ func (h *Handler) InternalSetupTeam(w http.ResponseWriter, r *http.Request) {
 	h.setup(w, r, tid)
 }
 
+// setup runs the setup. With ?only_first=true it runs only when the tenant has never had one and
+// answers 409 already_set_up otherwise: marketflow-ai uses it to give a tenant with no AI credits
+// its free first setup, without letting a later (paid) review through for free.
 func (h *Handler) setup(w http.ResponseWriter, r *http.Request, tid uuid.UUID) {
+	if r.URL.Query().Get("only_first") == "true" {
+		done, err := h.svc.TeamSetupDone(r.Context(), tid)
+		if err != nil {
+			h.fail(w, err)
+			return
+		}
+		if done {
+			httpapi.Error(w, http.StatusConflict, "already_set_up", "the marketing team was already set up; a review uses the normal turn", nil)
+			return
+		}
+	}
 	out, err := h.svc.SetupTeam(r.Context(), tid)
 	if err != nil {
 		h.fail(w, err)

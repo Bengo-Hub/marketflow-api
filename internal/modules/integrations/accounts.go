@@ -59,8 +59,16 @@ func (h *Handler) saveAccounts(ctx context.Context, tenantID, authUserID string,
 		return nil
 	}
 	connectedBy := h.localUserID(ctx, tid, authUserID)
+	stamp := time.Now().UTC().Format(time.RFC3339)
 	builders := make([]*ent.ConnectedAccountCreate, 0, len(accounts))
 	for _, a := range accounts {
+		// connected_at tells the integrations page that publishing errors recorded before this
+		// connect were about the old token (account_health.go).
+		md := make(map[string]any, len(a.Metadata)+1)
+		for k, v := range a.Metadata {
+			md[k] = v
+		}
+		md[metaConnectedAt] = stamp
 		b := h.db.ConnectedAccount.Create().
 			SetTenantID(tid).
 			SetPlatform(a.Platform).
@@ -69,7 +77,7 @@ func (h *Handler) saveAccounts(ctx context.Context, tenantID, authUserID string,
 			SetDisplayName(truncate(a.DisplayName, 255)).
 			SetStatus("active").
 			SetNillableConnectedBy(connectedBy).
-			SetMetadata(a.Metadata)
+			SetMetadata(md)
 		if a.Scopes != nil {
 			b.SetScopes(a.Scopes)
 		}
@@ -90,6 +98,9 @@ func (h *Handler) saveAccounts(ctx context.Context, tenantID, authUserID string,
 			connectedaccount.FieldExternalID,
 		).
 		UpdateNewValues().
+		// A reconnect brings a new token, so the old expiry no longer applies; the token health
+		// job finds the row due (no expiry) and records the new one on its next run.
+		Update(func(u *ent.ConnectedAccountUpsert) { u.ClearExpiresAt() }).
 		Exec(ctx)
 }
 

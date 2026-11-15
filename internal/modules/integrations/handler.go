@@ -625,7 +625,8 @@ func (h *Handler) ListTenant(w http.ResponseWriter, r *http.Request) {
 				defaultPage = g.Fields["page_id"]
 			}
 		}
-		by := accountSummaries(accts, defaultPage)
+		now := time.Now().UTC()
+		by := accountSummaries(accts, defaultPage, h.recentAuthFailures(r.Context(), tid, now), now)
 		for _, g := range grouped {
 			g.Accounts = by[g.Provider]
 		}
