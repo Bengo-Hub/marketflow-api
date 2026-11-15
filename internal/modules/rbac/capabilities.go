@@ -98,6 +98,7 @@ var appReviewerCapabilities = []Capability{
 	// own post (the item itself stays; only the public comment goes).
 	readable("/inbox"),
 	postable("/inbox/{id}/reply"),
+	postable("/inbox/{id}/private-reply"),
 	postable("/inbox/{id}/hide"),
 	{Methods: []string{http.MethodDelete}, Path: "/inbox/{id}"},
 

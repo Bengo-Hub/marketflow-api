@@ -975,6 +975,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Promote: inboxHandler.Promote,
 			Hide:    inboxHandler.Hide,
 			Delete:  inboxHandler.Delete,
+			// Private replies need pages_messaging (Facebook) and instagram_manage_messages
+			// (Instagram); until App Review grants them, Meta refuses and the item says so.
+			PrivateReply: inboxHandler.PrivateReply,
 		},
 		PublishingHandlers: httpapi.PublishingHandlers{
 			Accounts:           publishingHandler.Accounts,

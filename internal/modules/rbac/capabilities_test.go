@@ -53,6 +53,7 @@ func TestAppReviewerAllowList(t *testing.T) {
 		// Inbox.
 		{"GET", "/api/v1/inbox", true},
 		{"POST", "/api/v1/inbox/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/reply", true},
+		{"POST", "/api/v1/inbox/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/private-reply", true},
 		{"POST", "/api/v1/inbox/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/hide", true},
 		{"DELETE", "/api/v1/inbox/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b", true},
 		{"GET", "/api/v1/inbox/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b", false},

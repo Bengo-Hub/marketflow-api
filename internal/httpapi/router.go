@@ -570,6 +570,8 @@ type InboxHandlers struct {
 	// Hide hides or unhides a comment; Delete deletes it (Facebook Page and Instagram only).
 	Hide   http.HandlerFunc
 	Delete http.HandlerFunc
+	// PrivateReply answers a comment with the one private message the platform allows.
+	PrivateReply http.HandlerFunc
 }
 
 // PublishingHandlers groups the organic publishing routes (Sprint 16).
@@ -1168,6 +1170,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					if deps.InboxHandlers.Hide != nil {
 						r.Post("/{id}/hide", deps.InboxHandlers.Hide)
 						r.Delete("/{id}", deps.InboxHandlers.Delete)
+					}
+					if deps.InboxHandlers.PrivateReply != nil {
+						r.Post("/{id}/private-reply", deps.InboxHandlers.PrivateReply)
 					}
 				})
 			}

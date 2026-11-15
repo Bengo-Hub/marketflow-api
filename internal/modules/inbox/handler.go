@@ -69,6 +69,11 @@ type Item struct {
 	DeletedAt string `json:"deleted_at,omitempty"`
 	// CanModerate: a Facebook or Instagram comment, so it can be hidden or deleted.
 	CanModerate bool `json:"can_moderate"`
+	// CanPrivateReply: a Facebook or Instagram comment that can still get its one private
+	// message (private_reply.go); PrivateReplyWindow says why not when it cannot.
+	CanPrivateReply    bool   `json:"can_private_reply"`
+	PrivateReplyWindow string `json:"private_reply_window,omitempty"`
+	PrivateRepliedAt   string `json:"private_replied_at,omitempty"`
 }
 
 // List handles GET /api/v1/inbox?kind=&intent=&open=true&cursor=&limit=: newest first, keyset
@@ -157,6 +162,7 @@ func toItem(a *ent.Activity, now time.Time) Item {
 	}
 	_, _, notComment := moderationTarget(a)
 	it.CanModerate = notComment == nil && it.DeletedAt == ""
+	it.applyPrivateReply(a, now)
 	return it
 }
 
