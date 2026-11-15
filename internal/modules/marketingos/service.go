@@ -53,6 +53,12 @@ type Settings struct {
 	// default; saving it on with a message is the owner's approval of that message.
 	InboxAutoReply bool   `json:"inbox_auto_reply"`
 	InboxReplyText string `json:"inbox_reply_text"`
+	// InboxIntentThreshold and InboxAutoReplyThreshold override the default confidence bars
+	// (inbox_settings.go); null means the default. InboxCommentPrompt is the public line under a
+	// comment whose answer went as a private reply.
+	InboxIntentThreshold    *float64 `json:"inbox_intent_threshold"`
+	InboxAutoReplyThreshold *float64 `json:"inbox_auto_reply_threshold"`
+	InboxCommentPrompt      string   `json:"inbox_comment_prompt"`
 	// Competitors are names, domains or Google advertiser ids (AR...) the weekly competitor
 	// scan looks up (Sprint 24), at most MaxCompetitors.
 	Competitors []string `json:"competitors"`
@@ -271,8 +277,10 @@ func (s *Service) GetSettings(ctx context.Context, tenantID uuid.UUID) (Settings
 			}
 		}
 	}
-	return Settings{DailyBrief: !ok || on, InboxAutoReply: auto, InboxReplyText: text, Competitors: competitors,
-		ReferenceAds: readReferenceAds(t.Metadata), CustomerComplaints: readStrings(t.Metadata, CustomerComplaintsKey)}, nil
+	out := Settings{DailyBrief: !ok || on, InboxAutoReply: auto, InboxReplyText: text, Competitors: competitors,
+		ReferenceAds: readReferenceAds(t.Metadata), CustomerComplaints: readStrings(t.Metadata, CustomerComplaintsKey)}
+	readInboxOverrides(t.Metadata, &out)
+	return out, nil
 }
 
 // SaveSettings stores the switches, merging only their keys.
@@ -304,10 +312,17 @@ func (s *Service) SaveSettings(ctx context.Context, tenantID uuid.UUID, in Setti
 		return in, fmt.Errorf("%w: %v", ErrInvalidSettings, err)
 	}
 	in.ReferenceAds, in.CustomerComplaints = refs, complaints
-	return in, s.setKeys(ctx, tenantID, map[string]any{
+	if err := cleanInboxOverrides(&in); err != nil {
+		return in, fmt.Errorf("%w: %v", ErrInvalidSettings, err)
+	}
+	values := map[string]any{
 		DailyBriefKey: in.DailyBrief, InboxAutoReplyKey: in.InboxAutoReply, InboxReplyTextKey: in.InboxReplyText,
 		CompetitorsKey: in.Competitors, ReferenceAdsKey: in.ReferenceAds, CustomerComplaintsKey: in.CustomerComplaints,
-	})
+	}
+	for k, v := range inboxOverrideValues(in) {
+		values[k] = v
+	}
+	return in, s.setKeys(ctx, tenantID, values)
 }
 
 // overrideName is the name the owner gave a member, empty when they kept the
