@@ -12809,6 +12809,13 @@
                         "type": "string"
                     }
                 },
+                "contact_enrichment": {
+                    "description": "ContactEnrichment lets the contact enricher fill each contact's profile from the\nbusiness's own records (on by default). ContactEnrichmentWeb also reads the public website\nof the company a contact is linked to (off by default, and off whenever ContactEnrichment is).",
+                    "type": "boolean"
+                },
+                "contact_enrichment_web": {
+                    "type": "boolean"
+                },
                 "customer_complaints": {
                     "type": "array",
                     "items": {
