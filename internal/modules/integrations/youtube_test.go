@@ -61,18 +61,33 @@ func TestYouTubeConnectFlow(t *testing.T) {
 	if os.Getenv("SKIP_POSTGRES_TESTS") != "" {
 		t.Skip("SKIP_POSTGRES_TESTS set")
 	}
-	sqlDB, err := sql.Open("pgx", testPostgresDSN)
+	admin, err := sql.Open("pgx", testPostgresDSN)
 	if err != nil {
 		t.Skipf("local postgres unavailable: %v", err)
 	}
-	if err := sqlDB.Ping(); err != nil {
-		_ = sqlDB.Close()
+	if err := admin.Ping(); err != nil {
+		_ = admin.Close()
 		t.Skipf("local postgres unreachable: %v", err)
+	}
+	defer admin.Close()
+	ctx := context.Background()
+	// Its own schema, so the shared platform youtube/oauth row of a developer database is never
+	// read or overwritten and the test always runs.
+	schemaName := "yt_" + strings.ReplaceAll(uuid.NewString()[:8], "-", "")
+	if _, err := admin.ExecContext(ctx, "CREATE SCHEMA "+schemaName); err != nil {
+		t.Fatalf("create schema: %v", err)
+	}
+	t.Cleanup(func() { _, _ = admin.ExecContext(context.Background(), "DROP SCHEMA "+schemaName+" CASCADE") })
+	sqlDB, err := sql.Open("pgx", testPostgresDSN+"&search_path="+schemaName)
+	if err != nil {
+		t.Fatal(err)
 	}
 	defer sqlDB.Close()
 	db := ent.NewClient(ent.Driver(entsql.OpenDB(dialect.Postgres, sqlDB)))
 	defer db.Close()
-	ctx := context.Background()
+	if err := db.Schema.Create(ctx); err != nil {
+		t.Fatalf("schema create: %v", err)
+	}
 
 	tid := uuid.New()
 	slug := "yt-" + tid.String()

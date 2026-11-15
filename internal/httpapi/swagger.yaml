@@ -5791,7 +5791,7 @@ paths:
         name: X-Tenant-ID
         required: true
         type: string
-      - description: Provider type (google_calendar | meta_ads)
+      - description: Provider type (google_calendar | meta_ads | tiktok_ads | youtube)
         in: path
         name: provider
         required: true
@@ -6018,6 +6018,51 @@ paths:
         type: string
       responses: {}
       summary: TikTok OAuth callback
+      tags:
+      - Integrations
+  /integrations/youtube/authorize:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Start the YouTube channel connection for a tenant
+      tags:
+      - Integrations
+  /integrations/youtube/callback:
+    get:
+      parameters:
+      - description: Authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: Signed state
+        in: query
+        name: state
+        required: true
+        type: string
+      produces:
+      - text/html
+      responses: {}
+      summary: YouTube channel OAuth callback
       tags:
       - Integrations
   /knowledge/entries:
