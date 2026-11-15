@@ -7,6 +7,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/activity"
+	"github.com/bengobox/marketflow-api/internal/outbox"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -55,14 +56,36 @@ type ListInput struct {
 	Offset       int
 }
 
-// Log creates a new activity entry.
+// Log creates a new activity entry. The entry and its crm.activity.logged event commit together
+// (transactional outbox), so a consumer never hears of an entry that was rolled back.
 func (s *Service) Log(ctx context.Context, in CreateInput) (*ent.Activity, error) {
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("log activity: begin tx: %w", err)
+	}
+	result, err := s.log(ctx, tx, in)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("log activity: commit: %w", err)
+	}
+	s.logger.Info("activity logged",
+		zap.String("entity_type", in.EntityType),
+		zap.String("entity_id", in.EntityID.String()),
+		zap.String("type", in.ActivityType),
+	)
+	return result, nil
+}
+
+func (s *Service) log(ctx context.Context, tx *ent.Tx, in CreateInput) (*ent.Activity, error) {
 	performedAt := time.Now()
 	if in.PerformedAt != nil {
 		performedAt = *in.PerformedAt
 	}
 
-	builder := s.client.Activity.Create().
+	builder := tx.Activity.Create().
 		SetTenantID(in.TenantID).
 		SetEntityType(in.EntityType).
 		SetEntityID(in.EntityID).
@@ -101,11 +124,9 @@ func (s *Service) Log(ctx context.Context, in CreateInput) (*ent.Activity, error
 	if err != nil {
 		return nil, fmt.Errorf("log activity: %w", err)
 	}
-	s.logger.Info("activity logged",
-		zap.String("entity_type", in.EntityType),
-		zap.String("entity_id", in.EntityID.String()),
-		zap.String("type", in.ActivityType),
-	)
+	if err := outbox.Enqueue(ctx, tx.OutboxEvent, activityLoggedEvent(result)); err != nil {
+		return nil, fmt.Errorf("log activity: %w", err)
+	}
 	return result, nil
 }
 

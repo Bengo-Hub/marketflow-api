@@ -88,35 +88,36 @@ func (a *LeadScorerAgent) Handle(ctx context.Context, msg jetstream.Msg) error {
 	if err != nil {
 		return dropPoison(a.logger, msg, "decode lead.created", err)
 	}
-	if a.apiBaseURL == "" {
-		return nil
-	}
 	return a.rescore(ctx, ev.TenantID.String(), ev.LeadID.String())
 }
 
+// rescore recomputes the lead's score in process (leads.Service.RecalculateScore). It used to call
+// POST /api/v1/leads/{id}/rescore, a route that never existed, so no lead was ever rescored here.
+// Rescoring writes no timeline entry, so a crm.activity.logged rescore cannot set itself off.
 func (a *LeadScorerAgent) rescore(ctx context.Context, tenantID, leadID string) error {
-	url := strings.TrimSuffix(a.apiBaseURL, "/") + "/api/v1/leads/" + leadID + "/rescore"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("X-API-Key", a.serviceKey)
-	req.Header.Set("X-Tenant-ID", tenantID)
-	resp, err := a.hc.Do(req)
-	if err != nil {
-		a.logger.Warn("lead rescore request failed", zap.String("lead_id", leadID), zap.Error(err))
-		return nil // fail-open
-	}
-	defer resp.Body.Close()
-	b, _ := io.ReadAll(resp.Body)
-
-	var result struct {
-		Score    int `json:"score"`
-		OldScore int `json:"old_score"`
-	}
-	if err := json.Unmarshal(b, &result); err != nil {
+	if a.db == nil {
 		return nil
 	}
+	tid, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil
+	}
+	lid, err := uuid.Parse(leadID)
+	if err != nil {
+		return nil
+	}
+	before, err := a.db.Lead.Query().Where(lead.ID(lid), lead.TenantID(tid)).Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("lead scorer: load lead: %w", err)
+	}
+	updated, err := leads.NewService(a.db, a.logger).RecalculateScore(ctx, tid, lid)
+	if err != nil {
+		return fmt.Errorf("lead scorer: %w", err)
+	}
+	result := struct{ Score, OldScore int }{Score: updated.Score, OldScore: before.Score}
 
 	// Publish qualified event if score just crossed the threshold
 	if result.Score >= 70 && result.OldScore < 70 && a.js != nil {

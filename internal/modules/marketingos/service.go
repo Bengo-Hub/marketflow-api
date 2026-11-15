@@ -77,6 +77,11 @@ type Settings struct {
 const (
 	ContactEnrichmentKey    = "contact_enrichment"
 	ContactEnrichmentWebKey = "contact_enrichment_web"
+	// ContactEnrichmentClearKey marks stored profile data the worker must remove after a switch
+	// was turned off: ClearAllProfiles or ClearCompanySummaries. The worker deletes the key when done.
+	ContactEnrichmentClearKey = "contact_enrichment_clear"
+	ClearAllProfiles          = "all"
+	ClearCompanySummaries     = "company_summaries"
 )
 
 // ContactEnrichmentSwitches reads the two contact enricher switches from tenant metadata. The
@@ -349,7 +354,43 @@ func (s *Service) SaveSettings(ctx context.Context, tenantID uuid.UUID, in Setti
 	for k, v := range inboxOverrideValues(in) {
 		values[k] = v
 	}
+	if err := s.queueProfileClear(ctx, tenantID, in, values); err != nil {
+		return in, err
+	}
 	return in, s.setKeys(ctx, tenantID, values)
+}
+
+// queueProfileClear adds the clear marker to values when a save switches the contact enricher
+// off (every stored profile goes) or only its website lookup off (the company descriptions go).
+// The worker does the clear in the background (worker.ContactEnricherSweep). Switching the
+// enricher back on before it ran cancels it; the daily pass then rebuilds the profiles.
+func (s *Service) queueProfileClear(ctx context.Context, tenantID uuid.UUID, in Settings, values map[string]any) error {
+	t, err := s.db.Tenant.Get(ctx, tenantID)
+	if err != nil {
+		return err
+	}
+	if v, set := profileClear(t.Metadata, in); set {
+		values[ContactEnrichmentClearKey] = v
+	}
+	return nil
+}
+
+// profileClear decides the clear marker for a save: the new value (nil removes it) and whether
+// to write it at all.
+func profileClear(stored map[string]any, in Settings) (any, bool) {
+	wasOn, wasWeb := ContactEnrichmentSwitches(stored)
+	pending, _ := stored[ContactEnrichmentClearKey].(string)
+	switch {
+	case wasOn && !in.ContactEnrichment:
+		return ClearAllProfiles, true
+	case !in.ContactEnrichment:
+		return nil, false // already off: keep whatever clear is still pending
+	case wasWeb && !in.ContactEnrichmentWeb && pending != ClearAllProfiles:
+		return ClearCompanySummaries, true
+	case pending == ClearAllProfiles || (pending == ClearCompanySummaries && in.ContactEnrichmentWeb):
+		return nil, true // switched back on before the clear ran
+	}
+	return nil, false
 }
 
 // overrideName is the name the owner gave a member, empty when they kept the

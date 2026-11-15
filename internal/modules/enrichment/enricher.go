@@ -294,7 +294,7 @@ func (e *Enricher) save(ctx context.Context, c *ent.Contact, p *Profile) (bool, 
 		b.WriteString("::jsonb)")
 	})
 	n, err := e.db.Contact.Update().
-		Where(contact.ID(c.ID), contact.TenantID(c.TenantID), contact.UpdatedAtEQ(c.UpdatedAt), NotErased()).
+		Where(contact.ID(c.ID), contact.TenantID(c.TenantID), contact.UpdatedAtEQ(c.UpdatedAt), NotErased(), tenantStillOn()).
 		SetUpdatedAt(c.UpdatedAt).
 		Modify(func(u *sql.UpdateBuilder) { u.Set(contact.FieldMetadata, value) }).
 		Save(ctx)
@@ -302,6 +302,69 @@ func (e *Enricher) save(ctx context.Context, c *ent.Contact, p *Profile) (bool, 
 		return false, fmt.Errorf("save profile: %w", err)
 	}
 	return n > 0, nil
+}
+
+// tenantStillOn re-checks the switch inside the UPDATE, so a profile built just before the owner
+// switched the enricher off is never written after the clear has passed it.
+func tenantStillOn() predicate.Contact {
+	return func(s *sql.Selector) {
+		s.Where(sql.P(func(b *sql.Builder) {
+			b.WriteString("NOT EXISTS (SELECT 1 FROM tenants WHERE tenants.id = " + s.C(contact.FieldTenantID) + " AND tenants.metadata -> ")
+			b.Arg(marketingos.ContactEnrichmentKey)
+			b.WriteString("::text = 'false'::jsonb)")
+		}))
+	}
+}
+
+// clearBatch is how many contacts one clear query reads.
+const clearBatch = 200
+
+// ClearBatch removes stored profile data from up to clearBatch of the tenant's contacts:
+// every profile for marketingos.ClearAllProfiles, only the company descriptions for
+// marketingos.ClearCompanySummaries. Like save, it keeps updated_at and skips a contact edited
+// meanwhile (the next batch reads it again). found is how many contacts still held the data
+// when the batch started; zero means the clear is finished.
+func (e *Enricher) ClearBatch(ctx context.Context, tenantID uuid.UUID, mode string) (found, cleared int, err error) {
+	var has *sql.Predicate
+	var strip func(b *sql.Builder)
+	switch mode {
+	case marketingos.ClearAllProfiles:
+		has = sqljson.HasKey(contact.FieldMetadata, sqljson.Path(MetadataKey))
+		strip = func(b *sql.Builder) {
+			b.WriteString("(" + contact.FieldMetadata + " - ")
+			b.Arg(MetadataKey)
+			b.WriteString("::text)")
+		}
+	case marketingos.ClearCompanySummaries:
+		has = sqljson.HasKey(contact.FieldMetadata, sqljson.Path(MetadataKey, "company", "summary"))
+		strip = func(b *sql.Builder) {
+			b.WriteString("(" + contact.FieldMetadata + " #- ")
+			b.Arg("{" + MetadataKey + ",company,summary}")
+			b.WriteString("::text[] #- ")
+			b.Arg("{" + MetadataKey + ",company,summary_read_at}")
+			b.WriteString("::text[])")
+		}
+	default:
+		return 0, 0, fmt.Errorf("unknown clear mode %q", mode)
+	}
+	rows, err := e.db.Contact.Query().
+		Where(contact.TenantID(tenantID), func(s *sql.Selector) { s.Where(has) }).
+		Limit(clearBatch).All(ctx)
+	if err != nil {
+		return 0, 0, fmt.Errorf("find stored profiles: %w", err)
+	}
+	for _, c := range rows {
+		n, err := e.db.Contact.Update().
+			Where(contact.ID(c.ID), contact.TenantID(tenantID), contact.UpdatedAtEQ(c.UpdatedAt)).
+			SetUpdatedAt(c.UpdatedAt).
+			Modify(func(u *sql.UpdateBuilder) { u.Set(contact.FieldMetadata, sql.ExprFunc(strip)) }).
+			Save(ctx)
+		if err != nil {
+			return len(rows), cleared, fmt.Errorf("clear profile: %w", err)
+		}
+		cleared += n
+	}
+	return len(rows), cleared, nil
 }
 
 // Stale selects the contacts of a tenant whose profile is missing or was refreshed before

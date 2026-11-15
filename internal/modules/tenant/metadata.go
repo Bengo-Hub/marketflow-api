@@ -50,6 +50,11 @@ var ReservedMetadataKeys = []string{
 	// A pharmacy's PPB advert approval references, written only by PUT /creative/ppb-approvals
 	// (creative.PPBApprovalsMetadataKey; owner, 2026-11-14).
 	PPBApprovalsMetadataKey,
+	// The contact enricher switches and the clear they queue, written only by PUT
+	// /tenant/os-settings, so switching off always queues the removal of the stored profiles.
+	marketingos.ContactEnrichmentKey,
+	marketingos.ContactEnrichmentWebKey,
+	marketingos.ContactEnrichmentClearKey,
 }
 
 // PPBApprovalsMetadataKey mirrors creative.PPBApprovalsMetadataKey (this package may not import
