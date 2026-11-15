@@ -19,6 +19,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
+	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -274,6 +275,7 @@ var objectives = map[string]string{"whatsapp": "OUTCOME_ENGAGEMENT", "leads": "O
 // @Success 201 {object} map[string]interface{}
 // @Failure 402 {object} httpapi.ErrorResponse
 // @Failure 409 {object} httpapi.ErrorResponse
+// @Failure 503 {object} httpapi.ErrorResponse
 // @Security bearerAuth
 // @Router /ads/boosts [post]
 func (h *Handler) Boost(w http.ResponseWriter, r *http.Request) {
@@ -340,6 +342,9 @@ func (h *Handler) Boost(w http.ResponseWriter, r *http.Request) {
 	}
 	if ok, _ := h.DB.CreativeVersion.Query().Where(creativeversion.IDEQ(asset.VersionID), creativeversion.StatusEQ("approved")).Exist(ctx); !ok {
 		httpapi.Error(w, http.StatusConflict, "not_approved", "approve the video before boosting it", nil)
+		return
+	}
+	if !h.withinAgentCeiling(w, r, tid, asset.VersionID, q.Budget) {
 		return
 	}
 	if len(in.ExtraAssetIDs) > maxExtraCreatives {
@@ -420,6 +425,43 @@ func (h *Handler) Boost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpapi.JSON(w, http.StatusCreated, view(row))
+}
+
+// withinAgentCeiling refuses a boost of a video a paid autopilot agent made when this month's real
+// spend of that agent's boosts (the stored ad metrics) plus this boost's budget would pass the
+// agent's monthly ad ceiling (Sprint 20). The ceiling is the agent's, so only the main video's
+// agent is checked: a boost's spend is counted against the agent of its main video. A video no
+// agent made, or one made by an organic agent, has no ceiling. It writes the refusal and returns
+// false; a read that fails refuses too, because a money cap is never passed on a guess.
+func (h *Handler) withinAgentCeiling(w http.ResponseWriter, r *http.Request, tid, versionID uuid.UUID, budget int64) bool {
+	ctx := r.Context()
+	ag, err := custom_agents.AgentOfVersion(ctx, h.DB, tid, versionID)
+	if err != nil {
+		h.Logger.Warn("boost: agent of video unreadable", zap.String("version", versionID.String()), zap.Error(err))
+		httpapi.Error(w, http.StatusServiceUnavailable, "ceiling_unavailable", "the ad ceiling of the agent that made this video could not be checked; try again shortly", nil)
+		return false
+	}
+	if ag == nil {
+		return true
+	}
+	cfg, _, err := custom_agents.ReadAutopilot(ag)
+	if err != nil {
+		httpapi.Error(w, http.StatusConflict, "ad_ceiling", fmt.Sprintf("the settings of the agent \"%s\" that made this video could not be read; open its settings and save them again", ag.Name), nil)
+		return false
+	}
+	ok, why, spent, err := custom_agents.AdCeilingCheck(ctx, h.DB, ag, cfg, budget, time.Now())
+	if err != nil {
+		h.Logger.Warn("boost: agent ad spend unreadable", zap.String("agent", ag.ID.String()), zap.Error(err))
+		httpapi.Error(w, http.StatusServiceUnavailable, "ceiling_unavailable", "this month's ad spend could not be checked; try again shortly", nil)
+		return false
+	}
+	if !ok {
+		httpapi.Error(w, http.StatusConflict, "ad_ceiling",
+			fmt.Sprintf("this video was made by your agent \"%s\", and %s; lower the budget or raise the agent's monthly ad ceiling", ag.Name, why),
+			map[string]any{"agent_id": ag.ID.String(), "spent_this_month": spent, "monthly_ad_ceiling": cfg.MonthlyAdCap, "budget": budget})
+		return false
+	}
+	return true
 }
 
 // ConfirmPaid handles POST /api/v1/ads/boosts/{id}/paid: the client says they topped up on Meta

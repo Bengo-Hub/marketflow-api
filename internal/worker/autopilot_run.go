@@ -81,6 +81,10 @@ var errAutopilotNoCredits = fmt.Errorf("%w: not enough AI credits", ErrAutopilot
 // errAutopilotNoFunds is a paid run skipped because the ad account cannot fund its next ad.
 var errAutopilotNoFunds = fmt.Errorf("%w: the ad account cannot fund the next ad", ErrAutopilotSkipped)
 
+// errAutopilotAdCeiling is a paid run skipped because its next ad would pass the agent's monthly
+// ad ceiling on top of this month's real spend.
+var errAutopilotAdCeiling = fmt.Errorf("%w: the next ad would pass the monthly ad ceiling", ErrAutopilotSkipped)
+
 // WithForecast checks each run's script price against the balance. Nothing is spent.
 func (r *AutopilotRunner) WithForecast(f custom_agents.CreditForecaster) *AutopilotRunner {
 	if f != nil {
@@ -147,8 +151,15 @@ func (r *AutopilotRunner) run(ctx context.Context, a *ent.CustomAgent, only map[
 		return AutopilotResult{}, fmt.Errorf("%w: this month's credit ceiling of %d is reached", ErrAutopilotSkipped, cfg.CreditCap)
 	}
 	var funds *adsmanager.AccountFunds
+	var adSpent int64
 	if cfg.Paid {
-		// Checked before the credit forecast, so a run that cannot be funded spends nothing.
+		// Both checked before the credit forecast, so a run whose ad cannot run spends nothing:
+		// first the monthly ad ceiling against this month's real spend (our own records), then the
+		// ad account on Meta.
+		adSpent, err = r.checkAdCeiling(ctx, a, cfg)
+		if err != nil {
+			return AutopilotResult{}, err
+		}
 		f, err := r.checkAdFunds(ctx, a, cfg)
 		if err != nil {
 			return AutopilotResult{}, err
@@ -188,6 +199,7 @@ func (r *AutopilotRunner) run(ctx context.Context, a *ent.CustomAgent, only map[
 		// The ad account and its funding as read for this run, for the boost that follows.
 		b.Metadata["ad_account_connected_id"] = funds.ConnectedID
 		b.Metadata["ad_funding"] = string(funds.Quote.Funding)
+		b.Metadata["ad_spent_this_month"] = adSpent
 	}
 	if cfg.Approval == custom_agents.AutoPublish && !vetoMode {
 		// This run is approve-each: the brief says so, so the Studio and the reports agree.
@@ -326,13 +338,6 @@ func (r *AutopilotRunner) checkAdFunds(ctx context.Context, a *ent.CustomAgent, 
 // funds with M-Pesa) when the ad account is known, else the portal's connections page. Once per
 // agent per ISO week, like the credits notice.
 func (r *AutopilotRunner) tellNoFunds(ctx context.Context, a *ent.CustomAgent, why, adAccountID string) {
-	if r.notif == nil {
-		return
-	}
-	emails, err := tenantAdminEmails(ctx, r.db, a.TenantID, tokenNoticeRoles)
-	if err != nil || len(emails) == 0 {
-		return
-	}
 	action := "Connect your Meta ad account here: " + r.portalLink(ctx, a, "/settings/integrations")
 	if adAccountID != "" {
 		action = "Add funds with M-Pesa on Meta: " + adsmanager.BillingURL(adAccountID)
@@ -340,13 +345,50 @@ func (r *AutopilotRunner) tellNoFunds(ctx context.Context, a *ent.CustomAgent, w
 	year, week := r.now().UTC().ISOWeek()
 	body := fmt.Sprintf("Your agent \"%s\" makes paid ads, and it skipped this run because %s. Nothing was made or charged, and it checks the ad account again on its next schedule.\n\n%s",
 		a.Name, why, action)
+	r.tellPaidSkip(ctx, a, "Your ad agent is waiting for your ad account", body, "autopilot_no_ad_funds",
+		fmt.Sprintf("autopilot-ad-funds-%s-%d-%d", a.ID, year, week))
+}
+
+// checkAdCeiling reads this month's real spend of the agent's boosts (the stored ad metrics) and
+// skips the run when one more ad of per_ad_budget would pass monthly_ad_ceiling, with one email
+// per agent per month: the ceiling holds until the month ends or the owner raises it. Spend that
+// cannot be read skips the run quietly, because a money cap is never passed on a guess; it tries
+// again on its next schedule.
+func (r *AutopilotRunner) checkAdCeiling(ctx context.Context, a *ent.CustomAgent, cfg custom_agents.AutopilotConfig) (int64, error) {
+	ok, why, spent, err := custom_agents.AdCeilingCheck(ctx, r.db, a, cfg, cfg.PerAdBudget, r.now())
+	if err != nil {
+		r.logger.Warn("autopilot ad spend unreadable", zap.String("agent", a.ID.String()), zap.Error(err))
+		return 0, fmt.Errorf("%w: this month's ad spend could not be read; it tries again on its next schedule", errAutopilotAdCeiling)
+	}
+	if ok {
+		return spent, nil
+	}
+	month := r.now().UTC().Format("2006-01")
+	body := fmt.Sprintf("Your agent \"%s\" makes paid ads, and it skipped this run because %s. Nothing was made or charged. "+
+		"It makes paid ads again next month, or sooner if you raise the monthly ad ceiling in its settings.\n\nSettings: %s",
+		a.Name, why, r.portalLink(ctx, a, "/studio/autopilot"))
+	r.tellPaidSkip(ctx, a, "Your ad agent reached its monthly ad ceiling", body, "autopilot_ad_ceiling",
+		fmt.Sprintf("autopilot-ad-ceiling-%s-%s", a.ID, month))
+	return spent, fmt.Errorf("%w: %s; it runs again on its next schedule", errAutopilotAdCeiling, why)
+}
+
+// tellPaidSkip emails the tenant's admins why a paid run was skipped; idem (plus the address)
+// keeps it to one email per period.
+func (r *AutopilotRunner) tellPaidSkip(ctx context.Context, a *ent.CustomAgent, subject, body, kind, idem string) {
+	if r.notif == nil {
+		return
+	}
+	emails, err := tenantAdminEmails(ctx, r.db, a.TenantID, tokenNoticeRoles)
+	if err != nil || len(emails) == 0 {
+		return
+	}
 	for _, email := range emails {
 		if err := r.notif.Send(ctx, a.TenantID.String(), notifications.Message{
-			Channel: "email", Recipient: email, Subject: "Your ad agent is waiting for your ad account", Body: body,
-			Metadata:       map[string]string{"source": "marketflow-worker", "kind": "autopilot_no_ad_funds"},
-			IdempotencyKey: fmt.Sprintf("autopilot-ad-funds-%s-%d-%d-%s", a.ID, year, week, email),
+			Channel: "email", Recipient: email, Subject: subject, Body: body,
+			Metadata:       map[string]string{"source": "marketflow-worker", "kind": kind},
+			IdempotencyKey: idem + "-" + email,
 		}); err != nil {
-			r.logger.Warn("autopilot ad funds notice not sent", zap.String("agent", a.ID.String()), zap.Error(err))
+			r.logger.Warn("autopilot paid skip notice not sent", zap.String("agent", a.ID.String()), zap.String("kind", kind), zap.Error(err))
 		}
 	}
 }
@@ -375,6 +417,8 @@ func (r *AutopilotRunner) record(ctx context.Context, a *ent.CustomAgent, runID 
 		upd.SetStatus("skipped").SetErrorMessage(truncateStr(err.Error(), 1000)).SetTrace(map[string]any{"skip": "credits"})
 	case errors.Is(err, errAutopilotNoFunds):
 		upd.SetStatus("skipped").SetErrorMessage(truncateStr(err.Error(), 1000)).SetTrace(map[string]any{"skip": "ad_funds"})
+	case errors.Is(err, errAutopilotAdCeiling):
+		upd.SetStatus("skipped").SetErrorMessage(truncateStr(err.Error(), 1000)).SetTrace(map[string]any{"skip": "ad_ceiling"})
 	case errors.Is(err, ErrAutopilotSkipped):
 		upd.SetStatus("skipped").SetErrorMessage(truncateStr(err.Error(), 1000))
 	case err != nil:

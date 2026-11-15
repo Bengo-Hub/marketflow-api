@@ -58,6 +58,22 @@ func TestEnvelopeAndCredits(t *testing.T) {
 	if !c.CreditsFit(150, 50) || c.CreditsFit(151, 50) {
 		t.Fatal("credit ceiling")
 	}
+	// A boost sized in the wizard is held to the same ceiling.
+	if !c.FitsMonth(1000, 4000) || c.FitsMonth(1001, 4000) {
+		t.Fatal("a boost's own budget must fit the month")
+	}
+	organic := okConfig()
+	if !organic.FitsMonth(1_000_000, 1_000_000) {
+		t.Fatal("an organic agent sets no ad ceiling")
+	}
+	broken := okConfig()
+	broken.Paid = true
+	if broken.FitsMonth(0, 1) {
+		t.Fatal("a paid agent without a ceiling fits nothing")
+	}
+	if SpendUnits(3000.01) != 3001 || SpendUnits(3000) != 3000 || SpendUnits(-5) != 0 {
+		t.Fatal("spend rounds up to whole units")
+	}
 }
 
 // The default veto window is 4 hours (owner 2026-11-14) and config may move it only inside the
