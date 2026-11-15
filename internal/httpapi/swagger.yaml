@@ -158,6 +158,35 @@ definitions:
         description: what to add on Meta, whole units
         type: integer
     type: object
+  analytics.CampaignROI:
+    properties:
+      campaign_id:
+        type: string
+      converted:
+        type: integer
+      cost_per_lead:
+        type: number
+      currency:
+        type: string
+      estimated_revenue:
+        type: number
+      leads:
+        type: integer
+      name:
+        type: string
+      platform:
+        type: string
+      revenue:
+        type: number
+      roas:
+        type: number
+      roi_percent:
+        type: number
+      spend:
+        type: number
+      won_deals:
+        type: integer
+    type: object
   analytics.DashboardData:
     properties:
       by_source:
@@ -213,6 +242,47 @@ definitions:
       this_week:
         type: integer
       total:
+        type: integer
+    type: object
+  analytics.ROIReport:
+    properties:
+      average_from:
+        description: setting | won_deals | none
+        type: string
+      average_sale_value:
+        type: number
+      campaigns:
+        items:
+          $ref: '#/definitions/analytics.CampaignROI'
+        type: array
+      currency:
+        type: string
+      days:
+        type: integer
+      generated_at:
+        type: string
+      totals:
+        $ref: '#/definitions/analytics.ROITotals'
+    type: object
+  analytics.ROITotals:
+    properties:
+      converted:
+        type: integer
+      cost_per_lead:
+        type: number
+      estimated_revenue:
+        type: number
+      leads:
+        type: integer
+      revenue:
+        type: number
+      roas:
+        type: number
+      roi_percent:
+        type: number
+      spend:
+        type: number
+      won_deals:
         type: integer
     type: object
   analytics.SourceCount:
@@ -882,6 +952,11 @@ definitions:
       stop_cpl:
         description: pause above this cost per lead
         type: number
+      stop_cpl_days:
+        description: |-
+          StopCPLDays is the window the stop rule judges: the cost per lead over the last this many
+          days (today included). 0 means DefaultStopCPLDays.
+        type: integer
       time:
         description: HH:MM, tenant time
         type: string
@@ -906,6 +981,23 @@ definitions:
           additionalProperties: {}
           type: object
         type: array
+    type: object
+  custom_agents.AutopilotPlan:
+    properties:
+      active:
+        type: integer
+      can_activate:
+        type: boolean
+      exempt:
+        type: boolean
+      included:
+        type: boolean
+      limit:
+        type: integer
+      unknown:
+        type: boolean
+      upgrade_path:
+        type: string
     type: object
   custom_agents.DryRun:
     properties:
@@ -1421,6 +1513,16 @@ definitions:
           InboxAutoReply answers buyer comments and DMs with InboxReplyText (Sprint 22). Off by
           default; saving it on with a message is the owner's approval of that message.
         type: boolean
+      inbox_auto_reply_threshold:
+        type: number
+      inbox_comment_prompt:
+        type: string
+      inbox_intent_threshold:
+        description: |-
+          InboxIntentThreshold and InboxAutoReplyThreshold override the default confidence bars
+          (inbox_settings.go); null means the default. InboxCommentPrompt is the public line under a
+          comment whose answer went as a private reply.
+        type: number
       inbox_reply_text:
         type: string
       reference_ads:
@@ -2551,6 +2653,10 @@ paths:
           description: Conflict
           schema:
             $ref: '#/definitions/httpapi.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
       security:
       - bearerAuth: []
       summary: Boost an approved video
@@ -2735,6 +2841,27 @@ paths:
       security:
       - bearerAuth: []
       summary: Accept the Autopilot terms and set the hold categories
+      tags:
+      - Custom Agents
+  /agents/autopilot/plan:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/custom_agents.AutopilotPlan'
+      security:
+      - bearerAuth: []
+      summary: 'The plan''s Autopilot allowance: included, limit (-1 unlimited) and
+        agents switched on'
       tags:
       - Custom Agents
   /agents/autopilot/posts:
@@ -3199,6 +3326,10 @@ paths:
         name: X-Tenant-ID
         required: true
         type: string
+      - description: Run only the first setup; 409 when one was already done
+        in: query
+        name: only_first
+        type: boolean
       produces:
       - application/json
       responses:
@@ -3208,6 +3339,10 @@ paths:
             $ref: '#/definitions/marketingos.TeamSetup'
         "403":
           description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "409":
+          description: Conflict
           schema:
             $ref: '#/definitions/httpapi.ErrorResponse'
       security:
@@ -3378,6 +3513,70 @@ paths:
       security:
       - bearerAuth: []
       summary: Public profile visitor analytics
+      tags:
+      - Analytics
+  /analytics/report:
+    get:
+      description: The dashboard figures, leads per day, leads by source and the return
+        on each campaign for the window, as a branded PDF (default), CSV or Excel
+        file.
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 'Window: 7, 30 or 90 (default 30)'
+        in: query
+        name: days
+        type: integer
+      - description: pdf (default), csv or xlsx
+        in: query
+        name: format
+        type: string
+      produces:
+      - application/pdf
+      - text/csv
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Download the marketing report
+      tags:
+      - Analytics
+  /analytics/roi:
+    get:
+      description: 'Per campaign: ad spend, leads, converted leads, won deals and
+        their value, estimated revenue (converted leads without a won deal at the
+        average sale value) and the return on spend. Leads are counted by arrival
+        in the window.'
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 'Window: 7, 30 or 90 (default 30)'
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/analytics.ROIReport'
+      security:
+      - bearerAuth: []
+      summary: Campaign return on spend
       tags:
       - Analytics
   /analytics/sequences/{id}:
@@ -5469,6 +5668,42 @@ paths:
       security:
       - bearerAuth: []
       summary: Hide or unhide a comment
+      tags:
+      - Inbox
+  /inbox/{id}/private-reply:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Inbox item (Activity) UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Answer a comment with a private message
       tags:
       - Inbox
   /inbox/{id}/promote:

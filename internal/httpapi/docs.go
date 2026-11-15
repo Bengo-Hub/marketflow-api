@@ -1018,6 +1018,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/httpapi.ErrorResponse"
                         }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -1305,6 +1311,39 @@ const docTemplate = `{
                         "description": "terms_unavailable: auth-api could not record the acceptance",
                         "schema": {
                             "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/agents/autopilot/plan": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Custom Agents"
+                ],
+                "summary": "The plan's Autopilot allowance: included, limit (-1 unlimited) and agents switched on",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/custom_agents.AutopilotPlan"
                         }
                     }
                 }
@@ -1985,6 +2024,12 @@ const docTemplate = `{
                         "name": "X-Tenant-ID",
                         "in": "header",
                         "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Run only the first setup; 409 when one was already done",
+                        "name": "only_first",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1996,6 +2041,12 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/httpapi.ErrorResponse"
                         }
@@ -2312,6 +2363,99 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/report": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "The dashboard figures, leads per day, leads by source and the return on each campaign for the window, as a branded PDF (default), CSV or Excel file.",
+                "produces": [
+                    "application/pdf",
+                    "text/csv"
+                ],
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Download the marketing report",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Window: 7, 30 or 90 (default 30)",
+                        "name": "days",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "pdf (default), csv or xlsx",
+                        "name": "format",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/roi": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Per campaign: ad spend, leads, converted leads, won deals and their value, estimated revenue (converted leads without a won deal at the average sale value) and the return on spend. Leads are counted by arrival in the window.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Campaign return on spend",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Window: 7, 30 or 90 (default 30)",
+                        "name": "days",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/analytics.ROIReport"
                         }
                     }
                 }
@@ -5542,6 +5686,62 @@ const docTemplate = `{
                     "Inbox"
                 ],
                 "summary": "Hide or unhide a comment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inbox item (Activity) UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/inbox/{id}/private-reply": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inbox"
+                ],
+                "summary": "Answer a comment with a private message",
                 "parameters": [
                     {
                         "type": "string",
@@ -10590,6 +10790,50 @@ const docTemplate = `{
                 }
             }
         },
+        "analytics.CampaignROI": {
+            "type": "object",
+            "properties": {
+                "campaign_id": {
+                    "type": "string"
+                },
+                "converted": {
+                    "type": "integer"
+                },
+                "cost_per_lead": {
+                    "type": "number"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "estimated_revenue": {
+                    "type": "number"
+                },
+                "leads": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "platform": {
+                    "type": "string"
+                },
+                "revenue": {
+                    "type": "number"
+                },
+                "roas": {
+                    "type": "number"
+                },
+                "roi_percent": {
+                    "type": "number"
+                },
+                "spend": {
+                    "type": "number"
+                },
+                "won_deals": {
+                    "type": "integer"
+                }
+            }
+        },
         "analytics.DashboardData": {
             "type": "object",
             "properties": {
@@ -10673,6 +10917,68 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "analytics.ROIReport": {
+            "type": "object",
+            "properties": {
+                "average_from": {
+                    "description": "setting | won_deals | none",
+                    "type": "string"
+                },
+                "average_sale_value": {
+                    "type": "number"
+                },
+                "campaigns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/analytics.CampaignROI"
+                    }
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "days": {
+                    "type": "integer"
+                },
+                "generated_at": {
+                    "type": "string"
+                },
+                "totals": {
+                    "$ref": "#/definitions/analytics.ROITotals"
+                }
+            }
+        },
+        "analytics.ROITotals": {
+            "type": "object",
+            "properties": {
+                "converted": {
+                    "type": "integer"
+                },
+                "cost_per_lead": {
+                    "type": "number"
+                },
+                "estimated_revenue": {
+                    "type": "number"
+                },
+                "leads": {
+                    "type": "integer"
+                },
+                "revenue": {
+                    "type": "number"
+                },
+                "roas": {
+                    "type": "number"
+                },
+                "roi_percent": {
+                    "type": "number"
+                },
+                "spend": {
+                    "type": "number"
+                },
+                "won_deals": {
                     "type": "integer"
                 }
             }
@@ -11635,6 +11941,10 @@ const docTemplate = `{
                     "description": "pause above this cost per lead",
                     "type": "number"
                 },
+                "stop_cpl_days": {
+                    "description": "StopCPLDays is the window the stop rule judges: the cost per lead over the last this many\ndays (today included). 0 means DefaultStopCPLDays.",
+                    "type": "integer"
+                },
                 "time": {
                     "description": "HH:MM, tenant time",
                     "type": "string"
@@ -11668,6 +11978,32 @@ const docTemplate = `{
                         "type": "object",
                         "additionalProperties": {}
                     }
+                }
+            }
+        },
+        "custom_agents.AutopilotPlan": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "integer"
+                },
+                "can_activate": {
+                    "type": "boolean"
+                },
+                "exempt": {
+                    "type": "boolean"
+                },
+                "included": {
+                    "type": "boolean"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "unknown": {
+                    "type": "boolean"
+                },
+                "upgrade_path": {
+                    "type": "string"
                 }
             }
         },
@@ -12417,6 +12753,16 @@ const docTemplate = `{
                 "inbox_auto_reply": {
                     "description": "InboxAutoReply answers buyer comments and DMs with InboxReplyText (Sprint 22). Off by\ndefault; saving it on with a message is the owner's approval of that message.",
                     "type": "boolean"
+                },
+                "inbox_auto_reply_threshold": {
+                    "type": "number"
+                },
+                "inbox_comment_prompt": {
+                    "type": "string"
+                },
+                "inbox_intent_threshold": {
+                    "description": "InboxIntentThreshold and InboxAutoReplyThreshold override the default confidence bars\n(inbox_settings.go); null means the default. InboxCommentPrompt is the public line under a\ncomment whose answer went as a private reply.",
+                    "type": "number"
                 },
                 "inbox_reply_text": {
                     "type": "string"
