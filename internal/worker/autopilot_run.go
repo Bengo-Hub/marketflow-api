@@ -85,6 +85,9 @@ var errAutopilotNoFunds = fmt.Errorf("%w: the ad account cannot fund the next ad
 // ad ceiling on top of this month's real spend.
 var errAutopilotAdCeiling = fmt.Errorf("%w: the next ad would pass the monthly ad ceiling", ErrAutopilotSkipped)
 
+// errAutopilotEnded is a run after the agent's end date.
+var errAutopilotEnded = fmt.Errorf("%w: the agent has ended", ErrAutopilotSkipped)
+
 // WithForecast checks each run's script price against the balance. Nothing is spent.
 func (r *AutopilotRunner) WithForecast(f custom_agents.CreditForecaster) *AutopilotRunner {
 	if f != nil {
@@ -142,6 +145,11 @@ func (r *AutopilotRunner) run(ctx context.Context, a *ent.CustomAgent, only map[
 	}
 	if err := cfg.Validate(cfg.Approval == custom_agents.AutoPublish); err != nil {
 		return AutopilotResult{}, err
+	}
+	if cfg.Ended(r.now(), tenantLocation(ctx, r.db, a.TenantID)) {
+		// The end date was its last day: nothing more is made. The agent stays as it is, so a
+		// later end date in its settings carries on from there.
+		return AutopilotResult{}, fmt.Errorf("%w: its end date of %s has passed", errAutopilotEnded, cfg.EndDate)
 	}
 	used, err := r.creditsThisMonth(ctx, a)
 	if err != nil {
@@ -419,6 +427,8 @@ func (r *AutopilotRunner) record(ctx context.Context, a *ent.CustomAgent, runID 
 		upd.SetStatus("skipped").SetErrorMessage(truncateStr(err.Error(), 1000)).SetTrace(map[string]any{"skip": "ad_funds"})
 	case errors.Is(err, errAutopilotAdCeiling):
 		upd.SetStatus("skipped").SetErrorMessage(truncateStr(err.Error(), 1000)).SetTrace(map[string]any{"skip": "ad_ceiling"})
+	case errors.Is(err, errAutopilotEnded):
+		upd.SetStatus("skipped").SetErrorMessage(truncateStr(err.Error(), 1000)).SetTrace(map[string]any{"skip": "ended"})
 	case errors.Is(err, ErrAutopilotSkipped):
 		upd.SetStatus("skipped").SetErrorMessage(truncateStr(err.Error(), 1000))
 	case err != nil:

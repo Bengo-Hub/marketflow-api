@@ -211,6 +211,19 @@ func SpendUnits(spend float64) int64 {
 	return int64(math.Ceil(spend))
 }
 
+// Ended reports whether the agent's end date has passed: the end date is its last day, in the
+// tenant's time zone loc. No end date, or one that cannot be read, never ends the agent.
+func (c AutopilotConfig) Ended(now time.Time, loc *time.Location) bool {
+	if c.EndDate == "" || loc == nil {
+		return false
+	}
+	end, err := time.ParseInLocation("2006-01-02", c.EndDate, loc)
+	if err != nil {
+		return false
+	}
+	return !now.In(loc).Before(end.AddDate(0, 0, 1))
+}
+
 // StopWindow is the CPL stop's window in days, DefaultStopCPLDays when unset.
 func (c AutopilotConfig) StopWindow() int {
 	if c.StopCPLDays < 1 || c.StopCPLDays > MaxStopCPLDays {

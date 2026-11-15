@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 )
@@ -73,6 +74,22 @@ func TestEnvelopeAndCredits(t *testing.T) {
 	}
 	if SpendUnits(3000.01) != 3001 || SpendUnits(3000) != 3000 || SpendUnits(-5) != 0 {
 		t.Fatal("spend rounds up to whole units")
+	}
+}
+
+// The end date is the agent's last day in the tenant's zone.
+func TestAutopilotEnded(t *testing.T) {
+	eat := time.FixedZone("EAT", 3*3600)
+	c := okConfig()
+	if c.Ended(time.Now(), eat) {
+		t.Fatal("no end date never ends")
+	}
+	c.EndDate = "2026-11-30"
+	if c.Ended(time.Date(2026, 11, 30, 23, 59, 0, 0, eat), eat) {
+		t.Fatal("the end date itself still runs")
+	}
+	if !c.Ended(time.Date(2026, 11, 30, 21, 0, 0, 0, time.UTC), eat) {
+		t.Fatal("midnight in the tenant's zone ends it, whatever the server's zone")
 	}
 }
 

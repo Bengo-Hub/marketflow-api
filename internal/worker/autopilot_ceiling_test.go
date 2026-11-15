@@ -117,3 +117,25 @@ func TestAgentOfVersion(t *testing.T) {
 		t.Fatalf("another tenant never sees the agent: %v %v", got, err)
 	}
 }
+
+// A run after the agent's end date makes nothing and is skipped as ended.
+func TestAutopilotRunEnded(t *testing.T) {
+	db := openWorkerTestDB(t)
+	ctx := context.Background()
+	tid := seedTenant(t, db, "autopilot-ended")
+	t.Cleanup(func() {
+		_, _ = db.CustomAgent.Delete().Where(customagent.TenantID(tid)).Exec(ctx)
+	})
+	a := seedAutopilot(t, db, tid, 100)
+	md := a.Metadata
+	ap, _ := md["autopilot"].(map[string]any)
+	ap["end_date"] = time.Now().AddDate(0, 0, -2).Format("2006-01-02")
+	a = db.CustomAgent.UpdateOneID(a.ID).SetMetadata(md).SaveX(ctx)
+	r := NewAutopilotRunner(db, nil, "https://mf.example", zap.NewNop())
+	if _, err := r.Run(ctx, a); !errors.Is(err, errAutopilotEnded) {
+		t.Fatalf("past the end date must skip: %v", err)
+	}
+	if n := db.CreativeBrief.Query().Where(creativebrief.TenantID(tid)).CountX(ctx); n != 0 {
+		t.Fatalf("an ended agent made %d briefs", n)
+	}
+}
