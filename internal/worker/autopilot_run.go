@@ -4,9 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
+	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/integrations/meta"
+	"github.com/bengobox/marketflow-api/internal/modules/adsmanager"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
@@ -35,6 +39,18 @@ type AutopilotRunner struct {
 	// lapsed is told when the gate fails for an auto_publish agent, so the tenant's posts still
 	// waiting in a veto window are cancelled at once; nil leaves that to the pipeline's sweep.
 	lapsed *AutopilotLapsedHook
+	// adFunds reads the agent's Meta ad account before a paid run; nil skips every paid run,
+	// because a paid run is never started without knowing the ad can be funded.
+	adFunds AdFundsCheck
+}
+
+// AdFundsCheck quotes one ad's budget over its period on the agent's Meta ad account.
+type AdFundsCheck func(ctx context.Context, tenantID uuid.UUID, connIDs []string, budget int64, days int) (adsmanager.AccountFunds, error)
+
+// WithAdFunds turns on the ad-account balance check for paid runs (Sprint 20).
+func (r *AutopilotRunner) WithAdFunds(f AdFundsCheck) *AutopilotRunner {
+	r.adFunds = f
+	return r
 }
 
 // WithAutoPublishGate lets veto-window runs go ahead when the plan and terms still allow them.
@@ -61,6 +77,9 @@ var ErrAutopilotSkipped = errors.New("autopilot run skipped")
 
 // errAutopilotNoCredits is a skip the owner can fix by buying credits.
 var errAutopilotNoCredits = fmt.Errorf("%w: not enough AI credits", ErrAutopilotSkipped)
+
+// errAutopilotNoFunds is a paid run skipped because the ad account cannot fund its next ad.
+var errAutopilotNoFunds = fmt.Errorf("%w: the ad account cannot fund the next ad", ErrAutopilotSkipped)
 
 // WithForecast checks each run's script price against the balance. Nothing is spent.
 func (r *AutopilotRunner) WithForecast(f custom_agents.CreditForecaster) *AutopilotRunner {
@@ -127,6 +146,15 @@ func (r *AutopilotRunner) run(ctx context.Context, a *ent.CustomAgent, only map[
 	if used >= cfg.CreditCap {
 		return AutopilotResult{}, fmt.Errorf("%w: this month's credit ceiling of %d is reached", ErrAutopilotSkipped, cfg.CreditCap)
 	}
+	var funds *adsmanager.AccountFunds
+	if cfg.Paid {
+		// Checked before the credit forecast, so a run that cannot be funded spends nothing.
+		f, err := r.checkAdFunds(ctx, a, cfg)
+		if err != nil {
+			return AutopilotResult{}, err
+		}
+		funds = &f
+	}
 	if r.forecast != nil {
 		// A forecast that cannot be read never blocks a run: the script's own charge still refuses
 		// a spend that does not fit.
@@ -155,6 +183,11 @@ func (r *AutopilotRunner) run(ctx context.Context, a *ent.CustomAgent, only map[
 	}
 	if runID != uuid.Nil {
 		b.Metadata["autopilot_run_id"] = runID.String()
+	}
+	if funds != nil {
+		// The ad account and its funding as read for this run, for the boost that follows.
+		b.Metadata["ad_account_connected_id"] = funds.ConnectedID
+		b.Metadata["ad_funding"] = string(funds.Quote.Funding)
 	}
 	if cfg.Approval == custom_agents.AutoPublish && !vetoMode {
 		// This run is approve-each: the brief says so, so the Studio and the reports agree.
@@ -266,6 +299,67 @@ func (r *AutopilotRunner) tellShort(ctx context.Context, a *ent.CustomAgent, fc 
 	}
 }
 
+// checkAdFunds reads the paid agent's Meta ad account live (the Sprint 18 quote) for one ad's
+// budget and period. Short funds, a blocked account or no usable ad account skip the run with one
+// notice a week; Meta not answering skips it quietly. Every skip retries on the next schedule.
+func (r *AutopilotRunner) checkAdFunds(ctx context.Context, a *ent.CustomAgent, cfg custom_agents.AutopilotConfig) (adsmanager.AccountFunds, error) {
+	if r.adFunds == nil {
+		return adsmanager.AccountFunds{}, fmt.Errorf("%w: the ad account check is not available", errAutopilotNoFunds)
+	}
+	f, err := r.adFunds(ctx, a.TenantID, cfg.AccountIDs, cfg.PerAdBudget, cfg.PeriodDays)
+	switch {
+	case errors.Is(err, adsmanager.ErrNoAdAccount), errors.Is(err, adsmanager.ErrAdAccountToken):
+		r.tellNoFunds(ctx, a, err.Error(), "")
+		return f, fmt.Errorf("%w: %s", errAutopilotNoFunds, err.Error())
+	case err != nil:
+		r.logger.Warn("autopilot ad account check unavailable", zap.String("agent", a.ID.String()), zap.Error(err))
+		return f, fmt.Errorf("%w: Meta did not answer about the ad account; it tries again on its next schedule", errAutopilotNoFunds)
+	}
+	if ok, why := f.PaidRunReady(); !ok {
+		r.tellNoFunds(ctx, a, why, f.Quote.AccountID)
+		return f, fmt.Errorf("%w: %s; it runs again on its next schedule", errAutopilotNoFunds, why)
+	}
+	return f, nil
+}
+
+// tellNoFunds emails the tenant's admins why a paid run waited, with Meta's billing page (Add
+// funds with M-Pesa) when the ad account is known, else the portal's connections page. Once per
+// agent per ISO week, like the credits notice.
+func (r *AutopilotRunner) tellNoFunds(ctx context.Context, a *ent.CustomAgent, why, adAccountID string) {
+	if r.notif == nil {
+		return
+	}
+	emails, err := tenantAdminEmails(ctx, r.db, a.TenantID, tokenNoticeRoles)
+	if err != nil || len(emails) == 0 {
+		return
+	}
+	action := "Connect your Meta ad account here: " + r.portalLink(ctx, a, "/settings/integrations")
+	if adAccountID != "" {
+		action = "Add funds with M-Pesa on Meta: " + adsmanager.BillingURL(adAccountID)
+	}
+	year, week := r.now().UTC().ISOWeek()
+	body := fmt.Sprintf("Your agent \"%s\" makes paid ads, and it skipped this run because %s. Nothing was made or charged, and it checks the ad account again on its next schedule.\n\n%s",
+		a.Name, why, action)
+	for _, email := range emails {
+		if err := r.notif.Send(ctx, a.TenantID.String(), notifications.Message{
+			Channel: "email", Recipient: email, Subject: "Your ad agent is waiting for your ad account", Body: body,
+			Metadata:       map[string]string{"source": "marketflow-worker", "kind": "autopilot_no_ad_funds"},
+			IdempotencyKey: fmt.Sprintf("autopilot-ad-funds-%s-%d-%d-%s", a.ID, year, week, email),
+		}); err != nil {
+			r.logger.Warn("autopilot ad funds notice not sent", zap.String("agent", a.ID.String()), zap.Error(err))
+		}
+	}
+}
+
+// AdFunds is the live check through the agent's own ad-account token, with the platform's
+// appsecret_proof like every other Meta call.
+func AdFunds(db *ent.Client, keys *encryption.KeyProvider) AdFundsCheck {
+	m := meta.NewClient("").WithSecret(meta.PlatformSecret(db, keys, os.Getenv("MF_META_APP_SECRET")))
+	return func(ctx context.Context, tenantID uuid.UUID, connIDs []string, budget int64, days int) (adsmanager.AccountFunds, error) {
+		return adsmanager.CheckFunds(ctx, db, keys, m, tenantID, connIDs, budget, days)
+	}
+}
+
 // runAutopilot makes a scheduled or button run and records its outcome.
 func (c *CustomAgentExecutionConsumer) runAutopilot(ctx context.Context, a *ent.CustomAgent, runID uuid.UUID) {
 	res, err := c.autopilot.RunWithID(ctx, a, runID)
@@ -279,6 +373,8 @@ func (r *AutopilotRunner) record(ctx context.Context, a *ent.CustomAgent, runID 
 	switch {
 	case errors.Is(err, errAutopilotNoCredits):
 		upd.SetStatus("skipped").SetErrorMessage(truncateStr(err.Error(), 1000)).SetTrace(map[string]any{"skip": "credits"})
+	case errors.Is(err, errAutopilotNoFunds):
+		upd.SetStatus("skipped").SetErrorMessage(truncateStr(err.Error(), 1000)).SetTrace(map[string]any{"skip": "ad_funds"})
 	case errors.Is(err, ErrAutopilotSkipped):
 		upd.SetStatus("skipped").SetErrorMessage(truncateStr(err.Error(), 1000))
 	case err != nil:

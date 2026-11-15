@@ -159,7 +159,7 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, keys *encryption.Ke
 				logger:     logger.Named("agent.custom-execution"),
 				hc:         agentHTTP,
 				autopilot: NewAutopilotRunner(db, notif, cfg.API.PortalURL, logger).WithForecast(custom_agents.NewCreditForecaster(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey)).
-					WithAutoPublishGate(AutopilotGate(cfg, db)).WithLapsedHook(lapsed),
+					WithAutoPublishGate(AutopilotGate(cfg, db)).WithLapsedHook(lapsed).WithAdFunds(AdFunds(db, keys)),
 			},
 		},
 	}

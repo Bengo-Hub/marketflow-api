@@ -101,3 +101,19 @@ func TestHeldCategory(t *testing.T) {
 		t.Fatal("no tenant, no hold")
 	}
 }
+
+// The CPL stop gets a three-day window when none is set, and a window past two weeks is refused.
+func TestStopCPLWindow(t *testing.T) {
+	c := okConfig()
+	c.StopCPL = 300
+	if err := c.Validate(false); err != nil || c.StopCPLDays != DefaultStopCPLDays || c.StopWindow() != 3 {
+		t.Fatalf("default window: %v %+v", err, c)
+	}
+	c.StopCPLDays = MaxStopCPLDays + 1
+	if err := c.Validate(false); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("a window past two weeks must be refused: %v", err)
+	}
+	if (AutopilotConfig{}).StopWindow() != DefaultStopCPLDays {
+		t.Fatal("an unset window reads as the default")
+	}
+}
