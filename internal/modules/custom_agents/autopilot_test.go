@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 )
@@ -57,6 +58,38 @@ func TestEnvelopeAndCredits(t *testing.T) {
 	}
 	if !c.CreditsFit(150, 50) || c.CreditsFit(151, 50) {
 		t.Fatal("credit ceiling")
+	}
+	// A boost sized in the wizard is held to the same ceiling.
+	if !c.FitsMonth(1000, 4000) || c.FitsMonth(1001, 4000) {
+		t.Fatal("a boost's own budget must fit the month")
+	}
+	organic := okConfig()
+	if !organic.FitsMonth(1_000_000, 1_000_000) {
+		t.Fatal("an organic agent sets no ad ceiling")
+	}
+	broken := okConfig()
+	broken.Paid = true
+	if broken.FitsMonth(0, 1) {
+		t.Fatal("a paid agent without a ceiling fits nothing")
+	}
+	if SpendUnits(3000.01) != 3001 || SpendUnits(3000) != 3000 || SpendUnits(-5) != 0 {
+		t.Fatal("spend rounds up to whole units")
+	}
+}
+
+// The end date is the agent's last day in the tenant's zone.
+func TestAutopilotEnded(t *testing.T) {
+	eat := time.FixedZone("EAT", 3*3600)
+	c := okConfig()
+	if c.Ended(time.Now(), eat) {
+		t.Fatal("no end date never ends")
+	}
+	c.EndDate = "2026-11-30"
+	if c.Ended(time.Date(2026, 11, 30, 23, 59, 0, 0, eat), eat) {
+		t.Fatal("the end date itself still runs")
+	}
+	if !c.Ended(time.Date(2026, 11, 30, 21, 0, 0, 0, time.UTC), eat) {
+		t.Fatal("midnight in the tenant's zone ends it, whatever the server's zone")
 	}
 }
 

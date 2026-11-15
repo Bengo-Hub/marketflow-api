@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	entsql "entgo.io/ent/dialect/sql"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
@@ -30,14 +29,8 @@ type RunBrief struct {
 // storyboards and renders alike, from the versions of the briefs it made (the tenant's
 // created_at index keeps the brief read small). It is the monthly ceiling's measure.
 func CreditsThisMonth(ctx context.Context, db *ent.Client, tenantID, agentID uuid.UUID, now time.Time) (int, error) {
-	now = now.UTC()
-	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 	ids, err := db.CreativeBrief.Query().
-		Where(creativebrief.TenantID(tenantID), creativebrief.CreatedAtGTE(start), func(s *entsql.Selector) {
-			s.Where(entsql.P(func(b *entsql.Builder) {
-				b.WriteString(s.C(creativebrief.FieldMetadata) + "->>'autopilot_agent_id' = ").Arg(agentID.String())
-			}))
-		}).IDs(ctx)
+		Where(creativebrief.TenantID(tenantID), creativebrief.CreatedAtGTE(monthStart(now)), briefOfAgent(agentID)).IDs(ctx)
 	if err != nil || len(ids) == 0 {
 		return 0, err
 	}

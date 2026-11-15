@@ -222,7 +222,12 @@ func (j *AgentSchedules) startIfDue(ctx context.Context, a *ent.CustomAgent, zon
 
 // tenantZone is the tenant's time zone, Africa/Nairobi when unset or invalid.
 func (j *AgentSchedules) tenantZone(ctx context.Context, tenantID uuid.UUID) *time.Location {
-	if t, err := j.db.Tenant.Get(ctx, tenantID); err == nil && t.Timezone != nil && *t.Timezone != "" {
+	return tenantLocation(ctx, j.db, tenantID)
+}
+
+// tenantLocation is the tenant's time zone, Africa/Nairobi when unset or invalid.
+func tenantLocation(ctx context.Context, db *ent.Client, tenantID uuid.UUID) *time.Location {
+	if t, err := db.Tenant.Get(ctx, tenantID); err == nil && t.Timezone != nil && *t.Timezone != "" {
 		if loc, err := time.LoadLocation(*t.Timezone); err == nil {
 			return loc
 		}

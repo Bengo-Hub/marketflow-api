@@ -3,6 +3,7 @@ package custom_agents
 import (
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 	"time"
@@ -191,7 +192,36 @@ func (c *AutopilotConfig) Validate(canAutoPublish bool) error {
 // WithinEnvelope reports whether one more paid ad fits the month: spent so far plus the ad's
 // budget never goes over the ceiling. Money caps live in code, never in a decision.
 func (c AutopilotConfig) WithinEnvelope(spentThisMonth int64) bool {
-	return !c.Paid || spentThisMonth+c.PerAdBudget <= c.MonthlyAdCap
+	return c.FitsMonth(spentThisMonth, c.PerAdBudget)
+}
+
+// FitsMonth is WithinEnvelope for an ad of any budget, such as a boost the owner sizes in the boost
+// wizard. An agent that is not paid sets no monthly limit; a paid one without a ceiling (which
+// Validate refuses) fits nothing.
+func (c AutopilotConfig) FitsMonth(spentThisMonth, budget int64) bool {
+	return !c.Paid || spentThisMonth+budget <= c.MonthlyAdCap
+}
+
+// SpendUnits rounds a stored spend (ad_metrics.spend, a float) up to whole currency units, so a
+// fraction already spent is never left out of the ceiling.
+func SpendUnits(spend float64) int64 {
+	if spend <= 0 {
+		return 0
+	}
+	return int64(math.Ceil(spend))
+}
+
+// Ended reports whether the agent's end date has passed: the end date is its last day, in the
+// tenant's time zone loc. No end date, or one that cannot be read, never ends the agent.
+func (c AutopilotConfig) Ended(now time.Time, loc *time.Location) bool {
+	if c.EndDate == "" || loc == nil {
+		return false
+	}
+	end, err := time.ParseInLocation("2006-01-02", c.EndDate, loc)
+	if err != nil {
+		return false
+	}
+	return !now.In(loc).Before(end.AddDate(0, 0, 1))
 }
 
 // StopWindow is the CPL stop's window in days, DefaultStopCPLDays when unset.

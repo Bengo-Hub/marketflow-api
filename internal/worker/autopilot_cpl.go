@@ -7,11 +7,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/admetrics"
-	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
-	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
-	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
-	"github.com/google/uuid"
 )
 
 // The autopilot CPL stop (Sprint 20): a boost that runs a video an ad_autopilot agent made is
@@ -34,24 +30,8 @@ func (a *AdInsights) autopilotStopFor(ctx context.Context, c *ent.Campaign) (aut
 	if c.CreativeVersionID == nil {
 		return autopilotStop{}, false
 	}
-	v, err := a.db.CreativeVersion.Query().
-		Where(creativeversion.IDEQ(*c.CreativeVersionID), creativeversion.TenantIDEQ(c.TenantID)).Only(ctx)
-	if err != nil {
-		return autopilotStop{}, false
-	}
-	b, err := a.db.CreativeBrief.Query().
-		Where(creativebrief.IDEQ(v.BriefID), creativebrief.TenantIDEQ(c.TenantID)).Only(ctx)
-	if err != nil {
-		return autopilotStop{}, false
-	}
-	raw, _ := b.Metadata["autopilot_agent_id"].(string)
-	agentID, err := uuid.Parse(raw)
-	if err != nil {
-		return autopilotStop{}, false
-	}
-	ag, err := a.db.CustomAgent.Query().
-		Where(customagent.IDEQ(agentID), customagent.TenantIDEQ(c.TenantID)).Only(ctx)
-	if err != nil {
+	ag, err := custom_agents.AgentOfVersion(ctx, a.db, c.TenantID, *c.CreativeVersionID)
+	if err != nil || ag == nil {
 		return autopilotStop{}, false
 	}
 	cfg, _, err := custom_agents.ReadAutopilot(ag)
