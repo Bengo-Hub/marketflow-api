@@ -13,6 +13,10 @@ import (
 	"go.uber.org/zap"
 )
 
+// The four purchase consumers below write through logActivityOnce: a redelivered event, or the
+// same order, sale, appointment or payment published again, finds its earlier Activity (by
+// metadata.event_id, or by type, source and external_ref) and adds nothing.
+
 // ── Ordering consumer ──────────────────────────────────────────────────────
 
 // OrderingOrderCreatedHandler subscribes to ordering.order.created.
@@ -61,16 +65,16 @@ func (h *OrderingOrderCreatedHandler) Handle(ctx context.Context, msg jetstream.
 	body := fmt.Sprintf("Order %s placed — %s %.2f", ev.OrderNumber, ev.Currency, ev.Total)
 	now := time.Now()
 	source := "ordering-backend"
-	_, err = h.svc.Log(ctx, activities.CreateInput{
-		TenantID:    tenantID,
-		EntityType:  "contact",
-		EntityID:    contactID,
+	logged, err := logActivityOnce(ctx, h.db, h.svc, eventIDOf(msg.Data()), h.Subject(), activities.CreateInput{
+		TenantID:     tenantID,
+		EntityType:   "contact",
+		EntityID:     contactID,
 		ActivityType: "order",
-		Subject:     &ev.OrderNumber,
-		Body:        &body,
-		Source:      &source,
-		ExternalRef: &ev.OrderID,
-		PerformedAt: &now,
+		Subject:      &ev.OrderNumber,
+		Body:         &body,
+		Source:       &source,
+		ExternalRef:  &ev.OrderID,
+		PerformedAt:  &now,
 	})
 	if err != nil {
 		h.logger.Error("failed to log ordering activity on contact",
@@ -79,10 +83,14 @@ func (h *OrderingOrderCreatedHandler) Handle(ctx context.Context, msg jetstream.
 		)
 		return err
 	}
-	h.logger.Info("ordering activity logged on CRM contact",
-		zap.String("contact_id", contactID.String()),
-		zap.String("order_id", ev.OrderID),
-	)
+	if logged {
+		h.logger.Info("ordering activity logged on CRM contact",
+			zap.String("contact_id", contactID.String()),
+			zap.String("order_id", ev.OrderID),
+		)
+	}
+	// Queued on a redelivery too: the conversion is keyed by order, and an earlier attempt may
+	// have logged the activity and stopped before queueing it.
 	queueConversion(ctx, h.db, h.logger, tenantID, contactID, "ordering:"+ev.OrderID, ev.Total, ev.Currency, "order")
 	return nil
 }
@@ -131,16 +139,16 @@ func (h *POSSaleFinalizedHandler) Handle(ctx context.Context, msg jetstream.Msg)
 	body := fmt.Sprintf("POS sale %s — %s %.2f", ev.OrderNumber, ev.Currency, ev.Total)
 	now := time.Now()
 	source := "pos-api"
-	_, err = h.svc.Log(ctx, activities.CreateInput{
-		TenantID:    tenantID,
-		EntityType:  "contact",
-		EntityID:    contactID,
+	_, err = logActivityOnce(ctx, h.db, h.svc, eventIDOf(msg.Data()), h.Subject(), activities.CreateInput{
+		TenantID:     tenantID,
+		EntityType:   "contact",
+		EntityID:     contactID,
 		ActivityType: "order",
-		Subject:     &ev.OrderNumber,
-		Body:        &body,
-		Source:      &source,
-		ExternalRef: &ev.OrderID,
-		PerformedAt: &now,
+		Subject:      &ev.OrderNumber,
+		Body:         &body,
+		Source:       &source,
+		ExternalRef:  &ev.OrderID,
+		PerformedAt:  &now,
 	})
 	if err != nil {
 		h.logger.Error("failed to log POS sale activity",
@@ -196,16 +204,16 @@ func (h *POSAppointmentCompletedHandler) Handle(ctx context.Context, msg jetstre
 	now := time.Now()
 	source := "pos-api"
 	outcome := "completed"
-	_, err = h.svc.Log(ctx, activities.CreateInput{
-		TenantID:    tenantID,
-		EntityType:  "contact",
-		EntityID:    contactID,
+	_, err = logActivityOnce(ctx, h.db, h.svc, eventIDOf(msg.Data()), h.Subject(), activities.CreateInput{
+		TenantID:     tenantID,
+		EntityType:   "contact",
+		EntityID:     contactID,
 		ActivityType: "meeting",
-		Subject:     &subject,
-		Outcome:     &outcome,
-		Source:      &source,
-		ExternalRef: &ev.AppointmentID,
-		PerformedAt: &now,
+		Subject:      &subject,
+		Outcome:      &outcome,
+		Source:       &source,
+		ExternalRef:  &ev.AppointmentID,
+		PerformedAt:  &now,
 	})
 	if err != nil {
 		h.logger.Error("failed to log appointment activity",
@@ -264,17 +272,17 @@ func (h *TreasuryPaymentSucceededHandler) Handle(ctx context.Context, msg jetstr
 	now := time.Now()
 	source := "treasury-api"
 	outcome := "succeeded"
-	_, err = h.svc.Log(ctx, activities.CreateInput{
-		TenantID:    tenantID,
-		EntityType:  "contact",
-		EntityID:    contactID,
+	_, err = logActivityOnce(ctx, h.db, h.svc, eventIDOf(msg.Data()), h.Subject(), activities.CreateInput{
+		TenantID:     tenantID,
+		EntityType:   "contact",
+		EntityID:     contactID,
 		ActivityType: "payment",
-		Subject:     &subject,
-		Body:        &body,
-		Outcome:     &outcome,
-		Source:      &source,
-		ExternalRef: &ev.IntentID,
-		PerformedAt: &now,
+		Subject:      &subject,
+		Body:         &body,
+		Outcome:      &outcome,
+		Source:       &source,
+		ExternalRef:  &ev.IntentID,
+		PerformedAt:  &now,
 	})
 	if err != nil {
 		h.logger.Error("failed to log payment activity",
