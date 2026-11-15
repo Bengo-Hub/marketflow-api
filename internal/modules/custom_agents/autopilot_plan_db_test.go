@@ -54,7 +54,9 @@ func planTenant(t *testing.T, db *ent.Client, slug string) uuid.UUID {
 
 func plainAgent(t *testing.T, db *ent.Client, tid uuid.UUID, name string) *ent.CustomAgent {
 	t.Helper()
-	return db.CustomAgent.Create().SetTenantID(tid).SetName(name).SetTriggerType("manual").SaveX(context.Background())
+	// Switched off, as Service.Create makes every new agent; the column default (on) is not
+	// what an owner gets.
+	return db.CustomAgent.Create().SetTenantID(tid).SetName(name).SetTriggerType("manual").SetIsActive(false).SaveX(context.Background())
 }
 
 var autopilotOffers = []map[string]any{{"name": "Blender"}}
