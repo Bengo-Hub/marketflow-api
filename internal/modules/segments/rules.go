@@ -2,11 +2,16 @@ package segments
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqljson"
+
 	entcontact "github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/predicate"
+	"github.com/bengobox/marketflow-api/internal/modules/enrichment"
 )
 
 // Condition is one rule in a segment's filter_rules:
@@ -20,6 +25,8 @@ import (
 //	total_orders                       eq, gte, lte (value: number)
 //	last_order_at, created_at          within_days, older_than_days (value: days)
 //	has_email, has_phone               eq (value: true/false)
+//	enrichment_segment                 eq, in (value: one of enrichment.Segments, set by the
+//	                                   contact enricher in metadata.enrichment.segment)
 type Condition struct {
 	Field string
 	Op    string
@@ -142,6 +149,24 @@ func contactPredicate(c Condition, now time.Time) (predicate.Contact, error) {
 				return entcontact.CreatedAtLT(cutoff), nil
 			}
 			return entcontact.LastOrderAtLT(cutoff), nil
+		}
+	case "enrichment_segment":
+		var vals []any
+		for _, v := range strs(c.Value) {
+			if !slices.Contains(enrichment.Segments, v) {
+				return nil, fmt.Errorf("unknown enrichment segment %q", v)
+			}
+			vals = append(vals, v)
+		}
+		if len(vals) == 0 || (c.Op == "eq" && len(vals) != 1) {
+			return bad()
+		}
+		path := sqljson.DotPath(enrichment.MetadataKey + ".segment")
+		switch c.Op {
+		case "eq":
+			return func(s *sql.Selector) { s.Where(sqljson.ValueEQ(entcontact.FieldMetadata, vals[0], path)) }, nil
+		case "in":
+			return func(s *sql.Selector) { s.Where(sqljson.ValueIn(entcontact.FieldMetadata, vals, path)) }, nil
 		}
 	}
 	return bad()

@@ -65,6 +65,27 @@ type Settings struct {
 	// ReferenceAds and CustomerComplaints feed the Find, Flip, Fix engine (market_signals.go).
 	ReferenceAds       []ReferenceAd `json:"reference_ads"`
 	CustomerComplaints []string      `json:"customer_complaints"`
+	// ContactEnrichment lets the contact enricher fill each contact's profile from the
+	// business's own records (on by default). ContactEnrichmentWeb also reads the public website
+	// of the company a contact is linked to (off by default, and off whenever ContactEnrichment is).
+	ContactEnrichment    bool `json:"contact_enrichment"`
+	ContactEnrichmentWeb bool `json:"contact_enrichment_web"`
+}
+
+// Tenant metadata keys of the contact enricher switches. An absent ContactEnrichmentKey means on;
+// an absent ContactEnrichmentWebKey means off.
+const (
+	ContactEnrichmentKey    = "contact_enrichment"
+	ContactEnrichmentWebKey = "contact_enrichment_web"
+)
+
+// ContactEnrichmentSwitches reads the two contact enricher switches from tenant metadata. The
+// website lookup is never on while the enricher itself is off.
+func ContactEnrichmentSwitches(meta map[string]any) (on, web bool) {
+	v, set := meta[ContactEnrichmentKey].(bool)
+	on = !set || v
+	w, _ := meta[ContactEnrichmentWebKey].(bool)
+	return on, on && w
 }
 
 // Tenant metadata keys of the inbox auto reply.
@@ -279,6 +300,7 @@ func (s *Service) GetSettings(ctx context.Context, tenantID uuid.UUID) (Settings
 	}
 	out := Settings{DailyBrief: !ok || on, InboxAutoReply: auto, InboxReplyText: text, Competitors: competitors,
 		ReferenceAds: readReferenceAds(t.Metadata), CustomerComplaints: readStrings(t.Metadata, CustomerComplaintsKey)}
+	out.ContactEnrichment, out.ContactEnrichmentWeb = ContactEnrichmentSwitches(t.Metadata)
 	readInboxOverrides(t.Metadata, &out)
 	return out, nil
 }
@@ -315,9 +337,14 @@ func (s *Service) SaveSettings(ctx context.Context, tenantID uuid.UUID, in Setti
 	if err := cleanInboxOverrides(&in); err != nil {
 		return in, fmt.Errorf("%w: %v", ErrInvalidSettings, err)
 	}
+	// The website lookup only runs inside the enricher.
+	if !in.ContactEnrichment {
+		in.ContactEnrichmentWeb = false
+	}
 	values := map[string]any{
 		DailyBriefKey: in.DailyBrief, InboxAutoReplyKey: in.InboxAutoReply, InboxReplyTextKey: in.InboxReplyText,
 		CompetitorsKey: in.Competitors, ReferenceAdsKey: in.ReferenceAds, CustomerComplaintsKey: in.CustomerComplaints,
+		ContactEnrichmentKey: in.ContactEnrichment, ContactEnrichmentWebKey: in.ContactEnrichmentWeb,
 	}
 	for k, v := range inboxOverrideValues(in) {
 		values[k] = v

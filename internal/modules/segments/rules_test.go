@@ -45,6 +45,29 @@ func TestContactPredicatesRejectsUnknownRules(t *testing.T) {
 	}
 }
 
+func TestEnrichmentSegmentRule(t *testing.T) {
+	ok := []map[string]any{
+		{"field": "enrichment_segment", "op": "eq", "value": "lapsed_customer"},
+		{"field": "enrichment_segment", "op": "in", "value": []any{"active_customer", "in_pipeline"}},
+	}
+	for _, c := range ok {
+		if _, err := ContactPredicates(map[string]any{"conditions": []any{c}}, time.Now()); err != nil {
+			t.Errorf("%v: %v", c, err)
+		}
+	}
+	bad := []map[string]any{
+		{"field": "enrichment_segment", "op": "eq", "value": "vip"},
+		{"field": "enrichment_segment", "op": "eq", "value": []any{"quiet", "engaged"}},
+		{"field": "enrichment_segment", "op": "in", "value": []any{}},
+		{"field": "enrichment_segment", "op": "neq", "value": "quiet"},
+	}
+	for _, c := range bad {
+		if _, err := ContactPredicates(map[string]any{"conditions": []any{c}}, time.Now()); err == nil {
+			t.Errorf("%v must be rejected", c)
+		}
+	}
+}
+
 func TestEmptyRulesMatchEveryone(t *testing.T) {
 	preds, err := ContactPredicates(map[string]any{}, time.Now())
 	if err != nil || len(preds) != 0 {

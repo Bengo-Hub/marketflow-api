@@ -214,6 +214,9 @@ func main() {
 		reg.Add(worker.NewPartyAnonymisedHandler(entClient, cfg.API.CRMLinkServices, cfg.CrossServiceKey, logger))
 		// Click-to-WhatsApp attribution (Sprint 18): the ad click id on the lead, once.
 		reg.Add(worker.NewWhatsAppReferralHandler(entClient, logger))
+		// Contact enricher (Sprint 10): a new or changed contact's profile from the business's own
+		// records, no AI and no paid source, so no credits.
+		reg.Add(worker.NewContactEnricherHandlers(entClient, logger)...)
 		// New-lead email to the business (Sprint 18 L58; owner 2026-11-11): at most one every 15 minutes.
 		reg.Add(worker.NewNewLeadAlertHandler(entClient, rdb,
 			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
@@ -275,6 +278,10 @@ func main() {
 
 		// Scheduled custom agents: daily or weekly at the tenant's local time.
 		go worker.NewAgentSchedules(entClient, agentSvc, logger).Run(ctx)
+
+		// Contact enricher daily sweep: from 02:00 tenant time, contacts never enriched and
+		// profiles older than a week, once per tenant per day.
+		go worker.NewContactEnricherSweep(entClient, logger).Run(ctx)
 
 		// Ad-insights polling cron (Meta campaigns only today). Resolver
 		// pulls the tenant's Meta page token from ProviderSetting at query
