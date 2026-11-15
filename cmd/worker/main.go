@@ -205,7 +205,8 @@ func main() {
 		reg.Add(worker.NewNewItemAdsHandler(entClient, worker.NewAutopilotRunner(entClient,
 			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
 			cfg.API.PortalURL, logger).WithForecast(custom_agents.NewCreditForecaster(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey)).
-			WithAutoPublishGate(worker.AutopilotGate(cfg, entClient)).WithLapsedHook(reg.AutopilotLapsed()), logger))
+			WithAutoPublishGate(worker.AutopilotGate(cfg, entClient)).WithLapsedHook(reg.AutopilotLapsed()).
+			WithAdFunds(worker.AdFunds(entClient, keys)), logger))
 		// Knowledge base sync (Sprint 25): item events keep synced entries current.
 		reg.Add(worker.NewKBItemHandlers(entClient, knowledge.NewSync(entClient, rawDB), logger)...)
 		// Erasure in maskani (privacy.party_anonymised): delete the CRM contact only when no other

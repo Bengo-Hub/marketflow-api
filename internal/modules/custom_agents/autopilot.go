@@ -44,6 +44,9 @@ type AutopilotConfig struct {
 	CreditCap    int      `json:"monthly_credit_ceiling"` // AI credits a month
 	StopCPL      float64  `json:"stop_cpl"`               // pause above this cost per lead
 	EndDate      string   `json:"end_date,omitempty"`     // YYYY-MM-DD, optional
+	// StopCPLDays is the window the stop rule judges: the cost per lead over the last this many
+	// days (today included). 0 means DefaultStopCPLDays.
+	StopCPLDays int `json:"stop_cpl_days,omitempty"`
 	// NewItemDrafts opts in to one extra draft a day when a new item with a photo joins the catalogue.
 	NewItemDrafts bool `json:"new_item_drafts,omitempty"`
 }
@@ -62,6 +65,9 @@ const (
 	MaxVetoHours  = 72
 	MaxCreditCap  = 5000
 	MaxPeriodDays = 90
+	// The CPL stop's window: one bad hour or day never pauses an ad, a week of them always can.
+	DefaultStopCPLDays = 3
+	MaxStopCPLDays     = 14
 )
 
 // DefaultVeto is the veto window an auto_publish agent gets when it sets none: 4 hours (owner
@@ -165,6 +171,12 @@ func (c *AutopilotConfig) Validate(canAutoPublish bool) error {
 	if c.StopCPL < 0 {
 		add("the stop rule cannot be negative")
 	}
+	if c.StopCPL > 0 && c.StopCPLDays == 0 {
+		c.StopCPLDays = DefaultStopCPLDays
+	}
+	if c.StopCPLDays < 0 || c.StopCPLDays > MaxStopCPLDays {
+		add("the stop rule judges 1 to %d days", MaxStopCPLDays)
+	}
 	if c.EndDate != "" {
 		if _, err := time.Parse("2006-01-02", c.EndDate); err != nil {
 			add("end date must be YYYY-MM-DD")
@@ -180,6 +192,14 @@ func (c *AutopilotConfig) Validate(canAutoPublish bool) error {
 // budget never goes over the ceiling. Money caps live in code, never in a decision.
 func (c AutopilotConfig) WithinEnvelope(spentThisMonth int64) bool {
 	return !c.Paid || spentThisMonth+c.PerAdBudget <= c.MonthlyAdCap
+}
+
+// StopWindow is the CPL stop's window in days, DefaultStopCPLDays when unset.
+func (c AutopilotConfig) StopWindow() int {
+	if c.StopCPLDays < 1 || c.StopCPLDays > MaxStopCPLDays {
+		return DefaultStopCPLDays
+	}
+	return c.StopCPLDays
 }
 
 // CreditsFit reports whether a run's forecast fits the month's credit ceiling.

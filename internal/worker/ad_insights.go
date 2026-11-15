@@ -245,13 +245,29 @@ func (a *AdInsights) autoPause(ctx context.Context, c *ent.Campaign) {
 	if err != nil {
 		return
 	}
-	maxCPL, _ := t.Metadata[tenantMaxCPLKey].(float64)
-	if maxCPL <= 0 {
-		return // the tenant set no ceiling
-	}
 	minSpend, _ := t.Metadata[tenantMinSpendKey].(float64)
 	if minSpend <= 0 {
 		minSpend = defaultMinSpend
+	}
+	reason := a.tenantCPLReason(ctx, c, t, minSpend)
+	if reason == "" {
+		// The agent's own stop rule, when the boost runs an autopilot's video (Sprint 20).
+		reason = a.autopilotCPLReason(ctx, c, minSpend, time.Now())
+	}
+	if reason == "" {
+		return
+	}
+	if err := a.pause(ctx, c, reason); err != nil {
+		a.logger.Warn("auto-pause failed", zap.String("campaign", c.ID.String()), zap.Error(err))
+	}
+}
+
+// tenantCPLReason is the tenant-wide ceiling (ads_max_cpl) on the boost's lifetime totals; ""
+// when it holds or the tenant set no ceiling.
+func (a *AdInsights) tenantCPLReason(ctx context.Context, c *ent.Campaign, t *ent.Tenant, minSpend float64) string {
+	maxCPL, _ := t.Metadata[tenantMaxCPLKey].(float64)
+	if maxCPL <= 0 {
+		return "" // the tenant set no ceiling
 	}
 	// Lifetime totals from the daily rows (the unique (campaign_id, date) index keeps it small).
 	var totals []struct {
@@ -263,25 +279,20 @@ func (a *AdInsights) autoPause(ctx context.Context, c *ent.Campaign) {
 		Aggregate(ent.As(ent.Sum(admetrics.FieldSpend), "sum_spend"), ent.As(ent.Sum(admetrics.FieldLeads), "sum_leads"),
 			ent.As(ent.Sum(admetrics.FieldConversions), "sum_conversions")).
 		Scan(ctx, &totals); err != nil || len(totals) == 0 {
-		return
+		return ""
 	}
 	tot := totals[0]
 	if tot.Spend < minSpend {
-		return
+		return ""
 	}
 	results := tot.Leads + tot.Convers
-	reason := ""
 	switch {
 	case results == 0 && tot.Spend >= 2*maxCPL:
-		reason = fmt.Sprintf("it spent %.0f %s with no leads yet", tot.Spend, c.Currency)
+		return fmt.Sprintf("it spent %.0f %s with no leads yet", tot.Spend, c.Currency)
 	case results > 0 && tot.Spend/float64(results) > maxCPL:
-		reason = fmt.Sprintf("each lead cost %.0f %s, above your limit of %.0f", tot.Spend/float64(results), c.Currency, maxCPL)
-	default:
-		return
+		return fmt.Sprintf("each lead cost %.0f %s, above your limit of %.0f", tot.Spend/float64(results), c.Currency, maxCPL)
 	}
-	if err := a.pause(ctx, c, reason); err != nil {
-		a.logger.Warn("auto-pause failed", zap.String("campaign", c.ID.String()), zap.Error(err))
-	}
+	return ""
 }
 
 // minSpendFor is the tenant's minimum spend before judging ads (default defaultMinSpend).
