@@ -434,7 +434,7 @@ Payments: M-Pesa and card via Treasury Gateway at https://books.codevertexafrica
 
 URL: https://erp.codevertexafrica.com
 Best for: Medium to large businesses needing integrated back-office operations.
-Pricing: Growth or Enterprise plan. Contact info@codevertexafrica.com for a demo.`,
+Pricing: Growth or Enterprise plan. Contact sales@codevertexafrica.com for a demo.`,
 			tags: []string{"erp", "enterprise", "power-suite", "inventory", "payroll"},
 		},
 		{
