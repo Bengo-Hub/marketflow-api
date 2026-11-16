@@ -191,6 +191,16 @@ type SetValueInput struct {
 
 // SetValue upserts a custom field value for an entity.
 func (s *Service) SetValue(ctx context.Context, in SetValueInput) (*ent.CustomFieldValue, error) {
+	// The definition must be this tenant's, for this record type.
+	ok, err := s.client.CustomFieldDef.Query().
+		Where(customfielddef.ID(in.FieldDefID), customfielddef.TenantID(in.TenantID), customfielddef.EntityTypeEQ(in.EntityType)).
+		Exist(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("check custom field def: %w", err)
+	}
+	if !ok {
+		return nil, ErrNotFound
+	}
 	existing, err := s.client.CustomFieldValue.Query().
 		Where(
 			customfieldvalue.TenantID(in.TenantID),

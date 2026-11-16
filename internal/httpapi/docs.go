@@ -997,6 +997,15 @@ const docTemplate = `{
                         "name": "X-Tenant-ID",
                         "in": "header",
                         "required": true
+                    },
+                    {
+                        "description": "The boost",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/adsmanager.BoostInput"
+                        }
                     }
                 ],
                 "responses": {
@@ -1019,8 +1028,97 @@ const docTemplate = `{
                             "$ref": "#/definitions/httpapi.ErrorResponse"
                         }
                     },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "428": {
+                        "description": "Precondition Required",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
                     "503": {
                         "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ads/boosts/otp": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ads"
+                ],
+                "summary": "Send the confirmation code for a large boost",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "The boost to confirm",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/adsmanager.BoostInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
                         "schema": {
                             "$ref": "#/definitions/httpapi.ErrorResponse"
                         }
@@ -10803,6 +10901,78 @@ const docTemplate = `{
                 }
             }
         },
+        "adsmanager.BoostInput": {
+            "type": "object",
+            "properties": {
+                "ad_account_connected_id": {
+                    "type": "string"
+                },
+                "age_max": {
+                    "type": "integer"
+                },
+                "age_min": {
+                    "type": "integer"
+                },
+                "asset_id": {
+                    "type": "string"
+                },
+                "budget": {
+                    "type": "integer"
+                },
+                "countries": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "days": {
+                    "type": "integer"
+                },
+                "extra_asset_ids": {
+                    "description": "ExtraAssetIDs are up to two more approved videos run as more ads in the same ad set (away\ndecision 23): the budget is shared, so the optimiser can pause the weaker ones.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "headline": {
+                    "type": "string"
+                },
+                "link": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "objective": {
+                    "description": "whatsapp | leads | traffic",
+                    "type": "string"
+                },
+                "otp_code": {
+                    "type": "string"
+                },
+                "otp_id": {
+                    "description": "OTPID and OTPCode confirm a boost at or above the tenant's threshold (POST /ads/boosts/otp).",
+                    "type": "string"
+                },
+                "page_connected_id": {
+                    "type": "string"
+                },
+                "privacy_url": {
+                    "description": "PrivacyURL is the business's privacy policy, required by Meta on a leads instant form.",
+                    "type": "string"
+                },
+                "start_at": {
+                    "type": "string"
+                },
+                "welcome": {
+                    "type": "string"
+                },
+                "whatsapp_number": {
+                    "type": "string"
+                }
+            }
+        },
         "adsmanager.Funding": {
             "type": "string",
             "enum": [
@@ -12804,6 +12974,10 @@ const docTemplate = `{
         "marketingos.Settings": {
             "type": "object",
             "properties": {
+                "boost_otp_threshold_kes": {
+                    "description": "BoostOTPThresholdKES is the boost total (KES) from which a launch needs a WhatsApp\nconfirmation code; null means the default (boost_otp_setting.go), 0 turns it off.",
+                    "type": "integer"
+                },
                 "competitors": {
                     "description": "Competitors are names, domains or Google advertiser ids (AR...) the weekly competitor\nscan looks up (Sprint 24), at most MaxCompetitors.",
                     "type": "array",

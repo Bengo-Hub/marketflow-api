@@ -514,6 +514,15 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		LaunchCredits: adsmanager.DefaultLaunchCredits, Enabled: adsmanager.MetaEnabled(entClient), Logger: logger.Named("ads"),
 		CanLaunch: func(ctx context.Context, tenantID uuid.UUID) bool {
 			return rbacService.CallerHasAnyRole(ctx, tenantID, reviewActionRoles...)
+		},
+		// Audit M1: a boost at or above the tenant's threshold needs a WhatsApp code sent to the
+		// launcher's verified number from the platform number.
+		Codes: &adsmanager.BoostCodes{
+			Store: adsmanager.RedisOTPStore{RDB: redisClient},
+			Send: creative.NewPlatformWhatsApp(entClient,
+				notifications.New(notifications.Config{BaseURL: cfg.CrossService.NotificationsURL, APIKey: cfg.CrossService.InternalServiceKey}),
+				cfg.Security.PlatformTenant, "marketflow-api").SendOTP,
+			Phone: adsmanager.AssistantPhone(redisClient, cfg.Security.AuthServiceURL, cfg.CrossService.InternalServiceKey),
 		}}
 	// Social inbox (Sprint 22): the approving roles may reply for the business.
 	inboxHandler := inbox.NewHandler(entClient, keyProvider, leadService, inbox.NewGraph(meta.GraphURL).WithProof(meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret)), logger)
@@ -606,6 +615,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	tiktokWebhookHandler := webhooks.NewTikTokHandler(leadService, webhooks.TikTokConfig{
 		DB:            sqlDB,
 		SharedSecret:  cfg.TikTok.WebhookSecret,
+		SigningSecret: cfg.TikTok.SigningSecret,
 		AllowUnsigned: cfg.App.Environment == "development",
 	}, logger)
 
@@ -969,6 +979,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		AdsHandlers: httpapi.AdsHandlers{
 			Accounts: adsHandler.Accounts, CreateKES: adsHandler.CreateKESAccount, Quote: adsHandler.Quote, Boost: adsHandler.Boost,
 			Get: adsHandler.Get, ConfirmPaid: adsHandler.ConfirmPaid, Pause: adsHandler.Pause, Resume: adsHandler.Resume, ResumeAd: adsHandler.ResumeAd,
+			BoostOTP: adsHandler.BoostOTP,
 		},
 		InboxHandlers: httpapi.InboxHandlers{
 			List:    inboxHandler.List,

@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -133,7 +132,11 @@ func (h *MetaHandler) Verify(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} httpapi.ErrorResponse "Invalid signature"
 // @Router /webhooks/meta/leadgen [post]
 func (h *MetaHandler) HandleLeadgen(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
+	body, tooLarge, err := readWebhookBody(w, r)
+	if tooLarge {
+		httpapi.JSON(w, http.StatusRequestEntityTooLarge, map[string]any{"error": "body too large"})
+		return
+	}
 	if err != nil {
 		h.logger.Warn("read body", zap.Error(err))
 		httpapi.JSON(w, http.StatusOK, map[string]any{"status": "received"})

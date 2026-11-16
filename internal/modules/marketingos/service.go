@@ -70,6 +70,9 @@ type Settings struct {
 	// of the company a contact is linked to (off by default, and off whenever ContactEnrichment is).
 	ContactEnrichment    bool `json:"contact_enrichment"`
 	ContactEnrichmentWeb bool `json:"contact_enrichment_web"`
+	// BoostOTPThresholdKES is the boost total (KES) from which a launch needs a WhatsApp
+	// confirmation code; null means the default (boost_otp_setting.go), 0 turns it off.
+	BoostOTPThresholdKES *int64 `json:"boost_otp_threshold_kes"`
 }
 
 // Tenant metadata keys of the contact enricher switches. An absent ContactEnrichmentKey means on;
@@ -307,6 +310,7 @@ func (s *Service) GetSettings(ctx context.Context, tenantID uuid.UUID) (Settings
 		ReferenceAds: readReferenceAds(t.Metadata), CustomerComplaints: readStrings(t.Metadata, CustomerComplaintsKey)}
 	out.ContactEnrichment, out.ContactEnrichmentWeb = ContactEnrichmentSwitches(t.Metadata)
 	readInboxOverrides(t.Metadata, &out)
+	readBoostOTPThreshold(t.Metadata, &out)
 	return out, nil
 }
 
@@ -342,6 +346,9 @@ func (s *Service) SaveSettings(ctx context.Context, tenantID uuid.UUID, in Setti
 	if err := cleanInboxOverrides(&in); err != nil {
 		return in, fmt.Errorf("%w: %v", ErrInvalidSettings, err)
 	}
+	if err := cleanBoostOTPThreshold(in.BoostOTPThresholdKES); err != nil {
+		return in, fmt.Errorf("%w: %v", ErrInvalidSettings, err)
+	}
 	// The website lookup only runs inside the enricher.
 	if !in.ContactEnrichment {
 		in.ContactEnrichmentWeb = false
@@ -350,6 +357,7 @@ func (s *Service) SaveSettings(ctx context.Context, tenantID uuid.UUID, in Setti
 		DailyBriefKey: in.DailyBrief, InboxAutoReplyKey: in.InboxAutoReply, InboxReplyTextKey: in.InboxReplyText,
 		CompetitorsKey: in.Competitors, ReferenceAdsKey: in.ReferenceAds, CustomerComplaintsKey: in.CustomerComplaints,
 		ContactEnrichmentKey: in.ContactEnrichment, ContactEnrichmentWebKey: in.ContactEnrichmentWeb,
+		BoostOTPThresholdKey: boostOTPThresholdValue(in),
 	}
 	for k, v := range inboxOverrideValues(in) {
 		values[k] = v

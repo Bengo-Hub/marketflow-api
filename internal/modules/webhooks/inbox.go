@@ -199,12 +199,21 @@ func (s *InboxStore) Store(ctx context.Context, items []InboxItem) int {
 }
 
 func (s *InboxStore) storeOne(ctx context.Context, it InboxItem) error {
-	acc, err := s.DB.ConnectedAccount.Query().
+	accs, err := s.DB.ConnectedAccount.Query().
 		Where(connectedaccount.ExternalID(it.AccountID), connectedaccount.AccountType(inboxAccountTypes[it.Platform]), connectedaccount.Status("active")).
 		Order(ent.Desc(connectedaccount.FieldUpdatedAt)).
-		First(ctx)
-	if err != nil {
+		Limit(10).
+		All(ctx)
+	if err != nil || len(accs) == 0 {
 		return fmt.Errorf("no tenant for %s account %s", it.Platform, it.AccountID)
+	}
+	acc := accs[0]
+	// A page or account two tenants connected is refused, like the TikTok advertiser: the item is
+	// never given to a guess.
+	for _, other := range accs[1:] {
+		if other.TenantID != acc.TenantID {
+			return fmt.Errorf("%s account %s is connected by more than one tenant", it.Platform, it.AccountID)
+		}
 	}
 	tid := acc.TenantID
 	dup, err := s.DB.Activity.Query().

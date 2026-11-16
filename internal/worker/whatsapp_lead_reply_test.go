@@ -64,6 +64,10 @@ func TestHandleLeadReply(t *testing.T) {
 	var mu sync.Mutex
 	var asked []map[string]any
 	ai := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/internal/inbox/intent" && r.Header.Get("X-API-Key") == "ai-key" {
+			_ = json.NewEncoder(w).Encode(map[string]any{"intent": "buyer_price", "confidence": 0.9, "injection": 0.01})
+			return
+		}
 		if r.URL.Path != "/api/v1/internal/os/lead-reply" || r.Header.Get("X-API-Key") != "ai-key" {
 			http.Error(w, "bad", http.StatusUnauthorized)
 			return

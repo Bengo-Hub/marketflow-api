@@ -561,6 +561,8 @@ type AdsHandlers struct {
 	Resume      http.HandlerFunc
 	// ResumeAd switches back on one ad the budget optimiser paused.
 	ResumeAd http.HandlerFunc
+	// BoostOTP sends the WhatsApp confirmation code a large boost needs.
+	BoostOTP http.HandlerFunc
 }
 
 // InboxHandlers groups the social inbox routes (Sprint 22).
@@ -702,6 +704,8 @@ func NewRouter(deps RouterDeps) http.Handler {
 	r.Get("/api/v1/openapi.json", OpenAPIJSON)
 
 	r.Route("/api/v1", func(r chi.Router) {
+		// JSON bodies over 1 MB are answered 413 before any handler reads them (audit M3).
+		r.Use(LimitJSONBody)
 		// Protected routes (require JWT)
 		r.Group(func(r chi.Router) {
 			if deps.RequireAuthHandler != nil {
@@ -1152,6 +1156,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Post("/accounts/kes", deps.AdsHandlers.CreateKES)
 					r.Post("/quote", deps.AdsHandlers.Quote)
 					r.Post("/boosts", deps.AdsHandlers.Boost)
+					if deps.AdsHandlers.BoostOTP != nil {
+						r.Post("/boosts/otp", deps.AdsHandlers.BoostOTP)
+					}
 					r.Get("/boosts/{id}", deps.AdsHandlers.Get)
 					r.Post("/boosts/{id}/paid", deps.AdsHandlers.ConfirmPaid)
 					r.Post("/boosts/{id}/pause", deps.AdsHandlers.Pause)

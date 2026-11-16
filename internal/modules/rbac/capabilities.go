@@ -74,6 +74,8 @@ var appReviewerCapabilities = []Capability{
 	readable("/ads/accounts"),
 	postable("/ads/quote"),
 	postable("/ads/boosts"),
+	// The confirmation code a large boost needs.
+	postable("/ads/boosts/otp"),
 	readable("/ads/boosts/{id}"),
 	postable("/ads/boosts/{id}/paid"),
 	postable("/ads/boosts/{id}/pause"),

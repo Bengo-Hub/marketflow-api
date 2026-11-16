@@ -125,6 +125,13 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if req.Name != nil {
+		if err := ValidateTenantName(*req.Name); err != nil {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_name", err.Error(), nil)
+			return
+		}
+	}
+
 	// Columns and metadata keys change together or not at all. Metadata is merged in the
 	// database (only the sent, non-reserved keys), never rewritten whole, so a concurrent
 	// brand context or settings save is not lost.

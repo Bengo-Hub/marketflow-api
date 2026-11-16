@@ -30,7 +30,7 @@ const AssistantNumberTTL = 30 * 24 * time.Hour
 const DailyBriefWhatsAppKey = "daily_brief_whatsapp"
 
 func assistantNumberKey(tenantID uuid.UUID, userID string) string {
-	return "mf:wa:brief-to:" + tenantID.String() + ":" + userID
+	return creative.AssistantNumberKey(tenantID, userID)
 }
 
 func assistantUsersKey(tenantID uuid.UUID) string { return "mf:wa:brief-users:" + tenantID.String() }

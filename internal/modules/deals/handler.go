@@ -1,6 +1,7 @@
 package deals
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -112,6 +113,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.service.Create(r.Context(), in)
+	if errors.Is(err, ErrNotInTenant) {
+		httpapi.Error(w, http.StatusNotFound, "not_found", "pipeline, stage, contact, lead or account not found", nil)
+		return
+	}
 	if err != nil {
 		h.logger.Error("failed to create deal", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "create_failed", "failed to create deal", nil)
@@ -264,6 +269,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.service.Update(r.Context(), tenantID, id, in)
+	if errors.Is(err, ErrNotInTenant) {
+		httpapi.Error(w, http.StatusNotFound, "not_found", "stage, contact or account not found", nil)
+		return
+	}
 	if err != nil {
 		h.logger.Error("failed to update deal", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "update_failed", "failed to update deal", nil)
@@ -302,6 +311,10 @@ func (h *Handler) Move(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.service.Move(r.Context(), tenantID, id, req.StageID)
+	if errors.Is(err, ErrNotInTenant) {
+		httpapi.Error(w, http.StatusNotFound, "not_found", "stage not found in this deal's pipeline", nil)
+		return
+	}
 	if err != nil {
 		h.logger.Error("failed to move deal", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "move_failed", "failed to move deal", nil)

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/bengobox/marketflow-api/internal/notifications"
@@ -68,6 +69,12 @@ func WhatsAppConfigFromEnv(getenv func(string) string) (WhatsAppConfig, error) {
 // whatsAppWindowKey marks a number's open window; the key lives as long as the window.
 func whatsAppWindowKey(number string) string {
 	return "mf:wa:window:" + strings.TrimPrefix(strings.TrimSpace(number), "+")
+}
+
+// AssistantNumberKey holds the verified number an SSO user last wrote to the WhatsApp assistant
+// from, per tenant. The worker writes it; the daily brief and the boost confirmation code read it.
+func AssistantNumberKey(tenantID uuid.UUID, userID string) string {
+	return "mf:wa:brief-to:" + tenantID.String() + ":" + userID
 }
 
 // MarkWhatsAppInbound opens (or extends) a number's window: call it for every message the

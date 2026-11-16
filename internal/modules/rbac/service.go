@@ -7,6 +7,8 @@ import (
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+
+	"github.com/bengobox/marketflow-api/internal/httpapi"
 )
 
 // Service provides business logic for RBAC operations.
@@ -164,7 +166,8 @@ func (s *Service) UserByAuthID(ctx context.Context, tenantID, authUserID uuid.UU
 }
 
 // CallerHasAnyRole reports whether the signed-in caller holds one of roles in
-// the tenant. Platform owners and service callers always pass. A caller whose
+// the tenant. Platform owners and service callers always pass, except a service
+// caller acting for a person, who has that person's roles. A caller whose
 // MarketFlow user is not synced yet has no roles.
 func (s *Service) CallerHasAnyRole(ctx context.Context, tenantID uuid.UUID, roles ...string) bool {
 	a := s.callerAccess(ctx, tenantID)
@@ -186,8 +189,16 @@ func (s *Service) callerAccess(ctx context.Context, tenantID uuid.UUID) callerAc
 	if !ok || claims == nil {
 		return callerAccess{}
 	}
-	if claims.IsPlatformOwner || claims.IsService {
-		return callerAccess{bypass: true, platformOwner: claims.IsPlatformOwner}
+	if claims.IsPlatformOwner {
+		return callerAccess{bypass: true, platformOwner: true}
+	}
+	if claims.IsService {
+		// A service key acting for a signed-in person (accepted by WriteGate) has that person's
+		// local role here and nothing more. No local row means no roles, like a viewer.
+		if actor, ok := httpapi.ActingUser(ctx); ok {
+			return s.localAccess(ctx, tenantID, actor, callerAccess{})
+		}
+		return callerAccess{bypass: true}
 	}
 	// When the stored roles cannot be used, a token whose SSO roles make the caller a restricted
 	// role still restricts them: without this an unsynced reviewer would read like a viewer. It
@@ -200,6 +211,12 @@ func (s *Service) callerAccess(ctx context.Context, tenantID uuid.UUID) callerAc
 	if err != nil {
 		return fallback
 	}
+	return s.localAccess(ctx, tenantID, authID, fallback)
+}
+
+// localAccess reads the stored MarketFlow roles of the SSO user authID in the tenant, or
+// fallback when there is no usable local user.
+func (s *Service) localAccess(ctx context.Context, tenantID, authID uuid.UUID, fallback callerAccess) callerAccess {
 	u, err := s.repo.GetUserByAuthServiceID(ctx, tenantID, authID)
 	if err != nil || u == nil || u.Status == statusDeactivated {
 		return fallback

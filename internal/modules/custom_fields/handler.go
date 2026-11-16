@@ -220,6 +220,10 @@ func (h *Handler) SetValues(entityType string) http.HandlerFunc {
 				FieldDefID: v.FieldDefID,
 				Value:      v.Value,
 			})
+			if errors.Is(err, ErrNotFound) {
+				httpapi.Error(w, http.StatusNotFound, "not_found", "custom field not found", nil)
+				return
+			}
 			if err != nil {
 				h.logger.Error("failed to set custom field value", zap.Error(err))
 				httpapi.Error(w, http.StatusInternalServerError, "set_failed", "failed to set custom field value", nil)

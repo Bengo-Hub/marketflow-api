@@ -39,7 +39,9 @@ type Handler struct {
 	LaunchCredits int
 	// Enabled is the platform switch ProviderSetting ads/meta_enabled (Meta App Review).
 	Enabled func(ctx context.Context) bool
-	Logger  *zap.Logger
+	// Codes confirms large boosts with a WhatsApp code (boost_otp.go); nil turns the check off.
+	Codes  *BoostCodes
+	Logger *zap.Logger
 }
 
 // DefaultLaunchCredits is the fixed charge for a client without a plan (platform config).
@@ -260,21 +262,28 @@ type BoostInput struct {
 	// PrivacyURL is the business's privacy policy, required by Meta on a leads instant form.
 	PrivacyURL string    `json:"privacy_url"`
 	StartAt    time.Time `json:"start_at"`
+	// OTPID and OTPCode confirm a boost at or above the tenant's threshold (POST /ads/boosts/otp).
+	OTPID   string `json:"otp_id,omitempty"`
+	OTPCode string `json:"otp_code,omitempty"`
 }
 
 var objectives = map[string]string{"whatsapp": "OUTCOME_ENGAGEMENT", "leads": "OUTCOME_LEADS", "traffic": "OUTCOME_TRAFFIC"}
 
 // Boost handles POST /api/v1/ads/boosts: checks everything, charges the launch credits once,
 // and queues the launch; the worker creates the PAUSED Meta objects and goes live after review
-// and funding.
+// and funding. A total at or above the tenant's boost_otp_threshold_kes needs otp_id and otp_code
+// from POST /ads/boosts/otp, or it is answered 428 otp_required with threshold_kes.
 // @Summary Boost an approved video
 // @Tags Ads
 // @Accept json
 // @Produce json
 // @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param request body BoostInput true "The boost"
 // @Success 201 {object} map[string]interface{}
 // @Failure 402 {object} httpapi.ErrorResponse
 // @Failure 409 {object} httpapi.ErrorResponse
+// @Failure 422 {object} httpapi.ErrorResponse
+// @Failure 428 {object} map[string]interface{}
 // @Failure 503 {object} httpapi.ErrorResponse
 // @Security bearerAuth
 // @Router /ads/boosts [post]
@@ -369,6 +378,10 @@ func (h *Handler) Boost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		extras = append(extras, x.ID.String())
+	}
+	// Last check before money moves, so a code is only used up by a boost that goes ahead.
+	if !h.boostConfirmed(w, r, tid, in, asset.ID.String(), q) {
+		return
 	}
 
 	start := in.StartAt.UTC()

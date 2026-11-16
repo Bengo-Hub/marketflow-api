@@ -82,6 +82,17 @@ type UpdateInput struct {
 // ErrInvalid wraps validation failures the handler reports as 400.
 var ErrInvalid = errors.New("invalid custom agent")
 
+// Bounds of a custom agent's max_iterations: each iteration is a paid model call.
+const (
+	MinMaxIterations = 1
+	MaxMaxIterations = 20
+)
+
+// ClampMaxIterations keeps max_iterations within MinMaxIterations..MaxMaxIterations.
+func ClampMaxIterations(n int) int {
+	return min(max(n, MinMaxIterations), MaxMaxIterations)
+}
+
 // Create creates a new custom agent.
 func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.CustomAgent, error) {
 	if err := ValidateTrigger(in.TriggerType, in.TriggerConfig); err != nil {
@@ -91,6 +102,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.CustomAgent,
 	if maxIter <= 0 {
 		maxIter = 10
 	}
+	maxIter = ClampMaxIterations(maxIter)
 
 	builder := s.client.CustomAgent.Create().
 		SetTenantID(in.TenantID).
@@ -202,7 +214,7 @@ func (s *Service) Update(ctx context.Context, tenantID, agentID uuid.UUID, in Up
 		builder.SetAllowedTools(in.AllowedTools)
 	}
 	if in.MaxIterations != nil {
-		builder.SetMaxIterations(*in.MaxIterations)
+		builder.SetMaxIterations(ClampMaxIterations(*in.MaxIterations))
 	}
 	if in.IsActive != nil {
 		builder.SetIsActive(*in.IsActive)

@@ -191,6 +191,9 @@ type MetaConfig struct {
 // TikTokConfig holds TikTok Business API settings.
 type TikTokConfig struct {
 	WebhookSecret string `env:"WEBHOOK_SECRET"` // optional shared secret for webhook verification
+	// SigningSecret verifies the TikTok-Signature header (the TikTok app's client secret); the
+	// query secret above stays the fallback for events without the header.
+	SigningSecret string `env:"SIGNING_SECRET"`
 }
 
 // CrossServiceConfig holds internal URLs for S2S calls to sibling services.

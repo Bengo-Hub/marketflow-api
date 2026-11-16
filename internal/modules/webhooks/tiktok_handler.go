@@ -1,13 +1,19 @@
 package webhooks
 
 import (
-	"crypto/subtle"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"crypto/subtle"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/httpapi"
@@ -22,17 +28,23 @@ import (
 // via a shared secret query parameter. The handler upserts leads and publishes
 // a lead.created event via the outbox (handled by the lead service).
 type TikTokHandler struct {
-	leadService  *leads.Service
-	db           *sql.DB
-	sharedSecret string
-	allowOpen    bool
-	logger       *zap.Logger
+	leadService   *leads.Service
+	db            *sql.DB
+	sharedSecret  string
+	signingSecret string
+	allowOpen     bool
+	logger        *zap.Logger
+	now           func() time.Time
 }
 
 // TikTokConfig holds configuration for the TikTok webhook handler.
 type TikTokConfig struct {
 	DB           *sql.DB
 	SharedSecret string // shared secret the TikTok webhook URL carries (?secret=)
+	// SigningSecret is the key of the TikTok-Signature header (the TikTok app's client secret).
+	// When it is set and an event carries the header, the signature decides; the query secret is
+	// the fallback for events without one.
+	SigningSecret string
 	// AllowUnsigned accepts events when SharedSecret is empty; set only in development.
 	AllowUnsigned bool
 }
@@ -40,12 +52,83 @@ type TikTokConfig struct {
 // NewTikTokHandler creates a new TikTok webhook handler.
 func NewTikTokHandler(leadService *leads.Service, cfg TikTokConfig, logger *zap.Logger) *TikTokHandler {
 	return &TikTokHandler{
-		leadService:  leadService,
-		db:           cfg.DB,
-		sharedSecret: cfg.SharedSecret,
-		allowOpen:    cfg.AllowUnsigned,
-		logger:       logger.Named("webhooks.tiktok"),
+		leadService:   leadService,
+		db:            cfg.DB,
+		sharedSecret:  cfg.SharedSecret,
+		signingSecret: cfg.SigningSecret,
+		allowOpen:     cfg.AllowUnsigned,
+		logger:        logger.Named("webhooks.tiktok"),
+		now:           time.Now,
 	}
+}
+
+// maxWebhookBody is the largest webhook body read (audit M3).
+const maxWebhookBody = 1 << 20
+
+// readWebhookBody reads at most maxWebhookBody bytes; tooLarge is set when the body is bigger.
+func readWebhookBody(w http.ResponseWriter, r *http.Request) (body []byte, tooLarge bool, err error) {
+	body, err = io.ReadAll(http.MaxBytesReader(w, r.Body, maxWebhookBody))
+	var mbe *http.MaxBytesError
+	return body, errors.As(err, &mbe), err
+}
+
+// tiktokSignatureHeader carries "t=<unix seconds>,s=<hex HMAC-SHA256 of "<t>.<body>">".
+const (
+	tiktokSignatureHeader = "TikTok-Signature"
+	tiktokSignatureSkew   = 5 * time.Minute
+)
+
+// verifyTikTokSignature checks a TikTok-Signature header against the raw body.
+func verifyTikTokSignature(header string, body []byte, secret string, now time.Time) bool {
+	if secret == "" {
+		return false
+	}
+	var ts, sig string
+	for _, part := range strings.Split(header, ",") {
+		k, v, ok := strings.Cut(strings.TrimSpace(part), "=")
+		if !ok {
+			continue
+		}
+		switch k {
+		case "t":
+			ts = v
+		case "s":
+			sig = v
+		}
+	}
+	sec, err := strconv.ParseInt(ts, 10, 64)
+	if err != nil || sig == "" {
+		return false
+	}
+	if d := now.Sub(time.Unix(sec, 0)); d > tiktokSignatureSkew || d < -tiktokSignatureSkew {
+		return false
+	}
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(ts + "."))
+	mac.Write(body)
+	want := hex.EncodeToString(mac.Sum(nil))
+	return hmac.Equal([]byte(want), []byte(strings.ToLower(sig)))
+}
+
+// authorised decides whether an event is TikTok's: a valid signature first, else the query
+// secret. It never logs either secret.
+func (h *TikTokHandler) authorised(r *http.Request, body []byte) (bool, string) {
+	if sig := r.Header.Get(tiktokSignatureHeader); sig != "" && h.signingSecret != "" {
+		if !verifyTikTokSignature(sig, body, h.signingSecret, h.now()) {
+			return false, "invalid signature"
+		}
+		return true, ""
+	}
+	if h.sharedSecret == "" {
+		if !h.allowOpen {
+			return false, "webhook not configured"
+		}
+		return true, ""
+	}
+	if subtle.ConstantTimeCompare([]byte(r.URL.Query().Get("secret")), []byte(h.sharedSecret)) != 1 {
+		return false, "invalid secret"
+	}
+	return true, ""
 }
 
 // tiktokLeadWebhook represents a TikTok lead form submission webhook payload.
@@ -77,24 +160,22 @@ type tiktokLeadWebhook struct {
 // @Failure 401 {object} httpapi.ErrorResponse
 // @Router /webhooks/tiktok/leads [post]
 func (h *TikTokHandler) HandleLeads(w http.ResponseWriter, r *http.Request) {
-	// Shared secret in the query. With none configured the endpoint is closed (fail closed),
-	// except in local development: an open endpoint lets anyone create leads.
-	if h.sharedSecret == "" {
-		if !h.allowOpen {
-			h.logger.Error("tiktok webhook refused: no shared secret is configured")
-			httpapi.JSON(w, http.StatusUnauthorized, map[string]any{"error": "webhook not configured"})
-			return
-		}
-	} else if subtle.ConstantTimeCompare([]byte(r.URL.Query().Get("secret")), []byte(h.sharedSecret)) != 1 {
-		h.logger.Warn("tiktok webhook secret mismatch")
-		httpapi.JSON(w, http.StatusUnauthorized, map[string]any{"error": "invalid secret"})
+	body, tooLarge, err := readWebhookBody(w, r)
+	if tooLarge {
+		httpapi.JSON(w, http.StatusRequestEntityTooLarge, map[string]any{"error": "body too large"})
 		return
 	}
-
-	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		h.logger.Warn("read body", zap.Error(err))
 		httpapi.JSON(w, http.StatusOK, map[string]any{"status": "received"})
+		return
+	}
+	// The TikTok-Signature header when the event has one, else the shared secret in the query.
+	// With neither configured the endpoint is closed (fail closed), except in local development:
+	// an open endpoint lets anyone create leads.
+	if ok, why := h.authorised(r, body); !ok {
+		h.logger.Warn("tiktok webhook refused", zap.String("reason", why))
+		httpapi.JSON(w, http.StatusUnauthorized, map[string]any{"error": why})
 		return
 	}
 

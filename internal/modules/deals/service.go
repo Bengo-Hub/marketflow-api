@@ -2,11 +2,17 @@ package deals
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/account"
+	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/deal"
+	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/ent/pipeline"
+	"github.com/bengobox/marketflow-api/internal/ent/pipelinestage"
 	"github.com/bengobox/marketflow-api/internal/outbox"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -70,8 +76,62 @@ type ListInput struct {
 	Offset     int
 }
 
+// ErrNotInTenant is a pipeline, stage, contact, lead or account id that is not the tenant's, or a
+// stage outside the deal's pipeline. Handlers answer it 404.
+var ErrNotInTenant = errors.New("not found")
+
+// refs are the records a deal points at; nil ones are not checked.
+type refs struct {
+	pipelineID, stageID, contactID, leadID, accountID *uuid.UUID
+}
+
+// checkRefs makes sure every id names a record of the tenant, and the stage one of the pipeline.
+func (s *Service) checkRefs(ctx context.Context, tenantID uuid.UUID, r refs) error {
+	checks := []struct {
+		id    *uuid.UUID
+		exist func(uuid.UUID) (bool, error)
+	}{
+		{r.pipelineID, func(id uuid.UUID) (bool, error) {
+			return s.client.Pipeline.Query().Where(pipeline.ID(id), pipeline.TenantID(tenantID)).Exist(ctx)
+		}},
+		{r.stageID, func(id uuid.UUID) (bool, error) {
+			q := s.client.PipelineStage.Query().Where(pipelinestage.ID(id), pipelinestage.TenantID(tenantID))
+			if r.pipelineID != nil {
+				q = q.Where(pipelinestage.PipelineID(*r.pipelineID))
+			}
+			return q.Exist(ctx)
+		}},
+		{r.contactID, func(id uuid.UUID) (bool, error) {
+			return s.client.Contact.Query().Where(contact.ID(id), contact.TenantID(tenantID)).Exist(ctx)
+		}},
+		{r.leadID, func(id uuid.UUID) (bool, error) {
+			return s.client.Lead.Query().Where(lead.ID(id), lead.TenantID(tenantID)).Exist(ctx)
+		}},
+		{r.accountID, func(id uuid.UUID) (bool, error) {
+			return s.client.Account.Query().Where(account.ID(id), account.TenantID(tenantID)).Exist(ctx)
+		}},
+	}
+	for _, c := range checks {
+		if c.id == nil {
+			continue
+		}
+		ok, err := c.exist(*c.id)
+		if err != nil {
+			return fmt.Errorf("check deal references: %w", err)
+		}
+		if !ok {
+			return ErrNotInTenant
+		}
+	}
+	return nil
+}
+
 // Create creates a new deal.
 func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Deal, error) {
+	if err := s.checkRefs(ctx, in.TenantID, refs{pipelineID: &in.PipelineID, stageID: &in.StageID,
+		contactID: in.ContactID, leadID: in.LeadID, accountID: in.AccountID}); err != nil {
+		return nil, err
+	}
 	currency := in.Currency
 	if currency == "" {
 		currency = "USD"
@@ -187,6 +247,14 @@ func (s *Service) Update(ctx context.Context, tenantID, dealID uuid.UUID, in Upd
 	if err != nil {
 		return nil, err
 	}
+	// A new stage must be in the deal's own pipeline.
+	check := refs{stageID: in.StageID, contactID: in.ContactID, accountID: in.AccountID}
+	if in.StageID != nil {
+		check.pipelineID = &existing.PipelineID
+	}
+	if err := s.checkRefs(ctx, tenantID, check); err != nil {
+		return nil, err
+	}
 
 	stageChanged := in.StageID != nil && *in.StageID != existing.StageID
 	if stageChanged {
@@ -265,6 +333,9 @@ func (s *Service) Move(ctx context.Context, tenantID, dealID, stageID uuid.UUID)
 	}
 	if existing.StageID == stageID {
 		return existing, nil // already there: no move, no event
+	}
+	if err := s.checkRefs(ctx, tenantID, refs{pipelineID: &existing.PipelineID, stageID: &stageID}); err != nil {
+		return nil, err
 	}
 	result, err := s.saveStageMove(ctx, existing, func(b *ent.DealUpdateOne) { b.SetStageID(stageID) })
 	if err != nil {

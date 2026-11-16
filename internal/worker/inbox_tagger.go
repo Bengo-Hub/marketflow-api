@@ -175,14 +175,20 @@ func (t *InboxTagger) tick(ctx context.Context) (int, error) {
 }
 
 func (t *InboxTagger) ask(ctx context.Context, text, platform, kind string) (intentAnswer, error) {
+	return askInboxIntent(ctx, t.http, t.aiURL, t.aiKey, text, platform, kind)
+}
+
+// askInboxIntent asks marketflow-ai for a message's intent and injection probability. The inbox
+// tagger and the WhatsApp lead reply both use it.
+func askInboxIntent(ctx context.Context, hc *http.Client, aiURL, aiKey, text, platform, kind string) (intentAnswer, error) {
 	body, _ := json.Marshal(map[string]string{"text": text, "platform": platform, "kind": kind})
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, t.aiURL+"/api/v1/internal/inbox/intent", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, aiURL+"/api/v1/internal/inbox/intent", bytes.NewReader(body))
 	if err != nil {
 		return intentAnswer{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-API-Key", t.aiKey)
-	resp, err := t.http.Do(req)
+	req.Header.Set("X-API-Key", aiKey)
+	resp, err := hc.Do(req)
 	if err != nil {
 		return intentAnswer{}, err
 	}
