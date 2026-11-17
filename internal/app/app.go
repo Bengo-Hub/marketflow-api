@@ -62,6 +62,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/webhooks"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 	platformevents "github.com/bengobox/marketflow-api/internal/platform/events"
+	"github.com/bengobox/marketflow-api/internal/platform/fxrate"
 	"github.com/bengobox/marketflow-api/internal/platform/subscriptions"
 	"github.com/bengobox/marketflow-api/internal/providers"
 	"github.com/nats-io/nats.go"
@@ -523,7 +524,12 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 				notifications.New(notifications.Config{BaseURL: cfg.CrossService.NotificationsURL, APIKey: cfg.CrossService.InternalServiceKey}),
 				cfg.Security.PlatformTenant, "marketflow-api").SendOTP,
 			Phone: adsmanager.VerifiedPhone(redisClient, cfg.Security.AuthServiceURL, cfg.CrossService.InternalServiceKey),
-		}}
+		},
+		// A non-KES boost is sized in KES with treasury's platform rate (shared cache); no rate
+		// means the code is required.
+		KESPer: fxrate.New(cfg.CrossService.TreasuryURL, cfg.CrossService.InternalServiceKey, cfg.Security.PlatformTenant,
+			sharedcache.New(redisClient, logger)).KESPer,
+	}
 	// Social inbox (Sprint 22): the approving roles may reply for the business.
 	inboxHandler := inbox.NewHandler(entClient, keyProvider, leadService, inbox.NewGraph(meta.GraphURL).WithProof(meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret)), logger)
 	inboxHandler.CanReply = func(ctx context.Context, tenantID uuid.UUID) bool {

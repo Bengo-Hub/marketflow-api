@@ -70,25 +70,67 @@ func (m *memOTPStore) Allow(_ context.Context, key string, _ time.Duration) (boo
 	return true, nil
 }
 
+// fakeRates answers KESPer from a map; a missing currency is the error treasury gives for a pair
+// it has no rate for. down makes every call fail, as when treasury is unreachable.
+type fakeRates struct {
+	rates map[string]float64
+	down  bool
+	calls int
+}
+
+func (f *fakeRates) KESPer(_ context.Context, currency string) (float64, error) {
+	f.calls++
+	if f.down {
+		return 0, errors.New("treasury unreachable")
+	}
+	if r, ok := f.rates[currency]; ok {
+		return r, nil
+	}
+	return 0, errors.New("no exchange rate found")
+}
+
+// A non-KES boost is converted to KES with the platform rate and compared with the threshold like
+// a KES boost (owner, 2026-11-17); with no rate the code is required (fail safe).
 func TestOTPNeeded(t *testing.T) {
+	rates := &fakeRates{rates: map[string]float64{"USD": 129.5, "UGX": 0.0347}}
 	cases := []struct {
 		name      string
+		rates     *fakeRates // nil: no rate source wired
 		threshold int64
 		budget    int64
 		currency  string
 		want      bool
 	}{
-		{"off", 0, 1_000_000, "KES", false},
-		{"below", 10000, 9999, "KES", false},
-		{"at the threshold", 10000, 10000, "KES", true},
-		{"above", 10000, 50000, "kes", true},
-		{"another currency always asks", 10000, 5, "USD", true},
-		{"another currency, code off", 0, 5000, "USD", false},
+		{"off", rates, 0, 1_000_000, "KES", false},
+		{"KES under", rates, 5000, 4999, "KES", false},
+		{"KES at the threshold", rates, 5000, 5000, "KES", true},
+		{"KES over", rates, 5000, 50000, "kes", true},
+		{"USD under", rates, 5000, 38, "USD", false},      // KES 4,921
+		{"USD over", rates, 5000, 39, "usd", true},        // KES 5,050.5, rounded up
+		{"UGX under", rates, 5000, 144_000, "UGX", false}, // KES 4,996.8, rounded up to 4,997
+		{"UGX over", rates, 5000, 145_000, "UGX", true},   // KES 5,031.5
+		{"rate unavailable", &fakeRates{down: true}, 5000, 1, "USD", true},
+		{"unknown currency", rates, 5000, 1, "XYZ", true},
+		{"empty currency", rates, 5000, 1, "", true},
+		{"no rate source", nil, 5000, 1, "USD", true},
+		{"another currency, code off", &fakeRates{down: true}, 0, 5000, "USD", false},
 	}
 	for _, c := range cases {
-		if got := otpNeeded(c.threshold, c.budget, c.currency); got != c.want {
+		h := &Handler{Logger: zap.NewNop()}
+		if c.rates != nil {
+			h.KESPer = c.rates.KESPer
+		}
+		if got := h.otpNeeded(context.Background(), c.threshold, c.budget, c.currency); got != c.want {
 			t.Errorf("%s: got %v", c.name, got)
 		}
+	}
+	// A KES boost and a switched-off threshold never read a rate.
+	quiet := &fakeRates{down: true}
+	h := &Handler{Logger: zap.NewNop(), KESPer: quiet.KESPer}
+	h.otpNeeded(context.Background(), 5000, 6000, "KES")
+	h.otpNeeded(context.Background(), 0, 6000, "USD")
+	if quiet.calls != 0 {
+		t.Fatalf("no rate is read for KES or with the code off: %d calls", quiet.calls)
 	}
 }
 
@@ -312,6 +354,7 @@ func TestCheckBoostCode(t *testing.T) {
 		{"below the threshold", 10000, small, "", "", true, 200},
 		{"switched off", 0, big, "", "", true, 200},
 		{"needs a code", 10000, big, "", "", false, 428},
+		{"USD with no rate needs a code", 10000, Quote{Currency: "USD", Budget: 5}, "", "", false, 428},
 		{"wrong code", 10000, big, id, "999999", false, 422},
 		{"right code", 10000, big, id, code, true, 200},
 		{"code already used", 10000, big, id, code, false, 422},

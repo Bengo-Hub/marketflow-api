@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -29,6 +30,8 @@ import (
 
 // A boost whose total reaches the tenant's threshold (os-settings boost_otp_threshold_kes) needs a
 // six-digit code sent on WhatsApp to the verified number of the person launching it (audit M1).
+// A boost in another currency is converted to KES with treasury's rate first (owner, 2026-11-17);
+// when no rate can be read the code is required.
 // The code is bound to the boost it was asked for: the video, the total, the days and the ad
 // account that pays.
 const (
@@ -103,21 +106,39 @@ func maskPhone(phone string) string {
 	return "+" + d[:4] + "****" + d[len(d)-3:]
 }
 
-// budgetKES is the boost total in KES. Ad budgets have no exchange rate in MarketFlow yet, so
-// only a KES account converts; ok is false for every other currency.
-func budgetKES(budget int64, currency string) (int64, bool) {
-	if strings.EqualFold(strings.TrimSpace(currency), "KES") {
+// budgetKES is the boost total in KES. A KES account needs no rate; any other currency is
+// converted with treasury's platform rate (h.KESPer, cached in the shared Redis cache), rounded
+// up. ok is false when the rate cannot be read (no source, treasury down, a currency treasury has
+// no rate for), and the caller fails safe by asking for the code.
+func (h *Handler) budgetKES(ctx context.Context, budget int64, currency string) (int64, bool) {
+	cur := strings.ToUpper(strings.TrimSpace(currency))
+	if cur == "KES" {
 		return budget, true
 	}
-	return 0, false
+	if h.KESPer == nil {
+		h.Logger.Warn("boost: no exchange rate source, confirmation code required", zap.String("currency", cur))
+		return 0, false
+	}
+	rate, err := h.KESPer(ctx, cur)
+	if err != nil || rate <= 0 || math.IsNaN(rate) || math.IsInf(rate, 0) {
+		h.Logger.Warn("boost: exchange rate unavailable, confirmation code required", zap.String("currency", cur),
+			zap.Float64("rate", rate), zap.Error(err))
+		return 0, false
+	}
+	kes := math.Ceil(float64(budget) * rate)
+	if kes >= math.MaxInt64 {
+		return math.MaxInt64, true
+	}
+	return int64(kes), true
 }
 
-// otpNeeded: threshold 0 turns the code off; a total that cannot be read in KES always needs it.
-func otpNeeded(thresholdKES, budget int64, currency string) bool {
+// otpNeeded: threshold 0 turns the code off (no rate is read); a total that cannot be read in KES
+// always needs the code.
+func (h *Handler) otpNeeded(ctx context.Context, thresholdKES, budget int64, currency string) bool {
 	if thresholdKES <= 0 {
 		return false
 	}
-	kes, ok := budgetKES(budget, currency)
+	kes, ok := h.budgetKES(ctx, budget, currency)
 	return !ok || kes >= thresholdKES
 }
 
@@ -204,7 +225,7 @@ func (h *Handler) boostConfirmed(w http.ResponseWriter, r *http.Request, tid uui
 
 func (h *Handler) checkBoostCode(w http.ResponseWriter, r *http.Request, tid uuid.UUID, threshold int64, in BoostInput, assetID string, q Quote) bool {
 	ctx := r.Context()
-	if !otpNeeded(threshold, q.Budget, q.Currency) {
+	if !h.otpNeeded(ctx, threshold, q.Budget, q.Currency) {
 		return true
 	}
 	if strings.TrimSpace(in.OTPID) == "" || strings.TrimSpace(in.OTPCode) == "" {
