@@ -349,6 +349,43 @@ func (s RedisOTPStore) Allow(ctx context.Context, key string, wait time.Duration
 	return s.RDB.SetNX(ctx, key+":resend", "1", wait).Result()
 }
 
+// VerifiedPhone finds the person's verified phone through auth-api's S2S
+// GET /api/v1/s2s/users/{user_id}/phone (added 2026-11-17), so the code works for anyone with a
+// verified number, not only people who have messaged the assistant. A JSON 404 means the person has
+// no verified phone. While auth-api does not serve the route yet (an older deploy answers a plain
+// 404 or another error), it falls back to the assistant number (AssistantPhone).
+func VerifiedPhone(rdb *redis.Client, authURL, authKey string) func(ctx context.Context, tid, user uuid.UUID) (string, error) {
+	hc := reqid.Client(10 * time.Second)
+	base := strings.TrimSuffix(authURL, "/")
+	fallback := AssistantPhone(rdb, authURL, authKey)
+	return func(ctx context.Context, tid, user uuid.UUID) (string, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/v1/s2s/users/"+user.String()+"/phone", nil)
+		if err != nil {
+			return "", err
+		}
+		req.Header.Set("X-API-Key", authKey)
+		resp, err := hc.Do(req)
+		if err != nil {
+			return fallback(ctx, tid, user)
+		}
+		defer resp.Body.Close()
+		var body struct {
+			Phone string `json:"phone"`
+			Error string `json:"error"`
+			Code  string `json:"code"`
+		}
+		decoded := json.NewDecoder(resp.Body).Decode(&body) == nil
+		switch {
+		case resp.StatusCode == http.StatusOK && decoded && body.Phone != "":
+			return strings.TrimPrefix(strings.TrimSpace(body.Phone), "+"), nil
+		case resp.StatusCode == http.StatusNotFound && decoded && (body.Error == "not_found" || body.Code == "not_found"):
+			return "", nil
+		default:
+			return fallback(ctx, tid, user)
+		}
+	}
+}
+
 // AssistantPhone finds the user's verified WhatsApp number: the number they last wrote to the
 // MarketFlow assistant from for this tenant (the worker keeps it), checked again with auth-api's
 // verified phone lookup so a number the user since removed is never used.

@@ -522,7 +522,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Send: creative.NewPlatformWhatsApp(entClient,
 				notifications.New(notifications.Config{BaseURL: cfg.CrossService.NotificationsURL, APIKey: cfg.CrossService.InternalServiceKey}),
 				cfg.Security.PlatformTenant, "marketflow-api").SendOTP,
-			Phone: adsmanager.AssistantPhone(redisClient, cfg.Security.AuthServiceURL, cfg.CrossService.InternalServiceKey),
+			Phone: adsmanager.VerifiedPhone(redisClient, cfg.Security.AuthServiceURL, cfg.CrossService.InternalServiceKey),
 		}}
 	// Social inbox (Sprint 22): the approving roles may reply for the business.
 	inboxHandler := inbox.NewHandler(entClient, keyProvider, leadService, inbox.NewGraph(meta.GraphURL).WithProof(meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret)), logger)
