@@ -96,6 +96,8 @@ type leadReplyAnswer struct {
 	Reply         string `json:"reply"`
 	Handoff       bool   `json:"handoff"`
 	HandoffReason string `json:"handoff_reason"`
+	// ReviewNotes are marketflow-ai's marketing-law notes on Reply (advice for the owner only).
+	ReviewNotes []string `json:"review_notes"`
 }
 
 // handleLeadReply answers a lead's WhatsApp message. It reports whether the message was a lead's.
@@ -122,7 +124,7 @@ func (h *WhatsAppAssistantHandler) handleLeadReply(ctx context.Context, in waInb
 	}
 	threshold, _ := t.Metadata[tenantHandoffKey].(float64)
 	ref := "wa-in-" + in.WaMessageID
-	_ = logWhatsAppActivity(ctx, h.db, l, "inbound", in.Text, ref)
+	_ = logWhatsAppActivity(ctx, h.db, l, "inbound", in.Text, ref, nil)
 	// The business switched the assistant off (Sprint 23 L45): the message stays on the
 	// timeline for a person to answer.
 	if on, set := t.Metadata[tenantAutoReplyKey].(bool); set && !on {
@@ -151,7 +153,7 @@ func (h *WhatsAppAssistantHandler) handleLeadReply(ctx context.Context, in waInb
 		}); err != nil {
 			return true, err
 		}
-		_ = logWhatsAppActivity(ctx, h.db, l, "outbound", ans.Reply, "wa-out-"+in.WaMessageID)
+		_ = logWhatsAppActivity(ctx, h.db, l, "outbound", ans.Reply, "wa-out-"+in.WaMessageID, ans.ReviewNotes)
 	}
 	if ans.Handoff {
 		h.handOff(ctx, t, l, in.Text, ans.HandoffReason)
@@ -222,14 +224,23 @@ func (h *WhatsAppAssistantHandler) handOff(ctx context.Context, t *ent.Tenant, l
 	}
 }
 
-// logWhatsAppActivity records one WhatsApp message on the lead's timeline.
-func logWhatsAppActivity(ctx context.Context, db *ent.Client, l *ent.Lead, direction, text, ref string) error {
+// logWhatsAppActivity records one WhatsApp message on the lead's timeline. reviewNotes (the
+// assistant's marketing-law notes on its own reply, advice for the owner) go in the activity's
+// metadata under "review_notes", so the timeline can show them beside the message.
+func logWhatsAppActivity(ctx context.Context, db *ent.Client, l *ent.Lead, direction, text, ref string, reviewNotes []string) error {
 	if len(text) > 4000 {
 		text = text[:4000]
 	}
-	return db.Activity.Create().SetTenantID(l.TenantID).SetEntityType("lead").SetEntityID(l.ID).
+	create := db.Activity.Create().SetTenantID(l.TenantID).SetEntityType("lead").SetEntityID(l.ID).
 		SetActivityType("whatsapp").SetDirection(direction).SetBody(text).SetSource("agent").
-		SetExternalRef(ref).SetPerformedAt(time.Now().UTC()).Exec(ctx)
+		SetExternalRef(ref).SetPerformedAt(time.Now().UTC())
+	if len(reviewNotes) > 0 {
+		if len(reviewNotes) > 10 {
+			reviewNotes = reviewNotes[:10]
+		}
+		create = create.SetMetadata(map[string]any{"review_notes": reviewNotes})
+	}
+	return create.Exec(ctx)
 }
 
 // tenantBannedClaims reads the brand context's banned claims from tenant metadata.
