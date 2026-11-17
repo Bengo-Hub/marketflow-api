@@ -27,6 +27,33 @@ func TestFlaggedForReview(t *testing.T) {
 	if len(got) != 3 || !strings.Contains(got[0], "health") || !strings.Contains(got[1], "claims a cure") {
 		t.Fatalf("flags: %v", got)
 	}
+
+	// The marketing laws' review (marketflow-ai team/laws_review.go, 2026-11-17): an unproven
+	// "best" claim comes back with severity review and holds the video for a person; the format
+	// advice (no hook, a vague call to action) is low and does not. Urgency, scarcity or a "was"
+	// price with no fact behind it never arrives here: the script is blocked in marketflow-ai.
+	laws := &ent.CreativeVersion{Metadata: map[string]any{"findings": []any{
+		map[string]any{"severity": "review", "issue": `marketing law (superlative): a "best" or "No. 1" claim the facts do not prove`},
+		map[string]any{"severity": "low", "issue": "the call to action asks for more than one next step (call, whatsapp)"},
+	}}}
+	if got := FlaggedForReview(laws); len(got) != 1 || !strings.Contains(got[0], "marketing law (superlative)") {
+		t.Fatalf("only the unproven superlative holds the video: %v", got)
+	}
+}
+
+// The script writer may use a deadline only when the facts carry it. marketflow-ai's urgency check
+// (compliance/data/business_types.yaml, marketing_laws) reads "Offer ends: <day> <Month> <year>",
+// so the wording here is a contract between the two services.
+func TestOfferingFactsCarryTheRealDeadline(t *testing.T) {
+	got := offeringFacts(map[string]any{"price": 850.0, "promo_code": "SUN10", "ends_at": "2026-11-30T21:00:00Z", "description": "20% off. Weekend promo"})
+	for _, want := range []string{"Price: KES 850", "Promotion code: SUN10", "Offer ends: 30 November 2026", "20% off"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("offering facts lack %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(offeringFacts(map[string]any{"price": 850.0}), "ends") {
+		t.Fatal("an offering without an end date must not carry one")
+	}
 }
 
 // The agent's storyboard approval is kept apart from a person's; the veto window's approval
