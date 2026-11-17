@@ -1,0 +1,416 @@
+[
+  {
+    "scope": "platform",
+    "category": "platform_overview",
+    "title": "What is Codevertex Africa Limited?",
+    "content": "Codevertex Africa Limited is a Private Limited Company incorporated in Kenya on 21 May 2026 (Company No: PVT-VQ1OEVB3, KRA PIN: P052543168K). Formerly operating as Codevertex IT Solutions (established 2020), the company builds enterprise software, AI-powered tools, and provides tech education through Digitika Academy. We serve businesses across Africa with solutions including CRM, POS, ordering, logistics, ISP billing, ERP, and financial management systems.",
+    "tags": ["company", "overview", "codevertex", "kenya", "kisumu", "incorporated", "pvt"]
+  },
+  {
+    "scope": "platform",
+    "category": "platform_overview",
+    "title": "Codevertex Africa Limited — Company Registration & Legal Details",
+    "content": "Codevertex Africa Limited is a Private Limited Company incorporated in Kenya on 21 May 2026 under the Companies Act, 2015. Company Number: PVT-VQ1OEVB3. KRA PIN: P052543168K. Nominal share capital: KES 100,000 (1,000 ordinary shares at KES 100 each). Registered office: Pioneer House, Oginga-Odinga Road, Kisumu CBD, Kisumu East District, Kisumu County. Postal address: P.O. Box 49, 40100 – Kisumu, Kenya. Primary support phone: +254 743 793 901. Alternative: +254 792 548 766 | +254 742 201 368. Email: info@codevertexafrica.com.",
+    "tags": ["company", "registration", "incorporated", "legal", "pvt", "pvt-vq1oevb3", "kra", "pin", "p052543168k"]
+  },
+  {
+    "scope": "platform",
+    "category": "platform_overview",
+    "title": "Codevertex Africa Limited — Founders and Leadership",
+    "content": "Codevertex Africa Limited was co-founded by three Kenyan nationals: Robinson Bill Obura (Co-Founder & Director), Titus Ooko Owuor (Co-Founder & Director), and Ryan Mwakala Njumwa (Co-Founder). Robinson and Titus serve as Co-Directors responsible for strategic vision and operational leadership. Ryan provides strategic investment and board-level oversight.",
+    "tags": ["founders", "directors", "leadership", "robinson", "bill", "titus", "ryan", "shareholders", "ownership"]
+  },
+  {
+    "scope": "platform",
+    "category": "platform_overview",
+    "title": "What services does Codevertex offer?",
+    "content": "Codevertex sells the Power Suite, 14 products that share one sign-in: ERP Suite (HR, payroll, procurement), Books and Treasury (ledger, invoicing, KRA eTIMS), POS System (shops, restaurants, hotels; works offline), Ordering Platform (online shop and delivery tracking), Projects (milestones, budgets, timesheets), Inventory (stock per branch and warehouse), Logistics (dispatch and rider tracking), TruLoad (axle-load weighbridges), ISP Billing (hotspot and PPPoE billing), Codevertex Afya (clinics and pharmacies), MarketFlow and Vera AI (CRM, leads, AI chat), Ticketing (helpdesk), Library Management, and the Notifications Engine (email, WhatsApp, SMS, push). Maskani (estates and property management) is sold separately. Services: web and mobile apps, AI and automation, e-commerce, cloud and hosting, cybersecurity, IoT and PLC automation, and Digitika Academy training.",
+    "tags": ["services", "products", "overview", "platform", "power suite", "catalogue"],
+    "metadata": {"source": "codevertex-website/src/config/services.ts", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "platform_overview",
+    "title": "How do I contact Codevertex?",
+    "content": "You can reach Codevertex Africa Limited through: Website: https://codevertexafrica.com | Email: info@codevertexafrica.com | Primary phone: +254 743 793 901 | Also: +254 792 548 766 | +254 742 201 368 | Physical office: Pioneer House, Oginga-Odinga Road, Kisumu CBD, Kenya. For support tickets, use the support portal or ask Vera to create a ticket for you.",
+    "tags": ["contact", "support", "email", "phone", "location"]
+  },
+  {
+    "scope": "platform",
+    "category": "platform_overview",
+    "title": "Who are Codevertex's clients and partners?",
+    "content": "Published Codevertex projects (codevertexafrica.com/projects): (1) Library Management installed at Migori County Community Library, with desk equipment and user acceptance training for the library staff (July 2026). (2) Number-plate (ANPR) cameras installed at the KeNHA Kanyonyo weighbridge station and connected to its weighing software; that connector now runs inside TruLoad (January 2025). (3) Codevertex team members served as panelists at the MUCISA Hackathon 2025 at Maseno University, part of ongoing work with Maseno students. Other client names are shared only with the client's permission; ask the sales team (sales@codevertexafrica.com) for a reference in your sector.",
+    "tags": ["clients", "partners", "projects", "proof", "references", "migori", "kenha", "maseno"],
+    "metadata": {"source": "codevertex-website/prisma/seed/projects.ts (published projects only)", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "marketflow_crm",
+    "title": "What is MarketFlow CRM?",
+    "content": "MarketFlow is an AI-enhanced Customer Relationship Management (CRM) platform built by Codevertex. It helps businesses manage leads, run AI-powered marketing campaigns, track customer interactions, book meetings, and automate follow-ups. MarketFlow is powered by Vera, the Codevertex AI assistant, which can answer customer questions, generate content, and qualify leads automatically.",
+    "tags": ["marketflow", "crm", "leads", "marketing", "ai", "vera"]
+  },
+  {
+    "scope": "platform",
+    "category": "marketflow_crm",
+    "title": "What can MarketFlow do for my business?",
+    "content": "MarketFlow enables: (1) Lead capture and management with AI scoring; (2) AI-generated marketing campaigns and email copy; (3) Embeddable AI chat widget (Vera) for your website; (4) Meeting booking and calendar integration; (5) Pipeline management and deal tracking; (6) Multi-tenant support for agencies managing multiple clients; (7) Integration with WhatsApp, Google Calendar, and Meta platforms.",
+    "tags": ["marketflow", "features", "leads", "campaigns", "integration"]
+  },
+  {
+    "scope": "platform",
+    "category": "marketflow_crm",
+    "title": "How do I embed the Vera chat widget on my website?",
+    "content": "Add this script tag to your website's HTML before the closing </body> tag: <script src=\"https://marketflow.codevertexafrica.com/widget/chat.js\" data-tenant=\"your-tenant-slug\" data-mode=\"tenant\" data-api-url=\"https://marketflowai.codevertexafrica.com\" async></script>. Replace 'your-tenant-slug' with your MarketFlow tenant ID. For platform mode (all Codevertex services), use data-mode=\"platform\".",
+    "tags": ["widget", "vera", "embed", "chat", "javascript", "installation"]
+  },
+  {
+    "scope": "platform",
+    "category": "auth_sso",
+    "title": "What is Codevertex SSO?",
+    "content": "Codevertex provides a unified Single Sign-On (SSO) system at sso.codevertexafrica.com. It supports OAuth 2.0 / OIDC protocols with Google, Microsoft, and GitHub providers. The SSO system handles authentication for all Codevertex services — users log in once and access all authorized applications. It uses JWT tokens with JWKS-based verification.",
+    "tags": ["sso", "auth", "login", "oauth", "jwt", "security"]
+  },
+  {
+    "scope": "platform",
+    "category": "auth_sso",
+    "title": "How does Codevertex handle user authentication?",
+    "content": "Authentication is managed by the auth-api service at sso.codevertexafrica.com. It supports: (1) Email/password login; (2) Google OAuth; (3) Microsoft OAuth; (4) GitHub OAuth; (5) Just-in-time (JIT) user provisioning for new SSO users; (6) RBAC (Role-Based Access Control) for authorization; (7) Multi-tenant isolation — users see only their tenant's data.",
+    "tags": ["auth", "security", "oauth", "rbac", "tenants", "sso"]
+  },
+  {
+    "scope": "platform",
+    "category": "ordering_pos",
+    "title": "What is the Codevertex Ordering Platform?",
+    "content": "The Ordering Platform gives a restaurant or retailer its own online shop and menu under its own name. Customers order and pay online (M-Pesa or card) or on delivery, and the business follows each order from the kitchen or store to the doorstep with live order and rider tracking. It shares stock with Inventory and the POS, so what sells online and at the counter comes off the same count. Who it is for: restaurants, cafes and shops that take orders by phone or WhatsApp today and lose track of them. Ordering is included in every PowerSuite plan (Hospitality, Retail and Pharmacy). Website: https://ordering.codevertexafrica.com. Next step: WhatsApp +254 743 793 901 or https://codevertexafrica.com/contact?service=ordering.",
+    "tags": ["ordering", "ecommerce", "products", "payments", "paystack"]
+  },
+  {
+    "scope": "platform",
+    "category": "ordering_pos",
+    "title": "What is the Codevertex POS system?",
+    "content": "The Codevertex POS is a point of sale for shops, restaurants, hotels and pharmacies. It keeps selling at the counter when the internet drops and syncs later. It takes M-Pesa, card, cash and split payments, prints receipts or sends them on WhatsApp, and handles shifts and cash-up. Restaurants get kitchen and bar tickets, a kitchen display and table service; shops get barcode scanning. Stock comes off the same Inventory count as online orders. The outcome: the day closes with sales, cash and stock that agree, without a notebook. The POS is sold inside the PowerSuite plans for Retail (Duka), Hospitality and Pharmacy (Dawa). Website: https://pos.codevertexafrica.com. User guide: https://docs.codevertexafrica.com/user-guide/pos/.",
+    "tags": ["pos", "point of sale", "retail", "payments", "inventory", "barcode"]
+  },
+  {
+    "scope": "platform",
+    "category": "ordering_pos",
+    "title": "How does payment processing work?",
+    "content": "Payments across Codevertex products run through Books and Treasury (https://books.codevertexafrica.com). Customers pay by M-Pesa or card through the gateways Treasury connects to: M-Pesa, PayHero and Paystack. When a customer is ready to pay, they get a secure payment link or an M-Pesa prompt on their phone, and every payment is recorded in the business's ledger. Codevertex subscription invoices and Digitika course fees are paid the same way, at https://books.codevertexafrica.com/pay.",
+    "tags": ["payments", "paystack", "mpesa", "treasury", "billing"]
+  },
+  {
+    "scope": "platform",
+    "category": "finance_treasury",
+    "title": "What is the Codevertex Finance Suite?",
+    "content": "Books and Treasury is the Codevertex finance product for finance teams and owners. It covers invoices, quotations, receipts and expenses with a full general ledger, KRA eTIMS invoices and credit notes built in, M-Pesa, PayHero and card collections, payment links, receivables, payables and bank reconciliation. The outcome: invoices that are eTIMS-ready when they are issued and payments that land in the books without retyping. Website: https://books.codevertexafrica.com. User guide: https://docs.codevertexafrica.com/user-guide/treasury/.",
+    "tags": ["finance", "invoicing", "treasury", "payments", "accounting", "reports"]
+  },
+  {
+    "scope": "platform",
+    "category": "logistics_tracking",
+    "title": "What is TruLoad?",
+    "content": "TruLoad is Codevertex's axle-load weighing and enforcement system for road agencies, weighbridge operators and transporters. It runs static and mobile weighbridges, captures each truck's number plate with ANPR cameras alongside its weight, keeps enforcement and case records, and issues commercial weight tickets. TruConnect, part of TruLoad, reads the scales at each station. Proof: Codevertex installed ANPR cameras at the KeNHA Kanyonyo weighbridge station and connected them to the weighing software (January 2025). TruLoad is not a delivery or fleet tool; for deliveries see Logistics. Website: https://truload.codevertexafrica.com.",
+    "tags": ["truload", "weighbridge", "axle load", "anpr", "enforcement", "kenha", "transporters"],
+    "metadata": {"source": "codevertex-website/src/config/services.ts; codevertex-website/prisma/seed/projects.ts", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "logistics_tracking",
+    "title": "How does the logistics service work?",
+    "content": "Codevertex Logistics handles delivery and dispatch for businesses with their own riders. It sets delivery zones and fee quotes, dispatches orders to riders, shows each rider's live location on a map, and the rider app captures proof of delivery. Customers get status updates as the order moves. Logistics is included in the PowerSuite plans (riders, dispatch, zones, quotes and proof of delivery from the first tier; auto-assignment, rider shifts and payouts from the second). Website: https://logistics.codevertexafrica.com. Next step: WhatsApp +254 743 793 901.",
+    "tags": ["logistics", "shipments", "delivery", "routes", "tracking"]
+  },
+  {
+    "scope": "platform",
+    "category": "isp_billing",
+    "title": "What is ISP Billing?",
+    "content": "Codevertex ISP Billing is a specialized billing and subscriber management system for Internet Service Providers. Features include: subscriber registration and KYC, data plan management, automatic billing cycles, payment integration (M-Pesa/card), bandwidth quota tracking, radius authentication integration, and automated suspension/reactivation. Built for ISPs operating in Kenya and East Africa.",
+    "tags": ["isp", "billing", "internet", "subscribers", "mpesa", "radius"]
+  },
+  {
+    "scope": "platform",
+    "category": "subscriptions",
+    "title": "How does the Codevertex subscriptions system work?",
+    "content": "The subscriptions service manages plan tiers, billing cycles, and feature entitlements for all Codevertex products. Tenants subscribe to plans that define feature access, usage limits (API calls, users, storage), and billing amounts. The service integrates with Paystack for recurring billing, emits usage events for metered features, and enforces quotas across all connected services.",
+    "tags": ["subscriptions", "plans", "billing", "quotas", "tiers", "entitlements"]
+  },
+  {
+    "scope": "platform",
+    "category": "subscriptions",
+    "title": "What subscription plans does Codevertex offer?",
+    "content": "Each Codevertex product has its own monthly plans in KES, listed with a live price and trial at https://codevertexafrica.com/pricing. Monthly list prices in the plan catalogue (November 2026): MarketFlow from free (Starter) then 1,500, 3,500, 8,500 and 15,000; PowerSuite Retail 2,500 / 4,000 / 8,500, Hospitality 2,500 / 4,000 / 6,500, Pharmacy 1,500 / 3,000 / 6,000; Books and Treasury 4,000 / 8,000 / 15,000; ERP 10,000 / 20,000 / 35,000; Codevertex Afya from 4,500; Library 1,500 / 4,000 / 9,000; TruLoad 3,500 / 6,000 / 12,500; Maskani 10,000 / 20,000 / 35,000; ISP Billing 500 base plus usage. Most paid plans have a 14-day free trial, and some carry a one-time setup fee. Larger ERP and Maskani tiers are quoted. Always confirm the current price on the pricing page.",
+    "tags": ["pricing", "plans", "tiers", "enterprise", "subscription", "kes", "trial"],
+    "metadata": {"source": "subscriptions-api/cmd/seed/plans_*.go and setup_fees.go; live prices at codevertexafrica.com/pricing", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "notifications",
+    "title": "How does Codevertex handle notifications?",
+    "content": "The notifications service delivers messages across multiple channels: Email (transactional and marketing), SMS (Africa's Talking / direct gateway), WhatsApp Business API, and push notifications (mobile apps). Notifications are event-driven via NATS JetStream — any service publishes events and the notifications service handles delivery. SMS and WhatsApp are never rate-limited by subscription plan (they have their own cost models).",
+    "tags": ["notifications", "email", "sms", "whatsapp", "push", "alerts"]
+  },
+  {
+    "scope": "platform",
+    "category": "erp",
+    "title": "What ERP features does Codevertex offer?",
+    "content": "The ERP Suite is for companies and SMEs that want people, payroll, purchasing and customer records in one place. It covers staff records and leave, payroll with statutory deductions, procurement with approvals, and CRM, with role-based access for every department. ERP plans also include the commerce stack (ordering, POS, inventory, payments and CRM). Monthly list prices (November 2026): Starter KES 10,000 for up to 25 employees, Growth KES 20,000 for up to 75, Professional KES 35,000 for up to 200, and Enterprise by quote; 14-day free trial and a KES 10,000 implementation fee. Website: https://erp.codevertexafrica.com. Next step: https://codevertexafrica.com/contact?service=erp or WhatsApp +254 743 793 901.",
+    "tags": ["erp", "hr", "payroll", "procurement", "leave", "pricing"],
+    "metadata": {"source": "codevertex-website/src/config/services.ts; subscriptions-api/cmd/seed/plans_erp.go; setup_fees.go", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "ticketing",
+    "title": "How does the Codevertex ticketing system work?",
+    "content": "The ticketing service handles support requests for both tenants (businesses using Codevertex software) and their end customers. Features include: ticket creation via web, API, or AI (Vera creates tickets automatically when she can't resolve an issue); priority levels (low/medium/high/urgent); category routing (billing/technical/sales/general); AI-assisted triage; and SLA tracking. Tickets can be created programmatically using the S2S API.",
+    "tags": ["ticketing", "support", "tickets", "help desk", "sla", "ai triage"]
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_courses",
+    "title": "What is Digitika?",
+    "content": "Digitika Academy is Codevertex's training arm. It teaches software engineering, ICDL digital skills (Levels 1 to 5), Cisco CCNA v7 networking, artificial intelligence, data analytics, and CBC-aligned tech programmes for children and teens aged 6 to 16, in class in Kisumu and online, with certificates and corporate training packages. It is for beginners changing careers, students, working professionals and teams. Proof: the team served as panelists at the MUCISA Hackathon 2025 at Maseno University, part of ongoing work with Maseno students. Courses, prices and dates: https://codevertexafrica.com/digitika.",
+    "tags": ["digitika", "education", "courses", "training", "tech", "upskilling"]
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_courses",
+    "title": "What courses does Digitika offer?",
+    "content": "Digitika course families: (1) Software Engineering: Code-Starter (10 weeks, beginners), Full-Stack Web Development, Mobile App Development, Cloud Engineering and DevOps, Cybersecurity Fundamentals, Web Design for Teens. (2) Digitika Kids and Teens: Tech Explorers (ages 6 to 10), Young Innovators game development and Python, and robotics, IoT and AI (ages 10 to 16). (3) ICDL Levels 1 to 5. (4) Cisco CCNA v7 Parts 1 to 3 and a CCNA exam prep bootcamp. (5) AI: AI Fundamentals, Machine Learning with Python, Generative AI and LLMs, AI for Business and Leaders. (6) Data Analytics: Python, Power BI, SQL, and advanced analytics and storytelling. Current prices, intakes and installment options are on each course page at https://codevertexafrica.com/digitika.",
+    "tags": ["courses", "bootcamp", "icdl", "ccna", "ai", "data analytics", "kids", "software engineering"],
+    "metadata": {"source": "codevertex-website/prisma/seed/courses.ts; src/config/courses.ts", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_bootcamp",
+    "title": "What is the Code-Starter Bootcamp?",
+    "content": "Code-Starter (Introduction to Software Engineering) is Digitika's flagship 10-week bootcamp for complete beginners. Learners cover HTML, CSS and responsive design, Tailwind, Python, JavaScript and the DOM, Git and GitHub, and an AI-assisted development workflow. They finish with 3 or more GitHub portfolio projects, sit 2 ICDL certification exams, get a career roadmap session and a certificate of completion. It runs hybrid: in person at the Kisumu hub with live Zoom access for remote learners. Fee: KES 30,000, payable upfront or in 2 or 3 installments. Enrol at https://codevertexafrica.com/digitika.",
+    "tags": ["code-starter", "bootcamp", "software engineering", "beginners", "python", "javascript", "icdl"],
+    "metadata": {"source": "codevertex-website/prisma/seed/courses.ts (code-starter)", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_bootcamp",
+    "title": "What is the Code-Starter Bootcamp curriculum?",
+    "content": "Code-Starter 10-week curriculum: Week 1 Developer setup and Git (command line, GitHub, first repo). Week 2 Web foundations with HTML and CSS (build a personal profile page). Week 3 CSS frameworks, Bootstrap 5 and Tailwind. Week 4 Portfolio project week (multi-page site on GitHub Pages, code review, ICDL module 1 prep). Week 5 Python foundations (build a quiz game). Week 6 Python applications (APIs, automation, a weather CLI tool). Week 7 JavaScript and the DOM (an interactive to-do app). Week 8 AI tools and prompt engineering for developers. Week 9 Capstone project, built, reviewed and deployed. Week 10 ICDL exams, portfolio presentations and graduation.",
+    "tags": ["curriculum", "bootcamp", "python", "javascript", "git", "html", "css", "icdl"],
+    "metadata": {"source": "codevertex-website/prisma/seed/courses.ts (CODE_STARTER_CURRICULUM)", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_bootcamp",
+    "title": "What does the Code-Starter Bootcamp include?",
+    "content": "Code-Starter includes: 10 weeks of instructor-led sessions; 2 ICDL certification exams; 3 or more real GitHub projects; hybrid attendance, in person in Kisumu or on Zoom; a career roadmap session; a GitHub portfolio review; alumni network access; and a certificate of completion. Learners bring their own laptop.",
+    "tags": ["bootcamp", "includes", "projects", "certificate", "career", "icdl", "laptop"],
+    "metadata": {"source": "codevertex-website/prisma/seed/courses.ts (code-starter includes)", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_bootcamp",
+    "title": "How much does the Code-Starter Bootcamp cost?",
+    "content": "Code-Starter costs KES 30,000 in total, whichever way it is paid. Upfront: KES 30,000. Two installments: KES 18,000 at enrolment (week 1) and KES 12,000 in week 6. Three installments: KES 12,000 at enrolment, KES 10,000 in week 4 and KES 8,000 in week 7. Payment is by M-Pesa or card through Codevertex Books (https://books.codevertexafrica.com/pay). For a group or company booking, ask sales@codevertexafrica.com about corporate training packages.",
+    "tags": ["pricing", "cost", "installments", "payment", "mpesa", "bootcamp"]
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_bootcamp",
+    "title": "How do I enroll in the Code-Starter Bootcamp?",
+    "content": "To enroll in the Code-Starter Bootcamp: (1) Visit https://codevertexafrica.com/digitika; (2) Click 'Enroll Now' on the Code-Starter card; (3) Fill in the enrollment form (name, email, phone, experience level); (4) Choose your payment plan; (5) Complete payment via M-Pesa or card; (6) Receive confirmation email with cohort start date and pre-course materials. You can also ask Vera (this AI) to start the enrollment process for you.",
+    "tags": ["enrollment", "how to enroll", "register", "sign up", "bootcamp"]
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_bootcamp",
+    "title": "Where is the Code-Starter Bootcamp held?",
+    "content": "Code-Starter runs hybrid: in person at the Codevertex hub in Kisumu, Kenya, with live Zoom access for learners who cannot attend in person. The schedule and start date of the next intake are on the course page at https://codevertexafrica.com/digitika, or ask on WhatsApp +254 743 793 901 or info@codevertexafrica.com.",
+    "tags": ["location", "kisumu", "kenya", "in-person", "online", "hybrid", "schedule"]
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_bootcamp",
+    "title": "Do I need programming experience to join Code-Starter?",
+    "content": "No programming experience is needed for Code-Starter; it is built for complete beginners. The only prerequisites are basic computer literacy and access to a laptop. Week 1 starts from setting up the computer for development and the command line.",
+    "tags": ["requirements", "beginners", "no experience", "prerequisites", "bootcamp"]
+  },
+  {
+    "scope": "platform",
+    "category": "digitika_bootcamp",
+    "title": "What companies have hired Code-Starter graduates?",
+    "content": "The Digitika page lists organisations where its alumni work, including Safaricom PLC, Boxcraft, Danka Africa, Maseno University and Great Lakes University of Kisumu. These are employers of individual graduates, not hiring partnerships, and Digitika does not guarantee a job. What the course does give every learner: a GitHub portfolio of 3 or more projects, 2 ICDL certifications and a career roadmap session.",
+    "tags": ["alumni", "graduates", "jobs", "hiring", "safaricom", "companies"]
+  },
+  {
+    "scope": "platform",
+    "category": "pricing_plans",
+    "title": "How is Codevertex software priced?",
+    "content": "Codevertex software is sold as monthly plans in KES, priced per product, and most paid plans start with a 14-day free trial. Prices, trials and setup fees are listed live at https://codevertexafrica.com/pricing. Some products can also be bought outright as a one-time licence with optional annual support: PowerSuite Retail, Hospitality and Pharmacy from KES 45,000, TruLoad KES 150,000, and Library from KES 150,000. The AI chat assistant and AI credits come with MarketFlow plans (Lite and above), not with every product. Large organisations get a quote: sales@codevertexafrica.com or WhatsApp +254 743 793 901.",
+    "tags": ["pricing", "plans", "subscription", "license", "one-time", "trial", "kes"],
+    "metadata": {"source": "subscriptions-api/cmd/seed/plans_powersuite_usecase.go, plans_truload.go, plans_library.go, plans_marketflow.go", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "onboarding_howto",
+    "title": "How do I get started with Codevertex?",
+    "content": "Getting started with Codevertex: (1) Pick the product at https://codevertexafrica.com/pricing and start the free trial where the plan has one, or ask for a demo on WhatsApp +254 743 793 901 or at https://codevertexafrica.com/contact. (2) Your business gets its own private workspace with one sign-in for every Codevertex product. (3) The team helps set up the workspace and products; plans with a setup fee include that implementation work. (4) User guides are at https://docs.codevertexafrica.com/user-guide/getting-started/.",
+    "tags": ["onboarding", "getting started", "demo", "setup", "implementation"]
+  },
+  {
+    "scope": "platform",
+    "category": "onboarding_howto",
+    "title": "What support does Codevertex provide?",
+    "content": "Codevertex support: (1) Vera, the AI assistant in this chat, answers common questions at any hour and can open a support ticket. (2) Email support@codevertexafrica.com for technical help and sales@codevertexafrica.com for sales and demos. (3) Phone and WhatsApp +254 743 793 901. (4) Tracked support tickets with priority levels. (5) User guides at https://docs.codevertexafrica.com. Higher plans add priority support, and MarketFlow Business includes a dedicated account manager. For an urgent issue, open a ticket marked urgent.",
+    "tags": ["support", "help", "email", "tickets", "sla", "training", "customer success"]
+  },
+  {
+    "scope": "platform",
+    "category": "product_fit",
+    "title": "Which Codevertex product fits my business?",
+    "content": "A shop, supermarket or boutique: PowerSuite Retail (Duka). A restaurant, cafe, bar or hotel: PowerSuite Hospitality. A chemist: PowerSuite Pharmacy (Dawa) for the till, or Codevertex Afya Chemist for pharmacy plus patient records. A clinic, medical facility or hospital: Codevertex Afya. An estate, apartment block or property manager: Maskani. An internet provider with hotspot or PPPoE customers: ISP Billing. A weighbridge or road agency: TruLoad. A school, county or community library: Library Management. A company that needs HR, payroll and procurement: ERP Suite. A finance team that needs invoicing, eTIMS and collections: Books and Treasury. Any business that wants more leads, WhatsApp replies and marketing content: MarketFlow and Vera AI. Something none of these fit: custom web and mobile apps. Not sure? WhatsApp +254 743 793 901 with what the business does.",
+    "tags": ["which product", "recommendation", "fit", "business type", "shop", "restaurant", "pharmacy", "clinic"],
+    "metadata": {"source": "codevertex-website/src/config/services.ts; subscriptions-api/cmd/seed plan families", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "ordering_pos",
+    "title": "How much does the Codevertex POS cost?",
+    "content": "The POS is sold as a PowerSuite plan for your type of business, which also includes Inventory, Ordering, Logistics, Books and Treasury (with KRA eTIMS), CRM and ERP features, more of each on higher tiers. Monthly list prices (November 2026), Basic / Professional / Gold: Retail (Duka) KES 2,500 / 4,000 / 8,500; Hospitality KES 2,500 / 4,000 / 6,500; Pharmacy (Dawa) KES 1,500 / 3,000 / 6,000. Each has a 14-day free trial and a one-time setup fee of KES 5,000 / 10,000 / 20,000. To own it outright instead: KES 45,000 / 90,000 / 150,000 one-time, with annual support optional. Current prices: https://codevertexafrica.com/pricing.",
+    "tags": ["pos", "pricing", "powersuite", "retail", "duka", "hospitality", "pharmacy", "dawa", "trial"],
+    "metadata": {"source": "subscriptions-api/cmd/seed/plans_powersuite_usecase.go (useCaseFamilies)", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "ordering_pos",
+    "title": "Codevertex POS: common questions before buying",
+    "content": "Our internet keeps going off. The POS keeps selling offline and syncs when the connection returns. Does it take M-Pesa? Yes, M-Pesa, card and cash, including split payments on one bill. What about KRA eTIMS? Every PowerSuite plan includes Books and Treasury with eTIMS invoicing at every tier. Can I move my product list in? Bulk import is included from the Professional tier. Is it only for one branch? Stock is tracked per branch and warehouse in Inventory. Can I try first? Yes, the monthly plans have a 14-day free trial. Can I see it working? Ask for a demo on WhatsApp +254 743 793 901, or read the guide at https://docs.codevertexafrica.com/user-guide/pos/.",
+    "tags": ["pos", "objections", "offline", "mpesa", "etims", "import", "trial", "faq"],
+    "metadata": {"source": "codevertex-website/src/config/services.ts; subscriptions-api/cmd/seed/plans_powersuite_usecase.go", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "marketflow_crm",
+    "title": "How much does MarketFlow cost?",
+    "content": "MarketFlow monthly list prices (November 2026): Starter free (public profile page, contacts and leads, short links, AI poster and template video ads paid with credits, 10 free chat turns a day). Lite KES 1,500 (campaigns, funnels and landing pages, Vera on your page and WhatsApp, follow-up sequences, testimonials, Meta ad boosts, 50 AI credits a month). Growth KES 3,500 (lead scoring, deal pipeline, automations, helpdesk, 150 AI credits). Pro KES 8,500 (unlimited campaigns and sequences, your own domain, 400 AI credits). Business KES 15,000 (no limits, white label, dedicated account manager, 1,000 AI credits). Paid tiers have a 14-day free trial, and extra AI credits can be bought any time. Current prices: https://codevertexafrica.com/pricing.",
+    "tags": ["marketflow", "pricing", "plans", "ai credits", "vera", "whatsapp", "trial", "free"],
+    "metadata": {"source": "subscriptions-api/cmd/seed/plans_marketflow.go (marketflowTiers)", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "marketflow_crm",
+    "title": "MarketFlow and Vera: common questions before buying",
+    "content": "Will Vera make things up? Vera answers from your own knowledge base, and MarketFlow's AI rules do not allow invented prices, discounts or promises. Will it post without me? Below Pro, every Autopilot draft waits for your approval; Pro and Business can also auto-publish after a window in which you can stop a post. Will the AI videos look fake or mislead people? AI presenters are labelled as AI-generated and never claim to have used your product; customer stories come only from testimonials you have permission to use. Does it work on WhatsApp? Yes, from Lite. What do the AI credits cover? Ad, poster and video generation; each paid plan includes a monthly allowance. Can I start free? Yes, Starter costs nothing. Website: https://marketflow.codevertexafrica.com.",
+    "tags": ["marketflow", "vera", "objections", "ai", "autopilot", "whatsapp", "faq", "honesty"],
+    "metadata": {"source": "subscriptions-api/cmd/seed/plans_marketflow.go; marketflow/docs/integrations/ugc-video-ads.md", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "finance_treasury",
+    "title": "How much does Books and Treasury cost?",
+    "content": "Books and Treasury on its own, monthly list prices (November 2026), each with a 14-day free trial: Starter KES 4,000 for up to 3 users (M-Pesa and card collection, payment links, invoices and quotations, customer and vendor ledgers, tax codes and KRA eTIMS). Growth KES 8,000 for up to 10 users (adds bulk and scheduled payouts, payment and journal vouchers, full bank reconciliation, approvals, audit trail, cash forecasting and BI reports). Professional KES 15,000 for up to 25 users (adds multiple currencies, API access, webhooks and custom integrations). Treasury is also included in every PowerSuite plan. Current prices: https://codevertexafrica.com/pricing.",
+    "tags": ["treasury", "books", "pricing", "etims", "invoicing", "mpesa", "accounting"],
+    "metadata": {"source": "subscriptions-api/cmd/seed/plans_treasury.go (treasuryTiers)", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "isp_billing",
+    "title": "How much does ISP Billing cost?",
+    "content": "ISP Billing has one pay-as-you-grow plan covering hotspot and PPPoE, with no limits on routers, users, customers or vouchers. Each month: a KES 500 base fee; plus 3 percent of that month's hotspot sales, charged only when hotspot sales pass KES 10,000; plus KES 35 per active PPPoE subscriber. Example: KES 12,000 of hotspot sales costs KES 500 + 360 = KES 860, plus PPPoE subscribers. There is a 14-day free trial and a one-time setup fee of KES 3,000. SMS and WhatsApp messages are paid from prepaid credit bundles. Current terms: https://codevertexafrica.com/pricing.",
+    "tags": ["isp", "billing", "pricing", "hotspot", "pppoe", "trial", "pay as you grow"],
+    "metadata": {"source": "subscriptions-api/cmd/seed/plans_isp_billing.go; setup_fees.go", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "isp_billing",
+    "title": "ISP Billing: common questions before buying",
+    "content": "Do I have to configure every router by hand? No, routers are set up automatically (zero-touch provisioning). What happens when a customer pays late? The account is suspended and then restored automatically when the M-Pesa payment comes in. Is it worth it for a small ISP? A small ISP pays the KES 500 base, and the hotspot percentage starts only above KES 10,000 of monthly hotspot sales. Hotspot and PPPoE? Both, with vouchers, a captive portal and RADIUS. Next step: start the trial at https://ispbilling.codevertexafrica.com or ask on WhatsApp +254 743 793 901.",
+    "tags": ["isp", "objections", "zero touch", "mpesa", "reconnect", "hotspot", "faq"],
+    "metadata": {"source": "codevertex-website/src/config/services.ts; subscriptions-api/cmd/seed/plans_isp_billing.go", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "healthcare_afya",
+    "title": "What is Codevertex Afya?",
+    "content": "Codevertex Afya runs clinical and pharmacy operations for clinics, medical facilities, hospitals and chemists in Kenya: patient records and visits, consultations, prescriptions and dispensing, and a pharmacy till with stock. Monthly list prices (November 2026), each with a 14-day free trial: Afya Chemist KES 4,500 (setup KES 8,000), Afya Clinic KES 7,500 (setup KES 15,000), Afya Facility KES 18,000 (setup KES 35,000), Afya Hospital KES 40,000 (setup KES 75,000). Chemist, Clinic and Facility can also be bought outright (KES 75,000, 140,000 and 320,000). Website: https://afya.codevertexafrica.com. Next step: https://codevertexafrica.com/contact?service=afya or WhatsApp +254 743 793 901.",
+    "tags": ["afya", "hospital", "clinic", "pharmacy", "chemist", "patient records", "pricing"],
+    "metadata": {"source": "codevertex-website/src/config/services.ts; subscriptions-api/cmd/seed/plans_hospital.go", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "property_maskani",
+    "title": "What is Maskani?",
+    "content": "Maskani is Codevertex's real estate and property management system for estates, apartment blocks and property managers. It handles rent and service charge billing and collection, unit sales and instalments, an owner portal, meters, works orders and vendors, and gate visitor passes and notices, with Treasury included. Monthly list prices (November 2026), each with a 14-day free trial: Starter KES 10,000 (up to 150 units), Growth KES 20,000 (up to 400 units, service charge budget against actual, approvals, asset register), Professional KES 35,000 (up to 1,000 units across several properties, staff payroll, API access). Enterprise is quoted. Website: https://maskani.codevertexafrica.com. Guide: https://docs.codevertexafrica.com/user-guide/maskani/.",
+    "tags": ["maskani", "property", "real estate", "rent", "service charge", "estates", "pricing"],
+    "metadata": {"source": "codevertex-website/src/config/services.ts (MASKANI); subscriptions-api/cmd/seed/plans_maskani.go", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "library",
+    "title": "What is Codevertex Library Management?",
+    "content": "Library Management is for schools, colleges, county and community libraries. It catalogues books with barcode labels, handles loans, returns and reservations at the desk, and manages members, borrowing fees and fines. Proof: Codevertex installed it at Migori County Community Library, set up the desk equipment and ran user acceptance training with the library staff (July 2026). Monthly list prices (November 2026): Starter KES 1,500 (one branch, up to 5,000 titles), Growth KES 4,000 (up to 5 branches and 50,000 titles, holds and e-book lending), Professional KES 9,000 (unlimited). Implementation fee KES 10,000. One-time licences from KES 150,000. Website: https://library.codevertexafrica.com.",
+    "tags": ["library", "school", "county", "catalogue", "circulation", "migori", "pricing"],
+    "metadata": {"source": "codevertex-website/src/config/services.ts; prisma/seed/projects.ts; subscriptions-api/cmd/seed/plans_library.go", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "logistics_tracking",
+    "title": "How much does TruLoad cost?",
+    "content": "TruLoad monthly list prices (November 2026): Starter KES 3,500 for a single station (commercial weighing, enforcement, invoicing, PDF tickets and core reports); Growth KES 6,000 for several stations, adding the transporter portal and case and prosecution tracking; Professional KES 12,500 for large operators and agencies, with unlimited stations, API and webhook access, advanced analytics and priority support. A perpetual licence is KES 150,000 one-time, excluding cloud hosting and support. Setup fee KES 5,000 on monthly plans. Current prices: https://codevertexafrica.com/pricing.",
+    "tags": ["truload", "pricing", "weighbridge", "license", "transporter portal"],
+    "metadata": {"source": "subscriptions-api/cmd/seed/plans_truload.go; setup_fees.go", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "inventory",
+    "title": "What is Codevertex Inventory?",
+    "content": "Codevertex Inventory is for businesses with warehouses or several branches that need to know what they hold everywhere. It tracks stock per branch and warehouse, purchase orders and supplier returns, transfers, stock counts and adjustments, recipes and price tiers, and it is linked to the POS tills and online orders so every sale comes off the same count. The outcome: fewer stock-outs and fewer surprises at stock-take. Inventory is included in every PowerSuite plan. Website: https://inventory.codevertexafrica.com. Guide: https://docs.codevertexafrica.com/user-guide/inventory/.",
+    "tags": ["inventory", "stock", "warehouse", "branches", "purchase orders", "stock count"],
+    "metadata": {"source": "codevertex-website/src/config/services.ts", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "projects",
+    "title": "What is Codevertex Projects?",
+    "content": "Codevertex Projects is for contractors and agencies that run client work. Plan work in milestones and task boards, track time per person with timesheets, compare budget against actual spending, and keep clients up to date as each milestone is reached. The outcome: knowing which project is over budget before the invoice goes out. Projects features are included in the PowerSuite plans. Website: https://projects.codevertexafrica.com.",
+    "tags": ["projects", "milestones", "timesheets", "budget", "contractors", "agencies"],
+    "metadata": {"source": "codevertex-website/src/config/services.ts", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "custom_services",
+    "title": "Does Codevertex build custom web and mobile apps?",
+    "content": "Yes. When an off-the-shelf product does not fit, Codevertex builds the software a business needs: customer and staff portals, internal tools, Android and iOS apps, APIs and integrations with existing systems, and workflow automation. Each project is quoted on its own. Integrations Codevertex already runs in its own products include M-Pesa, PayHero, Paystack and KRA eTIMS. Next step: https://codevertexafrica.com/contact?service=software or WhatsApp +254 743 793 901.",
+    "tags": ["custom software", "web app", "mobile app", "android", "ios", "api", "integration", "development"],
+    "metadata": {"source": "codevertex-website/src/config/services.ts (SERVICE_PILLARS software, iot)", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "custom_services",
+    "title": "What AI and automation services does Codevertex offer?",
+    "content": "Codevertex builds chat assistants that answer from a business's own documents, scheduled reports and alerts, BI dashboards for managers, and document and data extraction. Vera, the assistant in this chat, runs on the same approach: it answers from a knowledge base the business controls. For a business that only needs lead capture, WhatsApp replies and marketing content, MarketFlow is the ready-made option (from free); for anything bespoke, the project is quoted. Next step: https://codevertexafrica.com/contact?service=ai.",
+    "tags": ["ai", "automation", "chatbot", "dashboards", "bi", "reports", "data extraction"],
+    "metadata": {"source": "codevertex-website/src/config/services.ts (SERVICE_PILLARS ai)", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "custom_services",
+    "title": "Can Codevertex build my online shop or marketplace?",
+    "content": "Yes. Codevertex builds online shops and multi-store marketplaces that take M-Pesa, card and PayHero payments, with stock that stays in sync with the shop's tills and deliveries tracked to the door. A business that wants its own branded shop quickly can start on the Ordering Platform, included in the PowerSuite plans; a marketplace or a shop with special rules is built and quoted as a project. Next step: https://codevertexafrica.com/contact?service=ecommerce or WhatsApp +254 743 793 901.",
+    "tags": ["ecommerce", "online shop", "marketplace", "mpesa", "checkout", "store"],
+    "metadata": {"source": "codevertex-website/src/config/services.ts (SERVICE_PILLARS ecommerce)", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "custom_services",
+    "title": "Does Codevertex offer hosting and cybersecurity services?",
+    "content": "Cloud and hosting: Codevertex hosts and looks after business systems, with monitoring, daily backups and recovery plans, domains, SSL and business email, and migrations from old servers. Cybersecurity: security and code reviews, penetration testing, readiness for ISO 27001 and Kenya Data Protection Act audits, and staff awareness training. Both are quoted per project. Next step: https://codevertexafrica.com/contact?service=cloud or https://codevertexafrica.com/contact?service=cybersec.",
+    "tags": ["hosting", "cloud", "backups", "email", "domains", "cybersecurity", "penetration testing", "iso 27001"],
+    "metadata": {"source": "codevertex-website/src/config/services.ts (SERVICE_PILLARS cloud, cybersec)", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
+    "category": "custom_services",
+    "title": "Does Codevertex install cameras, sensors and automation hardware?",
+    "content": "Yes. Codevertex's own field team installs and supports number-plate (ANPR) and CCTV cameras, weighbridge equipment, sensors and PLCs, and connects them to software and to payment gateways (M-Pesa, PayHero, Paystack) and KRA eTIMS. Proof: ANPR cameras installed at the KeNHA Kanyonyo weighbridge station and connected to its weighing software (January 2025). Work is quoted per site. Next step: https://codevertexafrica.com/integrations or WhatsApp +254 743 793 901.",
+    "tags": ["iot", "plc", "cctv", "anpr", "cameras", "sensors", "installation", "field team"],
+    "metadata": {"source": "codevertex-website/src/config/services.ts (SERVICE_PILLARS iot); prisma/seed/projects.ts", "checked": "2026-11-17"}
+  }
+]

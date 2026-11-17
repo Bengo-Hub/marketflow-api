@@ -46,7 +46,9 @@ if [ "$MF_ROLE" = "worker" ]; then
   exec /usr/local/bin/marketflow-worker
 fi
 
-# Run idempotent seed (RBAC perms/roles + KB); non-fatal on warnings.
+# Run idempotent seed (RBAC perms/roles + KB); non-fatal on warnings. It also syncs the platform
+# knowledge base from internal/modules/knowledge/platform_kb.json (create, rewrite and re-embed on
+# change, retire removed entries), so a content change reaches production with the next deploy.
 if [ -x /usr/local/bin/marketflow-seed ]; then
   echo "==> Running seed (idempotent)..."
   POSTGRES_URL="$MIGRATE_URL" /usr/local/bin/marketflow-seed || echo "    seed completed with warnings (non-fatal)"
