@@ -4,23 +4,18 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"strings"
-	"time"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
-	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
 	"github.com/bengobox/marketflow-api/internal/ent/rolepermission"
-	"github.com/bengobox/marketflow-api/internal/flp/seed"
 	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
@@ -110,19 +105,10 @@ func main() {
 	mappingsSeeded := seedRolePermissionMappings(ctx, client, tid)
 	log.Printf("RBAC: %d permissions, %d roles, %d mappings seeded", permsSeeded, rolesSeeded, mappingsSeeded)
 
-	// Phase 2: Knowledge base seed data
-	productsSeeded := seedProducts(ctx, client, tid, scope)
-	faqSeeded := seedFAQ(ctx, client, tid, scope)
-	bizSeeded := seedBusinessOpportunity(ctx, client, tid, scope)
-	complianceSeeded := seedCompliance(ctx, client, tid, scope)
-	codevertexSeeded := 0
-	if scope == "platform" {
-		codevertexSeeded = syncPlatformKB(ctx, db, tid)
-	}
-	kenyaTaxSeeded := seedKenyaTaxKB(ctx, client, tid, scope)
-
-	log.Printf("KB: %d products, %d FAQ, %d business, %d compliance, %d codevertex, %d kenya-tax entries",
-		productsSeeded, faqSeeded, bizSeeded, complianceSeeded, codevertexSeeded, kenyaTaxSeeded)
+	// Phase 2: Knowledge base seed sets (Codevertex platform, Kenya tax, FLP products, FAQ,
+	// business opportunity and compliance), each brought in line with its file.
+	kbSeeded := syncSeedSets(ctx, db, tid, scope)
+	log.Printf("KB: %d seeded entries created or rewritten", kbSeeded)
 
 	// Phase 3: Default nurture sequence templates (platform scope only).
 	// Every tenant auto-enrols leads into these on lead.created; tenants can
@@ -140,314 +126,35 @@ func main() {
 	log.Printf("Campaigns: %d starter templates seeded", campaignsSeeded)
 }
 
-func seedProducts(ctx context.Context, client *ent.Client, tenantID uuid.UUID, scope string) int {
-	data, err := seed.SeedFS.ReadFile("products.json")
-	if err != nil {
-		log.Printf("Warning: failed to read products.json: %v", err)
-		return 0
-	}
-
-	var catalog struct {
-		Products []struct {
-			ItemCode    string   `json:"item_code"`
-			Name        string   `json:"name"`
-			Category    string   `json:"category"`
-			CC          float64  `json:"cc"`
-			Description string   `json:"description"`
-			Benefits    []string `json:"benefits"`
-			Ingredients string   `json:"ingredients"`
-			Contents    string   `json:"contents"`
-			Directions  string   `json:"directions"`
-			Tags        []string `json:"tags"`
-		} `json:"products"`
-	}
-	if err := json.Unmarshal(data, &catalog); err != nil {
-		log.Printf("Warning: failed to parse products.json: %v", err)
-		return 0
-	}
-
-	count := 0
-	for _, p := range catalog.Products {
-		// Check if already exists
-		exists, _ := client.KnowledgeBaseEntry.Query().
-			Where(
-				knowledgebaseentry.TenantID(tenantID),
-				knowledgebaseentry.ProductCodeEQ(p.ItemCode),
-			).Exist(ctx)
-		if exists {
+// syncSeedSets brings every knowledge base seed set (internal/modules/knowledge/seed_sets.go) in
+// line with its file: new entries are created, changed ones rewritten and queued for
+// re-embedding, removed ones retired, each set touching only its own rows. The sets keep the
+// scope and tenant the old create-only seed wrote them in (SEED_SCOPE and the anchor tenant); the
+// Codevertex set runs in platform scope only. Safe to run from several pods at once. Returns the
+// entries created or rewritten.
+func syncSeedSets(ctx context.Context, db *sql.DB, tenantID uuid.UUID, scope string) int {
+	total := 0
+	for _, set := range knowledge.SeedSets() {
+		if set.PlatformOnly && scope != knowledge.ScopePlatform {
 			continue
 		}
-
-		content := p.Description
-		if len(p.Benefits) > 0 {
-			content += "\n\nBenefits:\n"
-			for _, b := range p.Benefits {
-				content += "- " + b + "\n"
-			}
-		}
-		if p.Ingredients != "" {
-			content += "\nIngredients: " + p.Ingredients
-		}
-		if p.Contents != "" {
-			content += "\nContents: " + p.Contents
-		}
-		if p.Directions != "" {
-			content += "\nDirections: " + p.Directions
-		}
-
-		builder := client.KnowledgeBaseEntry.Create().
-			SetTenantID(tenantID).
-			SetScope(scope).
-			SetCategory("product").
-			SetTitle(p.Name).
-			SetContent(content).
-			SetProductCode(p.ItemCode).
-			SetProductCc(p.CC)
-
-		if p.Tags != nil {
-			builder.SetTags(p.Tags)
-		}
-
-		if _, err := builder.Save(ctx); err != nil {
-			log.Printf("Warning: failed to seed product %s: %v", p.ItemCode, err)
+		entries, err := set.Entries()
+		if err != nil {
+			log.Printf("Warning: %s KB not loaded: %v", set.Name, err)
 			continue
 		}
-		count++
-	}
-	return count
-}
-
-func seedFAQ(ctx context.Context, client *ent.Client, tenantID uuid.UUID, scope string) int {
-	data, err := seed.SeedFS.ReadFile("faq.json")
-	if err != nil {
-		log.Printf("Warning: failed to read faq.json: %v", err)
-		return 0
-	}
-
-	var faqData struct {
-		Entries []struct {
-			Category string   `json:"category"`
-			Question string   `json:"question"`
-			Answer   string   `json:"answer"`
-			Tags     []string `json:"tags"`
-		} `json:"entries"`
-	}
-	if err := json.Unmarshal(data, &faqData); err != nil {
-		log.Printf("Warning: failed to parse faq.json: %v", err)
-		return 0
-	}
-
-	count := 0
-	for _, f := range faqData.Entries {
-		exists, _ := client.KnowledgeBaseEntry.Query().
-			Where(
-				knowledgebaseentry.TenantID(tenantID),
-				knowledgebaseentry.TitleEQ(f.Question),
-				knowledgebaseentry.CategoryEQ("faq"),
-			).Exist(ctx)
-		if exists {
-			continue
+		res, err := knowledge.SyncSeedSet(ctx, db, set, scope, tenantID, entries)
+		if err != nil {
+			log.Printf("Warning: %s KB sync stopped: %v", set.Name, err)
 		}
-
-		builder := client.KnowledgeBaseEntry.Create().
-			SetTenantID(tenantID).
-			SetScope(scope).
-			SetCategory("faq").
-			SetTitle(f.Question).
-			SetContent(f.Answer)
-
-		if f.Tags != nil {
-			builder.SetTags(f.Tags)
+		for _, s := range res.Skipped {
+			log.Printf("Warning: %s KB entry %q left out: a hand-written %s entry has the same category and title", set.Name, s, scope)
 		}
-
-		if _, err := builder.Save(ctx); err != nil {
-			log.Printf("Warning: failed to seed FAQ '%s': %v", f.Question, err)
-			continue
-		}
-		count++
+		log.Printf("  %s KB (%d in file): %d created, %d updated, %d unchanged, %d retired, %d skipped",
+			set.Name, len(entries), res.Created, res.Updated, res.Unchanged, res.Retired, len(res.Skipped))
+		total += res.Created + res.Updated
 	}
-	return count
-}
-
-func seedBusinessOpportunity(ctx context.Context, client *ent.Client, tenantID uuid.UUID, scope string) int {
-	data, err := seed.SeedFS.ReadFile("business_opportunity.json")
-	if err != nil {
-		log.Printf("Warning: failed to read business_opportunity.json: %v", err)
-		return 0
-	}
-
-	var biz struct {
-		Company struct {
-			Name              string   `json:"name"`
-			Founded           int      `json:"founded"`
-			Countries         int      `json:"countries"`
-			YearsInBusiness   int      `json:"years_in_business"`
-			KeyDifferentiator string   `json:"key_differentiator"`
-			Certifications    []string `json:"certifications"`
-		} `json:"company"`
-		IncomeStreams []struct {
-			Name        string `json:"name"`
-			Description string `json:"description"`
-			Example     string `json:"example"`
-		} `json:"income_streams"`
-		RankLadder []struct {
-			Rank                      string  `json:"rank"`
-			CCRequirement             string  `json:"cc_requirement"`
-			Requirement               string  `json:"requirement"`
-			MonthlyIncomeIllustration *string `json:"monthly_income_illustration"`
-		} `json:"rank_ladder"`
-		HowToGetStarted []struct {
-			Step   int    `json:"step"`
-			Action string `json:"action"`
-		} `json:"how_to_get_started"`
-	}
-	if err := json.Unmarshal(data, &biz); err != nil {
-		log.Printf("Warning: failed to parse business_opportunity.json: %v", err)
-		return 0
-	}
-
-	count := 0
-
-	// Company overview
-	companyContent := fmt.Sprintf("%s was founded in %d and operates in %d+ countries with %d+ years of uninterrupted growth. %s\n\nCertifications: %v",
-		biz.Company.Name, biz.Company.Founded, biz.Company.Countries, biz.Company.YearsInBusiness,
-		biz.Company.KeyDifferentiator, biz.Company.Certifications)
-	if created := createIfNotExists(ctx, client, tenantID, scope, "business_opportunity", "Company Overview", companyContent, []string{"company", "overview"}); created {
-		count++
-	}
-
-	// Income streams
-	for _, is := range biz.IncomeStreams {
-		content := is.Description
-		if is.Example != "" {
-			content += "\n\nExample: " + is.Example
-		}
-		if created := createIfNotExists(ctx, client, tenantID, scope, "business_opportunity", "Income Stream: "+is.Name, content, []string{"income", "business"}); created {
-			count++
-		}
-	}
-
-	// Rank ladder
-	var rankContent string
-	for _, r := range biz.RankLadder {
-		req := r.CCRequirement
-		if req == "" {
-			req = r.Requirement
-		}
-		income := "N/A"
-		if r.MonthlyIncomeIllustration != nil {
-			income = *r.MonthlyIncomeIllustration
-		}
-		rankContent += fmt.Sprintf("- %s: %s (illustration: %s)\n", r.Rank, req, income)
-	}
-	if created := createIfNotExists(ctx, client, tenantID, scope, "business_opportunity", "FBO Rank Ladder", rankContent, []string{"ranks", "compensation"}); created {
-		count++
-	}
-
-	// How to get started
-	var startContent string
-	for _, s := range biz.HowToGetStarted {
-		startContent += fmt.Sprintf("Step %d: %s\n", s.Step, s.Action)
-	}
-	if created := createIfNotExists(ctx, client, tenantID, scope, "business_opportunity", "How to Get Started", startContent, []string{"getting-started", "join"}); created {
-		count++
-	}
-
-	return count
-}
-
-func seedCompliance(ctx context.Context, client *ent.Client, tenantID uuid.UUID, scope string) int {
-	data, err := seed.SeedFS.ReadFile("compliance.json")
-	if err != nil {
-		log.Printf("Warning: failed to read compliance.json: %v", err)
-		return 0
-	}
-
-	var comp struct {
-		Disclaimers       map[string]string `json:"disclaimers"`
-		FactualClaimsAllowed []string       `json:"factual_claims_allowed"`
-	}
-	if err := json.Unmarshal(data, &comp); err != nil {
-		log.Printf("Warning: failed to parse compliance.json: %v", err)
-		return 0
-	}
-
-	count := 0
-
-	// Disclaimers
-	var disclaimerContent string
-	for key, val := range comp.Disclaimers {
-		disclaimerContent += fmt.Sprintf("[%s]: %s\n\n", key, val)
-	}
-	if created := createIfNotExists(ctx, client, tenantID, scope, "compliance", "Required Disclaimers", disclaimerContent, []string{"disclaimers", "compliance"}); created {
-		count++
-	}
-
-	// Factual claims
-	var factsContent string
-	for _, f := range comp.FactualClaimsAllowed {
-		factsContent += "- " + f + "\n"
-	}
-	if created := createIfNotExists(ctx, client, tenantID, scope, "compliance", "Approved Factual Claims", factsContent, []string{"facts", "approved-claims"}); created {
-		count++
-	}
-
-	return count
-}
-
-// syncPlatformKB brings the Codevertex platform knowledge base (company, Power Suite, pricing,
-// Digitika Academy) in line with internal/modules/knowledge/platform_kb.json, its one source:
-// new entries are created, changed ones rewritten and queued for re-embedding, removed ones
-// retired. Safe to run from several pods at once. Returns the entries created or rewritten.
-func syncPlatformKB(ctx context.Context, db *sql.DB, tenantID uuid.UUID) int {
-	entries, err := knowledge.PlatformEntries()
-	if err != nil {
-		log.Printf("Warning: platform KB not loaded: %v", err)
-		return 0
-	}
-	res, err := knowledge.SyncPlatformKB(ctx, db, tenantID, entries)
-	if err != nil {
-		log.Printf("Warning: platform KB sync stopped: %v", err)
-	}
-	for _, s := range res.Skipped {
-		log.Printf("Warning: platform KB entry %q left out: a hand-written platform entry has the same category and title", s)
-	}
-	log.Printf("  platform KB (%d in file): %d created, %d updated, %d unchanged, %d retired, %d skipped",
-		len(entries), res.Created, res.Updated, res.Unchanged, res.Retired, len(res.Skipped))
-	return res.Created + res.Updated
-}
-
-func createIfNotExists(ctx context.Context, client *ent.Client, tenantID uuid.UUID, scope, category, title, content string, tags []string) bool {
-	// Dedup by title+category at the scope level so re-running the seed is safe
-	// and platform rows aren't duplicated per tenant.
-	exists, _ := client.KnowledgeBaseEntry.Query().
-		Where(
-			knowledgebaseentry.ScopeEQ(scope),
-			knowledgebaseentry.TenantID(tenantID),
-			knowledgebaseentry.TitleEQ(title),
-			knowledgebaseentry.CategoryEQ(category),
-		).Exist(ctx)
-	if exists {
-		return false
-	}
-
-	builder := client.KnowledgeBaseEntry.Create().
-		SetTenantID(tenantID).
-		SetScope(scope).
-		SetCategory(category).
-		SetTitle(title).
-		SetContent(content).
-		SetCreatedAt(time.Now())
-
-	if tags != nil {
-		builder.SetTags(tags)
-	}
-
-	if _, err := builder.Save(ctx); err != nil {
-		log.Printf("Warning: failed to seed '%s': %v", title, err)
-		return false
-	}
-	return true
+	return total
 }
 
 // ════════════════════════════════════════════════════════════════════════════

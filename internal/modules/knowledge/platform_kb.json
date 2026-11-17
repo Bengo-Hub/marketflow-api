@@ -241,6 +241,14 @@
   },
   {
     "scope": "platform",
+    "category": "digitika_bootcamp",
+    "title": "What do Code-Starter graduates say?",
+    "content": "Graduates in their own words (shared with their consent): Aisha K., now at Safaricom PLC: \"I enrolled with zero programming experience. Eight weeks later I had a full portfolio and a junior developer role lined up.\" Ryan Mwakala, ICT Manager at Danka Africa: \"Within 6 months of graduating I landed my first ICT management role.\" Brandon Odhiambo, Software Developer at Boxcraft: \"I came in knowing nothing about coding. I'm now writing production code every day.\" Christine Kerubo, Maseno University: \"The Git and Linux modules alone were worth it.\" Tricia Adhiambo, Maseno University: \"The hybrid format was perfect for me.\" Results differ from person to person and no job is guaranteed.",
+    "tags": ["testimonials", "graduates", "reviews", "code-starter", "proof", "alumni"],
+    "metadata": {"source": "codevertex-website src/config/courses.ts GRADUATE_TESTIMONIALS and components/digitika/LifeAtDigitika.tsx; confirmed genuine and consented by the owner", "checked": "2026-11-17"}
+  },
+  {
+    "scope": "platform",
     "category": "pricing_plans",
     "title": "How is Codevertex software priced?",
     "content": "Codevertex software is sold as monthly plans in KES, priced per product, and most paid plans start with a 14-day free trial. Prices, trials and setup fees are listed live at https://codevertexafrica.com/pricing. Some products can also be bought outright as a one-time licence with optional annual support: PowerSuite Retail, Hospitality and Pharmacy from KES 45,000, TruLoad KES 150,000, and Library from KES 150,000. The AI chat assistant and AI credits come with MarketFlow plans (Lite and above), not with every product. Large organisations get a quote: sales@codevertexafrica.com or WhatsApp +254 743 793 901.",
