@@ -472,7 +472,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// the daily render quota, and quotes renders through marketflow-ai like the Studio.
 	pubStore := &publishing.EntStore{DB: entClient, Keys: keyProvider}
 	autopilotPipeline = autopublish.New(autopublish.Deps{DB: entClient,
-		Studio:  creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)),
+		Studio:  creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)).WithFeatureCheck(consumerFeatureGate),
 		Quoter:  creative.NewRenderer(entClient, cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey, logger).WithBrandImages(brandLinks),
 		Publish: pubStore,
 		Gate:    custom_agents.AutoPublishGate{DB: entClient, HasFeature: strictFeature, TermsVersion: cfg.Autopilot.TermsVersion, TermsEffectiveAt: cfg.Autopilot.TermsEffective(), CheckFeature: subsClient.StrictFeature, Terms: autopilotTerms, TermsPageURL: cfg.Autopilot.TermsPageURL},
@@ -482,7 +482,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// Review links are signed with the env encryption key (stable, like the OAuth
 	// state), separated from it by the token's own HMAC domain.
 	creativeHandler := creative.NewHandler(creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)).
-		WithLeadFunnels(funnelService.ForAds()).WithBrandImagesMin(brandImagesCfg.Min),
+		WithLeadFunnels(funnelService.ForAds()).WithBrandImagesMin(brandImagesCfg.Min).
+		// Gate G0: a video is made only when the plan includes that kind of video (plan_gate.go).
+		WithFeatureCheck(consumerFeatureGate),
 		creative.NewReviews(entClient, encryption.KeyFromEnv(cfg.Security.EncryptionKey)),
 		catalogueOfferings, logger).
 		WithApprover(func(ctx context.Context, tenantID uuid.UUID) bool {

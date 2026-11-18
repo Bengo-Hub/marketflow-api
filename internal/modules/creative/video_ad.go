@@ -235,6 +235,10 @@ func (s *Service) CreateVideoAd(ctx context.Context, tenantID, briefID uuid.UUID
 	if err := in.validate(brief); err != nil {
 		return nil, err
 	}
+	// Refused before the script is written: a plan without this kind of video cannot render it.
+	if err := s.CheckVideoFeature(ctx, tenantID, VideoFeature(KindVideoAd, in.Kind)); err != nil {
+		return nil, err
+	}
 	if err := s.checkLiveDrafts(ctx, tenantID); err != nil {
 		return nil, err
 	}
@@ -466,6 +470,10 @@ func (s *Service) RenderVideoAd(ctx context.Context, tenantID, id uuid.UUID) (*e
 	}
 	if _, ok := v.Copy["script"]; !ok {
 		return nil, fmt.Errorf("%w: this video ad has no script", ErrConflict)
+	}
+	// Checked again at render time: the plan may have changed since the script was written.
+	if err := s.CheckVideoFeature(ctx, tenantID, VideoFeature(KindVideoAd, videoKind(v))); err != nil {
+		return nil, err
 	}
 	if isPresenter(videoKind(v)) && !storyboardApproved(v) {
 		return nil, fmt.Errorf("%w: approve the storyboard before rendering a presenter ad", ErrConflict)

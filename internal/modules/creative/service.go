@@ -111,6 +111,8 @@ type Service struct {
 	nowFn       func() time.Time
 	// brandImagesMin is how many brand images a video ad needs (brand_gate.go); 0 uses the default.
 	brandImagesMin int
+	// hasFeature is the video plan gate's entitlement check (plan_gate.go); nil turns it off.
+	hasFeature func(ctx context.Context, tenantID, feature string) bool
 }
 
 // NewService builds the service.
