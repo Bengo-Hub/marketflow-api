@@ -66,6 +66,13 @@ func (r *AutopilotRunner) WithLapsedHook(h *AutopilotLapsedHook) *AutopilotRunne
 	return r
 }
 
+// WithVideoFeatures turns on the video plan gate (creative plan_gate.go) for the runner's videos:
+// a run whose video kind the plan does not include is skipped before its brief is made.
+func (r *AutopilotRunner) WithVideoFeatures(has func(ctx context.Context, tenantID, feature string) bool) *AutopilotRunner {
+	r.creative = r.creative.WithFeatureCheck(has)
+	return r
+}
+
 func NewAutopilotRunner(db *ent.Client, notif *notifications.Client, appURL string, logger *zap.Logger) *AutopilotRunner {
 	// Ads the autopilot makes get their lead page too, the same as ads made in the portal.
 	svc := creative.NewService(db, logger).WithLeadFunnels(funnels.NewService(db, logger).ForAds())
@@ -213,6 +220,12 @@ func (r *AutopilotRunner) run(ctx context.Context, a *ent.CustomAgent, only map[
 		// This run is approve-each: the brief says so, so the Studio and the reports agree.
 		b.Metadata["approval_mode"] = custom_agents.ApproveEach
 		b.Metadata["veto_fallback"] = heldWhy
+	}
+	// Gate G0: a plan without this kind of video skips the run before anything is made.
+	if feature := creative.VideoFeature(creative.KindVideoAd, b.Tier); feature != "" {
+		if err := r.creative.CheckVideoFeature(ctx, a.TenantID, feature); err != nil {
+			return AutopilotResult{}, fmt.Errorf("%w: %v", ErrAutopilotSkipped, err)
+		}
 	}
 	brief, err := r.creative.CreateBrief(ctx, a.TenantID, nil, creative.BriefInput{
 		Title: &b.Title, Offering: b.Offering, Objective: &b.Objective, Language: &b.Language, Metadata: b.Metadata,

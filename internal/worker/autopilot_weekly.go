@@ -8,10 +8,6 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/bengobox/marketflow-api/internal/ent"
-	"github.com/bengobox/marketflow-api/internal/ent/admetrics"
-	"github.com/bengobox/marketflow-api/internal/ent/campaign"
-	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
-	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/notifications"
@@ -84,51 +80,11 @@ type WeekSummary struct {
 	CPL     float64
 }
 
-// summary reads the agent's briefs of the last 7 days, their versions, the boosts of those
-// versions and the boosts' daily metrics. Every query is scoped to the tenant.
+// summary is the agent's last 7 days, computed by custom_agents.AutopilotWeekSummary, the same
+// numbers the portal's autopilot dashboard shows.
 func (w *AutopilotWeekly) summary(ctx context.Context, a *ent.CustomAgent) (WeekSummary, error) {
-	var out WeekSummary
-	since := w.now().UTC().AddDate(0, 0, -7)
-	briefs, err := w.db.CreativeBrief.Query().
-		Where(creativebrief.TenantID(a.TenantID), func(s *entsql.Selector) {
-			s.Where(entsql.P(func(b *entsql.Builder) {
-				b.WriteString(s.C(creativebrief.FieldMetadata) + "->>'autopilot_agent_id' = ").Arg(a.ID.String())
-			}))
-		}).IDs(ctx)
-	if err != nil || len(briefs) == 0 {
-		return out, err
-	}
-	versions, err := w.db.CreativeVersion.Query().
-		Where(creativeversion.BriefIDIn(briefs...), creativeversion.CreatedAtGTE(since)).All(ctx)
-	if err != nil {
-		return out, err
-	}
-	out.AdsMade = len(versions)
-	for _, v := range versions {
-		out.Credits += v.Credits
-	}
-	allVersions, err := w.db.CreativeVersion.Query().Where(creativeversion.BriefIDIn(briefs...)).IDs(ctx)
-	if err != nil {
-		return out, err
-	}
-	campaigns, err := w.db.Campaign.Query().
-		Where(campaign.TenantIDEQ(a.TenantID), campaign.CreativeVersionIDIn(allVersions...)).IDs(ctx)
-	if err != nil || len(campaigns) == 0 {
-		return out, err
-	}
-	metrics, err := w.db.AdMetrics.Query().
-		Where(admetrics.TenantID(a.TenantID), admetrics.CampaignIDIn(campaigns...), admetrics.DateGTE(since)).All(ctx)
-	if err != nil {
-		return out, err
-	}
-	for _, m := range metrics {
-		out.Spend += m.Spend
-		out.Leads += m.Leads + m.Conversions
-	}
-	if out.Leads > 0 {
-		out.CPL = out.Spend / float64(out.Leads)
-	}
-	return out, nil
+	s, err := custom_agents.AutopilotWeekSummary(ctx, w.db, a.TenantID, a.ID, w.now())
+	return WeekSummary{AdsMade: s.AdsMade, Credits: s.Credits, Spend: s.Spend, Leads: s.Leads, CPL: s.CPL}, err
 }
 
 func (w *AutopilotWeekly) send(ctx context.Context, a *ent.CustomAgent, s WeekSummary, week string) {

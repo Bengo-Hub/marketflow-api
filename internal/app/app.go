@@ -473,13 +473,13 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	brandLinks := brandimages.NewLinker(mediaStore, brandImagesCfg.RenderLinkTTL)
 	onboardingHandler := onboarding.NewHandler(onboarding.NewService(entClient, marketingOSService, tenantSyncer,
 		creative.NewTopOfferings(catalogueOfferings, cfg.CrossService.POSURL, cfg.CrossService.InternalServiceKey, logger),
-		websiteCatalog, cfg.Security.PlatformTenant, logger).WithBrandImagesMin(brandImagesCfg.Min), logger)
+		websiteCatalog, cfg.Security.PlatformTenant, logger).WithBrandImagesMin(brandImagesCfg.Min).WithPlanStatus(subsClient.PlanStatus), logger)
 	// Ad autopilot veto window: a job report settled here carries the agent's video on at once
 	// (the worker's sweep catches anything missed). It works through its own Studio service with
 	// the daily render quota, and quotes renders through marketflow-ai like the Studio.
 	pubStore := &publishing.EntStore{DB: entClient, Keys: keyProvider}
 	autopilotPipeline = autopublish.New(autopublish.Deps{DB: entClient,
-		Studio:  creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)),
+		Studio:  creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)).WithFeatureCheck(consumerFeatureGate),
 		Quoter:  creative.NewRenderer(entClient, cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey, logger).WithBrandImages(brandLinks),
 		Publish: pubStore,
 		Gate:    custom_agents.AutoPublishGate{DB: entClient, HasFeature: strictFeature, TermsVersion: cfg.Autopilot.TermsVersion, TermsEffectiveAt: cfg.Autopilot.TermsEffective(), CheckFeature: subsClient.StrictFeature, Terms: autopilotTerms, TermsPageURL: cfg.Autopilot.TermsPageURL},
@@ -489,7 +489,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// Review links are signed with the env encryption key (stable, like the OAuth
 	// state), separated from it by the token's own HMAC domain.
 	creativeHandler := creative.NewHandler(creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)).
-		WithLeadFunnels(funnelService.ForAds()).WithBrandImagesMin(brandImagesCfg.Min),
+		WithLeadFunnels(funnelService.ForAds()).WithBrandImagesMin(brandImagesCfg.Min).
+		// Gate G0: a video is made only when the plan includes that kind of video (plan_gate.go).
+		WithFeatureCheck(consumerFeatureGate),
 		creative.NewReviews(entClient, encryption.KeyFromEnv(cfg.Security.EncryptionKey)),
 		catalogueOfferings, logger).
 		WithApprover(func(ctx context.Context, tenantID uuid.UUID) bool {
@@ -931,11 +933,15 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			AutopilotVetoJob:  autopublishHandler.VetoJob,
 			PublicVetoView:    autopublishHandler.PublicView,
 			PublicVetoPost:    autopublishHandler.PublicVeto,
+
+			// The autopilot dashboard: drafts waiting for the owner and the last 7 days (Sprint 20).
+			AutopilotDashboard: customAgentHandler.GetAutopilotDashboard,
 		},
 		OnboardingHandlers: httpapi.OnboardingHandlers{
 			Checklist: onboardingHandler.Checklist,
 			Dismiss:   onboardingHandler.Dismiss,
 			Draft:     onboardingHandler.Draft,
+			MarkStep:  onboardingHandler.MarkStep,
 		},
 		BrandImageHandlers: httpapi.BrandImageHandlers{
 			List:   brandImagesHandler.List,

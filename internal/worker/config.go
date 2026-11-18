@@ -36,6 +36,32 @@ type Config struct {
 	// Subscriptions is subscriptions-api (same MF_SUBSCRIPTIONS_* env as the API), read strictly
 	// for the autopilot_auto_publish plan feature at each veto-window step.
 	Subscriptions config.SubscriptionsConfig `envPrefix:"MF_SUBSCRIPTIONS_"`
+	// MediaStorage is the R2 lifecycle backstop and the live-bytes alert (media_lifecycle.go).
+	MediaStorage MediaStorageConfig `envPrefix:"MF_MEDIA_"`
+}
+
+// MediaStorageConfig drives the per-tenant R2 lifecycle rules and the live-bytes alert.
+type MediaStorageConfig struct {
+	// R2AccountID and R2LifecycleToken reach Cloudflare's R2 lifecycle API (an account API token
+	// with R2 bucket edit, the same API the devops-k8s object-storage workflow uses). Without both
+	// the rules are not synced; the alert still runs.
+	R2AccountID      string `env:"R2_ACCOUNT_ID"`
+	R2LifecycleToken string `env:"R2_LIFECYCLE_TOKEN"`
+	R2APIBase        string `env:"R2_API_BASE" envDefault:"https://api.cloudflare.com/client/v4"`
+	// Retention is the backstop, in days, after which R2 deletes a tenant's drafts and temporary
+	// renders, as JSON: {"default_days":10,"plans":{"PLAN_CODE":30}}. A tenant can carry its own
+	// media_retention_days in Tenant.metadata; every value is held between MinDays and MaxDays.
+	Retention string `env:"RETENTION" envDefault:"{\"default_days\":10}"`
+	MinDays   int    `env:"RETENTION_MIN_DAYS" envDefault:"4"`
+	MaxDays   int    `env:"RETENTION_MAX_DAYS" envDefault:"90"`
+	// MaxRules caps the rules this job keeps on one bucket (R2 allows 1,000 in all, and the
+	// bucket's own rules stay); tenants with the most live bytes come first.
+	MaxRules int `env:"LIFECYCLE_MAX_RULES" envDefault:"900"`
+	// LifecycleVideoDrafts lets the sync manage video-drafts. Off by default: R2 deletes by age,
+	// and a finished video can still be in use by a running ad or post after its retention.
+	LifecycleVideoDrafts bool `env:"LIFECYCLE_VIDEO_DRAFTS" envDefault:"false"`
+	// LiveBytesAlert is the live-bytes level that alerts the platform (default 8 GiB).
+	LiveBytesAlert int64 `env:"LIVE_BYTES_ALERT" envDefault:"8589934592"`
 }
 
 type DatabaseConfig struct {

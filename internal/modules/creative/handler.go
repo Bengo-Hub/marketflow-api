@@ -140,6 +140,8 @@ func (h *Handler) fail(w http.ResponseWriter, err error) {
 		httpapi.Error(w, http.StatusNotFound, "not_found", "not found", nil)
 	case errors.Is(err, ErrPPBApprovalRequired):
 		writePPBRequired(w, err) // 409 ppb_approval_required (ppb_approval.go)
+	case errors.Is(err, ErrNotInPlan):
+		writeNotInPlan(w, err) // 403 feature_not_in_plan (plan_gate.go)
 	case errors.Is(err, ErrInvalid):
 		httpapi.Error(w, http.StatusBadRequest, "invalid_request", err.Error(), nil)
 	case errors.Is(err, ErrConflict):
@@ -201,6 +203,8 @@ func (h *Handler) CreateBrief(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
 		return
 	}
+	// A person may set only the allowlisted metadata keys; system keys come from services.
+	guardBriefMetadata(r, &in, false)
 	b, err := h.svc.CreateBrief(r.Context(), tid, briefCreator(r, in.Metadata), in)
 	if err != nil {
 		h.fail(w, err)
@@ -263,6 +267,8 @@ func (h *Handler) UpdateBrief(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
 		return
 	}
+	// A person's metadata is cut to the allowlist and merged, so system keys are never forged or wiped.
+	guardBriefMetadata(r, &in, true)
 	b, err := h.svc.UpdateBrief(r.Context(), tid, id, in)
 	if err != nil {
 		h.fail(w, err)

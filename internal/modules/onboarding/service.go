@@ -44,6 +44,9 @@ type Service struct {
 	logger       *zap.Logger
 	// minBrandImages completes the brand_images step (brandimages.Config.Min).
 	minBrandImages int
+	// planStatus reads the subscription status for the plan step (quick_start.go); nil leaves the
+	// step to the owner's mark.
+	planStatus func(ctx context.Context, tenantID string) (string, bool)
 }
 
 // NewService wires the sources; auth, top and website may be nil (that source is skipped).
@@ -99,7 +102,10 @@ func (s *Service) Checklist(ctx context.Context, tenantID uuid.UUID) (Checklist,
 	}
 	team, _ := s.db.MarketflowUser.Query().Where(marketflowuser.TenantID(tenantID)).Limit(2).Count(ctx)
 
+	planStep, widgetStep, shareStep := s.quickStartSteps(ctx, tenantID, meta)
 	steps := []Step{
+		// The plan comes first, as at sign-up: a business starts on its trial and chooses here.
+		planStep,
 		{Key: "profile", Done: str(meta, "tagline") != "" && str(meta, "bio") != "" && (hasChannel || str(meta, "contact_email") != "")},
 	}
 	// No tenant declares products (owner, 2026-11-03). A Forever tenant sells the seeded Forever
@@ -117,6 +123,9 @@ func (s *Service) Checklist(ctx context.Context, tenantID uuid.UUID) (Checklist,
 		{Key: "brand_images", Done: len(brandimages.Keys(meta, tenantID, 0)) >= s.minBrandImages},
 		{Key: "channels", Done: hasChannel},
 		{Key: "lead_capture", Done: hasCapture},
+		// Quick start (Sprint 6): the chat widget on the business's site and the public page shared.
+		widgetStep,
+		shareStep,
 		{Key: "team", Done: team > 1, Optional: true},
 	}...)
 	out := Checklist{Steps: steps}

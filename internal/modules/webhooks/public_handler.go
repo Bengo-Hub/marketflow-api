@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/integrations/gcal"
+	mfmiddleware "github.com/bengobox/marketflow-api/internal/middleware"
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
 	"github.com/bengobox/marketflow-api/internal/modules/meetings"
@@ -158,9 +159,9 @@ func (h *PublicHandler) publicProfile(ctx context.Context, slug string) (map[str
 		}
 	}
 
-	// Return only public-safe fields
+	// Return only public-safe fields. The tenant UUID is left out: nothing public needs it, and some
+	// services have trusted it as authority (X-Tenant-ID; OWASP review 2026-11-18).
 	profile := map[string]any{
-		"id":            t.ID,
 		"name":          t.Name,
 		"slug":          t.Slug,
 		"business_type": t.BusinessType,
@@ -219,7 +220,9 @@ func (h *PublicHandler) ListTestimonials(w http.ResponseWriter, r *http.Request)
 	}
 	rows, err := h.testimonialService.PublicListForTenant(r.Context(), t.ID, limit)
 	if err != nil {
-		httpapi.Error(w, http.StatusInternalServerError, "query_failed", err.Error(), nil)
+		// The cause is logged, never sent: a public caller must not see database details.
+		h.logger.Error("public testimonials", zap.String("tenant", t.ID.String()), zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "query_failed", "could not load testimonials", nil)
 		return
 	}
 	httpapi.JSON(w, http.StatusOK, map[string]any{"data": rows})
@@ -461,6 +464,8 @@ func (h *PublicHandler) PublicCreateLead(w http.ResponseWriter, r *http.Request)
 		httpapi.Error(w, http.StatusNotFound, "tenant_not_found", "no tenant for slug", nil)
 		return
 	}
+	// The lead is this tenant's, so its usage is too; the visitor's own X-Tenant-ID never counts.
+	mfmiddleware.SetUsageTenant(r.Context(), t.ID.String())
 
 	var in publicLeadInput
 	if err := httpapi.DecodeJSON(r, &in); err != nil {

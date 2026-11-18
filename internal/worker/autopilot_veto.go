@@ -22,6 +22,13 @@ func AutopilotGate(cfg *Config, db *ent.Client) custom_agents.AutoPublishGate {
 		Terms: workerTermsSource(cfg), TermsPageURL: cfg.Autopilot.TermsPageURL}
 }
 
+// VideoFeatures is the video plan gate's entitlement check for the autopilot runner: the same
+// ConsumerHasFeature the API's Studio uses (exempt tenants through, fails open on an outage).
+func VideoFeatures(cfg *Config) func(ctx context.Context, tenantID, feature string) bool {
+	subs := subscriptions.NewClient(subscriptions.Config{ServiceURL: cfg.Subscriptions.URL, APIKey: cfg.Subscriptions.APIKey})
+	return subs.ConsumerHasFeature
+}
+
 // The worker builds several gates; they share one auth-api terms client (one cache, one last
 // known answer) per process.
 var (

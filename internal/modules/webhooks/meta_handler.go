@@ -109,7 +109,7 @@ func (h *MetaHandler) Verify(w http.ResponseWriter, r *http.Request) {
 	mode := q.Get("hub.mode")
 	token := q.Get("hub.verify_token")
 	challenge := q.Get("hub.challenge")
-	if mode == "subscribe" && h.verifyToken != "" && token == h.verifyToken {
+	if mode == "subscribe" && h.verifyToken != "" && hmac.Equal([]byte(token), []byte(h.verifyToken)) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(challenge))
@@ -318,6 +318,9 @@ func (h *MetaHandler) campaignByMetaID(ctx context.Context, tenantID uuid.UUID, 
 	return id, err == nil
 }
 
+// errAmbiguousPage means more than one tenant claims the Page, so its leads go to nobody.
+var errAmbiguousPage = errors.New("meta page claimed by more than one tenant")
+
 func (h *MetaHandler) resolveTenantByPageID(ctx context.Context, pageID string) (uuid.UUID, error) {
 	if h.db == nil {
 		return uuid.Nil, fmt.Errorf("db not configured")
@@ -338,16 +341,32 @@ func (h *MetaHandler) resolveTenantByPageID(ctx context.Context, pageID string) 
 	if !errors.Is(err, sql.ErrNoRows) {
 		return uuid.Nil, err
 	}
-	// Tenants that connected before ConnectedAccount; the metadata fallback covers rows
-	// written before the meta_page_id column existed.
-	err = h.db.QueryRowContext(ctx,
-		`SELECT id FROM tenants
-		  WHERE meta_page_id = $1
-		     OR metadata->>'meta_page_id' = $1
-		  LIMIT 1`, pageID,
-	).Scan(&id)
+	// Tenants that connected before ConnectedAccount: the tenants.meta_page_id column, written only
+	// by the Meta connect flow. Never Tenant.metadata: any member could put a rival's public Page
+	// id there through the profile PATCH and receive that Page's leads (OWASP review 2026-11-18).
+	// A Page two tenants claim is refused rather than guessed.
+	rows, err := h.db.QueryContext(ctx, `SELECT id FROM tenants WHERE meta_page_id = $1 LIMIT 2`, pageID)
 	if err != nil {
 		return uuid.Nil, err
 	}
-	return id, nil
+	defer rows.Close()
+	var found []uuid.UUID
+	for rows.Next() {
+		var t uuid.UUID
+		if err := rows.Scan(&t); err != nil {
+			return uuid.Nil, err
+		}
+		found = append(found, t)
+	}
+	if err := rows.Err(); err != nil {
+		return uuid.Nil, err
+	}
+	switch len(found) {
+	case 0:
+		return uuid.Nil, sql.ErrNoRows
+	case 1:
+		return found[0], nil
+	default:
+		return uuid.Nil, errAmbiguousPage
+	}
 }

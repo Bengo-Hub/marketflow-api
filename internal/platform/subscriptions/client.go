@@ -117,6 +117,19 @@ func (c *Client) ConsumerHasFeature(ctx context.Context, tenantID, featureCode s
 	return false
 }
 
+// PlanStatus is the tenant's subscription status from the cached snapshot (ACTIVE, TRIAL ...;
+// the demo and platform owner bypass answers ACTIVE). known is false when it could not be read.
+func (c *Client) PlanStatus(ctx context.Context, tenantID string) (status string, known bool) {
+	if c == nil || tenantID == "" {
+		return "", false
+	}
+	e := c.cachedEntitlements(ctx, tenantID)
+	if e == nil {
+		return "", false
+	}
+	return e.Status, true
+}
+
 func (c *Client) cachedEntitlements(ctx context.Context, tenantID string) *Entitlements {
 	entCacheMu.Lock()
 	if hit, ok := entCache[tenantID]; ok && time.Since(hit.fetched) < entitlementCacheTTL {

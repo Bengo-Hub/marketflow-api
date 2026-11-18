@@ -42,6 +42,10 @@ func (s *Service) MakeStoryboard(ctx context.Context, tenantID, id uuid.UUID) (*
 	if _, ok := v.Copy["script"]; !ok {
 		return nil, fmt.Errorf("%w: this video ad has no script", ErrConflict)
 	}
+	// The storyboard's stills are paid work toward a video the plan must include.
+	if err := s.CheckVideoFeature(ctx, tenantID, VideoFeature(KindVideoAd, videoKind(v))); err != nil {
+		return nil, err
+	}
 	meta := copyMap(v.Metadata)
 	meta["stage"] = StageStoryboard
 	delete(meta, "attempts")
@@ -116,6 +120,9 @@ func (s *Service) ReviseVideoAd(ctx context.Context, tenantID, sourceID uuid.UUI
 	}
 	if src.Kind != KindVideoAd || (src.Status != StatusReady && src.Status != StatusApproved) {
 		return nil, fmt.Errorf("%w: only a finished video ad can be changed scene by scene", ErrConflict)
+	}
+	if err := s.CheckVideoFeature(ctx, tenantID, VideoFeature(KindVideoAd, videoKind(src))); err != nil {
+		return nil, err
 	}
 	if err := s.checkLiveDrafts(ctx, tenantID); err != nil {
 		return nil, err

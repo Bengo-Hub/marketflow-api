@@ -509,6 +509,8 @@ type OnboardingHandlers struct {
 	Checklist http.HandlerFunc
 	Dismiss   http.HandlerFunc
 	Draft     http.HandlerFunc
+	// MarkStep marks a quick start step done (plan, widget, share_page).
+	MarkStep http.HandlerFunc
 }
 
 // CreativeHandlers groups the Creative Studio endpoints (briefs, poster
@@ -610,6 +612,8 @@ type CustomAgentHandlers struct {
 	RollbackAutopilot http.HandlerFunc
 	// DryRunAutopilot previews the next run and the month's credits, spending nothing.
 	DryRunAutopilot http.HandlerFunc
+	// AutopilotDashboard reads an ad autopilot's drafts waiting for the owner and its last 7 days.
+	AutopilotDashboard http.HandlerFunc
 	// The veto-window mode (Sprint 20, owner 2026-11-14): whether the tenant may use it and its
 	// terms, the agents' posts in their window, the signed-in veto, and the public cancel link.
 	GetAutoPublish http.HandlerFunc
@@ -1064,6 +1068,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 						r.Post("/{id}/autopilot/rollback", deps.CustomAgentHandlers.RollbackAutopilot)
 						r.Get("/{id}/autopilot/dry-run", deps.CustomAgentHandlers.DryRunAutopilot)
 					}
+					if deps.CustomAgentHandlers.AutopilotDashboard != nil {
+						r.Get("/{id}/autopilot/dashboard", deps.CustomAgentHandlers.AutopilotDashboard)
+					}
 					if deps.CustomAgentHandlers.TriggerRun != nil {
 						r.Post("/{id}/run", deps.CustomAgentHandlers.TriggerRun)
 					}
@@ -1074,6 +1081,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 			if deps.OnboardingHandlers.Checklist != nil {
 				r.Get("/tenant/onboarding", deps.OnboardingHandlers.Checklist)
 				r.Post("/tenant/onboarding/dismiss", deps.OnboardingHandlers.Dismiss)
+				if deps.OnboardingHandlers.MarkStep != nil {
+					r.Post("/tenant/onboarding/steps/{key}/done", deps.OnboardingHandlers.MarkStep)
+				}
 				r.Get("/tenant/marketing-context/draft", deps.OnboardingHandlers.Draft)
 			}
 

@@ -201,12 +201,15 @@ func main() {
 			meta.NewClient("").WithSecret(meta.PlatformSecret(entClient, keys, os.Getenv("MF_META_APP_SECRET"))),
 			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
 			cfg.API.PortalURL, logger), logger)...)
-		// New item drafts (Sprint 20): agents that opted in draft a launch ad, at most one a day.
-		reg.Add(worker.NewNewItemAdsHandler(entClient, worker.NewAutopilotRunner(entClient,
+		// Rule triggers (Sprint 20): agents that opted in draft an ad on a new item or a newly
+		// published testimonial, at most one a day each, through the same runner and checks.
+		ruleRunner := worker.NewAutopilotRunner(entClient,
 			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
 			cfg.API.PortalURL, logger).WithForecast(custom_agents.NewCreditForecaster(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey)).
 			WithAutoPublishGate(worker.AutopilotGate(cfg, entClient)).WithLapsedHook(reg.AutopilotLapsed()).
-			WithAdFunds(worker.AdFunds(entClient, keys)), logger))
+			WithAdFunds(worker.AdFunds(entClient, keys))
+		reg.Add(worker.NewNewItemAdsHandler(entClient, ruleRunner, logger))
+		reg.Add(worker.NewTestimonialAdsHandler(entClient, ruleRunner, logger))
 		// Knowledge base sync (Sprint 25): item events keep synced entries current.
 		reg.Add(worker.NewKBItemHandlers(entClient, knowledge.NewSync(entClient, rawDB), logger)...)
 		// Erasure in maskani (privacy.party_anonymised): delete the CRM contact only when no other
@@ -382,6 +385,15 @@ func main() {
 		// Meta Graph API: a weekly check that emails the platform owner when a newer version than
 		// meta.GraphVersion is released (owner, 2026-11-10; the upgrade itself stays a reviewed change).
 		go worker.NewGraphVersionWatch(entClient, keys, tokenNotif, cfg.PlatformTenant, sharedcache.ClaimOnce, logger).Run(ctx)
+		// Media storage (Sprint 14): per-tenant R2 lifecycle backstop on drafts and temporary
+		// renders (needs MF_MEDIA_R2_ACCOUNT_ID and MF_MEDIA_R2_LIFECYCLE_TOKEN), and a daily alert
+		// through the platform alert path while live bytes are above MF_MEDIA_LIVE_BYTES_ALERT.
+		storageCfg := objectstore.FromEnv()
+		go worker.NewMediaLifecycle(cfg.MediaStorage, storageCfg.PublicBucket, storageCfg.PrivateBucket,
+			worker.EntMediaUsage{DB: entClient},
+			worker.NewPlatformAlert(entClient, tokenNotif, cfg.AuthServiceURL, cfg.CrossServiceKey, cfg.PlatformTenant, logger),
+			sharedcache.ClaimOnce, logger).Run(ctx)
+
 		// AI provider models (owner, 2026-11-11): a daily listing of each provider's models; a new
 		// version in a watched family alerts platform admins on Slack (auth-api) and by email.
 		go worker.NewModelWatch(entClient, keys, rdb, tokenNotif, cfg.AuthServiceURL, cfg.CrossServiceKey,
