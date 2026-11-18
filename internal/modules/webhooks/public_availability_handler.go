@@ -9,6 +9,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/integrations/gcal"
+	mfmiddleware "github.com/bengobox/marketflow-api/internal/middleware"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
 	"github.com/bengobox/marketflow-api/internal/modules/meetings"
 	"github.com/go-chi/chi/v5"
@@ -120,6 +121,8 @@ func (h *PublicHandler) CreateBooking(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// The booking is this tenant's, so its usage is too; the visitor's own X-Tenant-ID never counts.
+	mfmiddleware.SetUsageTenant(r.Context(), tenantID.String())
 
 	var in publicBookingInput
 	if err := httpapi.DecodeJSON(r, &in); err != nil {

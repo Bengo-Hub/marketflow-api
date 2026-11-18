@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/integrations/gcal"
+	mfmiddleware "github.com/bengobox/marketflow-api/internal/middleware"
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
 	"github.com/bengobox/marketflow-api/internal/modules/meetings"
@@ -452,6 +453,8 @@ func (h *PublicHandler) PublicCreateLead(w http.ResponseWriter, r *http.Request)
 		httpapi.Error(w, http.StatusNotFound, "tenant_not_found", "no tenant for slug", nil)
 		return
 	}
+	// The lead is this tenant's, so its usage is too; the visitor's own X-Tenant-ID never counts.
+	mfmiddleware.SetUsageTenant(r.Context(), t.ID.String())
 
 	var in publicLeadInput
 	if err := httpapi.DecodeJSON(r, &in); err != nil {
