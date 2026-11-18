@@ -73,3 +73,38 @@ func TestMarketSignalsShapeOnly(t *testing.T) {
 		t.Fatal("no data means no signals")
 	}
 }
+
+// Tagged winners add their labels to the pattern, and the scan's summary comes along.
+func TestMarketSignalsTagsAndSummary(t *testing.T) {
+	var meta map[string]any
+	_ = json.Unmarshal([]byte(`{"competitor_scan": {"summary": "Long ads open with a question.", "competitors": [{"query": "rival.co.ke", "winners": [
+		{"advertiser": "Rival Ltd", "format": "video", "total_days_shown": 40, "tags": {"hook_type": "social_proof", "angle": "pain", "offer_type": "free_delivery", "relevance": "related"}}
+	]}]}}`), &meta)
+	s := marketSignals(meta)
+	want := "video ad that ran 40 days; hook: social proof; angle: pain; offer: free delivery; relevance: related"
+	if len(s.Patterns) != 1 || s.Patterns[0] != want {
+		t.Fatalf("pattern with tags:\n got %v\nwant %q", s.Patterns, want)
+	}
+	if s.Summary != "Long ads open with a question." {
+		t.Fatalf("summary passes through: %q", s.Summary)
+	}
+	var noWinners map[string]any
+	_ = json.Unmarshal([]byte(`{"competitor_scan": {"summary": "x", "competitors": []}}`), &noWinners)
+	if marketSignals(noWinners).Summary != "" {
+		t.Fatal("a summary without winners is dropped")
+	}
+}
+
+func TestScanBrand(t *testing.T) {
+	meta := map[string]any{MetadataKey: map[string]any{"positioning": "Fresh cakes in Nakuru", "audience": []any{"parents"}, "offers": []any{"Birthday cakes", "Cupcakes"}}}
+	if got := ScanBrand(meta); got != "Fresh cakes in Nakuru. Audience: parents. Offers: Birthday cakes, Cupcakes" {
+		t.Fatalf("brand line: %q", got)
+	}
+	if ScanBrand(map[string]any{}) != "" {
+		t.Fatal("no brand context, no line")
+	}
+	long := map[string]any{MetadataKey: map[string]any{"positioning": strings.Repeat("a", 2000)}}
+	if n := len([]rune(ScanBrand(long))); n != maxScanBrand {
+		t.Fatalf("the line is capped at %d runes, got %d", maxScanBrand, n)
+	}
+}

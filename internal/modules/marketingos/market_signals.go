@@ -122,8 +122,13 @@ func readStrings(meta map[string]any, key string) []string {
 // ads by shape only (format, how long they ran), never their text or the advertiser's name, so
 // nothing can be copied and no rival is named. References and complaints are the owner's own
 // words.
+//
+// A winner the scan tagged adds its decide tags (hook, angle, offer, relevance) to its pattern;
+// tags are fixed labels, never the ad's words. Summary is the scan's brief for the Ads Specialist,
+// written by marketflow-ai from those tags and shapes only.
 type MarketSignals struct {
 	Patterns   []string      `json:"patterns,omitempty"`
+	Summary    string        `json:"summary,omitempty"`
 	References []ReferenceAd `json:"references,omitempty"`
 	Complaints []string      `json:"complaints,omitempty"`
 }
@@ -137,6 +142,9 @@ func (m MarketSignals) Empty() bool {
 func marketSignals(meta map[string]any) MarketSignals {
 	var out MarketSignals
 	if scan, ok := meta[CompetitorScanKey].(map[string]any); ok {
+		if s, _ := scan["summary"].(string); strings.TrimSpace(s) != "" {
+			out.Summary = clipRunes(strings.TrimSpace(s), maxScanSummary)
+		}
 		list, _ := scan["competitors"].([]any)
 	competitors:
 		for _, e := range list {
@@ -158,11 +166,17 @@ func marketSignals(meta map[string]any) MarketSignals {
 	}
 	out.References = refs
 	out.Complaints = readStrings(meta, CustomerComplaintsKey)
+	if len(out.Patterns) == 0 {
+		out.Summary = "" // a summary only explains winners the writer can see
+	}
 	return out
 }
 
-// winnerPattern describes one winner by shape, for example "video ad that ran 92 days, still
-// running".
+// maxScanSummary caps the scan's summary in the writer's prompt.
+const maxScanSummary = 400
+
+// winnerPattern describes one winner by shape and its tags, for example "video ad that ran 92
+// days, still running; hook: question; angle: pain; offer: discount; relevance: related".
 func winnerPattern(w any) string {
 	m, _ := w.(map[string]any)
 	if m == nil {
@@ -177,5 +191,90 @@ func winnerPattern(w any) string {
 	if running, _ := m["still_running"].(bool); running {
 		p += ", still running"
 	}
+	if t := readWinnerTags(m["tags"]); t != nil {
+		for _, f := range []struct{ label, v string }{{"hook", t.HookType}, {"angle", t.Angle}, {"offer", t.OfferType}, {"relevance", t.Relevance}} {
+			if f.v != "" {
+				p += "; " + f.label + ": " + strings.ReplaceAll(f.v, "_", " ")
+			}
+		}
+	}
 	return p
+}
+
+// WinnerTags are the decide labels marketflow-ai put on a top winner. They come from fixed lists
+// (marketflow-ai adintel/tags.go), so anything that is not a short lowercase label is dropped.
+type WinnerTags struct {
+	HookType  string `json:"hook_type,omitempty"`
+	Angle     string `json:"angle,omitempty"`
+	OfferType string `json:"offer_type,omitempty"`
+	Relevance string `json:"relevance,omitempty"`
+}
+
+func validTag(s string) string {
+	if s == "" || len(s) > 30 {
+		return ""
+	}
+	for _, r := range s {
+		if (r < 'a' || r > 'z') && r != '_' && r != ' ' {
+			return ""
+		}
+	}
+	return s
+}
+
+// readWinnerTags reads a stored winner's tags; nil when it has none.
+func readWinnerTags(raw any) *WinnerTags {
+	m, _ := raw.(map[string]any)
+	if m == nil {
+		return nil
+	}
+	t := WinnerTags{HookType: validTag(str(m["hook_type"])), Angle: validTag(str(m["angle"])),
+		OfferType: validTag(str(m["offer_type"])), Relevance: validTag(str(m["relevance"]))}
+	if t == (WinnerTags{}) {
+		return nil
+	}
+	return &t
+}
+
+// maxScanBrand caps the brand line the scan's relevance question compares against.
+const maxScanBrand = 600
+
+// ScanBrand is the short line of the tenant's own brand context the weekly scan sends to
+// marketflow-ai, so the winners can be scored for relevance: the positioning, audience and offers.
+// Empty when there is no brand context yet.
+func ScanBrand(meta map[string]any) string {
+	raw, _ := meta[MetadataKey].(map[string]any)
+	if raw == nil {
+		return ""
+	}
+	parts := []string{}
+	if p := strings.TrimSpace(str(raw["positioning"])); p != "" {
+		parts = append(parts, p)
+	}
+	if a := readList(raw["audience"]); len(a) > 0 {
+		parts = append(parts, "Audience: "+strings.Join(a, ", "))
+	}
+	if o := brandOffers(meta); len(o) > 0 {
+		parts = append(parts, "Offers: "+strings.Join(o, ", "))
+	}
+	return clipRunes(strings.Join(parts, ". "), maxScanBrand)
+}
+
+func readList(v any) []string {
+	list, _ := v.([]any)
+	out := make([]string, 0, len(list))
+	for _, e := range list {
+		if s := strings.TrimSpace(str(e)); s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// clipRunes cuts s to n runes.
+func clipRunes(s string, n int) string {
+	if utf8.RuneCountInString(s) <= n {
+		return s
+	}
+	return string([]rune(s)[:n])
 }

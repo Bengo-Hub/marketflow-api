@@ -397,6 +397,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		WithDemoPlan(cfg.Security.DemoPlanCode)
 	marketingOSHandler := marketingos.NewHandler(marketingOSService, logger)
 	marketingOSHandler.Complaints = marketingos.NewComplaintFinder(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey)
+	marketingOSHandler.ScanQuota = marketingos.NewScanQuotaReader(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey)
 	learningHandler := learning.NewHandler(learning.NewStore(entClient), logger)
 	marketingOSHandler.CanManage = func(ctx context.Context, tenantID uuid.UUID) bool {
 		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)

@@ -93,18 +93,26 @@ func (c *CompetitorScan) tick(ctx context.Context) {
 type scanResult struct {
 	Results []struct {
 		Query string `json:"query"`
-		Ads   []struct {
-			Advertiser   string  `json:"advertiser"`
-			Format       string  `json:"format"`
-			DaysShown    int     `json:"total_days_shown"`
-			StillRunning bool    `json:"still_running"`
-			Score        float64 `json:"score"`
-			DetailsLink  string  `json:"details_link"`
-		} `json:"ads"`
-		Error string `json:"error"`
+		Ads   []scanAd `json:"ads"`
+		Error string   `json:"error"`
 	} `json:"results"`
 	QuotaUsed bool `json:"quota_used"`
 	ShareUsed bool `json:"share_used"`
+	// Summary is marketflow-ai's brief of the tagged winners for the Ads Specialist.
+	Summary string `json:"summary"`
+}
+
+// scanAd is one winner as stored. Tags are the decide labels marketflow-ai put on a top winner;
+// the ad's words never come back.
+type scanAd struct {
+	CreativeID   string         `json:"ad_creative_id,omitempty"`
+	Advertiser   string         `json:"advertiser"`
+	Format       string         `json:"format"`
+	DaysShown    int            `json:"total_days_shown"`
+	StillRunning bool           `json:"still_running"`
+	Score        float64        `json:"score"`
+	DetailsLink  string         `json:"details_link"`
+	Tags         map[string]any `json:"tags,omitempty"`
 }
 
 func (c *CompetitorScan) scan(ctx context.Context, t *ent.Tenant) (bool, error) {
@@ -116,7 +124,8 @@ func (c *CompetitorScan) scan(ctx context.Context, t *ent.Tenant) (bool, error) 
 			}
 		}
 	}
-	body, _ := json.Marshal(map[string]any{"tenant_id": t.ID.String(), "queries": queries})
+	// brand is the tenant's own positioning, audience and offers, for the winners' relevance tag.
+	body, _ := json.Marshal(map[string]any{"tenant_id": t.ID.String(), "queries": queries, "brand": marketingos.ScanBrand(t.Metadata)})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.aiURL+"/api/v1/internal/adintel/scan", bytes.NewReader(body))
 	if err != nil {
 		return false, err
@@ -151,15 +160,29 @@ func (c *CompetitorScan) scan(ctx context.Context, t *ent.Tenant) (bool, error) 
 // A competitor searched this week gets its fresh winners. One that was not searched (the month's
 // pool or share ran out) or whose search failed keeps its earlier winners and the time they were
 // read, so a short week never wipes what was learned. Competitors removed from the list drop out.
+//
+// Tags: a fresh winner marketflow-ai did not tag this week (its details budget was used) keeps the
+// tags it had before, matched by creative id. The summary is replaced only by a new one.
 func mergeScan(meta map[string]any, queries []string, out scanResult, now time.Time) map[string]any {
 	stamp := now.Format(time.RFC3339)
 	earlier := map[string]map[string]any{}
+	earlierTags := map[string]map[string]any{}
+	prevSummary := ""
 	if prev, ok := meta["competitor_scan"].(map[string]any); ok {
+		prevSummary, _ = prev["summary"].(string)
 		if list, ok := prev["competitors"].([]any); ok {
 			for _, e := range list {
 				if m, ok := e.(map[string]any); ok {
 					if q, _ := m["query"].(string); q != "" {
 						earlier[strings.ToLower(q)] = m
+					}
+					winners, _ := m["winners"].([]any)
+					for _, w := range winners {
+						wm, _ := w.(map[string]any)
+						id, _ := wm["ad_creative_id"].(string)
+						if tags, ok := wm["tags"].(map[string]any); ok && id != "" && len(tags) > 0 {
+							earlierTags[id] = tags
+						}
 					}
 				}
 			}
@@ -179,6 +202,11 @@ func mergeScan(meta map[string]any, queries []string, out scanResult, now time.T
 			if len(ads) > 5 {
 				ads = ads[:5]
 			}
+			for j := range ads {
+				if len(ads[j].Tags) == 0 && ads[j].CreativeID != "" {
+					ads[j].Tags = earlierTags[ads[j].CreativeID]
+				}
+			}
 			per = append(per, map[string]any{"query": q, "winners": ads, "read_at": stamp})
 		case old != nil:
 			kept := map[string]any{"query": q, "winners": old["winners"], "read_at": old["read_at"]}
@@ -192,5 +220,13 @@ func mergeScan(meta map[string]any, queries []string, out scanResult, now time.T
 			per = append(per, map[string]any{"query": q, "winners": []any{}, "pending": true})
 		}
 	}
-	return map[string]any{"scanned_at": stamp, "quota_used": out.QuotaUsed, "share_used": out.ShareUsed, "competitors": per}
+	summary := strings.TrimSpace(out.Summary)
+	if summary == "" {
+		summary = prevSummary
+	}
+	result := map[string]any{"scanned_at": stamp, "quota_used": out.QuotaUsed, "share_used": out.ShareUsed, "competitors": per}
+	if summary != "" {
+		result["summary"] = summary
+	}
+	return result
 }

@@ -24,6 +24,9 @@ type Handler struct {
 	CanManage func(ctx context.Context, tenantID uuid.UUID) bool
 	// Complaints runs the market complaint search; nil answers 503.
 	Complaints ComplaintFinder
+	// ScanQuota reads the month's competitor search budget for the research page; nil leaves
+	// quota out of the answer.
+	ScanQuota ScanQuotaReader
 }
 
 // manager refuses a caller who may not change the team: its members speak and spend for the
