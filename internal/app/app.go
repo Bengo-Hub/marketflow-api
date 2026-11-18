@@ -302,7 +302,14 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	sequenceHandler := sequences.NewHandler(sequenceService, logger)
 
 	meetingService := meetings.NewService(entClient, gcal.NewSyncer(entClient, keyProvider, logger), logger)
-	meetingHandler := meetings.NewHandler(meetingService, logger)
+	// OWASP M2: daily caps on invites sent to outside addresses (public booking page and the AI's
+	// book_meeting tool), shared by both entry points.
+	bookingGuard := meetings.NewBookingGuard(ratelimit.NewQuota(redisClient), meetings.BookingCaps{
+		PerTenantDay: cfg.Security.BookingsPerTenantDay,
+		PerEmailDay:  cfg.Security.BookingsPerEmailDay,
+		PerIPDay:     cfg.Security.BookingsPerIPDay,
+	}, logger)
+	meetingHandler := meetings.NewHandler(meetingService, logger).WithBookingGuard(bookingGuard)
 	availabilitySvc := gcal.NewAvailabilityService(entClient, keyProvider, logger)
 
 	analyticsHandler := analytics.NewHandler(entClient, logger).WithCache(sharedcache.New(redisClient, logger))
@@ -607,7 +614,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// deliberately kept on the env value rather than the rotatable DB key.
 	integrationsHandler := integrations.NewHandler(entClient, encryption.KeyFromEnv(cfg.Security.EncryptionKey), keyProvider, logger).
 		WithPortal(cfg.CrossService.PortalURL).
-		WithMeta(cfg.Meta.AppSecret, cfg.Meta.DeletionStatusURL)
+		WithMeta(cfg.Meta.AppSecret, cfg.Meta.DeletionStatusURL).
+		// OWASP M1: connect states are single use and bound to the starting browser.
+		WithStateStore(redisClient, cfg.Redis.Namespace, cfg.Security.OAuthBrowserBinding)
 
 	// Webhook handlers — Meta app credentials are platform-level (MF_META_*),
 	// shared across all tenants; per-tenant link is Tenant.meta_page_id.
@@ -651,7 +660,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	publicHandler := webhooks.NewPublicHandler(entClient, funnelService, leadService, meetingService, availabilitySvc, testimonialHandler, tenantSyncer, logger).
 		// White label hides "Powered by Codevertex" (Business plan); fail closed, never the demo bypass.
 		WithFeatureCheck(subsClient.StrictHasFeature).
-		WithCache(publicProfileCache)
+		WithCache(publicProfileCache).
+		WithBookingGuard(bookingGuard)
 
 	// Tenant backups are made from the SSO client area (auth-api collects this service's
 	// /api/v1/s2s/tenant-export); the platform pg_dumpall covers disaster recovery.

@@ -70,7 +70,10 @@ func (h *Handler) YouTubeAuthorize(w http.ResponseWriter, r *http.Request) {
 			"platform YouTube OAuth client not configured", nil)
 		return
 	}
-	state := h.signState(tenantID, requestUserID(r))
+	state, ok := h.issueStateOrFail(w, r, tenantID)
+	if !ok {
+		return
+	}
 	httpapi.JSON(w, http.StatusOK, map[string]string{
 		"url": google.AuthCodeURL(c, publishing.YouTubeConnectScopes, state),
 	})
@@ -85,7 +88,7 @@ func (h *Handler) YouTubeAuthorize(w http.ResponseWriter, r *http.Request) {
 // @Router /integrations/youtube/callback [get]
 func (h *Handler) YouTubeCallback(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	tenantID, userID, stErr := h.checkState(r.URL.Query().Get("state"))
+	tenantID, userID, stErr := h.redeemState(w, r, r.URL.Query().Get("state"))
 	if stErr != nil {
 		h.failConnect(w, r, "youtube", tenantID, stateReason(stErr), stErr.Error())
 		return

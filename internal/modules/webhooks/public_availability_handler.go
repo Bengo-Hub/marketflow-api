@@ -3,7 +3,10 @@ package webhooks
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"time"
+
+	ratelimit "github.com/Bengo-Hub/shared-ratelimit"
 
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
@@ -93,13 +96,27 @@ func (h *PublicHandler) GetAvailability(w http.ResponseWriter, r *http.Request) 
 }
 
 type publicBookingInput struct {
-	SlotStart   string `json:"slot_start"`
-	Name        string `json:"name"`
-	Email       string `json:"email"`
-	Phone       string `json:"phone"`
+	SlotStart string `json:"slot_start"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	Phone     string `json:"phone"`
+	// LeadID is accepted so an older page's body still decodes, and ignored (OWASP M2): a public
+	// caller cannot attach a booking to an existing lead.
 	LeadID      string `json:"lead_id"`
 	Notes       string `json:"notes"`
 	MeetingType string `json:"meeting_type"`
+}
+
+// maxBookingNotes caps the notes kept on the booking's lead.
+const maxBookingNotes = 1000
+
+// truncateRunes keeps at most n runes of s.
+func truncateRunes(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n])
 }
 
 // CreateBooking handles POST /api/v1/public/book/{slug}
@@ -128,6 +145,18 @@ func (h *PublicHandler) CreateBooking(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.Name == "" || in.Email == "" {
 		httpapi.Error(w, http.StatusBadRequest, "missing_contact", "name and email are required", nil)
+		return
+	}
+	// The invite goes from the tenant's calendar to this address (OWASP M2): only a plain, valid one.
+	email, valid := meetings.NormalizeAttendeeEmail(in.Email)
+	if !valid {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_email", "enter a valid email address", nil)
+		return
+	}
+	in.Email = email
+	in.Name = strings.TrimSpace(in.Name)
+	if in.Name == "" || len([]rune(in.Name)) > 120 {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_name", "name is required (at most 120 characters)", nil)
 		return
 	}
 	slotStart, err := time.Parse(time.RFC3339, in.SlotStart)
@@ -175,43 +204,41 @@ func (h *PublicHandler) CreateBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var leadID *uuid.UUID
-	if in.LeadID != "" {
-		id, err := uuid.Parse(in.LeadID)
-		if err != nil {
-			httpapi.Error(w, http.StatusBadRequest, "invalid_lead_id", "lead_id must be a UUID", nil)
-			return
-		}
-		if _, err := h.leadService.Get(r.Context(), tenantID, id); err != nil {
-			httpapi.Error(w, http.StatusBadRequest, "lead_not_found", "lead_id does not belong to this tenant", nil)
-			return
-		}
-		leadID = &id
-	} else {
-		email, name := in.Email, in.Name
-		lead, err := h.leadService.Create(r.Context(), leads.CreateInput{
-			TenantID:  tenantID,
-			Source:    "booking",
-			LeadType:  "customer",
-			Email:     &email,
-			FirstName: &name,
-			Metadata: map[string]any{
-				"captured_via": "booking_widget",
-				"captured_at":  time.Now().UTC().Format(time.RFC3339),
-			},
-		})
-		if err != nil {
-			h.logger.Error("lead create for booking failed", zap.String("tenant_id", tenantID.String()), zap.Error(err))
-			httpapi.Error(w, http.StatusInternalServerError, "create_failed", "could not create lead", nil)
-			return
-		}
-		leadID = &lead.ID
+	// The daily caps (per visitor address, per invited address, per tenant), checked once the slot
+	// is known to be open, so a visitor retrying a taken slot does not use them up.
+	if err := h.bookingGuard.Allow(r.Context(), tenantID, in.Email, ratelimit.ClientIP(r)); errors.Is(err, meetings.ErrBookingLimit) {
+		httpapi.Error(w, http.StatusTooManyRequests, "booking_limit", err.Error(), nil)
+		return
 	}
 
-	meetingType := in.MeetingType
-	if meetingType == "" {
-		meetingType = "product_demo"
+	// A public caller never names a lead (lead_id is accepted for older pages and ignored): each
+	// booking makes its own lead. The visitor's notes stay on that lead; the calendar invite
+	// carries none of the visitor's text beyond their name.
+	email, name := in.Email, in.Name
+	leadMeta := map[string]any{
+		"captured_via": "booking_widget",
+		"captured_at":  time.Now().UTC().Format(time.RFC3339),
 	}
+	if notes := strings.TrimSpace(in.Notes); notes != "" {
+		leadMeta["booking_notes"] = truncateRunes(notes, maxBookingNotes)
+	}
+	lead, err := h.leadService.Create(r.Context(), leads.CreateInput{
+		TenantID:  tenantID,
+		Source:    "booking",
+		LeadType:  "customer",
+		Email:     &email,
+		FirstName: &name,
+		Metadata:  leadMeta,
+	})
+	if err != nil {
+		h.logger.Error("lead create for booking failed", zap.String("tenant_id", tenantID.String()), zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "create_failed", "could not create lead", nil)
+		return
+	}
+	leadID := &lead.ID
+
+	// Only a known type: the type names the invite's title.
+	meetingType := meetings.BookableMeetingType(in.MeetingType)
 	createInput := meetings.CreateInput{
 		TenantID:      tenantID,
 		LeadID:        leadID,
@@ -219,9 +246,6 @@ func (h *PublicHandler) CreateBooking(w http.ResponseWriter, r *http.Request) {
 		MeetingType:   &meetingType,
 		AttendeeEmail: &in.Email,
 		AttendeeName:  &in.Name,
-	}
-	if in.Notes != "" {
-		createInput.Notes = &in.Notes
 	}
 	meeting, err := h.meetingService.Create(r.Context(), createInput)
 	if err != nil {

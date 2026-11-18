@@ -1,11 +1,14 @@
 package meetings
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Bengo-Hub/pagination"
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -16,6 +19,17 @@ import (
 type Handler struct {
 	service *Service
 	logger  *zap.Logger
+	// guard checks invites a service key books for a visitor (marketflow-ai's book_meeting tool);
+	// nil leaves them unchecked (booking_guard.go).
+	guard *BookingGuard
+}
+
+// WithBookingGuard checks the invites a service key books (the AI's book_meeting tool): the
+// address, and the per-tenant and per-address daily caps. The per-visitor-address cap does not
+// apply there, since the call comes from marketflow-ai, not from the visitor.
+func (h *Handler) WithBookingGuard(g *BookingGuard) *Handler {
+	h.guard = g
+	return h
 }
 
 // NewHandler creates a new scheduled meeting handler.
@@ -83,6 +97,33 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if req.ScheduledAt.IsZero() {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "scheduled_at is required", nil)
 		return
+	}
+
+	// A service key books for a visitor (the AI's book_meeting tool): the invite goes to an
+	// outside address, so the address is checked, the daily caps apply, and the notes (written
+	// from the visitor's words) stay on the meeting record, out of the calendar invite.
+	if c, ok := authclient.ClaimsFromContext(r.Context()); ok && c != nil && c.IsService && req.AttendeeEmail != nil {
+		email, valid := NormalizeAttendeeEmail(*req.AttendeeEmail)
+		if !valid {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_email", "attendee_email is not a valid email address", nil)
+			return
+		}
+		req.AttendeeEmail = &email
+		if err := h.guard.Allow(r.Context(), tenantID, email, ""); errors.Is(err, ErrBookingLimit) {
+			httpapi.Error(w, http.StatusTooManyRequests, "booking_limit", err.Error(), nil)
+			return
+		}
+		if req.MeetingType != nil {
+			t := BookableMeetingType(*req.MeetingType)
+			req.MeetingType = &t
+		}
+		if req.Notes != nil && strings.TrimSpace(*req.Notes) != "" {
+			if req.Metadata == nil {
+				req.Metadata = map[string]any{}
+			}
+			req.Metadata["booking_notes"] = *req.Notes
+			req.Notes = nil
+		}
 	}
 
 	result, err := h.service.Create(r.Context(), CreateInput{

@@ -166,6 +166,15 @@ type SecurityConfig struct {
 	// so theirs is set well above any real burst.
 	PublicReadsPerMinute int `env:"PUBLIC_READS_PER_MIN" envDefault:"120"`
 	WebhooksPerMinute    int `env:"WEBHOOKS_PER_MIN" envDefault:"600"`
+	// OAuthBrowserBinding ties a connect flow to the browser that started it (a nonce cookie set by
+	// the authorize call and checked at the callback; integrations/oauth_state.go). The portal must
+	// make the authorize call with credentials. Every state is single use either way.
+	OAuthBrowserBinding bool `env:"OAUTH_BROWSER_BINDING" envDefault:"true"`
+	// Daily caps on meeting invites sent to outside addresses (public booking page and the AI's
+	// book_meeting tool): per tenant, per invited email, per visitor address. 0 turns a cap off.
+	BookingsPerTenantDay int `env:"BOOKINGS_PER_TENANT_DAY" envDefault:"50"`
+	BookingsPerEmailDay  int `env:"BOOKINGS_PER_EMAIL_DAY" envDefault:"3"`
+	BookingsPerIPDay     int `env:"BOOKINGS_PER_IP_DAY" envDefault:"10"`
 }
 
 type EventsConfig struct {

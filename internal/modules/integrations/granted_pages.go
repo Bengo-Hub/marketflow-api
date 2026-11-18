@@ -101,8 +101,15 @@ var (
 
 // stateReason is the reason code a callback reports for a bad state.
 func stateReason(err error) string {
-	if errors.Is(err, errStateExpired) {
+	switch {
+	case errors.Is(err, errStateExpired):
 		return "state_expired"
+	case errors.Is(err, errStateUsed):
+		return "state_used"
+	case errors.Is(err, errStateBrowser):
+		return "state_browser"
+	case errors.Is(err, errStateUnavailable):
+		return "state_unavailable"
 	}
 	return "bad_state"
 }

@@ -44,6 +44,15 @@ type PublicHandler struct {
 	hasFeature func(ctx context.Context, tenantID, feature string) bool
 	// cache holds public profile responses (Sprint 7 #58); nil reads the database every time.
 	cache *sharedcache.Aside
+	// bookingGuard caps the invites the public booking page sends (OWASP M2); nil means no caps.
+	bookingGuard *meetings.BookingGuard
+}
+
+// WithBookingGuard sets the daily caps on public bookings (per visitor address, per invited
+// address, per tenant).
+func (h *PublicHandler) WithBookingGuard(g *meetings.BookingGuard) *PublicHandler {
+	h.bookingGuard = g
+	return h
 }
 
 // WithCache serves public profiles from Redis for tenantmod.PublicProfileCacheTTL. The tenant
