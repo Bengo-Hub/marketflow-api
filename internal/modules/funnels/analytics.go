@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqljson"
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/go-chi/chi/v5"
@@ -66,7 +68,7 @@ func variantViewKey(slug, variant string) string {
 // @Router /public/funnels/{slug}/step-view [post]
 func (h *AnalyticsHandler) RecordStepView(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
-	if slug == "" {
+	if !ValidSlug(slug) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_slug", "slug is required", nil)
 		return
 	}
@@ -81,16 +83,63 @@ func (h *AnalyticsHandler) RecordStepView(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	key := stepViewRedisKey(slug, req.StepIndex)
-	if err := h.redis.Incr(r.Context(), key).Err(); err != nil {
-		h.logger.Warn("redis incr failed for step view", zap.String("key", key), zap.Error(err))
-		// Fail silently — analytics failures must not break the visitor UX.
+	// Only a published funnel is counted: an unknown slug writes nothing, so nobody can grow Redis
+	// with made-up slugs (OWASP review 2026-11-18). The visitor gets the same 204 either way.
+	if !h.published(r.Context(), slug) {
+		w.WriteHeader(http.StatusNoContent)
+		return
 	}
+	key := stepViewRedisKey(slug, req.StepIndex)
+	h.count(r.Context(), key)
 	if v := NormalVariant(req.Variant); v != "" && req.StepIndex == 0 {
-		_ = h.redis.Incr(r.Context(), variantViewKey(slug, v)).Err()
+		h.count(r.Context(), variantViewKey(slug, v))
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// Step-view counters are running totals; each view renews the TTL, so the counts of a funnel in use
+// never expire and those of a funnel nobody visits for stepViewTTL go.
+const (
+	stepViewTTL      = 400 * 24 * time.Hour
+	publishedTTL     = 5 * time.Minute
+	publishedYes     = "1"
+	publishedNo      = "0"
+	publishedKeyBase = "mf:funnel:published:"
+)
+
+// count adds one view and renews the counter's TTL. Analytics failures never break the visitor UX.
+func (h *AnalyticsHandler) count(ctx context.Context, key string) {
+	pipe := h.redis.TxPipeline()
+	pipe.Incr(ctx, key)
+	pipe.Expire(ctx, key, stepViewTTL)
+	if _, err := pipe.Exec(ctx); err != nil {
+		h.logger.Warn("redis incr failed for step view", zap.String("key", key), zap.Error(err))
+	}
+}
+
+// published reports whether some tenant has a published funnel with this slug. The answer is
+// cached for publishedTTL so a burst of views costs one query; without a database every slug is
+// refused.
+func (h *AnalyticsHandler) published(ctx context.Context, slug string) bool {
+	cacheKey := publishedKeyBase + slug
+	if v, err := h.redis.Get(ctx, cacheKey).Result(); err == nil {
+		return v == publishedYes
+	}
+	if h.db == nil {
+		return false
+	}
+	ok, err := h.db.Funnel.Query().Where(funnel.Slug(slug), funnel.Status("published")).Exist(ctx)
+	if err != nil {
+		h.logger.Warn("funnel lookup failed for step view", zap.String("slug", slug), zap.Error(err))
+		return false
+	}
+	val := publishedNo
+	if ok {
+		val = publishedYes
+	}
+	_ = h.redis.Set(ctx, cacheKey, val, publishedTTL).Err()
+	return ok
 }
 
 // GetAnalytics handles GET /api/v1/funnels/{id}/analytics.

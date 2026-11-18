@@ -55,6 +55,9 @@ var ReservedMetadataKeys = []string{
 	marketingos.ContactEnrichmentKey,
 	marketingos.ContactEnrichmentWebKey,
 	marketingos.ContactEnrichmentClearKey,
+	// The tenant's Meta Page is set only by the Meta connect flow (tenants.meta_page_id); a member
+	// must not claim a rival's Page here and receive its leads (OWASP review 2026-11-18).
+	"meta_page_id",
 }
 
 // PPBApprovalsMetadataKey mirrors creative.PPBApprovalsMetadataKey (this package may not import
