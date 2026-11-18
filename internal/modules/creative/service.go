@@ -134,6 +134,10 @@ type BriefInput struct {
 	Language  *string        `json:"language"`
 	Status    *string        `json:"status"`
 	Metadata  map[string]any `json:"metadata"`
+
+	// mergeMetadata makes UpdateBrief merge Metadata into the brief's own instead of replacing it
+	// (a person's update, brief_meta.go). Never set from a request body.
+	mergeMetadata bool
 }
 
 func (in *BriefInput) validate(create bool) error {
@@ -158,7 +162,7 @@ func (in *BriefInput) validate(create bool) error {
 	if in.Status != nil && *in.Status != "active" && *in.Status != "archived" {
 		return invalid("status must be active or archived")
 	}
-	return nil
+	return validateBriefPlan(in.Metadata)
 }
 
 // CreateBrief adds a brief.
@@ -246,7 +250,14 @@ func (s *Service) UpdateBrief(ctx context.Context, tenantID, id uuid.UUID, in Br
 		u.SetStatus(*in.Status)
 	}
 	if in.Metadata != nil {
-		u.SetMetadata(in.Metadata)
+		meta := in.Metadata
+		if in.mergeMetadata {
+			meta = copyMap(b.Metadata)
+			for k, v := range in.Metadata {
+				meta[k] = v
+			}
+		}
+		u.SetMetadata(meta)
 	}
 	return u.Save(ctx)
 }

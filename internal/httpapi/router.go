@@ -509,6 +509,8 @@ type OnboardingHandlers struct {
 	Checklist http.HandlerFunc
 	Dismiss   http.HandlerFunc
 	Draft     http.HandlerFunc
+	// MarkStep marks a quick start step done (plan, widget, share_page).
+	MarkStep http.HandlerFunc
 }
 
 // CreativeHandlers groups the Creative Studio endpoints (briefs, poster
@@ -1074,6 +1076,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 			if deps.OnboardingHandlers.Checklist != nil {
 				r.Get("/tenant/onboarding", deps.OnboardingHandlers.Checklist)
 				r.Post("/tenant/onboarding/dismiss", deps.OnboardingHandlers.Dismiss)
+				if deps.OnboardingHandlers.MarkStep != nil {
+					r.Post("/tenant/onboarding/steps/{key}/done", deps.OnboardingHandlers.MarkStep)
+				}
 				r.Get("/tenant/marketing-context/draft", deps.OnboardingHandlers.Draft)
 			}
 
