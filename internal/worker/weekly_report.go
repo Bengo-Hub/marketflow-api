@@ -10,11 +10,14 @@ import (
 	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/Bengo-Hub/reports"
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/publishjob"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/modules/analytics"
+	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	tenantmod "github.com/bengobox/marketflow-api/internal/modules/tenant"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
@@ -30,9 +33,50 @@ type WeeklyReport struct {
 	logger *zap.Logger
 	claim  func(ctx context.Context, key string, ttl time.Duration) bool
 	now    func() time.Time
+	// wa sends the WhatsApp copy (whatsapp_notice.go); nil sends email only.
+	wa *waNotifier
+	// creditsUsed reads the AI credits the tenant used in [from, to). mf_weekly_summary needs that
+	// number, and no service-to-service read of credit use exists yet (subscriptions-api has the
+	// ledger behind a signed-in route only), so it is nil: outside the 24-hour window nothing goes
+	// on WhatsApp until a source is wired here. Inside the window the text needs no credits.
+	creditsUsed func(ctx context.Context, tenantID uuid.UUID, from, to time.Time) (int, bool)
 }
 
 const weeklyReportTenantPage = 200
+
+// WithWhatsApp sends the weekly summary on WhatsApp too, to the approvers who use the assistant.
+func (w *WeeklyReport) WithWhatsApp(rdb *redis.Client, wa waSender) *WeeklyReport {
+	w.wa = newWANotifier(w.db, rdb, wa, tokenNoticeRoles, w.logger)
+	return w
+}
+
+// weeklySummaryWhatsApp is the WhatsApp copy of the week: leads and posts, and the template's
+// parameters (business, posts, leads, credits) only when the credits are known.
+func (w *WeeklyReport) weeklySummaryWhatsApp(ctx context.Context, t *ent.Tenant, d analytics.WeekDigest, weekKey string) waNotice {
+	posts, _ := w.db.PublishJob.Query().
+		Where(publishjob.TenantID(t.ID), publishjob.StatusEQ("published"),
+			publishjob.PublishedAtGTE(d.From), publishjob.PublishedAtLT(d.To)).
+		Count(ctx)
+	text := fmt.Sprintf("Your marketing week at %s, %s to %s: %d new lead%s (%d the week before), %d converted, and %d post%s went out.\n\nOpen the full summary in MarketFlow.",
+		t.Name, d.From.Format("2 Jan"), d.To.AddDate(0, 0, -1).Format("2 Jan"),
+		d.Leads, plural(d.Leads), d.LeadsBefore, d.Converted, posts, plural(posts))
+	n := waNotice{Text: text, Button: "Open summary", Link: w.appURL + "/" + t.Slug + "/dashboard",
+		Kind: creative.TemplateWeeklySummary, URLSuffix: t.Slug + "/dashboard",
+		KeyPrefix: "weekly-report-wa-" + t.ID.String() + "-" + weekKey}
+	if w.creditsUsed != nil {
+		if credits, ok := w.creditsUsed(ctx, t.ID, d.From, d.To); ok {
+			n.Params = []string{t.Name, fmt.Sprint(posts), fmt.Sprint(d.Leads), fmt.Sprint(credits)}
+		}
+	}
+	return n
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
+}
 
 func NewWeeklyReport(db *ent.Client, notif *notifications.Client, appURL string, logger *zap.Logger) *WeeklyReport {
 	return &WeeklyReport{db: db, notif: notif, appURL: strings.TrimRight(appURL, "/"), logger: logger.Named("weekly-report"),
@@ -103,6 +147,9 @@ func (w *WeeklyReport) one(ctx context.Context, t *ent.Tenant, now time.Time, we
 	}
 	if d.Empty() {
 		return
+	}
+	if w.wa != nil {
+		w.wa.send(ctx, t.ID, w.weeklySummaryWhatsApp(ctx, t, d, weekKey))
 	}
 	emails, err := tenantAdminEmails(ctx, w.db, t.ID, tokenNoticeRoles)
 	if err != nil || len(emails) == 0 {
