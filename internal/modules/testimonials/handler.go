@@ -16,6 +16,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/testimonial"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
+	"github.com/bengobox/marketflow-api/internal/outbox"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -25,6 +26,30 @@ import (
 type Handler struct {
 	db     *ent.Client
 	logger *zap.Logger
+}
+
+// saveAndAnnounce runs save in a transaction and, when the testimonial has just become published,
+// writes its event in the same transaction, so the event exists only when the save does.
+func (h *Handler) saveAndAnnounce(ctx context.Context, wasPublished bool, save func(tx *ent.Tx) (*ent.Testimonial, error)) (*ent.Testimonial, error) {
+	tx, err := h.db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	t, err := save(tx)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	if becamePublished(wasPublished, t) {
+		if err := outbox.Enqueue(ctx, tx.OutboxEvent, publishedEvent(t)); err != nil {
+			_ = tx.Rollback()
+			return nil, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return t, nil
 }
 
 func NewHandler(db *ent.Client, logger *zap.Logger) *Handler {
@@ -153,26 +178,28 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "missing_fields", "author_name and body are required", nil)
 		return
 	}
-	builder := h.db.Testimonial.Create().
-		SetTenantID(tenantID).
-		SetAuthorName(*req.AuthorName).
-		SetBody(*req.Body)
-	if req.Rating != nil {
-		builder = builder.SetRating(*req.Rating)
-	}
-	if req.DisplayOrder != nil {
-		builder = builder.SetDisplayOrder(*req.DisplayOrder)
-	}
-	if req.IsPublished != nil {
-		builder = builder.SetIsPublished(*req.IsPublished)
-	}
-	if req.AuthorRole != nil && *req.AuthorRole != "" {
-		builder = builder.SetAuthorRole(*req.AuthorRole)
-	}
-	if req.AvatarURL != nil && *req.AvatarURL != "" {
-		builder = builder.SetAvatarURL(*req.AvatarURL)
-	}
-	t, err := builder.Save(r.Context())
+	t, err := h.saveAndAnnounce(r.Context(), false, func(tx *ent.Tx) (*ent.Testimonial, error) {
+		builder := tx.Testimonial.Create().
+			SetTenantID(tenantID).
+			SetAuthorName(*req.AuthorName).
+			SetBody(*req.Body)
+		if req.Rating != nil {
+			builder = builder.SetRating(*req.Rating)
+		}
+		if req.DisplayOrder != nil {
+			builder = builder.SetDisplayOrder(*req.DisplayOrder)
+		}
+		if req.IsPublished != nil {
+			builder = builder.SetIsPublished(*req.IsPublished)
+		}
+		if req.AuthorRole != nil && *req.AuthorRole != "" {
+			builder = builder.SetAuthorRole(*req.AuthorRole)
+		}
+		if req.AvatarURL != nil && *req.AvatarURL != "" {
+			builder = builder.SetAvatarURL(*req.AvatarURL)
+		}
+		return builder.Save(r.Context())
+	})
 	if err != nil {
 		h.logger.Error("create testimonial", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "save_failed", "could not save the testimonial", nil)
@@ -224,37 +251,39 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusNotFound, "not_found", "testimonial not found", nil)
 		return
 	}
-	builder := existing.Update()
-	if req.AuthorName != nil {
-		builder = builder.SetAuthorName(*req.AuthorName)
-	}
-	if req.Body != nil {
-		builder = builder.SetBody(*req.Body)
-	}
-	if req.AuthorRole != nil {
-		if *req.AuthorRole == "" {
-			builder = builder.ClearAuthorRole()
-		} else {
-			builder = builder.SetAuthorRole(*req.AuthorRole)
+	t, err := h.saveAndAnnounce(r.Context(), existing.IsPublished, func(tx *ent.Tx) (*ent.Testimonial, error) {
+		builder := tx.Testimonial.UpdateOne(existing)
+		if req.AuthorName != nil {
+			builder = builder.SetAuthorName(*req.AuthorName)
 		}
-	}
-	if req.AvatarURL != nil {
-		if *req.AvatarURL == "" {
-			builder = builder.ClearAvatarURL()
-		} else {
-			builder = builder.SetAvatarURL(*req.AvatarURL)
+		if req.Body != nil {
+			builder = builder.SetBody(*req.Body)
 		}
-	}
-	if req.Rating != nil {
-		builder = builder.SetRating(*req.Rating)
-	}
-	if req.DisplayOrder != nil {
-		builder = builder.SetDisplayOrder(*req.DisplayOrder)
-	}
-	if req.IsPublished != nil {
-		builder = builder.SetIsPublished(*req.IsPublished)
-	}
-	t, err := builder.Save(r.Context())
+		if req.AuthorRole != nil {
+			if *req.AuthorRole == "" {
+				builder = builder.ClearAuthorRole()
+			} else {
+				builder = builder.SetAuthorRole(*req.AuthorRole)
+			}
+		}
+		if req.AvatarURL != nil {
+			if *req.AvatarURL == "" {
+				builder = builder.ClearAvatarURL()
+			} else {
+				builder = builder.SetAvatarURL(*req.AvatarURL)
+			}
+		}
+		if req.Rating != nil {
+			builder = builder.SetRating(*req.Rating)
+		}
+		if req.DisplayOrder != nil {
+			builder = builder.SetDisplayOrder(*req.DisplayOrder)
+		}
+		if req.IsPublished != nil {
+			builder = builder.SetIsPublished(*req.IsPublished)
+		}
+		return builder.Save(r.Context())
+	})
 	if err != nil {
 		h.logger.Error("update testimonial", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "save_failed", "could not save the testimonial", nil)
