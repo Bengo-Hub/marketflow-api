@@ -56,6 +56,10 @@ type Handler struct {
 	// the zero values are Google's own, tests point them at a fake.
 	googleOAuth    google.OAuth
 	youtubeAPIBase string
+	// states makes connect states single use and bindBrowser ties them to the starting browser
+	// (oauth_state.go); nil states keeps the signed state alone (tests).
+	states      stateStore
+	bindBrowser bool
 }
 
 // NewHandler constructs a Handler.
@@ -135,7 +139,10 @@ func (h *Handler) GoogleAuthorize(w http.ResponseWriter, r *http.Request) {
 			"platform google_calendar oauth client not configured", nil)
 		return
 	}
-	state := h.signState(tenantID, requestUserID(r))
+	state, ok := h.issueStateOrFail(w, r, tenantID)
+	if !ok {
+		return
+	}
 	q := url.Values{
 		"client_id":     {creds["client_id"]},
 		"redirect_uri":  {creds["redirect_url"]},
@@ -161,7 +168,7 @@ func (h *Handler) GoogleAuthorize(w http.ResponseWriter, r *http.Request) {
 // @Router /integrations/google/callback [get]
 func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
-	tenantID, _, stErr := h.checkState(state)
+	tenantID, _, stErr := h.redeemState(w, r, state)
 	if stErr != nil {
 		h.failConnect(w, r, "google", tenantID, stateReason(stErr), stErr.Error())
 		return
@@ -301,7 +308,10 @@ func (h *Handler) MetaAuthorize(w http.ResponseWriter, r *http.Request) {
 			"platform meta oauth app not configured", nil)
 		return
 	}
-	state := h.signState(tenantID, requestUserID(r))
+	state, ok := h.issueStateOrFail(w, r, tenantID)
+	if !ok {
+		return
+	}
 	q := url.Values{
 		"client_id":     {creds["app_id"]},
 		"redirect_uri":  {creds["redirect_url"]},
@@ -325,7 +335,7 @@ func (h *Handler) MetaAuthorize(w http.ResponseWriter, r *http.Request) {
 // @Router /integrations/meta/callback [get]
 func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
-	tenantID, userID, stErr := h.checkState(state)
+	tenantID, userID, stErr := h.redeemState(w, r, state)
 	if stErr != nil {
 		h.failConnect(w, r, "meta", tenantID, stateReason(stErr), stErr.Error())
 		return
@@ -477,7 +487,10 @@ func (h *Handler) TikTokAuthorize(w http.ResponseWriter, r *http.Request) {
 			"TikTok app credentials not configured. Set them at /platform/providers.", nil)
 		return
 	}
-	state := h.signState(tenantID, requestUserID(r))
+	state, ok := h.issueStateOrFail(w, r, tenantID)
+	if !ok {
+		return
+	}
 	authURL := fmt.Sprintf("%s?app_id=%s&redirect_uri=%s&state=%s",
 		tiktokAuthURL,
 		url.QueryEscape(creds["app_id"]),
@@ -495,7 +508,7 @@ func (h *Handler) TikTokAuthorize(w http.ResponseWriter, r *http.Request) {
 // @Router /integrations/tiktok/callback [get]
 func (h *Handler) TikTokCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
-	tenantID, userID, stErr := h.checkState(state)
+	tenantID, userID, stErr := h.redeemState(w, r, state)
 	if stErr != nil {
 		h.failConnect(w, r, "tiktok", tenantID, stateReason(stErr), stErr.Error())
 		return

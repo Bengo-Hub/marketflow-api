@@ -211,6 +211,10 @@ type fakeAI struct {
 	mu     sync.Mutex
 	got    []map[string]any
 	status int
+	// tenant, when set, keeps got to this test's own calls. The renderer's Tick takes every
+	// pending version in the shared test database, including rows other tests (in this package or
+	// another running at the same time) leave behind; those calls are answered but not recorded.
+	tenant string
 }
 
 func (f *fakeAI) server(t *testing.T, key string) *httptest.Server {
@@ -226,7 +230,9 @@ func (f *fakeAI) server(t *testing.T, key string) *httptest.Server {
 		var body map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		f.mu.Lock()
-		f.got = append(f.got, body)
+		if f.tenant == "" || body["tenant_id"] == f.tenant {
+			f.got = append(f.got, body)
+		}
 		status := f.status
 		f.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
@@ -277,7 +283,7 @@ func TestRendererMakesQueuedPosters(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ai := &fakeAI{}
+	ai := &fakeAI{tenant: tid.String()}
 	srv := ai.server(t, "svc-key")
 	r := NewRenderer(db, srv.URL, "svc-key", zap.NewNop())
 	r.Tick(ctx)
@@ -454,7 +460,7 @@ func TestRendererRecordsNoCredits(t *testing.T) {
 	b := newBrief(t, s, tid)
 	v, _ := s.CreateVersion(ctx, tid, b.ID, VersionInput{Prompt: "jar"})
 
-	ai := &fakeAI{status: http.StatusPaymentRequired}
+	ai := &fakeAI{status: http.StatusPaymentRequired, tenant: tid.String()}
 	r := NewRenderer(db, ai.server(t, "k").URL, "k", zap.NewNop())
 	r.Tick(ctx)
 	got, _ := s.GetVersion(ctx, tid, v.ID)

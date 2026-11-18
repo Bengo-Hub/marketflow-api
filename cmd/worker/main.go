@@ -267,7 +267,12 @@ func main() {
 			APIKey:    cfg.Notifications.APIKey,
 			AuthToken: cfg.Notifications.Token,
 		})
-		go worker.NewConnectedTokenHealth(entClient, keys, tokenNotif, cfg.API.PortalURL, logger).Run(ctx)
+		go worker.NewConnectedTokenHealth(entClient, keys, tokenNotif, cfg.API.PortalURL, logger).
+			// The reconnect notice on WhatsApp too: in the window as text, outside it as the approved
+			// mf_integration_reconnect template, else email only (Sprint 14 and 17).
+			WithWhatsApp(rdb, creative.NewPlatformWhatsApp(entClient, tokenNotif, cfg.PlatformTenant, "marketflow-worker").
+				WithRich(rdb, waRichCfg).WithTemplates(waTplCfg, logger)).
+			Run(ctx)
 
 		// Marketing OS daily brief: 06:30 tenant time, once per tenant per day, to
 		// the tenant's admins. Numbers from marketflow-api, wording from marketflow-ai.
@@ -377,7 +382,12 @@ func main() {
 		// Ad autopilots (Sprint 20): each agent's week by email, on Mondays.
 		go worker.NewAutopilotWeekly(entClient, tokenNotif, cfg.API.PortalURL, logger).Run(ctx)
 		// Every business's week by email, on Mondays (Sprint 7 #52), unless the owner turned it off.
-		go worker.NewWeeklyReport(entClient, tokenNotif, cfg.API.PortalURL, logger).Run(ctx)
+		go worker.NewWeeklyReport(entClient, tokenNotif, cfg.API.PortalURL, logger).
+			// The week on WhatsApp too, to assistant users inside their window (Sprint 17); the
+			// mf_weekly_summary template waits for a source of the week's AI credits.
+			WithWhatsApp(rdb, creative.NewPlatformWhatsApp(entClient, tokenNotif, cfg.PlatformTenant, "marketflow-worker").
+				WithRich(rdb, waRichCfg).WithTemplates(waTplCfg, logger)).
+			Run(ctx)
 
 		// Competitor ad intel (Sprint 24): each tenant's competitors scanned once a week.
 		go worker.NewCompetitorScan(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).Run(ctx)

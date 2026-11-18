@@ -17,6 +17,7 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
 	"github.com/bengobox/marketflow-api/internal/encryption"
@@ -24,6 +25,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/integrations/google"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
+	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/rbac"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 )
@@ -62,6 +64,43 @@ type ConnectedTokenHealth struct {
 	appToken func(context.Context) (string, bool)
 	// youtube renews YouTube channel tokens; a refused renewal is the sign to reconnect.
 	youtube *google.Tokens
+	// wa sends the WhatsApp copy of the reconnect notice (whatsapp_notice.go); nil sends email only.
+	wa *waNotifier
+}
+
+// WithWhatsApp sends the reconnect notice on WhatsApp too (Sprint 14 and 17): to the approvers who
+// use the assistant, inside their window as a text with a Reconnect button, outside it as
+// mf_integration_reconnect once Meta approved it.
+func (j *ConnectedTokenHealth) WithWhatsApp(rdb *redis.Client, wa waSender) *ConnectedTokenHealth {
+	j.wa = newWANotifier(j.db, rdb, wa, tokenNoticeRoles, j.logger)
+	return j
+}
+
+// maxReconnectList caps the account names in the WhatsApp template's parameter.
+const maxReconnectList = 120
+
+// reconnectWhatsApp is the WhatsApp copy of a reconnect notice. The template's parameters are the
+// business and the accounts (mf_integration_reconnect_v1_btn, whose text is in the MarketFlow
+// sprint-14 notes for the owner to submit).
+func reconnectWhatsApp(business, slug, link, key string, list []tokenNotice) waNotice {
+	names := make([]string, 0, len(list))
+	stopped := false
+	for _, n := range list {
+		names = append(names, n.Name+" ("+strings.ReplaceAll(n.Type, "_", " ")+")")
+		stopped = stopped || n.Expired
+	}
+	accounts := strings.Join(names, ", ")
+	if r := []rune(accounts); len(r) > maxReconnectList {
+		accounts = string(r[:maxReconnectList-3]) + "..."
+	}
+	what := "needs reconnecting soon"
+	if stopped {
+		what = "has stopped working"
+	}
+	text := fmt.Sprintf("Your MarketFlow connection %s: %s.\n\nUntil someone in your business connects it again, MarketFlow cannot post, read leads or run ads for it.", what, accounts)
+	return waNotice{Text: text, Button: "Reconnect", Link: link,
+		Kind: creative.TemplateIntegrationReconnect, Params: []string{business, accounts},
+		URLSuffix: slug + "/settings/integrations", KeyPrefix: "conn-token-wa-" + key}
 }
 
 // metaAppToken reads the platform Meta app credentials.
@@ -392,12 +431,23 @@ func (j *ConnectedTokenHealth) notify(ctx context.Context, tenantID uuid.UUID, l
 		fmt.Fprintf(sig, "%s|%t|%s;", n.Name, n.Expired, n.ExpiresAt.Format("2006-01-02"))
 	}
 	link := j.appURL + "/settings/integrations"
-	if slug, err := j.tenantSlug(ctx, tenantID); err == nil && slug != "" {
+	slug, business := "", "your business"
+	if t, err := j.db.Tenant.Get(ctx, tenantID); err == nil {
+		slug = t.Slug
+		if strings.TrimSpace(t.Name) != "" {
+			business = t.Name
+		}
+	}
+	if slug != "" {
 		link = j.appURL + "/" + slug + "/settings/integrations"
 	}
 	body := "MarketFlow can no longer post, read leads or run ads for these accounts unless someone in your business connects them again:\n\n" +
 		strings.Join(lines, "\n") + "\n\nReconnect here: " + link
 	key := "conn-token-" + tenantID.String() + "-" + hex.EncodeToString(sig.Sum(nil))[:16]
+	// The WhatsApp copy uses the same list key, so it too goes once per list and dates.
+	if j.wa != nil {
+		j.wa.send(ctx, tenantID, reconnectWhatsApp(business, slug, link, key, list))
+	}
 	sent := false
 	for _, email := range emails {
 		err := j.notif.Send(ctx, tenantID.String(), notifications.Message{
@@ -424,12 +474,4 @@ func (j *ConnectedTokenHealth) adminEmails(ctx context.Context, tenantID uuid.UU
 // tenantAdminEmails is rbac.TenantAdminEmails, kept short for the worker jobs that email admins.
 func tenantAdminEmails(ctx context.Context, db *ent.Client, tenantID uuid.UUID, roles []string) ([]string, error) {
 	return rbac.TenantAdminEmails(ctx, db, tenantID, roles)
-}
-
-func (j *ConnectedTokenHealth) tenantSlug(ctx context.Context, tenantID uuid.UUID) (string, error) {
-	t, err := j.db.Tenant.Get(ctx, tenantID)
-	if err != nil {
-		return "", err
-	}
-	return t.Slug, nil
 }

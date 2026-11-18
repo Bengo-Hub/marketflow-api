@@ -27,6 +27,11 @@ const (
 	TemplateVideoReady    = "video_ready"
 	TemplatePublishResult = "publish_result"
 	TemplateDailyBrief    = "daily_brief"
+	// TemplateWeeklySummary is the Monday summary (worker weekly_report.go).
+	TemplateWeeklySummary = "weekly_summary"
+	// TemplateIntegrationReconnect asks the business to reconnect an account whose token stopped
+	// or is about to stop working (worker connected_token_health.go).
+	TemplateIntegrationReconnect = "integration_reconnect"
 	// TemplateOTP is the platform's AUTHENTICATION template for one-time codes; it is always
 	// approved on the platform number and is never gated.
 	TemplateOTP = "auth_otp"
@@ -37,6 +42,10 @@ type WhatsAppTemplateConfig struct {
 	VideoReady    string
 	PublishResult string
 	DailyBrief    string
+	// WeeklySummary and IntegrationReconnect: sent, like the others, only while Meta shows them
+	// APPROVED, so nothing goes on WhatsApp outside the window until the owner submits them.
+	WeeklySummary        string
+	IntegrationReconnect string
 	// StatusTTL is how long Meta's review status is trusted before it is asked again.
 	StatusTTL time.Duration
 }
@@ -44,7 +53,8 @@ type WhatsAppTemplateConfig struct {
 // DefaultWhatsAppTemplateConfig is the names in the template policy doc and 15 minutes.
 func DefaultWhatsAppTemplateConfig() WhatsAppTemplateConfig {
 	return WhatsAppTemplateConfig{VideoReady: "mf_video_ready_v1_btn", PublishResult: "mf_publish_result_v1_btn",
-		DailyBrief: "mf_daily_brief_v1_btn", StatusTTL: 15 * time.Minute}
+		DailyBrief: "mf_daily_brief_v1_btn", WeeklySummary: "mf_weekly_summary_v1_btn",
+		IntegrationReconnect: "mf_integration_reconnect_v1_btn", StatusTTL: 15 * time.Minute}
 }
 
 // WhatsAppTemplateConfigFromEnv reads MF_WA_TPL_VIDEO_READY, MF_WA_TPL_PUBLISH_RESULT,
@@ -67,6 +77,8 @@ func WhatsAppTemplateConfigFromEnv(getenv func(string) string) (WhatsAppTemplate
 	name("MF_WA_TPL_VIDEO_READY", &cfg.VideoReady)
 	name("MF_WA_TPL_PUBLISH_RESULT", &cfg.PublishResult)
 	name("MF_WA_TPL_DAILY_BRIEF", &cfg.DailyBrief)
+	name("MF_WA_TPL_WEEKLY_SUMMARY", &cfg.WeeklySummary)
+	name("MF_WA_TPL_INTEGRATION_RECONNECT", &cfg.IntegrationReconnect)
 	if v := strings.TrimSpace(getenv("MF_WA_TPL_STATUS_TTL")); v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d > 0 {
 			cfg.StatusTTL = d
@@ -102,6 +114,10 @@ func (c WhatsAppTemplateConfig) Name(kind string) string {
 		return c.PublishResult
 	case TemplateDailyBrief:
 		return c.DailyBrief
+	case TemplateWeeklySummary:
+		return c.WeeklySummary
+	case TemplateIntegrationReconnect:
+		return c.IntegrationReconnect
 	case TemplateOTP:
 		return TemplateOTP
 	}
@@ -109,7 +125,7 @@ func (c WhatsAppTemplateConfig) Name(kind string) string {
 }
 
 func (c WhatsAppTemplateConfig) gated() []string {
-	return []string{c.VideoReady, c.PublishResult, c.DailyBrief}
+	return []string{c.VideoReady, c.PublishResult, c.DailyBrief, c.WeeklySummary, c.IntegrationReconnect}
 }
 
 // templateStatuses reads review statuses (notifications.Client.TemplateStatuses).
@@ -172,6 +188,12 @@ func (p *PlatformWhatsApp) WithTemplates(cfg WhatsAppTemplateConfig, logger *zap
 	}
 	if cfg.DailyBrief == "" {
 		cfg.DailyBrief = d.DailyBrief
+	}
+	if cfg.WeeklySummary == "" {
+		cfg.WeeklySummary = d.WeeklySummary
+	}
+	if cfg.IntegrationReconnect == "" {
+		cfg.IntegrationReconnect = d.IntegrationReconnect
 	}
 	var src templateStatuses
 	if p.notif != nil {
