@@ -92,5 +92,8 @@ func (CreativeVersion) Indexes() []ent.Index {
 		index.Fields("created_at").
 			StorageKey("creativeversion_render_queue").
 			Annotations(entsql.IndexWhere("((status)::text = ANY ((ARRAY['queued'::character varying, 'rendering'::character varying])::text[]))")),
+		// The platform cost report's month range across every tenant (the tenant-led index above
+		// cannot serve a range on created_at alone).
+		index.Fields("created_at"),
 	}
 }

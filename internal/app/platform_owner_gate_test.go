@@ -40,6 +40,10 @@ func TestPlatformOwnerGate(t *testing.T) {
 		{"service cannot write service config", http.MethodPut, "/api/v1/admin/service-config/x", svc, 403},
 		{"service cannot post to resolve", http.MethodPost, "/api/v1/admin/providers/resolve", svc, 403},
 		{"platform owner configures", http.MethodPost, "/api/v1/admin/providers/configure", po, 200},
+		// The monthly cost and margin report shows every tenant's spend: platform owner only.
+		{"platform owner reads the cost report", http.MethodGet, "/api/v1/admin/platform/cost-report?month=2026-11", po, 200},
+		{"service cannot read the cost report", http.MethodGet, "/api/v1/admin/platform/cost-report", svc, 403},
+		{"tenant superuser cannot read the cost report", http.MethodGet, "/api/v1/admin/platform/cost-report", admin, 403},
 		{"tenant superuser refused", http.MethodGet, "/api/v1/admin/providers/resolve", admin, 403},
 		{"anonymous refused", http.MethodGet, "/api/v1/admin/tenants", nil, 401},
 	}

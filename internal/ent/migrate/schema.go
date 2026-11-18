@@ -770,6 +770,11 @@ var (
 					Where: "((status)::text = ANY ((ARRAY['queued'::character varying, 'rendering'::character varying])::text[]))",
 				},
 			},
+			{
+				Name:    "creativeversion_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{CreativeVersionsColumns[14]},
+			},
 		},
 	}
 	// CustomAgentsColumns holds the columns for the "custom_agents" table.

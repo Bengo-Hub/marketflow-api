@@ -241,6 +241,11 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	endpointStore := endpoints.EntStore{DB: entClient}
 	endpointHandler := &endpoints.Handler{Store: endpointStore, Scanner: endpoints.NewScanner(endpointStore, endpoints.DefaultServices, logger), Logger: logger}
 	adminTenantsHandler := admin.NewTenantsHandler(entClient, logger)
+	// The cost report prices USD costs with treasury's platform rate (shared cache), falling back
+	// to the output registry's fx_rate when treasury has none.
+	costReportHandler := admin.NewCostReportHandler(entClient, sqlDB,
+		fxrate.New(cfg.CrossService.TreasuryURL, cfg.CrossService.InternalServiceKey, cfg.Security.PlatformTenant,
+			sharedcache.New(redisClient, logger)).KESPer, logger)
 	serviceConfigHandler := admin.NewServiceConfigHandler(entClient, logger)
 
 	// ── Auth Middleware (JWT via shared auth-client JWKS) ──────────────────
@@ -817,6 +822,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		AdminTenantsHandlers: httpapi.AdminTenantsHandlers{
 			List: adminTenantsHandler.List,
 		},
+		AdminCostReport: costReportHandler.CostReport,
 		AdminProviderHandlers: httpapi.AdminProviderHandlers{
 			Configure:   platformProviderHandler.ConfigureProvider,
 			List:        platformProviderHandler.ListProviders,

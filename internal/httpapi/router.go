@@ -74,6 +74,8 @@ type RouterDeps struct {
 	// Admin service config CRUD (platform owner only)
 	AdminServiceConfigHandlers AdminServiceConfigHandlers
 	AdminEncryptionKeyHandlers AdminEncryptionKeyHandlers
+	// Platform cost and margin report, monthly (platform owner only, Sprint 15).
+	AdminCostReport http.HandlerFunc
 	// Endpoint discovery (Sprint 25): the owner's approval page plus marketflow-ai's tool list.
 	EndpointHandlers EndpointHandlers
 
@@ -1261,6 +1263,11 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 				// Tenant directory (drives /platform/tenants UI + tenant switcher).
 				r.Get("/tenants", deps.AdminTenantsHandlers.List)
+
+				// Monthly provider cost against credits charged, per tenant (Sprint 15).
+				if deps.AdminCostReport != nil {
+					r.Get("/platform/cost-report", deps.AdminCostReport)
+				}
 
 				// Service config CRUD (platform defaults + tenant overrides)
 				if deps.AdminServiceConfigHandlers.ListPlatform != nil {
