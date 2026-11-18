@@ -150,9 +150,9 @@ func (h *PublicHandler) publicProfile(ctx context.Context, slug string) (map[str
 		}
 	}
 
-	// Return only public-safe fields
+	// Return only public-safe fields. The tenant UUID is left out: nothing public needs it, and some
+	// services have trusted it as authority (X-Tenant-ID; OWASP review 2026-11-18).
 	profile := map[string]any{
-		"id":            t.ID,
 		"name":          t.Name,
 		"slug":          t.Slug,
 		"business_type": t.BusinessType,
@@ -211,7 +211,9 @@ func (h *PublicHandler) ListTestimonials(w http.ResponseWriter, r *http.Request)
 	}
 	rows, err := h.testimonialService.PublicListForTenant(r.Context(), t.ID, limit)
 	if err != nil {
-		httpapi.Error(w, http.StatusInternalServerError, "query_failed", err.Error(), nil)
+		// The cause is logged, never sent: a public caller must not see database details.
+		h.logger.Error("public testimonials", zap.String("tenant", t.ID.String()), zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "query_failed", "could not load testimonials", nil)
 		return
 	}
 	httpapi.JSON(w, http.StatusOK, map[string]any{"data": rows})

@@ -108,3 +108,54 @@ func TestMetaLeadgenDedupeAndCampaignLookup(t *testing.T) {
 		t.Fatal("no ids, no match")
 	}
 }
+
+// OWASP review 2026-11-18: a Page is found only through the connect flow's column. A tenant that
+// writes a rival's Page id into its metadata gets nothing, and a Page two tenants claim is refused.
+func TestMetaPageResolutionIgnoresMetadataClaims(t *testing.T) {
+	if os.Getenv("SKIP_POSTGRES_TESTS") != "" {
+		t.Skip("SKIP_POSTGRES_TESTS set")
+	}
+	sqlDB, err := sql.Open("pgx", testWebhooksPostgresDSN)
+	if err != nil {
+		t.Skipf("local postgres unavailable: %v", err)
+	}
+	if err := sqlDB.Ping(); err != nil {
+		_ = sqlDB.Close()
+		t.Skipf("local postgres unreachable: %v", err)
+	}
+	defer sqlDB.Close()
+	db := ent.NewClient(ent.Driver(entsql.OpenDB(dialect.Postgres, sqlDB)))
+	defer db.Close()
+	ctx := context.Background()
+
+	victimPage, claimedPage, sharedPage := "pg-"+uuid.NewString(), "pg-"+uuid.NewString(), "pg-"+uuid.NewString()
+	victim, attacker, second := uuid.New(), uuid.New(), uuid.New()
+	seed := func(id uuid.UUID, column string, meta map[string]any) {
+		c := db.Tenant.Create().SetID(id).SetName("Page " + id.String()).SetSlug("page-" + id.String()).SetMetadata(meta)
+		if column != "" {
+			c = c.SetMetaPageID(column)
+		}
+		if _, err := c.Save(ctx); err != nil {
+			t.Fatalf("seed tenant: %v", err)
+		}
+	}
+	seed(victim, victimPage, map[string]any{})
+	seed(attacker, sharedPage, map[string]any{"meta_page_id": claimedPage})
+	seed(second, sharedPage, map[string]any{"meta_page_id": victimPage})
+	t.Cleanup(func() {
+		for _, id := range []uuid.UUID{victim, attacker, second} {
+			_ = db.Tenant.DeleteOneID(id).Exec(context.Background())
+		}
+	})
+	h := NewMetaHandler(nil, MetaConfig{DB: sqlDB}, zap.NewNop())
+
+	if got, err := h.resolveTenantByPageID(ctx, victimPage); err != nil || got != victim {
+		t.Fatalf("the connected Page resolves to its tenant even when another claims it in metadata: %v %v", got, err)
+	}
+	if _, err := h.resolveTenantByPageID(ctx, claimedPage); err == nil {
+		t.Fatal("a Page claimed only in metadata must not resolve")
+	}
+	if _, err := h.resolveTenantByPageID(ctx, sharedPage); err == nil {
+		t.Fatal("a Page two tenants hold must not resolve")
+	}
+}
