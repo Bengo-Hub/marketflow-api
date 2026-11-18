@@ -60,6 +60,9 @@ func (s *Service) CreateMotion(ctx context.Context, tenantID, sourceID uuid.UUID
 	if err != nil {
 		return nil, err
 	}
+	if err := s.CheckVideoFeature(ctx, tenantID, VideoFeature(KindVideo, "")); err != nil {
+		return nil, err
+	}
 	if err := s.checkLiveDrafts(ctx, tenantID); err != nil {
 		return nil, err
 	}
