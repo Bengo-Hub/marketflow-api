@@ -50,6 +50,9 @@ type AutopilotConfig struct {
 	StopCPLDays int `json:"stop_cpl_days,omitempty"`
 	// NewItemDrafts opts in to one extra draft a day when a new item with a photo joins the catalogue.
 	NewItemDrafts bool `json:"new_item_drafts,omitempty"`
+	// TestimonialDrafts opts in to one extra draft a day when a testimonial is published (rated 4
+	// or 5, or unrated): the agent's next offering, with the new review among the script's proof.
+	TestimonialDrafts bool `json:"testimonial_drafts,omitempty"`
 }
 
 var (
