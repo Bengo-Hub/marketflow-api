@@ -95,7 +95,7 @@ func TestVideoAdBrandImagesActorNamesAndSound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ai := &fakeJobs{jobs: map[string]string{}, scriptBody: soundScriptReply}
+	ai := &fakeJobs{jobs: map[string]string{}, scriptBody: soundScriptReply, tenant: tid.String()}
 	srv := ai.server(t, "svc-key")
 	r := NewRenderer(db, srv.URL, "svc-key", zap.NewNop()).WithBrandImages(brandimages.NewLinker(store, time.Hour))
 	r.Tick(ctx)
@@ -172,7 +172,7 @@ func TestPosterAddsBrandImages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ai := &fakeAI{}
+	ai := &fakeAI{tenant: tid.String()}
 	srv := ai.server(t, "svc-key")
 	NewRenderer(db, srv.URL, "svc-key", zap.NewNop()).WithBrandImages(brandimages.NewLinker(store, time.Hour)).Tick(ctx)
 	if len(ai.got) != 1 {

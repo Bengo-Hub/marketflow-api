@@ -33,7 +33,7 @@ func TestPresenterAdStoryboardRenderRevision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ai := &fakeJobs{jobs: map[string]string{}, scriptBody: presenterScript}
+	ai := &fakeJobs{jobs: map[string]string{}, scriptBody: presenterScript, tenant: tid.String()}
 	srv := ai.server(t, "svc-key")
 	r := NewRenderer(db, srv.URL, "svc-key", zap.NewNop())
 	r.Tick(ctx)

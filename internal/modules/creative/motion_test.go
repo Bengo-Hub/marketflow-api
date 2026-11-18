@@ -34,6 +34,15 @@ type fakeJobs struct {
 	scripts     []map[string]any
 	scriptCode  int
 	scriptBody  string
+	// tenant, when set, keeps started, paths and scripts to this test's own calls: Tick also takes
+	// pending versions other tests leave in the shared test database. Those calls are answered as
+	// usual but not recorded.
+	tenant string
+}
+
+// mine reports whether a decoded request body belongs to the test's tenant (always, when unset).
+func (f *fakeJobs) mine(body map[string]any) bool {
+	return f.tenant == "" || body["tenant_id"] == f.tenant
 }
 
 func (f *fakeJobs) server(t *testing.T, key string) *httptest.Server {
@@ -52,13 +61,17 @@ func (f *fakeJobs) server(t *testing.T, key string) *httptest.Server {
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/internal/creative/ad/quote":
 			var body map[string]any
 			_ = json.NewDecoder(r.Body).Decode(&body)
-			f.started, f.paths = append(f.started, body), append(f.paths, r.URL.Path)
+			if f.mine(body) {
+				f.started, f.paths = append(f.started, body), append(f.paths, r.URL.Path)
+			}
 			_, _ = w.Write([]byte(`{"credits_needed":40,"balance":100,"enough":true,"plan":{"kind":"presenter","cached_scenes":1}}`))
 		case r.Method == http.MethodPost && (r.URL.Path == "/api/v1/internal/creative/clip" || r.URL.Path == "/api/v1/internal/creative/ad" ||
 			r.URL.Path == "/api/v1/internal/creative/storyboard"):
 			var body map[string]any
 			_ = json.NewDecoder(r.Body).Decode(&body)
-			f.started, f.paths = append(f.started, body), append(f.paths, r.URL.Path)
+			if f.mine(body) {
+				f.started, f.paths = append(f.started, body), append(f.paths, r.URL.Path)
+			}
 			if f.startStatus != 0 {
 				w.WriteHeader(f.startStatus)
 				_, _ = w.Write([]byte(f.startBody))
@@ -69,7 +82,9 @@ func (f *fakeJobs) server(t *testing.T, key string) *httptest.Server {
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/internal/creative/script":
 			var body map[string]any
 			_ = json.NewDecoder(r.Body).Decode(&body)
-			f.scripts = append(f.scripts, body)
+			if f.mine(body) {
+				f.scripts = append(f.scripts, body)
+			}
 			code := f.scriptCode
 			if code == 0 {
 				code = http.StatusOK
@@ -154,7 +169,7 @@ func TestMotionPosterThroughCallback(t *testing.T) {
 	}
 	_ = db.CreativeVersion.UpdateOneID(queued.ID).SetStatus(StatusRejected).Exec(ctx) // keep it out of the poster renderer
 
-	clips := &fakeJobs{jobs: map[string]string{}}
+	clips := &fakeJobs{jobs: map[string]string{}, tenant: tid.String()}
 	srv := clips.server(t, "svc-key")
 	r := NewRenderer(db, srv.URL, "svc-key", zap.NewNop())
 	r.Tick(ctx)
@@ -218,7 +233,7 @@ func TestMotionPosterFallbackPoll(t *testing.T) {
 	b := newBrief(t, s, tid)
 	src := finishedPoster(t, s, tid, b)
 
-	clips := &fakeJobs{jobs: map[string]string{}}
+	clips := &fakeJobs{jobs: map[string]string{}, tenant: tid.String()}
 	srv := clips.server(t, "svc-key")
 	r := NewRenderer(db, srv.URL, "svc-key", zap.NewNop())
 	quiet := time.Now().Add(-jobPollAfter - time.Minute)

@@ -52,7 +52,7 @@ func TestVideoAdScriptEditRender(t *testing.T) {
 		t.Fatalf("video ad = %+v", v)
 	}
 
-	ai := &fakeJobs{jobs: map[string]string{}, scriptBody: scriptReply}
+	ai := &fakeJobs{jobs: map[string]string{}, scriptBody: scriptReply, tenant: tid.String()}
 	srv := ai.server(t, "svc-key")
 	r := NewRenderer(db, srv.URL, "svc-key", zap.NewNop())
 	r.Tick(ctx)
@@ -135,7 +135,7 @@ func TestVideoAdFailures(t *testing.T) {
 	tid := newTenant(t, db)
 	ctx := context.Background()
 	b := newBrief(t, s, tid)
-	ai := &fakeJobs{jobs: map[string]string{}, scriptCode: http.StatusUnprocessableEntity,
+	ai := &fakeJobs{jobs: map[string]string{}, tenant: tid.String(), scriptCode: http.StatusUnprocessableEntity,
 		scriptBody: `{"error":"the script did not pass the review; nothing was charged","findings":[{"issue":"compliance: medical claim","severity":"high"}]}`}
 	srv := ai.server(t, "svc-key")
 	r := NewRenderer(db, srv.URL, "svc-key", zap.NewNop())

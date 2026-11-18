@@ -55,7 +55,7 @@ func TestScriptedVideoAdSkipsTheScriptJob(t *testing.T) {
 		t.Fatalf("scripted video ad = %s credits %d %v %v", v.Status, v.Credits, v.Copy, v.Metadata)
 	}
 
-	ai := &fakeJobs{jobs: map[string]string{}, scriptBody: scriptReply}
+	ai := &fakeJobs{jobs: map[string]string{}, scriptBody: scriptReply, tenant: tid.String()}
 	srv := ai.server(t, "svc-key")
 	r := NewRenderer(db, srv.URL, "svc-key", zap.NewNop())
 	r.Tick(ctx)
@@ -111,9 +111,15 @@ type fakeTurnNotifier struct {
 	links  [][]string
 	errs   []string
 	got    chan struct{}
+	// tenant, when set, ignores notes for other tenants' versions that Tick picks up from the
+	// shared test database.
+	tenant uuid.UUID
 }
 
 func (f *fakeTurnNotifier) Notify(_ context.Context, n OSTurnNote) {
+	if f.tenant != uuid.Nil && n.TenantID != f.tenant {
+		return
+	}
 	f.mu.Lock()
 	f.events = append(f.events, n.Event+":"+n.RunID)
 	f.links = append(f.links, n.Links)
@@ -158,9 +164,9 @@ func TestOSTurnMessagesOnStoryboardAndRender(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ai := &fakeJobs{jobs: map[string]string{}}
+	ai := &fakeJobs{jobs: map[string]string{}, tenant: tid.String()}
 	srv := ai.server(t, "svc-key")
-	notes := &fakeTurnNotifier{got: make(chan struct{}, 4)}
+	notes := &fakeTurnNotifier{got: make(chan struct{}, 4), tenant: tid}
 	r := NewRenderer(db, srv.URL, "svc-key", zap.NewNop()).WithOSTurn(notes)
 	h := NewHandler(s, nil, nil, zap.NewNop()).WithJobs(r)
 
@@ -247,9 +253,9 @@ func TestOSTurnRenderFailedEveryWay(t *testing.T) {
 	s := NewService(db, zap.NewNop())
 	tid := newTenant(t, db)
 	ctx := context.Background()
-	ai := &fakeJobs{jobs: map[string]string{}}
+	ai := &fakeJobs{jobs: map[string]string{}, tenant: tid.String()}
 	srv := ai.server(t, "svc-key")
-	notes := &fakeTurnNotifier{got: make(chan struct{}, 8)}
+	notes := &fakeTurnNotifier{got: make(chan struct{}, 8), tenant: tid}
 	r := NewRenderer(db, srv.URL, "svc-key", zap.NewNop()).WithOSTurn(notes)
 	h := NewHandler(s, nil, nil, zap.NewNop()).WithJobs(r)
 
