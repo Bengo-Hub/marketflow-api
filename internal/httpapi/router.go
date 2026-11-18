@@ -610,6 +610,8 @@ type CustomAgentHandlers struct {
 	RollbackAutopilot http.HandlerFunc
 	// DryRunAutopilot previews the next run and the month's credits, spending nothing.
 	DryRunAutopilot http.HandlerFunc
+	// AutopilotDashboard reads an ad autopilot's drafts waiting for the owner and its last 7 days.
+	AutopilotDashboard http.HandlerFunc
 	// The veto-window mode (Sprint 20, owner 2026-11-14): whether the tenant may use it and its
 	// terms, the agents' posts in their window, the signed-in veto, and the public cancel link.
 	GetAutoPublish http.HandlerFunc
@@ -1063,6 +1065,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 						r.Put("/{id}/autopilot", deps.CustomAgentHandlers.PutAutopilot)
 						r.Post("/{id}/autopilot/rollback", deps.CustomAgentHandlers.RollbackAutopilot)
 						r.Get("/{id}/autopilot/dry-run", deps.CustomAgentHandlers.DryRunAutopilot)
+					}
+					if deps.CustomAgentHandlers.AutopilotDashboard != nil {
+						r.Get("/{id}/autopilot/dashboard", deps.CustomAgentHandlers.AutopilotDashboard)
 					}
 					if deps.CustomAgentHandlers.TriggerRun != nil {
 						r.Post("/{id}/run", deps.CustomAgentHandlers.TriggerRun)

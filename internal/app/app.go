@@ -923,6 +923,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			AutopilotVetoJob:  autopublishHandler.VetoJob,
 			PublicVetoView:    autopublishHandler.PublicView,
 			PublicVetoPost:    autopublishHandler.PublicVeto,
+
+			// The autopilot dashboard: drafts waiting for the owner and the last 7 days (Sprint 20).
+			AutopilotDashboard: customAgentHandler.GetAutopilotDashboard,
 		},
 		OnboardingHandlers: httpapi.OnboardingHandlers{
 			Checklist: onboardingHandler.Checklist,
