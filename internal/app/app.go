@@ -466,7 +466,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	brandLinks := brandimages.NewLinker(mediaStore, brandImagesCfg.RenderLinkTTL)
 	onboardingHandler := onboarding.NewHandler(onboarding.NewService(entClient, marketingOSService, tenantSyncer,
 		creative.NewTopOfferings(catalogueOfferings, cfg.CrossService.POSURL, cfg.CrossService.InternalServiceKey, logger),
-		websiteCatalog, cfg.Security.PlatformTenant, logger).WithBrandImagesMin(brandImagesCfg.Min), logger)
+		websiteCatalog, cfg.Security.PlatformTenant, logger).WithBrandImagesMin(brandImagesCfg.Min).WithPlanStatus(subsClient.PlanStatus), logger)
 	// Ad autopilot veto window: a job report settled here carries the agent's video on at once
 	// (the worker's sweep catches anything missed). It works through its own Studio service with
 	// the daily render quota, and quotes renders through marketflow-ai like the Studio.
@@ -931,6 +931,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Checklist: onboardingHandler.Checklist,
 			Dismiss:   onboardingHandler.Dismiss,
 			Draft:     onboardingHandler.Draft,
+			MarkStep:  onboardingHandler.MarkStep,
 		},
 		BrandImageHandlers: httpapi.BrandImageHandlers{
 			List:   brandImagesHandler.List,
