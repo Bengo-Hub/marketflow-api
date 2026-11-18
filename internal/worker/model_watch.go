@@ -1,7 +1,6 @@
 package worker
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,8 +16,6 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
-	"github.com/bengobox/marketflow-api/internal/ent/tenant"
-	"github.com/bengobox/marketflow-api/internal/modules/rbac"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 )
 
@@ -191,13 +188,15 @@ type ModelWatch struct {
 	s2sKey   string
 	platform string
 	claim    func(ctx context.Context, key string, ttl time.Duration) bool
+	alert    *PlatformAlert
 	logger   *zap.Logger
 }
 
 func NewModelWatch(db *ent.Client, keys *encryption.KeyProvider, rdb *redis.Client, notif *notifications.Client,
 	authURL, s2sKey, platformSlug string, claim func(ctx context.Context, key string, ttl time.Duration) bool, logger *zap.Logger) *ModelWatch {
 	return &ModelWatch{db: db, keys: keys, rdb: rdb, notif: notif, hc: &http.Client{Timeout: 20 * time.Second},
-		authURL: strings.TrimRight(authURL, "/"), s2sKey: s2sKey, platform: platformSlug, claim: claim, logger: logger.Named("model-watch")}
+		authURL: strings.TrimRight(authURL, "/"), s2sKey: s2sKey, platform: platformSlug, claim: claim,
+		alert: NewPlatformAlert(db, notif, authURL, s2sKey, platformSlug, logger), logger: logger.Named("model-watch")}
 }
 
 // Run checks once a day (one pod at a time through claim).
@@ -336,60 +335,5 @@ func (w *ModelWatch) tell(ctx context.Context, found map[string][]string) {
 		"Old model names can be retired by the provider, so also check that the current defaults still appear in the lists.")
 	text := b.String()
 	w.logger.Info("new provider models", zap.Any("models", found))
-
-	if hook := w.slackWebhook(ctx); hook != "" {
-		body, _ := json.Marshal(map[string]string{"text": text})
-		if req, err := http.NewRequestWithContext(ctx, http.MethodPost, hook, bytes.NewReader(body)); err == nil {
-			req.Header.Set("Content-Type", "application/json")
-			if resp, err := w.hc.Do(req); err == nil {
-				resp.Body.Close()
-			} else {
-				w.logger.Warn("model watch: slack post failed", zap.Error(err))
-			}
-		}
-	}
-	if w.notif == nil {
-		return
-	}
-	t, err := w.db.Tenant.Query().Where(tenant.SlugEQ(w.platform)).Only(ctx)
-	if err != nil {
-		return
-	}
-	emails, err := rbac.TenantAdminEmails(ctx, w.db, t.ID, rbac.NoticeRoles)
-	if err != nil {
-		return
-	}
-	day := time.Now().UTC().Format("2006-01-02")
-	for _, e := range emails {
-		_ = w.notif.Send(ctx, t.ID.String(), notifications.Message{
-			Channel: "email", Recipient: e, Subject: "New AI models to review", Body: text,
-			Metadata:       map[string]string{"source": "marketflow-worker", "kind": "model_watch"},
-			IdempotencyKey: "model-watch-" + day + "-" + e,
-		})
-	}
-}
-
-// slackWebhook reads the platform alert channel from auth-api (admin-configured once, shared by
-// every platform alert).
-func (w *ModelWatch) slackWebhook(ctx context.Context) string {
-	if w.authURL == "" || w.s2sKey == "" {
-		return ""
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, w.authURL+"/api/v1/s2s/platform-alert-settings", nil)
-	if err != nil {
-		return ""
-	}
-	req.Header.Set("X-API-Key", w.s2sKey)
-	resp, err := w.hc.Do(req)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-	var v struct {
-		Slack string `json:"slack_webhook_url"`
-	}
-	if json.NewDecoder(resp.Body).Decode(&v) != nil || !strings.HasPrefix(v.Slack, "https://") {
-		return ""
-	}
-	return v.Slack
+	w.alert.Send(ctx, "New AI models to review", text, "model_watch", time.Now().UTC().Format("2006-01-02"))
 }
