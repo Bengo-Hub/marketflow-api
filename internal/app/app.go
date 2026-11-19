@@ -530,7 +530,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		},
 		Charge:        adsmanager.AICharge(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey),
 		LaunchCredits: adsmanager.DefaultLaunchCredits, Enabled: adsmanager.MetaEnabled(entClient), Logger: logger.Named("ads"),
-		WABoost: adsmanager.WABoostDefaults{Budget: cfg.Meta.WABoostBudget, Days: cfg.Meta.WABoostDays, Objective: cfg.Meta.WABoostObjective},
+		WABoost: adsmanager.WABoostDefaults{BudgetKES: cfg.Meta.WABoostBudgetKES, Days: cfg.Meta.WABoostDays, Objective: cfg.Meta.WABoostObjective},
 		CanLaunch: func(ctx context.Context, tenantID uuid.UUID) bool {
 			return rbacService.CallerHasAnyRole(ctx, tenantID, reviewActionRoles...)
 		},

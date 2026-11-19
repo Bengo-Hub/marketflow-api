@@ -195,9 +195,9 @@ type MetaConfig struct {
 	// DeletionStatusURL is the public page a person lands on to check a data
 	// deletion request (Meta's data deletion callback returns it with the code).
 	DeletionStatusURL string `env:"DELETION_STATUS_URL" envDefault:"https://marketflow.codevertexafrica.com/data-deletion"`
-	// The boost a WhatsApp Boost it tap quotes when the tenant set none (whole units of the ad
-	// account's currency, days, and whatsapp or traffic).
-	WABoostBudget    int64  `env:"WA_BOOST_BUDGET" envDefault:"3000"`
+	// The boost a WhatsApp Boost it tap quotes when the tenant set none: the budget in KES
+	// (converted for an ad account in another currency), the days, and whatsapp or traffic.
+	WABoostBudgetKES int64  `env:"WA_BOOST_BUDGET_KES" envDefault:"3000"`
 	WABoostDays      int    `env:"WA_BOOST_DAYS" envDefault:"7"`
 	WABoostObjective string `env:"WA_BOOST_OBJECTIVE" envDefault:"whatsapp"`
 }

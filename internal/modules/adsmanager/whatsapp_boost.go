@@ -28,28 +28,34 @@ import (
 // the launch credits, and a launch that stays PAUSED until Meta's review and the funding.
 
 // WhatsAppBoostKey in Tenant.metadata holds the tenant's WhatsApp boost defaults:
-// {"budget": 3000, "days": 7, "objective": "whatsapp"}. A missing or invalid value falls back to
-// Handler.WABoost (platform config).
+// {"budget_kes": 3000, "days": 7, "objective": "whatsapp", "ad_account_connected_id": "...",
+// "page_connected_id": "..."}. A missing or invalid value falls back to Handler.WABoost
+// (platform config) and to the account choice in pickAccount.
 const WhatsAppBoostKey = "whatsapp_boost"
 
 // WABoostDefaults is the boost a WhatsApp Boost it tap quotes.
 type WABoostDefaults struct {
-	Budget    int64  `json:"budget"` // whole units of the ad account's currency
+	// BudgetKES is always in KES; an ad account in another currency gets it converted with
+	// treasury's platform rate, so a USD account never reads 3000 as USD 3,000.
+	BudgetKES int64  `json:"budget_kes"`
 	Days      int    `json:"days"`
 	Objective string `json:"objective"` // whatsapp | traffic (leads needs a privacy link, so the portal only)
+	// AdAccountConnID and PageConnID are the tenant's chosen accounts (connected account ids).
+	AdAccountConnID string `json:"ad_account_connected_id,omitempty"`
+	PageConnID      string `json:"page_connected_id,omitempty"`
 }
 
 // The fallbacks when the platform config leaves them out: the portal dialog's own starting values.
 const (
-	DefaultWABoostBudget = int64(3000)
-	DefaultWABoostDays   = 7
+	DefaultWABoostBudgetKES = int64(3000)
+	DefaultWABoostDays      = 7
 )
 
 // waBoostDefaults is the tenant's defaults over the platform's.
 func (h *Handler) waBoostDefaults(ctx context.Context, tid uuid.UUID) WABoostDefaults {
 	d := h.WABoost
-	if d.Budget <= 0 {
-		d.Budget = DefaultWABoostBudget
+	if d.BudgetKES <= 0 {
+		d.BudgetKES = DefaultWABoostBudgetKES
 	}
 	if d.Days < MinDays || d.Days > MaxDays {
 		d.Days = DefaultWABoostDays
@@ -70,8 +76,14 @@ func mergeWABoost(d WABoostDefaults, meta map[string]any) WABoostDefaults {
 	if !ok {
 		return d
 	}
-	if v, ok := m["budget"].(float64); ok && v > 0 {
-		d.Budget = int64(v)
+	if v, ok := m["budget_kes"].(float64); ok && v > 0 {
+		d.BudgetKES = int64(v)
+	}
+	if v, ok := m["ad_account_connected_id"].(string); ok {
+		d.AdAccountConnID = strings.TrimSpace(v)
+	}
+	if v, ok := m["page_connected_id"].(string); ok {
+		d.PageConnID = strings.TrimSpace(v)
 	}
 	if v, ok := m["days"].(float64); ok && int(v) >= MinDays && int(v) <= MaxDays {
 		d.Days = int(v)
@@ -102,11 +114,64 @@ type waBoostPlan struct {
 	Objective   string
 }
 
-var errNoAdAccount = errors.New("no_ad_account")
-var errNoPage = errors.New("no_page")
+var (
+	errNoAdAccount = errors.New("no_ad_account")
+	errNoPage      = errors.New("no_page")
+	// errNoRate is an ad account in another currency when treasury's rate cannot be read: the
+	// default KES budget cannot be sized, so the boost is made in the Studio instead.
+	errNoRate = errors.New("no_rate")
+)
 
-// waPlan picks the boost for an approved version. The ad account and Page are the first active
-// ones by name, as the portal's dialog preselects them.
+// accountCurrency is the currency stored on a connected ad account ("" when unknown).
+func accountCurrency(a *ent.ConnectedAccount) string {
+	s, _ := a.Metadata["currency"].(string)
+	return strings.ToUpper(strings.TrimSpace(s))
+}
+
+// pickAccount chooses among active accounts (sorted by name): the tenant's chosen one, else, for
+// ad accounts, the first in KES (Meta's M-Pesa funding works there), else the first.
+func pickAccount(accounts []*ent.ConnectedAccount, preferred string, preferKES bool) *ent.ConnectedAccount {
+	if len(accounts) == 0 {
+		return nil
+	}
+	for _, a := range accounts {
+		if preferred != "" && a.ID.String() == preferred {
+			return a
+		}
+	}
+	if preferKES {
+		for _, a := range accounts {
+			if accountCurrency(a) == "KES" {
+				return a
+			}
+		}
+	}
+	return accounts[0]
+}
+
+// budgetIn converts the KES default into the ad account's currency (whole units, rounded up so a
+// small budget never becomes 0).
+func (h *Handler) budgetIn(ctx context.Context, kes int64, currency string) (int64, error) {
+	if currency == "" || currency == "KES" {
+		return kes, nil
+	}
+	if h.KESPer == nil {
+		return 0, errNoRate
+	}
+	rate, err := h.KESPer(ctx, currency)
+	if err != nil || rate <= 0 {
+		return 0, errNoRate
+	}
+	n := int64(float64(kes) / rate)
+	if float64(n)*rate < float64(kes) {
+		n++
+	}
+	return n, nil
+}
+
+// waPlan picks the boost for an approved version: the tenant's chosen ad account and Page, else a
+// KES ad account and the first Page by name. budget is in the ad account's currency (what the
+// quote showed); zero means the tenant's default, converted from KES.
 func (h *Handler) waPlan(ctx context.Context, tid, vid uuid.UUID, budget int64, days int) (*waBoostPlan, error) {
 	v, err := h.DB.CreativeVersion.Query().Where(creativeversion.IDEQ(vid), creativeversion.TenantIDEQ(tid)).Only(ctx)
 	if err != nil {
@@ -118,26 +183,32 @@ func (h *Handler) waPlan(ctx context.Context, tid, vid uuid.UUID, budget int64, 
 	if err != nil {
 		return nil, err
 	}
-	first := func(accountType string) (*ent.ConnectedAccount, error) {
+	active := func(accountType string) ([]*ent.ConnectedAccount, error) {
 		return h.DB.ConnectedAccount.Query().
 			Where(connectedaccount.TenantIDEQ(tid), connectedaccount.AccountTypeEQ(accountType), connectedaccount.StatusEQ("active")).
-			Order(ent.Asc(connectedaccount.FieldDisplayName)).First(ctx)
-	}
-	acc, err := first("meta_ad_account")
-	if ent.IsNotFound(err) {
-		return nil, errNoAdAccount
-	} else if err != nil {
-		return nil, err
-	}
-	page, err := first("facebook_page")
-	if ent.IsNotFound(err) {
-		return nil, errNoPage
-	} else if err != nil {
-		return nil, err
+			Order(ent.Asc(connectedaccount.FieldDisplayName)).Limit(50).All(ctx)
 	}
 	d := h.waBoostDefaults(ctx, tid)
+	accs, err := active("meta_ad_account")
+	if err != nil {
+		return nil, err
+	}
+	acc := pickAccount(accs, d.AdAccountConnID, true)
+	if acc == nil {
+		return nil, errNoAdAccount
+	}
+	pages, err := active("facebook_page")
+	if err != nil {
+		return nil, err
+	}
+	page := pickAccount(pages, d.PageConnID, false)
+	if page == nil {
+		return nil, errNoPage
+	}
 	if budget <= 0 {
-		budget = d.Budget
+		if budget, err = h.budgetIn(ctx, d.BudgetKES, accountCurrency(acc)); err != nil {
+			return nil, err
+		}
 	}
 	if days <= 0 {
 		days = d.Days
@@ -192,6 +263,8 @@ func (h *Handler) waPlanFailed(w http.ResponseWriter, err error) {
 		httpapi.Error(w, http.StatusConflict, "no_ad_account", "connect a Meta ad account in MarketFlow first", nil)
 	case errors.Is(err, errNoPage):
 		httpapi.Error(w, http.StatusConflict, "no_page", "connect the Facebook Page the ad runs as first", nil)
+	case errors.Is(err, errNoRate):
+		httpapi.Error(w, http.StatusConflict, "no_rate", "the exchange rate for this ad account's currency could not be read, so set the budget in the Studio", nil)
 	case ent.IsNotFound(err):
 		httpapi.Error(w, http.StatusConflict, "no_video", "the video is not available any more", nil)
 	default:

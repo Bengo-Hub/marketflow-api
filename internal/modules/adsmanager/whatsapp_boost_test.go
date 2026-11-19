@@ -3,6 +3,7 @@ package adsmanager
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,21 +11,67 @@ import (
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+
+	"github.com/bengobox/marketflow-api/internal/ent"
 )
 
 // A tenant's whatsapp_boost values replace the platform's only when they are valid.
 func TestMergeWABoost(t *testing.T) {
-	base := WABoostDefaults{Budget: 3000, Days: 7, Objective: "whatsapp"}
-	got := mergeWABoost(base, map[string]any{WhatsAppBoostKey: map[string]any{"budget": float64(1500), "days": float64(3), "objective": "traffic"}})
-	if got != (WABoostDefaults{Budget: 1500, Days: 3, Objective: "traffic"}) {
+	base := WABoostDefaults{BudgetKES: 3000, Days: 7, Objective: "whatsapp"}
+	got := mergeWABoost(base, map[string]any{WhatsAppBoostKey: map[string]any{"budget_kes": float64(1500), "days": float64(3), "objective": "traffic",
+		"ad_account_connected_id": " acc-1 "}})
+	if got != (WABoostDefaults{BudgetKES: 1500, Days: 3, Objective: "traffic", AdAccountConnID: "acc-1"}) {
 		t.Fatalf("tenant values: %+v", got)
 	}
-	bad := mergeWABoost(base, map[string]any{WhatsAppBoostKey: map[string]any{"budget": float64(-5), "days": float64(400), "objective": "leads"}})
+	bad := mergeWABoost(base, map[string]any{WhatsAppBoostKey: map[string]any{"budget_kes": float64(-5), "days": float64(400), "objective": "leads"}})
 	if bad != base {
 		t.Fatalf("invalid values must keep the platform's: %+v", bad)
 	}
 	if mergeWABoost(base, nil) != base || mergeWABoost(base, map[string]any{WhatsAppBoostKey: "x"}) != base {
 		t.Fatal("missing or malformed metadata keeps the platform's")
+	}
+}
+
+// The tenant's chosen ad account wins; otherwise a KES account (M-Pesa funding), otherwise the
+// first. This is what keeps a USD account (sorted first by name) from getting a KES default.
+func TestPickAccount(t *testing.T) {
+	usd := &ent.ConnectedAccount{ID: uuid.New(), DisplayName: "A USD", Metadata: map[string]any{"currency": "USD"}}
+	kes := &ent.ConnectedAccount{ID: uuid.New(), DisplayName: "B KES", Metadata: map[string]any{"currency": "kes"}}
+	list := []*ent.ConnectedAccount{usd, kes}
+	if got := pickAccount(list, "", true); got != kes {
+		t.Fatalf("prefer KES: %s", got.DisplayName)
+	}
+	if got := pickAccount(list, usd.ID.String(), true); got != usd {
+		t.Fatalf("tenant choice: %s", got.DisplayName)
+	}
+	if got := pickAccount(list, "", false); got != usd {
+		t.Fatalf("pages take the first: %s", got.DisplayName)
+	}
+	if pickAccount(nil, "", true) != nil {
+		t.Fatal("none")
+	}
+}
+
+// The KES default is converted for another currency, rounded up; no rate means no guess.
+func TestBudgetIn(t *testing.T) {
+	ctx := context.Background()
+	h := &Handler{KESPer: func(_ context.Context, c string) (float64, error) {
+		if c == "USD" {
+			return 129.5, nil
+		}
+		return 0, errors.New("no rate")
+	}}
+	if n, err := h.budgetIn(ctx, 3000, "KES"); err != nil || n != 3000 {
+		t.Fatalf("KES: %d %v", n, err)
+	}
+	if n, err := h.budgetIn(ctx, 3000, "USD"); err != nil || n != 24 {
+		t.Fatalf("USD: %d %v", n, err) // 3000 / 129.5 = 23.2, rounded up
+	}
+	if _, err := h.budgetIn(ctx, 3000, "EUR"); !errors.Is(err, errNoRate) {
+		t.Fatalf("no rate: %v", err)
+	}
+	if _, err := (&Handler{}).budgetIn(ctx, 3000, "USD"); !errors.Is(err, errNoRate) {
+		t.Fatalf("no rate source: %v", err)
 	}
 }
 
