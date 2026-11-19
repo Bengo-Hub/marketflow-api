@@ -484,7 +484,17 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	brandLinks := brandimages.NewLinker(mediaStore, brandImagesCfg.RenderLinkTTL)
 	onboardingHandler := onboarding.NewHandler(onboarding.NewService(entClient, marketingOSService, tenantSyncer,
 		creative.NewTopOfferings(catalogueOfferings, cfg.CrossService.POSURL, cfg.CrossService.InternalServiceKey, logger),
-		websiteCatalog, cfg.Security.PlatformTenant, logger).WithBrandImagesMin(brandImagesCfg.Min).WithPlanStatus(subsClient.PlanStatus), logger)
+		websiteCatalog, cfg.Security.PlatformTenant, logger).WithBrandImagesMin(brandImagesCfg.Min).WithPlanStatus(subsClient.PlanStatus).
+		// Seed defaults (platform owner): marketingos stays the only brand context writer, and the
+		// knowledge base keeps drafted answers as pending suggestions.
+		WithSeed(onboarding.SeedDeps{
+			SaveBrand:     marketingOSService.SaveBrandContext,
+			Facts:         marketingOSService.BusinessFacts,
+			KBTitles:      kbService.TenantTitles,
+			DraftFAQ:      kbService.DraftFAQ,
+			TeamSetupDone: marketingOSService.TeamSetupDone,
+			SetupTeam:     marketingOSService.SetupTeamIfNew,
+		}), logger)
 	// Ad autopilot veto window: a job report settled here carries the agent's video on at once
 	// (the worker's sweep catches anything missed). It works through its own Studio service with
 	// the daily render quota, and quotes renders through marketflow-ai like the Studio.
@@ -969,6 +979,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Dismiss:   onboardingHandler.Dismiss,
 			Draft:     onboardingHandler.Draft,
 			MarkStep:  onboardingHandler.MarkStep,
+			// Platform owner: fill empty defaults from each tenant's own sources (seed.go).
+			SeedTenant: onboardingHandler.SeedTenant,
+			SeedAll:    onboardingHandler.SeedAll,
 		},
 		BrandImageHandlers: httpapi.BrandImageHandlers{
 			List:       brandImagesHandler.List,

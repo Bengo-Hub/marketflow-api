@@ -47,6 +47,8 @@ type Service struct {
 	// planStatus reads the subscription status for the plan step (quick_start.go); nil leaves the
 	// step to the owner's mark.
 	planStatus func(ctx context.Context, tenantID string) (string, bool)
+	// seed wires the seed defaults run (seed.go); an empty value runs only the draft parts.
+	seed SeedDeps
 }
 
 // NewService wires the sources; auth, top and website may be nil (that source is skipped).

@@ -104,6 +104,18 @@ func applyFBODefaults(meta map[string]any) map[string]any {
 	return meta
 }
 
+// MissingFBODefaults returns only the FBO defaults meta lacks, for a tenant synced before a
+// default existed. A key that is present, even empty, is the owner's and is left out.
+func MissingFBODefaults(meta map[string]any) map[string]any {
+	out := map[string]any{}
+	for k, v := range applyFBODefaults(nil) {
+		if _, ok := meta[k]; !ok {
+			out[k] = v
+		}
+	}
+	return out
+}
+
 // mergeMissing copies keys from src that dst does not have. Local values always win:
 // auth's copy of metadata must never overwrite profile edits or the brand context.
 func mergeMissing(dst, src map[string]any) map[string]any {

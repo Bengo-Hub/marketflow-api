@@ -515,6 +515,10 @@ type OnboardingHandlers struct {
 	Draft     http.HandlerFunc
 	// MarkStep marks a quick start step done (plan, widget, share_page).
 	MarkStep http.HandlerFunc
+	// SeedTenant and SeedAll fill a tenant's empty defaults from its own sources (platform owner,
+	// under /admin/tenants).
+	SeedTenant http.HandlerFunc
+	SeedAll    http.HandlerFunc
 }
 
 // CreativeHandlers groups the Creative Studio endpoints (briefs, poster
@@ -1284,6 +1288,11 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 				// Tenant directory (drives /platform/tenants UI + tenant switcher).
 				r.Get("/tenants", deps.AdminTenantsHandlers.List)
+				// Seed defaults, fill gaps only (dry run unless dry_run=false).
+				if deps.OnboardingHandlers.SeedAll != nil {
+					r.Post("/tenants/seed-defaults", deps.OnboardingHandlers.SeedAll)
+					r.Post("/tenants/{tenantID}/seed-defaults", deps.OnboardingHandlers.SeedTenant)
+				}
 
 				// Monthly provider cost against credits charged, per tenant (Sprint 15).
 				if deps.AdminCostReport != nil {
