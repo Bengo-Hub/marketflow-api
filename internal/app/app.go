@@ -510,7 +510,11 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		}).
 		// marketflow-ai's job callback settles motion posters and video ads here;
 		// the worker's renderer starts them and polls only when a push is overdue.
-		WithJobs(creative.NewRenderer(entClient, "", "", logger).WithBrandImages(brandLinks).
+		// The API's renderer still needs marketflow-ai's URL and key for the Studio's direct calls
+		// (video quote, storyboard, ad templates): an empty URL made each of those fail with
+		// "unsupported protocol scheme" (fixed 2026-11-19). Run is never started here, so this
+		// instance does not poll the queue.
+		WithJobs(creative.NewRenderer(entClient, cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey, logger).WithBrandImages(brandLinks).
 			// A video made from a WhatsApp turn: marketflow-ai writes the storyboard and finished-ad
 			// messages (with the render code); they go out from the platform number.
 			WithOSTurn(creative.NewWhatsAppTurnNotifier(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey,
