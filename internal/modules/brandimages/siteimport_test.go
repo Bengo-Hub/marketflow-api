@@ -28,12 +28,13 @@ func TestImageCandidatesOrderAndFilters(t *testing.T) {
 <img src="/media/hero.jpg">
 </body></html>`
 	got := ImageCandidates(page, "https://example.com/about")
+	// The large page photo first, then the share images, structured data and the other photo;
+	// one address per picture element, the logo, icon, SVG and data URI left out.
 	want := []string{
+		"https://example.com/img/team-1600.jpg",
 		"https://example.com/media/hero.jpg",
 		"https://cdn.example.com/share.png?v=2",
 		"https://cdn.example.com/shop-front.jpg",
-		"https://example.com/img/team-1600.jpg",
-		"https://example.com/img/team.jpg",
 		"https://example.com/img/products.jpeg",
 	}
 	if !reflect.DeepEqual(got, want) {

@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -51,7 +52,7 @@ func TestConfigDefaultsAndEnv(t *testing.T) {
 		"min above max": {"MF_BRAND_IMAGES_MIN": "6", "MF_BRAND_IMAGES_MAX": "4"},
 	} {
 		got, err := ConfigFromEnv(func(k string) string { return bad[k] })
-		if err == nil || got != DefaultConfig() {
+		if err == nil || !reflect.DeepEqual(got, DefaultConfig()) {
 			t.Errorf("%s: want the defaults and an error, got %+v %v", name, got, err)
 		}
 	}

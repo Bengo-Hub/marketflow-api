@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Bengo-Hub/httpware/objectstore"
 	"github.com/go-chi/chi/v5"
@@ -130,7 +131,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // ImportSite handles POST /api/v1/tenant/brand-images/import-site.
 // @Summary Link brand images from the business's own website
-// @Description Reads the website and storefront on the tenant's account and stores up to the maximum number of brand images from the pictures found there (share image, structured data, page pictures). Each picture passes the same checks as an upload; logos, icons, SVG and GIF are skipped. Pictures already linked are not taken twice.
+// @Description Reads the website and storefront on the tenant's account (home page plus its services, about, products, projects and blog pages, as robots.txt allows) and stores up to the maximum number of brand images from the pictures that show the business. Pictures in client, partner or logo strips, the navigation and the footer, pictures shown small, logos and pictures naming another business are skipped. Each added picture says where it was found (from). Pictures already linked are not taken twice. 502 site_unreadable when no page of the site answered.
 // @Tags BrandImages
 // @Produce json
 // @Param X-Tenant-ID header string true "Tenant UUID"
@@ -148,10 +149,21 @@ func (h *Handler) ImportSite(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusServiceUnavailable, "import_unavailable", "Importing from a website is not configured", nil)
 		return
 	}
+	// Reading a website takes longer than the server's usual write timeout (10 s by default),
+	// which used to cut the answer off and leave the portal with no reply at all. This request
+	// gets the read window plus time to store, still inside the gateway's 60 s.
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(h.svc.Config().Site.ReadWindow + 15*time.Second))
 	res, err := h.svc.ImportFromSite(r.Context(), tid)
 	if errors.Is(err, ErrNoSite) {
 		httpapi.Error(w, http.StatusUnprocessableEntity, "no_website",
 			"Add your website to your business details first, then try again", nil)
+		return
+	}
+	if errors.Is(err, ErrSiteUnreadable) {
+		h.logger.Info("brand images: website unreadable", zap.Error(err))
+		httpapi.Error(w, http.StatusBadGateway, "site_unreadable",
+			"Your website did not answer just now. Try again in a few minutes, or upload your pictures.",
+			map[string]any{"sites": res.Sites})
 		return
 	}
 	if err != nil {

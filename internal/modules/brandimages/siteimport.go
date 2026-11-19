@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -29,6 +30,10 @@ import (
 // those linked first, and uploads only what is still missing. Only the tenant's own website and
 // storefront are read, over public https; every picture passes the same checks as an upload (JPEG
 // or PNG, size cap, minimum short side) and is stored as the tenant's own private object.
+//
+// Since 2026-11-19 the home page and the site's own inner pages (services, about, products,
+// projects, blog) are read, robots.txt is obeyed, and pictures are chosen by where they sit on the
+// page (pick.go): a client logo marquee on a software house's site is never taken.
 
 // ImportMarkerKey records the last website import in Tenant.metadata, so the sweep does not read
 // the same site again every day.
@@ -58,9 +63,8 @@ type importMarker struct {
 }
 
 const (
-	maxSitePage      = 1536 << 10 // bytes of HTML read from a page
-	maxCandidates    = 30         // pictures tried per import
-	importReadWindow = 90 * time.Second
+	maxSitePage   = 1536 << 10 // bytes of HTML read from a page
+	maxCandidates = 30         // pictures tried per import
 )
 
 // WithSiteImport turns website imports on. The client defaults to publicweb's public-only client.
@@ -110,21 +114,24 @@ func (s *Service) ImportFromSite(ctx context.Context, tenantID uuid.UUID) (Impor
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, importReadWindow)
+	// Reading is bounded so the portal gets its answer before the gateway gives up; storing what
+	// was read uses the caller's context.
+	window := s.cfg.Site.ReadWindow
+	if window <= 0 {
+		window = DefaultSiteRules().ReadWindow
+	}
+	readCtx, cancel := context.WithTimeout(ctx, window)
 	defer cancel()
-	var candidates []string
-	for _, site := range res.Sites {
-		page, err := s.fetchPage(ctx, site)
-		if err != nil {
-			res.Skipped["site_unreadable"]++
-			s.logger.Info("brand images: website not read", zap.String("site", site), zap.Error(err))
-			continue
-		}
-		for _, c := range ImageCandidates(page, site) {
-			if !seen[c] {
-				seen[c] = true
-				candidates = append(candidates, c)
-			}
+	names := s.businessNames(ctx, t.ID, t.Name)
+	picks, pagesRead, why := s.sitePictures(readCtx, res.Sites, names, res.Skipped)
+	if pagesRead == 0 {
+		return res, fmt.Errorf("%w: %s", ErrSiteUnreadable, why)
+	}
+	var candidates []Pick
+	for _, p := range picks {
+		if !seen[p.URL] {
+			seen[p.URL] = true
+			candidates = append(candidates, p)
 		}
 	}
 	if len(candidates) > maxCandidates {
@@ -134,55 +141,178 @@ func (s *Service) ImportFromSite(ctx context.Context, tenantID uuid.UUID) (Impor
 	// Pictures the business already has, uploaded by hand or linked before, by how they look.
 	known := s.existingHashes(ctx, have)
 
-	for _, c := range candidates {
-		if res.Total >= s.cfg.Max {
-			break
+	// Pictures are downloaded a few at a time and stored best first.
+	for start := 0; start < len(candidates) && res.Total < s.cfg.Max; start += imageBatch {
+		batch := candidates[start:min(start+imageBatch, len(candidates))]
+		raws := make([][]byte, len(batch))
+		errs := make([]error, len(batch))
+		var wg sync.WaitGroup
+		for i, c := range batch {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				raws[i], errs[i] = s.fetchImage(readCtx, c.URL)
+			}()
 		}
-		raw, err := s.fetchImage(ctx, c)
-		if err != nil {
-			res.Skipped[skipReason(err)]++
-			continue
-		}
-		// Resized to what an upload must be: slightly small pictures are enlarged, WebP and
-		// oversized ones re-encoded as JPEG under the cap.
-		raw, err = s.fitPicture(raw)
-		if errors.Is(err, errFarTooSmall) {
-			res.Skipped["too_small"]++
-			continue
-		}
-		if err != nil {
-			res.Skipped["unsupported"]++
-			continue
-		}
-		h, hashed := dHash(raw)
-		if hashed && nearAny(h, known) {
-			res.Skipped["duplicate"]++ // the same picture is already among the brand images
-			continue
-		}
-		up, err := objectstore.Prepare(raw, MediaType)
-		if err != nil {
-			res.Skipped["unsupported"]++
-			continue
-		}
-		up.FileName = path.Base(strings.SplitN(c, "?", 2)[0])
-		v, err := s.add(ctx, tenantID, up, c)
-		switch {
-		case errors.Is(err, ErrFull):
-			res.Total = s.cfg.Max
-		case errors.Is(err, ErrTooSmall):
-			res.Skipped["too_small"]++
-		case err != nil:
-			return res, err
-		default:
-			res.Added = append(res.Added, v)
-			res.Total++
-			if hashed {
-				known = append(known, h) // the same picture twice on the site is linked once
+		wg.Wait()
+		for i, c := range batch {
+			if res.Total >= s.cfg.Max {
+				break
+			}
+			if err := s.storePick(ctx, tenantID, c, raws[i], errs[i], &res, &known); err != nil {
+				return res, err
 			}
 		}
 	}
 	s.markImported(ctx, tenantID, len(res.Added))
 	return res, nil
+}
+
+// imageBatch is how many website pictures are downloaded at once.
+const imageBatch = 4
+
+// ErrSiteUnreadable is a website none of whose pages could be read.
+var ErrSiteUnreadable = errors.New("the website could not be read")
+
+// sitePictures reads each site's home page and its inner pages (services, about, products,
+// projects, blog...) that robots.txt allows, and returns the pictures that show the business, best
+// first, with how many pages were read and, when none was, why.
+func (s *Service) sitePictures(ctx context.Context, sites []string, names Names, skipped map[string]int) ([]Pick, int, string) {
+	rules := s.cfg.Site
+	type pageRead struct {
+		url, body string
+		err       error
+	}
+	var all []Pick
+	read, why := 0, ""
+	for _, site := range sites {
+		allowed := s.robots(ctx, site)
+		if !allowed(site) {
+			skipped["robots"]++
+			why = "robots.txt does not allow reading " + site
+			continue
+		}
+		home, err := s.fetchPage(ctx, site)
+		if err != nil {
+			skipped["site_unreadable"]++
+			why = site + ": " + err.Error()
+			s.logger.Info("brand images: website not read", zap.String("site", site), zap.Error(err))
+			continue
+		}
+		read++
+		found, sk := PagePictures(home, site, rules, names)
+		all = append(all, found...)
+		addCounts(skipped, sk)
+
+		var inner []string
+		for _, p := range InnerPages(home, site, rules) {
+			if allowed(p) {
+				inner = append(inner, p)
+			} else {
+				skipped["robots"]++
+			}
+		}
+		pages := make([]pageRead, len(inner))
+		var wg sync.WaitGroup
+		for i, p := range inner {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				body, err := s.fetchPage(ctx, p)
+				pages[i] = pageRead{p, body, err}
+			}()
+		}
+		wg.Wait()
+		for _, p := range pages {
+			if p.err != nil {
+				skipped["page_unreadable"]++
+				continue
+			}
+			read++
+			found, sk := PagePictures(p.body, p.url, rules, names)
+			all = append(all, found...)
+			addCounts(skipped, sk)
+		}
+	}
+	return rank(all), read, why
+}
+
+func addCounts(dst, src map[string]int) {
+	for k, v := range src {
+		dst[k] += v
+	}
+}
+
+// businessNames are the tenant's own name and every other tenant's, so a picture that names
+// another business is never taken (owner, 2026-11-19: pictures are never mixed between tenants).
+func (s *Service) businessNames(ctx context.Context, tenantID uuid.UUID, own string) Names {
+	others, err := s.db.Tenant.Query().Where(enttenant.IDNEQ(tenantID)).Select(enttenant.FieldName).Strings(ctx)
+	if err != nil {
+		s.logger.Warn("brand images: other business names not read", zap.Error(err))
+	}
+	return Names{Own: own, Others: others}
+}
+
+// storePick checks and stores one downloaded picture. Only a cancelled caller is returned as an
+// error; everything else is counted in res.Skipped.
+func (s *Service) storePick(ctx context.Context, tenantID uuid.UUID, c Pick, raw []byte, err error, res *ImportResult, known *[]uint64) error {
+	if err != nil {
+		res.Skipped[skipReason(err)]++
+		return nil
+	}
+	// A picture that is largely see-through is a logo or a cut-out mark, not a photo of the business.
+	if mostlyTransparent(raw) {
+		res.Skipped["logo"]++
+		return nil
+	}
+	// Resized to what an upload must be: slightly small pictures are enlarged, WebP and oversized
+	// ones re-encoded as JPEG under the cap.
+	raw, err = s.fitPicture(raw)
+	if errors.Is(err, errFarTooSmall) {
+		res.Skipped["too_small"]++
+		return nil
+	}
+	if err != nil {
+		res.Skipped["unsupported"]++
+		return nil
+	}
+	h, hashed := dHash(raw)
+	if hashed && nearAny(h, *known) {
+		res.Skipped["duplicate"]++ // the same picture is already among the brand images
+		return nil
+	}
+	up, err := objectstore.Prepare(raw, MediaType)
+	if err != nil {
+		res.Skipped["unsupported"]++
+		return nil
+	}
+	up.FileName = pictureFileName(c.URL)
+	v, err := s.add(ctx, tenantID, up, origin{Source: c.URL, Page: c.Page, Section: c.Section})
+	switch {
+	case errors.Is(err, ErrFull):
+		res.Total = s.cfg.Max
+	case errors.Is(err, ErrTooSmall):
+		res.Skipped["too_small"]++
+	case err != nil:
+		return err
+	default:
+		res.Added = append(res.Added, v)
+		res.Total++
+		if hashed {
+			*known = append(*known, h) // the same picture twice on the site is linked once
+		}
+	}
+	return nil
+}
+
+// pictureFileName is the file name a website picture is stored under: the real file behind an
+// image proxy (/_next/image?url=/images/team.webp gives team.webp), else the last part of its path.
+func pictureFileName(link string) string {
+	u, err := url.Parse(link)
+	if err != nil {
+		return path.Base(strings.SplitN(link, "?", 2)[0])
+	}
+	return path.Base(innerPicture(u))
 }
 
 func skipReason(err error) string {
@@ -203,8 +333,8 @@ func (s *Service) fetchPage(ctx context.Context, site string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("User-Agent", "MarketFlowBot/1.0 (brand pictures for the business's own ads)")
-	req.Header.Set("Accept", "text/html")
+	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Accept", "text/html,application/xhtml+xml")
 	resp, err := s.web.Do(req)
 	if err != nil {
 		return "", err
@@ -222,7 +352,7 @@ func (s *Service) fetchImage(ctx context.Context, link string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "MarketFlowBot/1.0 (brand pictures for the business's own ads)")
+	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "image/jpeg,image/png,image/webp")
 	resp, err := s.web.Do(req)
 	if err != nil {
@@ -319,76 +449,19 @@ func (s *Service) SweepSiteImports(ctx context.Context, again time.Duration, lim
 	}
 }
 
-// Picture discovery on a page. Patterns are deliberately simple: pages are the business's own,
-// read once in a while, and anything odd is simply skipped.
+// Structured data images ("image": "..." or a list of them) inside JSON-LD.
 var (
-	reTag       = regexp.MustCompile(`(?is)<(meta|link|img|source)\b[^>]*>`)
-	reAttr      = regexp.MustCompile(`(?is)([a-z:_-]+)\s*=\s*("([^"]*)"|'([^']*)')`)
 	reLDImage   = regexp.MustCompile(`(?is)"image"\s*:\s*(\[[^\]]*\]|"[^"]+"|\{[^}]*\})`)
 	reURLInJSON = regexp.MustCompile(`"(https?:[^"\s]+)"`)
-	reSkipName  = regexp.MustCompile(`(?i)(favicon|sprite|icon|logo|avatar|placeholder|pixel|spacer|badge|emoji|loader|spinner)`)
 )
 
-// ImageCandidates returns the picture addresses a page offers, best first: the share images
-// (og:image, twitter:image, image_src), then structured data, then the page's own pictures in
-// order (the largest srcset entry of each). Logos, icons, SVG and GIF are left out; WebP is
-// kept and turned into JPEG on import.
+// ImageCandidates returns the addresses of the pictures on one page that show the business, best
+// first, under the default rules and without business names (PagePictures has the details).
 func ImageCandidates(page, pageURL string) []string {
-	base, err := url.Parse(pageURL)
-	if err != nil {
-		return nil
-	}
-	var share, ld, imgs []string
-	for _, tag := range reTag.FindAllString(page, -1) {
-		attrs := map[string]string{}
-		for _, m := range reAttr.FindAllStringSubmatch(tag, -1) {
-			v := m[3]
-			if v == "" {
-				v = m[4]
-			}
-			attrs[strings.ToLower(m[1])] = strings.TrimSpace(v)
-		}
-		name := strings.ToLower(tag[1:5])
-		switch {
-		case strings.HasPrefix(name, "meta"):
-			key := strings.ToLower(attrs["property"] + attrs["name"])
-			if key == "og:image" || key == "og:image:url" || key == "og:image:secure_url" || key == "twitter:image" {
-				share = append(share, attrs["content"])
-			}
-		case strings.HasPrefix(name, "link"):
-			if strings.EqualFold(attrs["rel"], "image_src") {
-				share = append(share, attrs["href"])
-			}
-		default: // img, source
-			if best := largestSrcset(attrs["srcset"]); best != "" {
-				imgs = append(imgs, best)
-			} else if best := largestSrcset(attrs["data-srcset"]); best != "" {
-				imgs = append(imgs, best)
-			}
-			for _, k := range []string{"src", "data-src", "data-lazy-src"} {
-				if attrs[k] != "" {
-					imgs = append(imgs, attrs[k])
-					break
-				}
-			}
-		}
-	}
-	for _, m := range reLDImage.FindAllStringSubmatch(page, -1) {
-		for _, u := range reURLInJSON.FindAllStringSubmatch(m[1], -1) {
-			ld = append(ld, strings.ReplaceAll(u[1], `\/`, "/"))
-		}
-	}
-	var out []string
-	seen := map[string]bool{}
-	for _, group := range [][]string{share, ld, imgs} {
-		for _, raw := range group {
-			u := normaliseHTTPS(raw, base)
-			if u == "" || seen[u] || !pictureLike(u) {
-				continue
-			}
-			seen[u] = true
-			out = append(out, u)
-		}
+	picks, _ := PagePictures(page, pageURL, DefaultSiteRules(), Names{})
+	out := make([]string, 0, len(picks))
+	for _, p := range picks {
+		out = append(out, p.URL)
 	}
 	return out
 }
@@ -451,13 +524,3 @@ func normaliseHTTPS(raw string, base *url.URL) string {
 	return u.String()
 }
 
-// pictureLike drops addresses that are clearly not photos of the business.
-func pictureLike(u string) bool {
-	p := strings.ToLower(strings.SplitN(u, "?", 2)[0])
-	for _, ext := range []string{".svg", ".gif", ".ico", ".avif", ".bmp"} {
-		if strings.HasSuffix(p, ext) {
-			return false
-		}
-	}
-	return !reSkipName.MatchString(path.Base(p))
-}

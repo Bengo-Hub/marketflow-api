@@ -10,6 +10,7 @@ import (
 	_ "image/jpeg" // decoders for the size check
 	_ "image/png"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -52,9 +53,40 @@ type Image struct {
 	UploadedAt  string `json:"uploaded_at"`
 	// Source is the web address of a picture linked from the business's own website.
 	Source string `json:"source,omitempty"`
+	// Page and Section say where on the website it was found (the page's address, "services").
+	Page    string `json:"page,omitempty"`
+	Section string `json:"section,omitempty"`
 	// Hash is the picture's difference hash (16 hex digits), so a website import skips pictures
 	// the business already has (dedupe.go).
 	Hash string `json:"hash,omitempty"`
+	// Caption and Tags say what the picture shows. A video uses a library picture as a scene's
+	// first frame only when they match the scene; a picture without them is never a frame.
+	Caption string   `json:"caption,omitempty"`
+	Tags    []string `json:"tags,omitempty"`
+	// Logo marks a logo (the business's or, on a software house's site, a client's). A logo is
+	// never a video frame or a poster reference: a tenant's ads carry only its own logo, on the
+	// end card.
+	Logo bool `json:"logo,omitempty"`
+}
+
+// logoHint matches names and addresses of logo pictures and client strips.
+var logoHint = regexp.MustCompile(`(?i)(logo|brandmark|wordmark|client|partner|sponsor|trusted|marquee)`)
+
+// LooksLikeLogo reports whether a stored picture is, or very likely is, a logo: marked so, or
+// named or linked like one.
+func LooksLikeLogo(img Image) bool {
+	return img.Logo || logoHint.MatchString(img.Name) || logoHint.MatchString(img.Source) || logoHint.MatchString(img.Caption)
+}
+
+// ByKey returns the tenant's stored pictures by key.
+func ByKey(meta map[string]any, tenantID uuid.UUID) map[string]Image {
+	out := map[string]Image{}
+	for _, img := range Read(meta) {
+		if Owned(img.Key, tenantID) {
+			out[img.Key] = img
+		}
+	}
+	return out
 }
 
 // View is an image as the portal sees it, with a short-lived link.
@@ -69,6 +101,13 @@ type View struct {
 	UploadedAt  string `json:"uploaded_at"`
 	// Source is set when the picture came from the business's website.
 	Source string `json:"source,omitempty"`
+	// From says where on the website, for the portal: "Services page" or "Home page, hero".
+	From string `json:"from,omitempty"`
+}
+
+// origin is where a stored picture came from; empty for an upload.
+type origin struct {
+	Source, Page, Section string
 }
 
 // Prefix is the key prefix of a tenant's brand images. A key outside it is never linked.
@@ -157,7 +196,8 @@ func (s *Service) view(img Image) View {
 		}
 	}
 	return View{ID: img.ID, URL: link, ContentType: img.ContentType, Width: img.Width, Height: img.Height,
-		Bytes: img.Bytes, Name: img.Name, UploadedAt: img.UploadedAt, Source: img.Source}
+		Bytes: img.Bytes, Name: img.Name, UploadedAt: img.UploadedAt, Source: img.Source,
+		From: FromLabel(img.Page, img.Section)}
 }
 
 // CheckSize refuses a picture whose short side is below the minimum.
@@ -181,11 +221,12 @@ func (s *Service) CheckSize(data []byte) (width, height int, err error) {
 // images. The list grows in one conditional UPDATE, so two uploads at once can never pass the
 // maximum; the object of an upload that loses that race is deleted again.
 func (s *Service) Add(ctx context.Context, tenantID uuid.UUID, up *objectstore.Upload) (View, error) {
-	return s.add(ctx, tenantID, up, "")
+	return s.add(ctx, tenantID, up, origin{})
 }
 
-// add stores one picture; source is the web address of a picture linked from the website.
-func (s *Service) add(ctx context.Context, tenantID uuid.UUID, up *objectstore.Upload, source string) (View, error) {
+// add stores one picture; from says where on the website a linked picture was found.
+func (s *Service) add(ctx context.Context, tenantID uuid.UUID, up *objectstore.Upload, from origin) (View, error) {
+	source := from.Source
 	if !s.store.Enabled() {
 		return View{}, ErrUnavailable
 	}
@@ -212,10 +253,13 @@ func (s *Service) add(ctx context.Context, tenantID uuid.UUID, up *objectstore.U
 		name = string([]rune(name)[:120])
 	}
 	img := Image{ID: uuid.NewString(), Key: key, ContentType: up.ContentType, Width: w, Height: h,
-		Bytes: len(up.Data), Name: name, UploadedAt: s.nowFn().UTC().Format(time.RFC3339), Source: source}
+		Bytes: len(up.Data), Name: name, UploadedAt: s.nowFn().UTC().Format(time.RFC3339), Source: source,
+		Page: from.Page, Section: from.Section}
 	if h, ok := dHash(up.Data); ok {
 		img.Hash = formatHash(h)
 	}
+	// A picture that is largely see-through is a logo or a cut-out mark, not a scene.
+	img.Logo = mostlyTransparent(up.Data) || logoHint.MatchString(name) || logoHint.MatchString(source)
 	n, err := s.appendImage(ctx, tenantID, img)
 	if err == nil && n == 0 {
 		err = ErrFull
@@ -330,4 +374,25 @@ func (l *Linker) Links(tenantID uuid.UUID, keys []string) []string {
 		out = append(out, u)
 	}
 	return out
+}
+
+// mostlyTransparent reports whether at least a fifth of a picture's pixels are see-through, the
+// mark of a logo or icon rather than a photo. A picture that cannot be read is not.
+func mostlyTransparent(data []byte) bool {
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return false
+	}
+	b := img.Bounds()
+	step := max(1, max(b.Dx(), b.Dy())/64)
+	var clear, n int
+	for y := b.Min.Y; y < b.Max.Y; y += step {
+		for x := b.Min.X; x < b.Max.X; x += step {
+			if _, _, _, a := img.At(x, y).RGBA(); a < 0x8000 {
+				clear++
+			}
+			n++
+		}
+	}
+	return n > 0 && clear*5 >= n
 }

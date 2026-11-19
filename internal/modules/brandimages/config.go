@@ -42,6 +42,49 @@ type Config struct {
 	SiteRetryAfter time.Duration
 	// SiteSweepLimit is the most tenants one sweep reads.
 	SiteSweepLimit int
+	// Site says which website pictures are taken (pick.go).
+	Site SiteRules
+}
+
+// SiteRules decide which pictures of a website are the business's own. The word lists are matched
+// against the words of a picture's surroundings (ids, classes, labels and headings of the parts of
+// the page it sits in), so "Trusted by businesses across Kenya" or class "clientLogos" both count.
+type SiteRules struct {
+	// Pages are the inner pages read besides the home page, by the first part of their path.
+	Pages []string
+	// MaxPages is the most inner pages read per site.
+	MaxPages int
+	// ExcludeWords mark parts of a page whose pictures belong to someone else or are page chrome:
+	// client and partner strips, logo marquees, testimonials.
+	ExcludeWords []string
+	// PreferWords mark the parts that show the business itself: hero, services, about, products,
+	// projects, blog, call to action.
+	PreferWords []string
+	// LogoWords in a picture's file name, path or description mark a logo or an icon.
+	LogoWords []string
+	// MinSide is the smallest display size (px) a picture may be shown at to count as a photo.
+	MinSide int
+	// ReadWindow bounds reading the site and its pictures, so the portal gets its answer in time.
+	ReadWindow time.Duration
+}
+
+// DefaultSiteRules is the starting point; every list can be replaced from the environment.
+func DefaultSiteRules() SiteRules {
+	return SiteRules{
+		Pages: []string{"services", "service", "about", "about-us", "products", "product", "shop",
+			"projects", "project", "portfolio", "work", "our-work", "gallery", "blog", "news", "menu", "team"},
+		MaxPages: 5,
+		ExcludeWords: []string{"client", "customer", "partner", "sponsor", "trusted", "marquee", "ticker",
+			"logo", "brands", "testimonial", "review", "avatar", "press", "award", "certification",
+			"accreditation", "payment", "footer", "nav", "navbar", "breadcrumb", "cookie"},
+		PreferWords: []string{"hero", "banner", "services", "service", "about", "story", "team", "products",
+			"product", "projects", "project", "portfolio", "work", "gallery", "blog", "article", "post",
+			"news", "cta", "menu", "showcase", "field"},
+		LogoWords: []string{"logo", "brandmark", "wordmark", "favicon", "icon", "sprite", "avatar", "badge",
+			"emoji", "placeholder", "pixel", "spacer", "loader", "spinner", "flag"},
+		MinSide:    400,
+		ReadWindow: 40 * time.Second,
+	}
 }
 
 // DefaultConfig is 3 to 5 images of at most 2 MB, at least 1024 px on the short side; the website
@@ -49,17 +92,42 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{Min: 3, Max: 5, MaxBytes: 2 << 20, MinShortSide: 1024,
 		ListLinkTTL: 15 * time.Minute, RenderLinkTTL: time.Hour,
-		SiteSweepEvery: 24 * time.Hour, SiteRetryAfter: 7 * 24 * time.Hour, SiteSweepLimit: 50}
+		SiteSweepEvery: 24 * time.Hour, SiteRetryAfter: 7 * 24 * time.Hour, SiteSweepLimit: 50,
+		Site: DefaultSiteRules()}
 }
 
 // ConfigFromEnv reads MF_BRAND_IMAGES_MIN, MF_BRAND_IMAGES_MAX, MF_BRAND_IMAGES_MAX_BYTES,
 // MF_BRAND_IMAGES_MIN_SIDE, MF_BRAND_IMAGES_LINK_TTL, MF_BRAND_IMAGES_RENDER_LINK_TTL,
 // MF_BRAND_IMAGES_SITE_SWEEP_EVERY, MF_BRAND_IMAGES_SITE_RETRY_AFTER and
-// MF_BRAND_IMAGES_SITE_SWEEP_LIMIT. An unset value keeps its default; a value that does not
+// MF_BRAND_IMAGES_SITE_SWEEP_LIMIT, and for choosing website pictures MF_BRAND_IMAGES_SITE_PAGES,
+// MF_BRAND_IMAGES_SITE_EXCLUDE_WORDS, MF_BRAND_IMAGES_SITE_PREFER_WORDS and
+// MF_BRAND_IMAGES_SITE_LOGO_WORDS (comma separated lists that replace the defaults),
+// MF_BRAND_IMAGES_SITE_MAX_PAGES, MF_BRAND_IMAGES_SITE_MIN_DISPLAY and
+// MF_BRAND_IMAGES_SITE_READ_WINDOW. An unset value keeps its default; a value that does not
 // parse, or limits that contradict each other, return the defaults with an error for the caller
 // to log.
 func ConfigFromEnv(getenv func(string) string) (Config, error) {
 	cfg := DefaultConfig()
+	lists := []struct {
+		key string
+		dst *[]string
+	}{
+		{"MF_BRAND_IMAGES_SITE_PAGES", &cfg.Site.Pages},
+		{"MF_BRAND_IMAGES_SITE_EXCLUDE_WORDS", &cfg.Site.ExcludeWords},
+		{"MF_BRAND_IMAGES_SITE_PREFER_WORDS", &cfg.Site.PreferWords},
+		{"MF_BRAND_IMAGES_SITE_LOGO_WORDS", &cfg.Site.LogoWords},
+	}
+	for _, it := range lists {
+		if v := strings.TrimSpace(getenv(it.key)); v != "" {
+			var words []string
+			for _, w := range strings.Split(v, ",") {
+				if w = strings.ToLower(strings.TrimSpace(w)); w != "" {
+					words = append(words, w)
+				}
+			}
+			*it.dst = words
+		}
+	}
 	ints := []struct {
 		key string
 		dst *int
@@ -68,6 +136,8 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		{"MF_BRAND_IMAGES_MAX", &cfg.Max},
 		{"MF_BRAND_IMAGES_MIN_SIDE", &cfg.MinShortSide},
 		{"MF_BRAND_IMAGES_SITE_SWEEP_LIMIT", &cfg.SiteSweepLimit},
+		{"MF_BRAND_IMAGES_SITE_MAX_PAGES", &cfg.Site.MaxPages},
+		{"MF_BRAND_IMAGES_SITE_MIN_DISPLAY", &cfg.Site.MinSide},
 	}
 	for _, it := range ints {
 		if v := strings.TrimSpace(getenv(it.key)); v != "" {
@@ -93,6 +163,7 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		{"MF_BRAND_IMAGES_RENDER_LINK_TTL", &cfg.RenderLinkTTL},
 		{"MF_BRAND_IMAGES_SITE_SWEEP_EVERY", &cfg.SiteSweepEvery},
 		{"MF_BRAND_IMAGES_SITE_RETRY_AFTER", &cfg.SiteRetryAfter},
+		{"MF_BRAND_IMAGES_SITE_READ_WINDOW", &cfg.Site.ReadWindow},
 	}
 	for _, it := range durations {
 		if v := strings.TrimSpace(getenv(it.key)); v != "" {
