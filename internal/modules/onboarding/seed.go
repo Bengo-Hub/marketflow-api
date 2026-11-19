@@ -112,6 +112,8 @@ type seedInput struct {
 	titlesKnown bool
 	teamDone    bool
 	teamKnown   bool
+	// platformSlug is the platform owner's tenant, the only one the Codevertex logo belongs to.
+	platformSlug string
 }
 
 // seedPlan is what the run would write.
@@ -152,7 +154,7 @@ func planSeed(in seedInput) seedPlan {
 	} else if v := str(meta, "tagline"); v != "" {
 		p.brand.Positioning = clip(v, 1200)
 		p.fill("brand_context", "positioning", "profile tagline", "", p.brand.Positioning)
-	} else if in.facts != nil && strings.TrimSpace(in.facts.Summary) != "" {
+	} else if in.facts != nil && ownDescription(in.facts.Summary, firstNonEmpty(in.facts.Name, t.Name)) {
 		p.brand.Positioning = clip(in.facts.Summary, 1200)
 		p.fill("brand_context", "positioning", "website description", website, p.brand.Positioning)
 	} else {
@@ -220,9 +222,17 @@ func planSeed(in seedInput) seedPlan {
 			// A Forever tenant always uses the Forever Living logo (owner, 2026-11-19): the
 			// platform default below, never the account record's.
 			p.skip("profile", f.key, "a Forever tenant uses the Forever Living logo from the platform defaults")
+		case f.key == "logo_url" && strings.TrimSpace(f.value) != "" && !logoOwned(t, in.platformSlug, f.value):
+			// Never mix logos up (owner, 2026-11-19): only a logo stored under this tenant's own
+			// account, or named for it, is taken; anything else waits for the owner.
+			p.skip("profile", f.key, "the account logo cannot be confirmed as this business's own: "+clip(f.value, 100))
 		case strings.TrimSpace(f.value) != "":
 			p.profile[f.key] = strings.TrimSpace(f.value)
-			p.fill("profile", f.key, "account record (auth-api)", "", f.value)
+			src := "account record (auth-api)"
+			if f.key == "logo_url" {
+				src = "account record logo (auth-api), " + logoWhy(t, f.value)
+			}
+			p.fill("profile", f.key, src, "", f.value)
 		default:
 			p.skip("profile", f.key, "the account record has none")
 		}
@@ -301,7 +311,7 @@ func (p *seedPlan) planFAQs(in seedInput) {
 		var d faqDraft
 		switch topic.key {
 		case "about":
-			if s := strings.TrimSpace(f.Summary); s != "" {
+			if s := strings.TrimSpace(f.Summary); ownDescription(s, name) {
 				d = faqDraft{answer: strings.TrimRight(s, ".") + ".", source: "website description", url: f.Website}
 			}
 		case "location":
@@ -338,6 +348,57 @@ func (p *seedPlan) planFAQs(in seedInput) {
 		p.faqs = append(p.faqs, d)
 		p.fill("knowledge", field, d.source+" (pending suggestion for the owner)", d.url, d.question+" "+d.answer)
 	}
+}
+
+// logoOwned reports whether an account logo is clearly this tenant's own: an upload stored under
+// the tenant's own id in the media store, or a platform-hosted logo file named after its slug.
+// The Codevertex logo belongs to the platform tenant only. Anything else (another domain, a client
+// or partner logo, a shared default) is not taken.
+func logoOwned(t *ent.Tenant, platformSlug, logo string) bool {
+	return logoWhy(t, logo) != "" && (!isCodevertexLogo(logo) || (platformSlug != "" && t.Slug == platformSlug))
+}
+
+// logoWhy says why a logo is the tenant's own, or "" when it cannot tell.
+func logoWhy(t *ent.Tenant, logo string) string {
+	u := strings.ToLower(strings.TrimSpace(logo))
+	if strings.HasPrefix(u, "https://media.codevertexafrica.com/auth/"+t.ID.String()+"/") {
+		return "uploaded to this tenant's own account folder"
+	}
+	const hosted = "https://accounts.codevertexafrica.com/images/logo/"
+	if strings.HasPrefix(u, hosted) {
+		file := strings.TrimPrefix(u, hosted)
+		if i := strings.LastIndexByte(file, '.'); i > 0 {
+			file = file[:i]
+		}
+		if file != "" && file == strings.ToLower(t.Slug) {
+			return "platform-hosted logo file named for this tenant's slug"
+		}
+	}
+	return ""
+}
+
+func isCodevertexLogo(u string) bool {
+	return strings.HasSuffix(strings.ToLower(strings.TrimSpace(u)), "/images/logo/codevertex.png")
+}
+
+// storefrontTemplate are phrases of the shared ordering storefront's generated description; a page
+// that says only this has not described the business itself.
+var storefrontTemplate = []string{"for pickup or delivery", "powered by codevertex"}
+
+// ownDescription reports whether a website description says something of its own about the
+// business: not empty, not the storefront's generated line, and more than the name repeated.
+func ownDescription(summary, name string) bool {
+	s := strings.ToLower(strings.TrimSpace(summary))
+	if s == "" {
+		return false
+	}
+	for _, p := range storefrontTemplate {
+		if strings.Contains(s, p) {
+			return false
+		}
+	}
+	rest := strings.TrimSpace(strings.ReplaceAll(s, strings.ToLower(strings.TrimSpace(name)), ""))
+	return len([]rune(rest)) >= 40
 }
 
 // offeringSources names where the draft's offerings came from.
@@ -451,7 +512,7 @@ func (s *Service) SeedDefaults(ctx context.Context, tenantID uuid.UUID, dryRun b
 	if err != nil {
 		return SeedReport{}, err
 	}
-	in := seedInput{tenant: t, current: draft.Current, draft: draft}
+	in := seedInput{tenant: t, current: draft.Current, draft: draft, platformSlug: s.platformSlug}
 	var errs []string
 	if s.seed.Facts != nil {
 		if f, err := s.seed.Facts(ctx, tenantID); err == nil {
