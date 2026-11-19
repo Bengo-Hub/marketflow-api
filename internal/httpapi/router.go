@@ -542,11 +542,11 @@ type CreativeHandlers struct {
 	GetVersion        http.HandlerFunc
 	Approve           http.HandlerFunc
 	Discard           http.HandlerFunc
+	DeleteBrief       http.HandlerFunc
 	Revise            http.HandlerFunc
 	Extend            http.HandlerFunc
 	CreateMotion      http.HandlerFunc
 	CreateVideoAd     http.HandlerFunc
-	DeleteBrief       http.HandlerFunc
 	UpdateScript      http.HandlerFunc
 	RenderVideoAd     http.HandlerFunc
 	MakeStoryboard    http.HandlerFunc
@@ -1157,13 +1157,13 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Post("/briefs", deps.CreativeHandlers.CreateBrief)
 					r.Get("/briefs/{id}", deps.CreativeHandlers.GetBrief)
 					r.Put("/briefs/{id}", deps.CreativeHandlers.UpdateBrief)
+					if deps.CreativeHandlers.DeleteBrief != nil {
+						r.Delete("/briefs/{id}", deps.CreativeHandlers.DeleteBrief)
+					}
 					if deps.CreativeHandlers.LeadPage != nil {
 						r.Post("/briefs/{id}/lead-page", deps.CreativeHandlers.LeadPage)
 					}
 					r.Post("/briefs/{id}/versions", deps.CreativeHandlers.CreateVersion)
-					if deps.CreativeHandlers.DeleteBrief != nil {
-						r.Delete("/briefs/{id}", deps.CreativeHandlers.DeleteBrief)
-					}
 					r.Post("/briefs/{id}/video-ads", deps.CreativeHandlers.CreateVideoAd)
 					r.Get("/versions/{id}", deps.CreativeHandlers.GetVersion)
 					r.Post("/versions/{id}/approve", deps.CreativeHandlers.Approve)
