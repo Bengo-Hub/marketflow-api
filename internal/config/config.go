@@ -147,7 +147,7 @@ type SecurityConfig struct {
 	PlatformTenant string `env:"PLATFORM_TENANT" envDefault:"codevertex" comment:"Platform owner tenant slug for provider config hierarchy"`
 	// DemoPlanCode is the plan a demo tenant (exempt from subscriptions, no plan of its own) gets
 	// in the AI work: the public demo password must not unlock paid features (owner, 2026-11-12).
-	DemoPlanCode string `env:"DEMO_PLAN_CODE" envDefault:"MARKETFLOW_STARTER" comment:"Free plan a demo tenant's AI features and chat limits follow"`
+	DemoPlanCode   string `env:"DEMO_PLAN_CODE" envDefault:"MARKETFLOW_STARTER" comment:"Free plan a demo tenant's AI features and chat limits follow"`
 	AuthServiceURL string `env:"AUTH_SERVICE_URL" envDefault:"https://sso.codevertexafrica.com" comment:"Used by shared-auth-client APIKeyValidator"`
 	// EnforceTenantHeader refuses a tenant header that names another tenant than the token.
 	// On by default (production enforces it); a values file that drops the variable must not
@@ -195,6 +195,11 @@ type MetaConfig struct {
 	// DeletionStatusURL is the public page a person lands on to check a data
 	// deletion request (Meta's data deletion callback returns it with the code).
 	DeletionStatusURL string `env:"DELETION_STATUS_URL" envDefault:"https://marketflow.codevertexafrica.com/data-deletion"`
+	// The boost a WhatsApp Boost it tap quotes when the tenant set none (whole units of the ad
+	// account's currency, days, and whatsapp or traffic).
+	WABoostBudget    int64  `env:"WA_BOOST_BUDGET" envDefault:"3000"`
+	WABoostDays      int    `env:"WA_BOOST_DAYS" envDefault:"7"`
+	WABoostObjective string `env:"WA_BOOST_OBJECTIVE" envDefault:"whatsapp"`
 }
 
 // TikTokConfig holds TikTok Business API settings.
@@ -211,9 +216,9 @@ type CrossServiceConfig struct {
 	// AIURL is marketflow-ai, for the internal credit charge of a paid ad launch.
 	AIURL string `env:"AI_URL" envDefault:"http://marketflow-ai.marketflow.svc.cluster.local:4001"`
 	// CrawlerURL is marketflow-crawler, the internal page reader; empty turns its use off.
-	CrawlerURL  string `env:"CRAWLER_URL" envDefault:"http://marketflow-crawler.marketflow.svc.cluster.local:4010"`
+	CrawlerURL string `env:"CRAWLER_URL" envDefault:"http://marketflow-crawler.marketflow.svc.cluster.local:4010"`
 	// PortalURL is the tenant portal, for links in emails (same variable as the worker's).
-	PortalURL string `env:"PORTAL_URL" envDefault:"https://marketflow.codevertexafrica.com"`
+	PortalURL   string `env:"PORTAL_URL" envDefault:"https://marketflow.codevertexafrica.com"`
 	OrderingURL string `env:"ORDERING_URL" envDefault:"http://ordering-backend.ordering.svc.cluster.local:4000"`
 	POSURL      string `env:"POS_URL" envDefault:"http://pos-api.pos.svc.cluster.local:4000"`
 	TreasuryURL string `env:"TREASURY_URL" envDefault:"http://treasury-api.treasury.svc.cluster.local:4000"`

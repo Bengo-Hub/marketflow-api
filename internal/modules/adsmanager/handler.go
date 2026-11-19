@@ -45,7 +45,10 @@ type Handler struct {
 	// platform rate), to size a non-KES boost against the code threshold. nil, or an error, means
 	// a non-KES boost always needs the code.
 	KESPer func(ctx context.Context, currency string) (float64, error)
-	Logger *zap.Logger
+	// WABoost is the platform's default boost for a WhatsApp Boost it tap (whatsapp_boost.go);
+	// a tenant's own whatsapp_boost metadata overrides it.
+	WABoost WABoostDefaults
+	Logger  *zap.Logger
 }
 
 // DefaultLaunchCredits is the fixed charge for a client without a plan (platform config).

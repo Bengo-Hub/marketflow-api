@@ -23,9 +23,9 @@ type TenantSyncer interface {
 // RouterDeps defines router construction dependencies.
 type RouterDeps struct {
 	// Limiter is the shared per-IP request limiter (nil disables it, e.g. in tests).
-	Limiter        *ratelimit.Limiter
+	Limiter *ratelimit.Limiter
 	// PublicLimits are the per-IP limits on the public write routes (per minute; 0 is off).
-	PublicLimits PublicLimits
+	PublicLimits   PublicLimits
 	Log            *zap.Logger
 	HealthHandler  http.HandlerFunc
 	MetricsHandler http.Handler
@@ -340,7 +340,7 @@ type IntegrationsHandlers struct {
 	TikTokCallback                    http.HandlerFunc
 	YouTubeAuthorize                  http.HandlerFunc
 	YouTubeCallback                   http.HandlerFunc
-	ListTenant                       http.HandlerFunc
+	ListTenant                        http.HandlerFunc
 	DisconnectTenant                  http.HandlerFunc
 }
 
@@ -567,6 +567,11 @@ type AdsHandlers struct {
 	ResumeAd http.HandlerFunc
 	// BoostOTP sends the WhatsApp confirmation code a large boost needs.
 	BoostOTP http.HandlerFunc
+	// OSTurnBoostQuote, OSTurnBoost and OSTurnBoostOTP are S2S POST
+	// /internal/ads/os-turn/boost-quote, /boost and /boost-otp: boost from WhatsApp (marketflow-ai).
+	OSTurnBoostQuote http.HandlerFunc
+	OSTurnBoost      http.HandlerFunc
+	OSTurnBoostOTP   http.HandlerFunc
 }
 
 // InboxHandlers groups the social inbox routes (Sprint 22).
@@ -1345,6 +1350,11 @@ func NewRouter(deps RouterDeps) http.Handler {
 					}
 					if deps.PublishingHandlers.OSTurnPublish != nil {
 						r.Post("/creative/os-turn/publish", deps.PublishingHandlers.OSTurnPublish)
+					}
+					if deps.AdsHandlers.OSTurnBoost != nil {
+						r.Post("/ads/os-turn/boost-quote", deps.AdsHandlers.OSTurnBoostQuote)
+						r.Post("/ads/os-turn/boost", deps.AdsHandlers.OSTurnBoost)
+						r.Post("/ads/os-turn/boost-otp", deps.AdsHandlers.OSTurnBoostOTP)
 					}
 					if deps.ContactHandlers.GetByEmail != nil {
 						r.Get("/contacts/by-email", deps.ContactHandlers.GetByEmail)

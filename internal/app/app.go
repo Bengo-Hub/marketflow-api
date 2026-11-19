@@ -38,9 +38,9 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	custom_agents "github.com/bengobox/marketflow-api/internal/modules/custom_agents"
-	"github.com/bengobox/marketflow-api/internal/modules/endpoints"
 	custom_fields "github.com/bengobox/marketflow-api/internal/modules/custom_fields"
 	"github.com/bengobox/marketflow-api/internal/modules/deals"
+	"github.com/bengobox/marketflow-api/internal/modules/endpoints"
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
 	"github.com/bengobox/marketflow-api/internal/modules/inbox"
 	"github.com/bengobox/marketflow-api/internal/modules/integrations"
@@ -523,11 +523,14 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// Paid ads (Sprint 18): off until the platform ads/meta_enabled switch; the approving roles
 	// launch and pause; launch credits go through marketflow-ai's charge route.
 	adsHandler := &adsmanager.Handler{DB: entClient, Keys: keyProvider,
-		Meta:       meta.NewClient("").WithSecret(meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret)),
+		Meta: meta.NewClient("").WithSecret(meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret)),
 		// Strict: paid_ads_launch waives the launch charge, so an outage must not grant it.
-		HasFeature: func(ctx context.Context, tenantID, feature string) bool { return subsClient.StrictHasFeature(ctx, tenantID, feature) },
-		Charge: adsmanager.AICharge(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey),
+		HasFeature: func(ctx context.Context, tenantID, feature string) bool {
+			return subsClient.StrictHasFeature(ctx, tenantID, feature)
+		},
+		Charge:        adsmanager.AICharge(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey),
 		LaunchCredits: adsmanager.DefaultLaunchCredits, Enabled: adsmanager.MetaEnabled(entClient), Logger: logger.Named("ads"),
+		WABoost: adsmanager.WABoostDefaults{Budget: cfg.Meta.WABoostBudget, Days: cfg.Meta.WABoostDays, Objective: cfg.Meta.WABoostObjective},
 		CanLaunch: func(ctx context.Context, tenantID uuid.UUID) bool {
 			return rbacService.CallerHasAnyRole(ctx, tenantID, reviewActionRoles...)
 		},
@@ -680,7 +683,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	}
 
 	router := httpapi.NewRouter(httpapi.RouterDeps{
-		Limiter:        ratelimit.NewLimiter(redisClient, logger, "marketflow"),
+		Limiter: ratelimit.NewLimiter(redisClient, logger, "marketflow"),
 		PublicLimits: httpapi.PublicLimits{Leads: cfg.Security.PublicLeadsPerMinute,
 			Bookings: cfg.Security.PublicBookingsPerMinute, Events: cfg.Security.PublicEventsPerMinute,
 			Reads: cfg.Security.PublicReadsPerMinute, Webhooks: cfg.Security.WebhooksPerMinute},
@@ -950,9 +953,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			MarkStep:  onboardingHandler.MarkStep,
 		},
 		BrandImageHandlers: httpapi.BrandImageHandlers{
-			List:   brandImagesHandler.List,
-			Upload: brandImagesHandler.Upload,
-			Delete: brandImagesHandler.Delete,
+			List:       brandImagesHandler.List,
+			Upload:     brandImagesHandler.Upload,
+			Delete:     brandImagesHandler.Delete,
 			ImportSite: brandImagesHandler.ImportSite,
 		},
 		MarketingOSHandlers: httpapi.MarketingOSHandlers{
@@ -1008,7 +1011,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		AdsHandlers: httpapi.AdsHandlers{
 			Accounts: adsHandler.Accounts, CreateKES: adsHandler.CreateKESAccount, Quote: adsHandler.Quote, Boost: adsHandler.Boost,
 			Get: adsHandler.Get, ConfirmPaid: adsHandler.ConfirmPaid, Pause: adsHandler.Pause, Resume: adsHandler.Resume, ResumeAd: adsHandler.ResumeAd,
-			BoostOTP: adsHandler.BoostOTP,
+			BoostOTP:         adsHandler.BoostOTP,
+			OSTurnBoostQuote: adsHandler.OSTurnBoostQuote, OSTurnBoost: adsHandler.OSTurnBoost, OSTurnBoostOTP: adsHandler.OSTurnBoostOTP,
 		},
 		InboxHandlers: httpapi.InboxHandlers{
 			List:    inboxHandler.List,
