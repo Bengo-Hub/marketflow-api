@@ -490,6 +490,10 @@ func (s *Service) RenderVideoAd(ctx context.Context, tenantID, id uuid.UUID) (*e
 	}
 	meta["stage"] = StageRender
 	delete(meta, "attempts") // the render's attempts count from zero
+	// The render's deadline counts from its own start. The storyboard's job_started_at was kept
+	// before 2026-11-19, so a render queued more than jobDeadline after its storyboard failed as
+	// "took too long" within minutes, although every clip finished and its webhook arrived.
+	delete(meta, "job_started_at")
 	upd := s.db.CreativeVersion.Update().
 		Where(creativeversion.ID(id), creativeversion.TenantID(tenantID), creativeversion.StatusEQ(StatusScriptReady)).
 		SetStatus(StatusQueued).SetMetadata(meta).ClearError()

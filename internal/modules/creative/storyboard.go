@@ -219,6 +219,9 @@ func (r *Renderer) settleStoryboard(ctx context.Context, v *ent.CreativeVersion,
 		}
 		meta["storyboard"], meta["stage"] = board, StageScript
 		delete(meta, "storyboard_error")
+		// The storyboard job is over: its start time and attempts must not carry into the render.
+		delete(meta, "job_started_at")
+		delete(meta, "attempts")
 		settled := false // this report moved the version, so its message goes once
 		err := withTx(ctx, r.db, func(tx *ent.Tx) error {
 			n, err := tx.CreativeVersion.Update().

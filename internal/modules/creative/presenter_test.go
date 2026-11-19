@@ -91,6 +91,10 @@ func TestPresenterAdStoryboardRenderRevision(t *testing.T) {
 	if _, err := s.RenderVideoAd(ctx, tid, v.ID); err != nil {
 		t.Fatal(err)
 	}
+	// The render's deadline counts from the render, never from the storyboard's job.
+	if q, err := db.CreativeVersion.Get(ctx, v.ID); err != nil || q.Metadata["job_started_at"] != nil || q.Metadata["attempts"] != nil {
+		t.Fatalf("a queued render must not carry the storyboard's job clock: %v %v", q.Metadata["job_started_at"], err)
+	}
 	r.Tick(ctx)
 	ad := ai.started[len(ai.started)-1]
 	stills, _ := ad["stills"].(map[string]any)
