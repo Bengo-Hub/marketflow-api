@@ -98,7 +98,7 @@ var faqTopics = []faqTopic{
 
 // faqDraft is one FAQ entry the run would add.
 type faqDraft struct {
-	question, answer, source, url string
+	topic, question, answer, source, url string
 }
 
 // seedInput is everything the plan looks at; planSeed does no I/O.
@@ -209,12 +209,17 @@ func planSeed(in seedInput) seedPlan {
 
 	// Profile contact links from the account record (the draft only offers empty ones).
 	prof := in.draft.Profile
+	isFLP := strings.EqualFold(t.BusinessType, tenant.BusinessTypeFLP)
 	for _, f := range []struct{ key, value string }{
 		{"contact_email", prof.ContactEmail}, {"logo_url", prof.LogoURL}, {"brand_primary_color", prof.BrandColor},
 	} {
 		switch {
 		case str(meta, f.key) != "":
 			p.skip("profile", f.key, "already set")
+		case isFLP && f.key == "logo_url":
+			// A Forever tenant always uses the Forever Living logo (owner, 2026-11-19): the
+			// platform default below, never the account record's.
+			p.skip("profile", f.key, "a Forever tenant uses the Forever Living logo from the platform defaults")
 		case strings.TrimSpace(f.value) != "":
 			p.profile[f.key] = strings.TrimSpace(f.value)
 			p.fill("profile", f.key, "account record (auth-api)", "", f.value)
@@ -236,7 +241,11 @@ func planSeed(in seedInput) seedPlan {
 	}
 
 	// Platform defaults a tenant synced before they existed may lack.
-	if strings.EqualFold(t.BusinessType, tenant.BusinessTypeFLP) {
+	if isFLP {
+		// The old default lived on both Codevertex account domains over time.
+		if strings.HasSuffix(str(meta, "logo_url"), "/images/logo/codevertex.png") {
+			p.skip("defaults", "logo_url", "holds the Codevertex logo from the old Forever default; left as stored for the owner to review")
+		}
 		missing := tenant.MissingFBODefaults(meta)
 		keys := make([]string, 0, len(missing))
 		for k := range missing {
@@ -325,7 +334,7 @@ func (p *seedPlan) planFAQs(in seedInput) {
 			p.skip("knowledge", field, "no source states it")
 			continue
 		}
-		d.question = fmt.Sprintf(topic.question, name)
+		d.topic, d.question = topic.key, fmt.Sprintf(topic.question, name)
 		p.faqs = append(p.faqs, d)
 		p.fill("knowledge", field, d.source+" (pending suggestion for the owner)", d.url, d.question+" "+d.answer)
 	}
@@ -371,9 +380,67 @@ func (d Draft) hasSource(name string) bool {
 	return false
 }
 
+// exclude drops fills the platform owner turned down. Each entry is "slug:area/field" (for one
+// tenant) or "area/field" (for every tenant). An excluded fill is reported as skipped.
+func (p *seedPlan) exclude(slug string, list []string) {
+	if len(list) == 0 {
+		return
+	}
+	drop := map[string]bool{}
+	for _, e := range list {
+		e = strings.TrimSpace(e)
+		if s, rest, ok := strings.Cut(e, ":"); ok {
+			if s == slug {
+				drop[rest] = true
+			}
+			continue
+		}
+		drop[e] = true
+	}
+	kept := p.report.Filled[:0]
+	for _, it := range p.report.Filled {
+		key := it.Area + "/" + it.Field
+		if !drop[key] {
+			kept = append(kept, it)
+			continue
+		}
+		p.skip(it.Area, it.Field, "excluded by the platform owner")
+		switch {
+		case key == "brand_context/positioning":
+			p.brand.Positioning = ""
+		case key == "brand_context/offers":
+			p.brand.Offers = nil
+		case key == "brand_context/proof":
+			p.brand.Proof = nil
+		case key == "brand_context/banned_claims":
+			p.brand.BannedClaims = nil
+		case key == "defaults/team_setup":
+			p.runTeamSetup = false
+		case it.Area == "profile" || it.Area == "defaults":
+			delete(p.profile, it.Field)
+		case it.Area == "knowledge":
+			faqs := p.faqs[:0]
+			for _, f := range p.faqs {
+				if it.Field != "faq."+f.topic {
+					faqs = append(faqs, f)
+				}
+			}
+			p.faqs = faqs
+		}
+	}
+	p.report.Filled = kept
+	fields := p.brandFields[:0]
+	for _, f := range p.brandFields {
+		if !drop["brand_context/"+f] {
+			fields = append(fields, f)
+		}
+	}
+	p.brandFields = fields
+}
+
 // SeedDefaults runs the seed for one tenant. dryRun reads every source and reports, writing
-// nothing.
-func (s *Service) SeedDefaults(ctx context.Context, tenantID uuid.UUID, dryRun bool) (SeedReport, error) {
+// nothing. exclude lists fills to leave out (seedPlan.exclude).
+func (s *Service) SeedDefaults(ctx context.Context, tenantID uuid.UUID, dryRun bool, exclude ...string) (SeedReport, error) {
 	ctx, cancel := context.WithTimeout(ctx, seedBudget)
 	defer cancel()
 	t, err := s.db.Tenant.Get(ctx, tenantID)
@@ -406,6 +473,7 @@ func (s *Service) SeedDefaults(ctx context.Context, tenantID uuid.UUID, dryRun b
 		}
 	}
 	plan := planSeed(in)
+	plan.exclude(t.Slug, exclude)
 	rep := plan.report
 	rep.DryRun = dryRun
 	rep.Errors = append(rep.Errors, errs...)
@@ -512,7 +580,7 @@ type SeedPage struct {
 }
 
 // SeedActiveTenants runs the seed for one page of active tenants, ordered by slug.
-func (s *Service) SeedActiveTenants(ctx context.Context, offset, limit int, dryRun bool) (SeedPage, error) {
+func (s *Service) SeedActiveTenants(ctx context.Context, offset, limit int, dryRun bool, exclude ...string) (SeedPage, error) {
 	if limit <= 0 {
 		limit = seedPageDefault
 	}
@@ -540,7 +608,7 @@ func (s *Service) SeedActiveTenants(ctx context.Context, offset, limit int, dryR
 		go func(i int, id uuid.UUID) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			rep, err := s.SeedDefaults(ctx, id, dryRun)
+			rep, err := s.SeedDefaults(ctx, id, dryRun, exclude...)
 			if err != nil {
 				rep = SeedReport{TenantID: id.String(), DryRun: dryRun, Errors: []string{err.Error()}}
 			}

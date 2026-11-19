@@ -109,6 +109,53 @@ func TestPlanSeedFLPDefaultsFillMissingOnly(t *testing.T) {
 	}
 }
 
+// A Forever tenant always gets the Forever Living logo, never the account's or Codevertex's, and
+// one still holding the old Codevertex default is reported, not changed.
+func TestPlanSeedFLPLogo(t *testing.T) {
+	fresh := &ent.Tenant{ID: uuid.New(), Slug: "254000000002", BusinessType: tenant.BusinessTypeFLP, Metadata: map[string]any{}}
+	p := planSeed(seedInput{tenant: fresh, draft: Draft{Profile: ProfileDefaults{LogoURL: "https://accounts.codevertexafrica.com/images/logo/codevertex.png"}}})
+	if p.profile["logo_url"] != tenant.DefaultFBOLogo || !strings.Contains(tenant.DefaultFBOLogo, "forever-logo") {
+		t.Fatalf("logo plan = %v", p.profile["logo_url"])
+	}
+	legacy := &ent.Tenant{ID: uuid.New(), Slug: "254000000003", BusinessType: tenant.BusinessTypeFLP,
+		Metadata: map[string]any{"logo_url": tenant.LegacyFBOLogo}}
+	p = planSeed(seedInput{tenant: legacy})
+	if _, ok := p.profile["logo_url"]; ok {
+		t.Fatal("a stored logo is never replaced")
+	}
+	found := false
+	for _, s := range p.report.Skipped {
+		found = found || (s.Area == "defaults" && s.Field == "logo_url" && strings.Contains(s.Reason, "Codevertex"))
+	}
+	if !found {
+		t.Fatalf("the old Codevertex logo should be reported: %+v", p.report.Skipped)
+	}
+}
+
+// An excluded fill leaves the plan and is reported as skipped; other tenants keep it.
+func TestPlanSeedExclude(t *testing.T) {
+	ten := &ent.Tenant{ID: uuid.New(), Slug: "mss", BusinessType: tenant.BusinessTypeGeneric, Metadata: map[string]any{"tagline": "Tangible"}}
+	in := seedInput{tenant: ten, draft: Draft{Suggested: marketingos.BrandContext{Offers: []string{"Milestone 2"}}},
+		facts: &marketingos.BusinessFacts{Name: "MSS", Summary: "MSS", Website: "https://mss.test"}, titlesKnown: true}
+	p := planSeed(in)
+	p.exclude("mss", []string{"mss:brand_context/offers", "other:brand_context/positioning", "knowledge/faq.about"})
+	if len(p.brand.Offers) != 0 || p.brand.Positioning == "" {
+		t.Fatalf("brand plan after exclude: %+v", p.brand)
+	}
+	for _, f := range p.faqs {
+		if f.topic == "about" {
+			t.Fatal("the about FAQ was excluded for every tenant")
+		}
+	}
+	got := filledFields(p.report)
+	if _, ok := got["brand_context/offers"]; ok {
+		t.Fatal("excluded offers still reported as filled")
+	}
+	if strings.Join(p.brandFields, ",") != "positioning" {
+		t.Fatalf("brand fields = %v", p.brandFields)
+	}
+}
+
 // The run writes only empty fields, a dry run writes nothing, and a second run changes nothing.
 func TestSeedDefaultsFillOnlyAndIdempotent(t *testing.T) {
 	db := openDB(t)

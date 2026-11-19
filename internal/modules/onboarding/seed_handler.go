@@ -3,6 +3,7 @@ package onboarding
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -16,6 +17,19 @@ import (
 func dryRun(r *http.Request) bool {
 	v := r.URL.Query().Get("dry_run")
 	return v != "false" && v != "0"
+}
+
+// excludes reads ?exclude=, repeatable or comma separated: "slug:area/field" or "area/field".
+func excludes(r *http.Request) []string {
+	var out []string
+	for _, v := range r.URL.Query()["exclude"] {
+		for _, e := range strings.Split(v, ",") {
+			if e = strings.TrimSpace(e); e != "" && len(out) < 100 {
+				out = append(out, e)
+			}
+		}
+	}
+	return out
 }
 
 // SeedTenant handles POST /api/v1/admin/tenants/{tenantID}/seed-defaults?dry_run=true.
@@ -35,7 +49,7 @@ func (h *Handler) SeedTenant(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "tenant id must be a UUID", nil)
 		return
 	}
-	rep, err := h.svc.SeedDefaults(r.Context(), id, dryRun(r))
+	rep, err := h.svc.SeedDefaults(r.Context(), id, dryRun(r), excludes(r)...)
 	if err != nil {
 		if ent.IsNotFound(err) {
 			httpapi.Error(w, http.StatusNotFound, "not_found", "tenant not found", nil)
@@ -63,7 +77,7 @@ func (h *Handler) SeedTenant(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) SeedAll(w http.ResponseWriter, r *http.Request) {
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	page, err := h.svc.SeedActiveTenants(r.Context(), offset, limit, dryRun(r))
+	page, err := h.svc.SeedActiveTenants(r.Context(), offset, limit, dryRun(r), excludes(r)...)
 	if err != nil {
 		h.logger.Error("seed defaults (all)", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "seed_failed", "could not seed defaults", nil)
