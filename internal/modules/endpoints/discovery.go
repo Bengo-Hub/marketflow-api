@@ -61,6 +61,8 @@ var sensitive = wordSet(
 	"audit", "log", "metric", "healthz", "readyz", "health", "debug",
 	// cross-tenant or configuration surfaces
 	"admin", "platform", "compliance", "integration", "webhook", "config", "configuration", "setting",
+	// files and background jobs: Vera reads JSON, never a rendered document or a job's status
+	"pdf", "csv", "xlsx", "document", "print", "bulk",
 )
 
 // marketing words: a route must carry one (in its tags, or its path when it has no tags).
@@ -129,6 +131,45 @@ func Classify(method, path string, tags []string) (bool, string) {
 	return false, "not marketing data"
 }
 
+// tenantParams are the path params FillTenant fills with the acting tenant.
+var tenantParams = map[string]bool{"tenant": true, "tenantslug": true, "orgslug": true, "tenantid": true, "tenantuuid": true, "orgid": true}
+
+func isTenantParam(name string) bool {
+	return tenantParams[strings.ToLower(strings.ReplaceAll(name, "_", ""))]
+}
+
+// TenantScoped reports whether the route names its tenant in the path. Only such a route is sure
+// to read the acting tenant's data: marketflow-api fills the tenant in, and the agent cannot
+// change it. A route that relies on a header or the caller's token alone may answer a service key
+// with every tenant's records, or with another tenant's record when given its ID.
+func TenantScoped(path string) bool {
+	for _, m := range pathParam.FindAllStringSubmatch(path, -1) {
+		if isTenantParam(m[1]) {
+			return true
+		}
+	}
+	return false
+}
+
+// Offerable is Classify plus the tenant rule: a route without a tenant path param may be offered
+// only when it sits under one of the service's public paths (platform-wide catalogues such as
+// subscription plans, which hold no tenant's data).
+func Offerable(method, path string, tags []string, public []string) (bool, string) {
+	if ok, why := Classify(method, path, tags); !ok {
+		return false, why
+	}
+	if TenantScoped(path) {
+		return true, ""
+	}
+	for _, p := range public {
+		p = strings.TrimSuffix(p, "/")
+		if p != "" && (path == p || strings.HasPrefix(path, p+"/")) {
+			return true, ""
+		}
+	}
+	return false, "not tenant scoped"
+}
+
 // ParseSpec reads a Swagger 2.0 or OpenAPI 3 JSON document. Paths come back from the service
 // root: the base path (Swagger basePath, or the path of the first OpenAPI server) is joined unless
 // the path already starts with it.
@@ -178,8 +219,10 @@ func ParseSpec(data []byte) ([]Op, error) {
 
 // Merge folds a fresh scan into the stored list. Known routes keep their status and first-seen
 // date; new allowed routes become candidates; routes that left the spec, or that the index now
-// blocks, are dropped. It returns the new list (sorted by path, then method) and how many were added.
-func Merge(existing []Endpoint, found []Op, now time.Time) ([]Endpoint, int) {
+// blocks, are dropped. public lists the service's paths that may be offered without a tenant
+// param (see Offerable). It returns the new list (sorted by path, then method) and how many were
+// added.
+func Merge(existing []Endpoint, found []Op, now time.Time, public []string) ([]Endpoint, int) {
 	known := make(map[string]Endpoint, len(existing))
 	for _, e := range existing {
 		known[e.Method+" "+e.Path] = e
@@ -192,7 +235,7 @@ func Merge(existing []Endpoint, found []Op, now time.Time) ([]Endpoint, int) {
 		if seen[k] {
 			continue
 		}
-		if ok, _ := Classify(op.Method, op.Path, op.Tags); !ok {
+		if ok, _ := Offerable(op.Method, op.Path, op.Tags, public); !ok {
 			continue
 		}
 		seen[k] = true
@@ -246,8 +289,7 @@ func ToolName(path string) string {
 			continue
 		case strings.HasPrefix(seg, "{"):
 			name := strings.Trim(seg, "{}")
-			switch strings.ToLower(strings.ReplaceAll(name, "_", "")) {
-			case "tenant", "tenantslug", "orgslug", "tenantid", "tenantuuid", "orgid":
+			if isTenantParam(name) {
 				continue
 			}
 			parts = append(parts, "by_"+strings.ToLower(name))

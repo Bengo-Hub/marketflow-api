@@ -240,7 +240,12 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	platformProviderHandler := admin.NewPlatformProviderHandler(entClient, keyProvider, logger)
 	encryptionKeyHandler := admin.NewEncryptionKeyHandler(entClient, keyProvider, logger)
 	endpointStore := endpoints.EntStore{DB: entClient}
-	endpointHandler := &endpoints.Handler{Store: endpointStore, Scanner: endpoints.NewScanner(endpointStore, endpoints.DefaultServices, logger), Logger: logger}
+	scanServices, err := endpoints.ServicesFromConfig(cfg.EndpointScan.Services)
+	if err != nil {
+		return nil, err
+	}
+	endpointHandler := &endpoints.Handler{Store: endpointStore, Logger: logger,
+		Scanner: endpoints.NewScanner(endpointStore, scanServices, cfg.EndpointScan.Key(cfg.CrossService.InternalServiceKey), logger)}
 	adminTenantsHandler := admin.NewTenantsHandler(entClient, logger)
 	// The cost report prices USD costs with treasury's platform rate (shared cache), falling back
 	// to the output registry's fx_rate when treasury has none.

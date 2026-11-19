@@ -3,6 +3,7 @@ package endpoints
 import (
 	"errors"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -41,16 +42,21 @@ type Tool struct {
 }
 
 // ApprovedTools lists the approved routes of every known service for one tenant, sorted by
-// service then resource. Services without a base URL are skipped.
-func ApprovedTools(all map[string][]Endpoint, bases map[string]string, tenantID uuid.UUID, slug string) []Tool {
+// service then resource. Services not scanned are skipped, and every route is checked against
+// the filters again, so a route approved before a filter tightened is not served until it passes.
+func ApprovedTools(all map[string][]Endpoint, services map[string]Service, tenantID uuid.UUID, slug string) []Tool {
 	var out []Tool
 	for svc, list := range all {
-		base, ok := bases[svc]
+		s, ok := services[svc]
 		if !ok {
 			continue
 		}
+		base := strings.TrimSuffix(s.Base, "/")
 		for _, e := range list {
 			if e.Status != StatusApproved || e.Method != "GET" {
+				continue
+			}
+			if ok, _ := Offerable(e.Method, e.Path, e.Tags, s.PublicPaths); !ok {
 				continue
 			}
 			path, params := FillTenant(e.Path, tenantID, slug)

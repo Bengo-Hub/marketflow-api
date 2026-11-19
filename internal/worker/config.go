@@ -38,6 +38,9 @@ type Config struct {
 	Subscriptions config.SubscriptionsConfig `envPrefix:"MF_SUBSCRIPTIONS_"`
 	// MediaStorage is the R2 lifecycle backstop and the live-bytes alert (media_lifecycle.go).
 	MediaStorage MediaStorageConfig `envPrefix:"MF_MEDIA_"`
+	// EndpointScan is the weekly spec scan for Vera's service data (same MF_ENDPOINT_SCAN_* env as
+	// the API).
+	EndpointScan config.EndpointScanConfig `envPrefix:"MF_ENDPOINT_SCAN_"`
 }
 
 // MediaStorageConfig drives the per-tenant R2 lifecycle rules and the live-bytes alert.

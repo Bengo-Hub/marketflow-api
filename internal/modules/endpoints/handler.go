@@ -26,6 +26,9 @@ type Handler struct {
 type serviceList struct {
 	Service   string     `json:"service"`
 	Endpoints []Endpoint `json:"endpoints"`
+	// LastScan says how the last scan went, so an empty list can be told apart from a failed or
+	// partial read.
+	LastScan *ScanStatus `json:"last_scan,omitempty"`
 }
 
 // List handles GET /api/v1/admin/endpoints (platform owner): every scanned service with its
@@ -41,13 +44,22 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, err)
 		return
 	}
-	out := make([]serviceList, 0, len(h.Scanner.Bases()))
-	for svc := range h.Scanner.Bases() {
+	statuses, err := h.Store.Statuses(r.Context())
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	out := make([]serviceList, 0, len(h.Scanner.Services()))
+	for svc := range h.Scanner.Services() {
 		list := all[svc]
 		if list == nil {
 			list = []Endpoint{}
 		}
-		out = append(out, serviceList{Service: svc, Endpoints: list})
+		row := serviceList{Service: svc, Endpoints: list}
+		if st, ok := statuses[svc]; ok {
+			row.LastScan = &st
+		}
+		out = append(out, row)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Service < out[j].Service })
 	httpapi.JSON(w, http.StatusOK, map[string]any{"services": out})
@@ -64,7 +76,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 // @Router /admin/endpoints/{service} [patch]
 func (h *Handler) Decide(w http.ResponseWriter, r *http.Request) {
 	svc := chi.URLParam(r, "service")
-	if _, ok := h.Scanner.Bases()[svc]; !ok {
+	if _, ok := h.Scanner.Services()[svc]; !ok {
 		httpapi.Error(w, http.StatusNotFound, "unknown_service", "no such service", nil)
 		return
 	}
@@ -134,7 +146,7 @@ func (h *Handler) InternalTools(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, err)
 		return
 	}
-	tools := ApprovedTools(all, h.Scanner.Bases(), tid, t.Slug)
+	tools := ApprovedTools(all, h.Scanner.Services(), tid, t.Slug)
 	if tools == nil {
 		tools = []Tool{}
 	}

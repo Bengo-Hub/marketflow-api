@@ -23,6 +23,29 @@ type Config struct {
 	Subscriptions SubscriptionsConfig `envPrefix:"MF_SUBSCRIPTIONS_"`
 	CrossService  CrossServiceConfig  `envPrefix:"MF_CROSS_"`
 	Autopilot     AutopilotConfig     `envPrefix:"MF_AUTOPILOT_"`
+	EndpointScan  EndpointScanConfig  `envPrefix:"MF_ENDPOINT_SCAN_"`
+}
+
+// EndpointScanConfig is the weekly read of the other services' OpenAPI specs for Vera's service
+// data (Sprint 25, decision 61), read by the API and the worker alike.
+type EndpointScanConfig struct {
+	// Services is a JSON object merged over the built-in list, for example
+	// {"inventory":{"spec_path":"/api/v1/openapi.json"},"pos":{"base":"http://pos-api.pos:4000"}}.
+	// An entry may set base, spec_path and public_paths; "base": "" drops a service.
+	Services string `env:"SERVICES"`
+	// DocsKey is sent as X-API-Key with every spec request. Services that keep their full spec for
+	// trusted callers serve only the public subset without it. Empty uses INTERNAL_SERVICE_KEY.
+	DocsKey string `env:"DOCS_KEY"`
+}
+
+// Key is the key the scan sends: DocsKey, else serviceKey, else INTERNAL_SERVICE_KEY.
+func (c EndpointScanConfig) Key(serviceKey string) string {
+	for _, k := range []string{c.DocsKey, serviceKey, os.Getenv("INTERNAL_SERVICE_KEY")} {
+		if k != "" {
+			return k
+		}
+	}
+	return ""
 }
 
 // AutopilotConfig is the ad autopilot's veto-window mode (Sprint 20, owner 2026-11-14), read by the

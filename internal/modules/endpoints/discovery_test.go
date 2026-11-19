@@ -39,12 +39,75 @@ func TestClassifyOffersOnlyMarketingReads(t *testing.T) {
 		{"GET", "/api/v1/products/{product_code}/entitlement", []string{"Products"}, false, "sensitive"},
 		{"GET", "/api/v1/{tenant}/inventory/import-template", []string{"inventory"}, false, "sensitive"},
 		{"GET", "/api/v1/{tenant}/promotions/top-sellers", []string{"Promotions"}, true, ""},
+		// rendered files and job status are not data Vera can read (inventory's full spec)
+		{"GET", "/api/v1/{tenant}/inventory/bundles/{bundleID}/spec.pdf", []string{"Inventory"}, false, "sensitive: pdf"},
+		{"GET", "/api/v1/{tenant}/inventory/adjustments/document", []string{"stock"}, false, "sensitive: document"},
+		{"GET", "/api/v1/{tenant}/inventory/bulk-jobs/{id}", []string{"stock"}, false, "sensitive: bulk"},
+		{"GET", "/api/v1/{tenant}/inventory/items/{sku}/stock-history", []string{"stock"}, true, ""},
+		{"GET", "/api/v1/analytics/delivery/{tenantId}", []string{"Analytics"}, true, ""},
 	}
 	for _, c := range cases {
 		ok, why := Classify(c.method, c.path, c.tags)
 		if ok != c.ok || (!ok && !strings.HasPrefix(why, c.why)) {
 			t.Errorf("%s %s %v = %v %q, want %v %q", c.method, c.path, c.tags, ok, why, c.ok, c.why)
 		}
+	}
+}
+
+// A route is offered only when the tenant is in its path, or it sits under the service's public
+// catalogue paths: a header-scoped route could answer a service key with another tenant's data.
+func TestOfferableNeedsTheTenantInThePath(t *testing.T) {
+	public := []string{"/api/v1/plans/"}
+	cases := []struct {
+		path string
+		ok   bool
+	}{
+		{"/api/v1/{tenant}/promotions/deals", true},
+		{"/api/v1/{tenant_id}/catalog/items", true},
+		{"/v1/{tenantID}/pos/online-orders/pickup", true},
+		{"/api/v1/orders", false},
+		{"/api/v1/orders/{orderId}", false},
+		{"/api/v1/marketplace/deals", false},
+		{"/api/v1/plans", true},
+		{"/api/v1/plans/code/{code}", true},
+		{"/api/v1/plansx", false},
+	}
+	for _, c := range cases {
+		ok, why := Offerable("GET", c.path, []string{"Orders", "Plans", "Marketplace", "Catalog"}, public)
+		if ok != c.ok {
+			t.Errorf("%s = %v %q, want %v", c.path, ok, why, c.ok)
+		}
+		if !ok && why != "not tenant scoped" {
+			t.Errorf("%s: reason %q", c.path, why)
+		}
+	}
+	if ok, why := Offerable("POST", "/api/v1/{tenant}/promotions", []string{"Promotions"}, nil); ok || why != "not a read" {
+		t.Fatalf("a write must stay blocked: %v %q", ok, why)
+	}
+}
+
+func TestServicesFromConfigMergesOverTheDefaults(t *testing.T) {
+	got, err := ServicesFromConfig(`{"inventory":{"spec_path":"/api/v1/docs.json"},"treasury":{"base":""},"crm":{"base":"http://crm:4000","public_paths":["/api/v1/catalog"]}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got["inventory"].Base != DefaultServices()["inventory"].Base || got["inventory"].specURL() != DefaultServices()["inventory"].Base+"/api/v1/docs.json" {
+		t.Fatalf("inventory = %+v", got["inventory"])
+	}
+	if _, ok := got["treasury"]; ok {
+		t.Fatal("an empty base must drop the service")
+	}
+	if got["crm"].Base != "http://crm:4000" || len(got["crm"].PublicPaths) != 1 {
+		t.Fatalf("crm = %+v", got["crm"])
+	}
+	if len(got["subscriptions"].PublicPaths) == 0 {
+		t.Fatal("subscriptions keeps its public catalogue paths")
+	}
+	if _, err := ServicesFromConfig("{nope"); err == nil {
+		t.Fatal("bad JSON must fail")
+	}
+	if d, _ := ServicesFromConfig(""); len(d) != len(DefaultServices()) {
+		t.Fatal("empty config keeps the defaults")
 	}
 }
 
@@ -93,7 +156,8 @@ func TestMergeKeepsDecisionsAndDropsGoneOrSensitiveRoutes(t *testing.T) {
 		{Method: "POST", Path: "/api/v1/{tenant}/promotions", Tags: []string{"Promotions"}},
 		{Method: "GET", Path: "/api/v1/pay/{tenant}/gateways", Tags: []string{"Payments"}},
 	}
-	out, added := Merge(existing, found, week2)
+	found = append(found, Op{Method: "GET", Path: "/api/v1/orders/{orderId}", Tags: []string{"Orders"}})
+	out, added := Merge(existing, found, week2, nil)
 	if added != 1 || len(out) != 2 {
 		t.Fatalf("added %d, out %+v", added, out)
 	}

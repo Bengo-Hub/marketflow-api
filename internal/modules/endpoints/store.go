@@ -98,6 +98,48 @@ func (s EntStore) update(ctx context.Context, service string, fn func([]Endpoint
 	return nil
 }
 
+// StatusPrefix keys each service's last scan outcome (endpoint_scan_status.<service>). It does not
+// start with ConfigPrefix, so All never reads a status as a list.
+const StatusPrefix = "endpoint_scan_status."
+
+// SaveStatus records a service's last scan, replacing the previous one.
+func (s EntStore) SaveStatus(ctx context.Context, service string, st ScanStatus) error {
+	raw, err := json.Marshal(st)
+	if err != nil {
+		return err
+	}
+	n, err := s.DB.ServiceConfig.Update().
+		Where(serviceconfig.TenantIDIsNil(), serviceconfig.ConfigKeyEQ(StatusPrefix+service)).
+		SetConfigValue(string(raw)).Save(ctx)
+	if err != nil || n > 0 {
+		return err
+	}
+	err = s.DB.ServiceConfig.Create().SetConfigKey(StatusPrefix + service).SetConfigValue(string(raw)).
+		SetConfigType("json").SetDescription("Endpoint discovery: last scan of " + service).Exec(ctx)
+	if ent.IsConstraintError(err) {
+		return nil // another pod saved the same scan first
+	}
+	return err
+}
+
+// Statuses loads every service's last scan.
+func (s EntStore) Statuses(ctx context.Context) (map[string]ScanStatus, error) {
+	rows, err := s.DB.ServiceConfig.Query().
+		Where(serviceconfig.TenantIDIsNil(), serviceconfig.ConfigKeyHasPrefix(StatusPrefix)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]ScanStatus, len(rows))
+	for _, r := range rows {
+		var st ScanStatus
+		if json.Unmarshal([]byte(r.ConfigValue), &st) == nil {
+			out[strings.TrimPrefix(r.ConfigKey, StatusPrefix)] = st
+		}
+	}
+	return out, nil
+}
+
 // All loads every service's list.
 func (s EntStore) All(ctx context.Context) (map[string][]Endpoint, error) {
 	rows, err := s.DB.ServiceConfig.Query().

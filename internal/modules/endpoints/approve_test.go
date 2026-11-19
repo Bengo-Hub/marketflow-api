@@ -37,7 +37,9 @@ func TestApprovedToolsAreTenantFilledAndOnlyApproved(t *testing.T) {
 		"pos":     {{Method: "GET", Path: "/v1/{tenantID}/pos/online-orders/pickup", Status: StatusRejected}},
 		"unknown": {{Method: "GET", Path: "/api/v1/{tenant}/items", Status: StatusApproved}},
 	}
-	bases := map[string]string{"ordering": "http://ordering-backend.ordering.svc.cluster.local:4000", "pos": "http://pos"}
+	// an approved route that the tenant rule now blocks (no tenant in the path) is not served
+	all["ordering"] = append(all["ordering"], Endpoint{Method: "GET", Path: "/api/v1/orders/{orderId}", Tags: []string{"Orders"}, Status: StatusApproved})
+	bases := map[string]Service{"ordering": {Base: "http://ordering-backend.ordering.svc.cluster.local:4000/"}, "pos": {Base: "http://pos"}}
 	tools := ApprovedTools(all, bases, id, "urban-loft")
 	if len(tools) != 2 {
 		t.Fatalf("want the two approved ordering routes, got %+v", tools)

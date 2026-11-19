@@ -411,7 +411,12 @@ func main() {
 
 		// Endpoint discovery (Sprint 25, decision 61): each service's OpenAPI spec read once a week;
 		// new marketing-safe read routes wait for the platform owner's approval.
-		go endpoints.NewScanner(endpoints.EntStore{DB: entClient}, endpoints.DefaultServices, logger).RunWeekly(ctx, sharedcache.ClaimOnce)
+		if services, err := endpoints.ServicesFromConfig(cfg.EndpointScan.Services); err != nil {
+			logger.Error("endpoint scan disabled: MF_ENDPOINT_SCAN_SERVICES is not valid JSON", zap.Error(err))
+		} else {
+			go endpoints.NewScanner(endpoints.EntStore{DB: entClient}, services, cfg.EndpointScan.Key(cfg.CrossServiceKey), logger).
+				RunWeekly(ctx, sharedcache.ClaimOnce)
+		}
 
 		// Knowledge base (Sprint 25): embeds waiting entries each minute, and walks each MarketFlow
 		// tenant's catalogue once a day for real prices, deletions and newly active tenants.
