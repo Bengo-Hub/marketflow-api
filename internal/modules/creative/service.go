@@ -59,7 +59,7 @@ const (
 var (
 	objectives = map[string]bool{"sales": true, "leads": true, "awareness": true, "traffic": true}
 	languages  = map[string]bool{"en": true, "sw": true}
-	formats    = map[string]bool{"1080x1080": true, "1080x1350": true, "1080x1920": true}
+	formats    = map[string]bool{"1920x1080": true, "1080x1080": true, "1080x1350": true, "1080x1920": true}
 	tiers      = map[string]bool{"standard": true, "premium": true}
 )
 
@@ -211,7 +211,7 @@ func (s *Service) tenantBrand(ctx context.Context, tenantID uuid.UUID) map[strin
 		brand["accent"] = c
 		brand["palette"] = []any{c}
 	}
-	if l := strings.TrimSpace(str(t.Metadata["logo_url"])); strings.HasPrefix(l, "https://") || strings.HasPrefix(l, "http://") {
+	if l := brandLogo(ctx, s.db, tenantID, nil); l != "" {
 		brand["logo_url"] = l
 	}
 	if len(brand) == 0 {
@@ -315,7 +315,7 @@ func (in *VersionInput) validate() error {
 		in.Format = "1080x1350"
 	}
 	if !formats[in.Format] {
-		return invalid("format must be 1080x1080, 1080x1350 or 1080x1920")
+		return invalid("format must be 1920x1080, 1080x1080, 1080x1350 or 1080x1920")
 	}
 	if in.Tier == "" {
 		in.Tier = "standard"

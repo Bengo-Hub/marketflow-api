@@ -189,6 +189,7 @@ func TestOSTurnMessagesOnStoryboardAndRender(t *testing.T) {
 	if _, err := s.ApproveStoryboard(ctx, tid, v.ID, nil); err != nil {
 		t.Fatal(err)
 	}
+	mustApprovePlan(t, s, tid, v.ID)
 	if _, err := s.RenderVideoAd(ctx, tid, v.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -240,6 +241,7 @@ func whatsAppTurnVideo(t *testing.T, s *Service, tid uuid.UUID, runID string) uu
 	if err != nil {
 		t.Fatal(err)
 	}
+	mustApprovePlan(t, s, tid, v.ID)
 	if _, err := s.RenderVideoAd(ctx, tid, v.ID); err != nil {
 		t.Fatal(err)
 	}

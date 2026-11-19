@@ -104,9 +104,13 @@ func (r *Renderer) startClip(ctx context.Context, v *ent.CreativeVersion) {
 		Prompt: str(meta["motion_prompt"]), Format: v.Format, Seconds: intOf(meta["seconds"]), Tier: v.Tier,
 		Headline: str(v.Copy["headline"]), Subline: str(v.Copy["subline"]), Price: str(v.Copy["price"]),
 		CTA: str(v.Copy["cta"]), Charge: true}
-	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
+	b, berr := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx)
+	if berr == nil {
 		brand, _ := b.Metadata["brand"].(map[string]any)
-		call.Accent, call.LogoURL = str(brand["accent"]), str(brand["logo_url"])
+		call.Accent = str(brand["accent"])
+	} else {
+		b = nil
 	}
+	call.LogoURL = brandLogo(ctx, r.db, v.TenantID, b)
 	r.startJob(ctx, v, meta, "/api/v1/internal/creative/clip", call)
 }

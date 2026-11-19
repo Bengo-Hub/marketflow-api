@@ -47,7 +47,7 @@ func TestVideoAdScriptEditRender(t *testing.T) {
 		t.Fatalf("music and its confirmation are kept: %v", v.Metadata)
 	}
 	card, _ := v.Copy["end_card"].(map[string]any)
-	if v.Kind != KindVideoAd || v.Status != StatusQueued || v.Format != "1080x1920" || intOf(v.Metadata["seconds"]) != 30 ||
+	if v.Kind != KindVideoAd || v.Status != StatusQueued || v.Format != "1920x1080" || intOf(v.Metadata["seconds"]) != 30 ||
 		stage(v) != StageScript || len(strs(v.Metadata["photo_urls"])) != 1 || card["headline"] != "Shea butter 250g" || card["cta"] != "Order on WhatsApp" {
 		t.Fatalf("video ad = %+v", v)
 	}
@@ -98,6 +98,7 @@ func TestVideoAdScriptEditRender(t *testing.T) {
 	}
 
 	// The render: queued, then started with the reviewed script and the voice choice.
+	mustApprovePlan(t, s, tid, v.ID)
 	if _, err := s.RenderVideoAd(ctx, tid, v.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +109,7 @@ func TestVideoAdScriptEditRender(t *testing.T) {
 	ad := ai.started[0]
 	sentScenes, _ := ad["scenes"].([]any)
 	if len(sentScenes) != 2 || ad["delivery"] != "ugc" || ad["voice_accent"] != "kenyan" || ad["price"] != "KES 850" ||
-		ad["accent"] != "#1f7a4d" || ad["format"] != "1080x1920" || len(ad["photo_urls"].([]any)) != 1 {
+		ad["accent"] != "#1f7a4d" || ad["format"] != "1920x1080" || len(ad["photo_urls"].([]any)) != 1 {
 		t.Fatalf("ad call: %v", ad)
 	}
 	if _, err := s.UpdateScript(ctx, tid, v.ID, ScriptInput{Script: scenes("b_roll", 0)}); !errors.Is(err, ErrConflict) {
@@ -157,6 +158,7 @@ func TestVideoAdFailures(t *testing.T) {
 		t.Fatal(err)
 	}
 	r.Tick(ctx) // script
+	mustApprovePlan(t, s, tid, v.ID)
 	if _, err := s.RenderVideoAd(ctx, tid, v.ID); err != nil {
 		t.Fatal(err)
 	}

@@ -88,6 +88,7 @@ func TestPresenterAdStoryboardRenderRevision(t *testing.T) {
 	if _, err := s.ApproveStoryboard(ctx, tid, v.ID, nil); err != nil {
 		t.Fatal(err)
 	}
+	mustApprovePlan(t, s, tid, v.ID)
 	if _, err := s.RenderVideoAd(ctx, tid, v.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -129,6 +130,7 @@ func TestPresenterAdStoryboardRenderRevision(t *testing.T) {
 	if rev.Status != StatusScriptReady || !storyboardApproved(rev) || rev.Metadata["voice"] != "Yna Agalo - Kenyan Lady" || rev.ParentVersionID == nil {
 		t.Fatalf("revision: %s %v", rev.Status, rev.Metadata)
 	}
+	mustApprovePlan(t, s, tid, rev.ID)
 	if _, err := s.RenderVideoAd(ctx, tid, rev.ID); err != nil {
 		t.Fatal(err)
 	}

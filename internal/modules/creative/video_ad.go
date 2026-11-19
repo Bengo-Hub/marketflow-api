@@ -70,7 +70,7 @@ const (
 )
 
 var (
-	adFormats    = map[string]bool{"1080x1080": true, "1080x1350": true, "1080x1920": true}
+	adFormats    = map[string]bool{"1920x1080": true, "1080x1080": true, "1080x1350": true, "1080x1920": true}
 	adDeliveries = map[string]bool{"": true, "ad": true, "ugc": true, "kids": true, "story": true, "info": true}
 	// adShots are the shots a template ad renders; a presenter ad adds "presenter".
 	adShots    = map[string]bool{"product_clip": true, "b_roll": true, "owner_footage": true, "end_card": true}
@@ -88,7 +88,7 @@ func stage(v *ent.CreativeVersion) string {
 
 // VideoAdInput asks for a template video ad of a brief's offering.
 type VideoAdInput struct {
-	Format      string   `json:"format"`   // default 1080x1920 (Reels, TikTok, Status)
+	Format      string   `json:"format"`   // default the tenant's video_format, else the platform's (1920x1080)
 	Seconds     int      `json:"seconds"`  // 15 to 60, default 30
 	Language    string   `json:"language"` // en or sw; default the brief's
 	Tier        string   `json:"tier"`     // standard (default) or premium
@@ -141,10 +141,10 @@ func adPhotoCount(meta map[string]any) int {
 
 func (in *VideoAdInput) validate(brief *ent.CreativeBrief) error {
 	if in.Format == "" {
-		in.Format = "1080x1920"
+		in.Format = defaultVideoFormat
 	}
 	if !adFormats[in.Format] {
-		return invalid("format must be 1080x1080, 1080x1350 or 1080x1920")
+		return invalid("format must be 1920x1080, 1080x1080, 1080x1350 or 1080x1920")
 	}
 	if in.Seconds == 0 {
 		in.Seconds = 30
@@ -231,6 +231,9 @@ func (s *Service) CreateVideoAd(ctx context.Context, tenantID, briefID uuid.UUID
 	}
 	if t, err := s.db.Tenant.Get(ctx, tenantID); err == nil {
 		in.brandKeys = brandimages.Keys(t.Metadata, tenantID, 0)
+	}
+	if in.Format == "" {
+		in.Format = videoDefaultFormat(ctx, s.db, tenantID)
 	}
 	if err := in.validate(brief); err != nil {
 		return nil, err
@@ -432,6 +435,8 @@ func (s *Service) UpdateScript(ctx context.Context, tenantID, id uuid.UUID, in S
 	}
 	meta := copyMap(v.Metadata)
 	meta["script_edited_at"] = s.nowFn().UTC().Format(time.RFC3339)
+	// Changed words or scenes make a new generation plan, approved again before the render.
+	delete(meta, metaGenerationPlan)
 	// New words or scenes need a fresh look at the storyboard before a presenter render.
 	if sb, ok := meta["storyboard"].(map[string]any); ok && in.Script != nil {
 		sb = copyMap(sb)
@@ -477,6 +482,10 @@ func (s *Service) RenderVideoAd(ctx context.Context, tenantID, id uuid.UUID) (*e
 	}
 	if isPresenter(videoKind(v)) && !storyboardApproved(v) {
 		return nil, fmt.Errorf("%w: approve the storyboard before rendering a presenter ad", ErrConflict)
+	}
+	// The owner approves the exact prompts and first frames before anything is paid for.
+	if err := checkPlanForRender(v); err != nil {
+		return nil, err
 	}
 	meta := copyMap(v.Metadata)
 	// A pharmacy's medicine ad is not rendered before its PPB approval reference is entered; with
@@ -524,6 +533,8 @@ type scriptCall struct {
 	Footage   int    `json:"footage"`
 	Kind      string `json:"kind"`
 	Charge    bool   `json:"charge"`
+	// Format is the ad's format, so the writer knows its shape.
+	Format string `json:"format,omitempty"`
 	// BrandPhotos is how many of the photos (the last ones) are pictures of the business itself
 	// (shop, team, products in use) rather than of the offering.
 	BrandPhotos int `json:"brand_photos,omitempty"`
@@ -624,7 +635,7 @@ func (r *Renderer) writeScript(ctx context.Context, v *ent.CreativeVersion) {
 	call := scriptCall{TenantID: v.TenantID.String(), VersionID: v.ID.String(), Offering: excerpt(name, 300),
 		Facts: offeringFacts(b.Offering), Objective: b.Objective, Audience: b.Audience, Language: str(meta["language"]),
 		Seconds: intOf(meta["seconds"]), Photos: adPhotoCount(meta), Footage: len(strs(meta["footage_urls"])),
-		Kind: videoKind(v), Charge: true, BrandPhotos: len(strs(meta[metaBrandImageKeys])),
+		Kind: videoKind(v), Charge: true, BrandPhotos: len(strs(meta[metaBrandImageKeys])), Format: v.Format,
 		Delivery: str(meta["delivery"]), Approach: str(meta["approach"]),
 		PresenterSpeaker: briefActorGender(b.Metadata), Reviews: r.publishedReviews(ctx, v.TenantID)}
 	if t, err := r.db.Tenant.Get(ctx, v.TenantID); err == nil {
@@ -694,6 +705,7 @@ type adCall struct {
 	Language    string        `json:"language"`
 	Scenes      []ScriptScene `json:"scenes"`
 	PhotoURLs   []string      `json:"photo_urls"`
+	PhotoInfo   []photoInfo   `json:"photo_info,omitempty"`
 	FootageURLs []string      `json:"footage_urls,omitempty"`
 	Accent      string        `json:"accent,omitempty"`
 	LogoURL     string        `json:"logo_url,omitempty"`
@@ -719,22 +731,6 @@ type adCall struct {
 	AILabel bool `json:"ai_label"`
 }
 
-// adPhotos is a video ad's photos as marketflow-ai fetches them: the offering's links, then
-// fresh signed links to the brand images the ad was made with.
-func (r *Renderer) adPhotos(v *ent.CreativeVersion) []string {
-	photos := strs(v.Metadata["photo_urls"])
-	keys := strs(v.Metadata[metaBrandImageKeys])
-	if len(keys) == 0 {
-		return photos
-	}
-	links := r.brandLinks.Links(v.TenantID, keys)
-	if len(links) != len(keys) {
-		r.logger.Warn("brand images not all linked; scenes that use them may fail",
-			zap.String("version_id", v.ID.String()), zap.Int("keys", len(keys)), zap.Int("links", len(links)))
-	}
-	return append(append([]string{}, photos...), links...)
-}
-
 // startAd starts a claimed video ad's render job in marketflow-ai.
 func (r *Renderer) startAd(ctx context.Context, v *ent.CreativeVersion) {
 	meta := copyMap(v.Metadata)
@@ -751,19 +747,26 @@ func (r *Renderer) startAd(ctx context.Context, v *ent.CreativeVersion) {
 func (r *Renderer) adCallFor(ctx context.Context, v *ent.CreativeVersion, script VideoScript, charge bool) adCall {
 	meta := v.Metadata
 	card, _ := v.Copy["end_card"].(map[string]any)
+	photos, info := r.adPhotos(ctx, v)
 	call := adCall{TenantID: v.TenantID.String(), VersionID: v.ID.String(), Format: v.Format, Tier: v.Tier,
 		Voice: str(meta["voice"]), Delivery: str(meta["delivery"]), VoiceGender: str(meta["voice_gender"]),
 		VoiceAccent: str(meta["voice_accent"]), Language: str(meta["language"]), Scenes: script.Scenes,
-		PhotoURLs: r.adPhotos(v), FootageURLs: strs(meta["footage_urls"]),
+		PhotoURLs: photos, PhotoInfo: info, FootageURLs: strs(meta["footage_urls"]),
 		Headline: str(card["headline"]), Subline: str(card["subline"]), Price: str(card["price"]), CTA: str(card["cta"]),
 		Charge: charge, Kind: videoKind(v), MusicURL: str(meta["music_url"]), Mood: script.Mood,
 		AILabel: TenantAILabel(ctx, r.db, v.TenantID)}
-	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
+	b, berr := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx)
+	if berr == nil {
 		brand, _ := b.Metadata["brand"].(map[string]any)
-		call.Accent, call.LogoURL = str(brand["accent"]), str(brand["logo_url"])
+		call.Accent = str(brand["accent"])
+	} else {
+		b = nil
 	}
-	if sb, ok := meta["storyboard"].(map[string]any); ok && isPresenter(call.Kind) {
-		if actor, ok := sb["actor"].(map[string]any); ok {
+	call.LogoURL = brandLogo(ctx, r.db, v.TenantID, b)
+	// Every kind sends its generated stills: a scene with no matching picture starts from one
+	// (frames.go in marketflow-ai), a template ad's included.
+	if sb, ok := meta["storyboard"].(map[string]any); ok {
+		if actor, ok := sb["actor"].(map[string]any); ok && isPresenter(call.Kind) {
 			call.ActorURL = str(actor["url"])
 			if f, ok := actor["seed"].(float64); ok {
 				call.Seed = int64(f)

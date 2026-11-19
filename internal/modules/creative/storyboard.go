@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
@@ -24,14 +26,31 @@ import (
 // with metadata.stage "storyboard", marketflow-ai pushes the result (kind "storyboard"),
 // and the version returns to script_ready with metadata.storyboard. Everything is metadata.
 
+// metaRedrawActor marks a storyboard asked to draw a new actor (StoryboardOptions.RedrawActor).
+const metaRedrawActor = "redraw_actor"
+
 // storyboardApproved reports whether the owner approved this version's storyboard.
 func storyboardApproved(v *ent.CreativeVersion) bool {
 	sb, ok := v.Metadata["storyboard"].(map[string]any)
 	return ok && str(sb["approved_at"]) != ""
 }
 
+// StoryboardOptions are the owner's choices for a new storyboard.
+type StoryboardOptions struct {
+	// RedrawActor draws a new presenter instead of the brief's (2026-11-19 audit, finding 9): the
+	// new actor replaces the brief's once the storyboard is made. ActorPrompt, when set,
+	// describes the new actor; empty keeps the existing description.
+	RedrawActor bool   `json:"redraw_actor"`
+	ActorPrompt string `json:"actor_prompt"`
+}
+
 // MakeStoryboard queues the storyboard of a script waiting for review.
 func (s *Service) MakeStoryboard(ctx context.Context, tenantID, id uuid.UUID) (*ent.CreativeVersion, error) {
+	return s.MakeStoryboardWith(ctx, tenantID, id, StoryboardOptions{})
+}
+
+// MakeStoryboardWith is MakeStoryboard with the owner's options.
+func (s *Service) MakeStoryboardWith(ctx context.Context, tenantID, id uuid.UUID, opt StoryboardOptions) (*ent.CreativeVersion, error) {
 	v, err := s.version(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
@@ -46,11 +65,27 @@ func (s *Service) MakeStoryboard(ctx context.Context, tenantID, id uuid.UUID) (*
 	if err := s.CheckVideoFeature(ctx, tenantID, VideoFeature(KindVideoAd, videoKind(v))); err != nil {
 		return nil, err
 	}
+	opt.ActorPrompt = strings.TrimSpace(opt.ActorPrompt)
+	if utf8.RuneCountInString(opt.ActorPrompt) > 300 {
+		return nil, invalid("actor_prompt is up to 300 characters")
+	}
+	if opt.RedrawActor && !isPresenter(videoKind(v)) {
+		return nil, invalid("only a presenter video has an actor to redraw")
+	}
 	meta := copyMap(v.Metadata)
 	meta["stage"] = StageStoryboard
 	delete(meta, "attempts")
 	delete(meta, "job_started_at")
 	delete(meta, "storyboard_error")
+	// A new storyboard is a new plan to approve.
+	delete(meta, metaGenerationPlan)
+	delete(meta, metaRedrawActor)
+	if opt.RedrawActor {
+		meta[metaRedrawActor] = true
+		if opt.ActorPrompt != "" {
+			meta["actor_prompt"] = opt.ActorPrompt
+		}
+	}
 	n, err := s.db.CreativeVersion.Update().
 		Where(creativeversion.ID(id), creativeversion.TenantID(tenantID), creativeversion.StatusEQ(StatusScriptReady)).
 		SetStatus(StatusQueued).SetMetadata(meta).ClearError().
@@ -76,12 +111,43 @@ func (s *Service) ApproveStoryboard(ctx context.Context, tenantID, id uuid.UUID,
 
 // ApproveStoryboardByAgent records an autopilot agent's approval of the stills in veto-window
 // mode. It is kept apart from a person's approval: approved_by_kind "agent" and approved_by_agent
-// carry the agent, approved_by stays empty.
+// carry the agent, approved_by stays empty. In veto-window mode the owner chose to let the agent
+// approve, so the agent approves the generation plan as it is too, recorded the same way.
 func (s *Service) ApproveStoryboardByAgent(ctx context.Context, tenantID, id, agentID uuid.UUID) (*ent.CreativeVersion, error) {
-	return s.approveStoryboard(ctx, tenantID, id, func(sb map[string]any) {
-		sb["approved_by_kind"] = "agent"
-		sb["approved_by_agent"] = agentID.String()
-	})
+	mark := func(m map[string]any) {
+		m["approved_by_kind"] = "agent"
+		m["approved_by_agent"] = agentID.String()
+	}
+	v, err := s.approveStoryboard(ctx, tenantID, id, mark)
+	if err != nil {
+		return nil, err
+	}
+	return s.ApprovePlan(ctx, tenantID, id, PlanFingerprint(v), nil, mark)
+}
+
+// ApproveStoryboardAndPlan is a person's approval of the storyboard (when the version has one)
+// and of the generation plan named by fingerprint, with the scenes the quote showed.
+func (s *Service) ApproveStoryboardAndPlan(ctx context.Context, tenantID, id uuid.UUID, by *uuid.UUID, fingerprint string,
+	scenes []any) (*ent.CreativeVersion, error) {
+	v, err := s.version(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if fingerprint != PlanFingerprint(v) {
+		return nil, errPlanChanged
+	}
+	mark := func(m map[string]any) {
+		m["approved_by_kind"] = "person"
+		if by != nil {
+			m["approved_by"] = by.String()
+		}
+	}
+	if sb, ok := v.Metadata["storyboard"].(map[string]any); ok && sb["stills"] != nil && !storyboardApproved(v) {
+		if _, err := s.approveStoryboard(ctx, tenantID, id, mark); err != nil {
+			return nil, err
+		}
+	}
+	return s.ApprovePlan(ctx, tenantID, id, fingerprint, scenes, mark)
 }
 
 func (s *Service) approveStoryboard(ctx context.Context, tenantID, id uuid.UUID, mark func(map[string]any)) (*ent.CreativeVersion, error) {
@@ -158,6 +224,7 @@ type storyboardCall struct {
 	Kind        string         `json:"kind"`
 	Scenes      []ScriptScene  `json:"scenes"`
 	PhotoURLs   []string       `json:"photo_urls"`
+	PhotoInfo   []photoInfo    `json:"photo_info,omitempty"`
 	Actor       map[string]any `json:"actor,omitempty"`
 	ActorPrompt string         `json:"actor_prompt,omitempty"`
 	Charge      bool           `json:"charge"`
@@ -173,13 +240,21 @@ func (r *Renderer) startStoryboard(ctx context.Context, v *ent.CreativeVersion) 
 		r.failStoryboard(ctx, v.ID, "this video ad has no script; write it again")
 		return
 	}
+	photos, info := r.adPhotos(ctx, v)
 	call := storyboardCall{TenantID: v.TenantID.String(), VersionID: v.ID.String(), Format: v.Format, Kind: videoKind(v),
-		Scenes: script.Scenes, PhotoURLs: r.adPhotos(v), Charge: true, Delivery: str(meta["delivery"]),
+		Scenes: script.Scenes, PhotoURLs: photos, PhotoInfo: info, Charge: true, Delivery: str(meta["delivery"]),
 		// The owner's description wins; the script writer's one-line actor is the fallback.
 		ActorPrompt: excerpt(firstNonEmpty(str(meta["actor_prompt"]), script.Actor), 300)}
 	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
 		if actor, ok := b.Metadata["actor"].(map[string]any); ok && str(actor["url"]) != "" {
 			call.Actor = actor
+			if redraw, _ := meta[metaRedrawActor].(bool); redraw {
+				// A redraw keeps the description unless the owner gave a new one, and draws afresh.
+				call.Actor = nil
+				if str(meta["actor_prompt"]) == "" && str(actor["prompt"]) != "" {
+					call.ActorPrompt = excerpt(str(actor["prompt"]), 300)
+				}
+			}
 		}
 	}
 	r.startJob(ctx, v, meta, "/api/v1/internal/creative/storyboard", call)
@@ -219,6 +294,10 @@ func (r *Renderer) settleStoryboard(ctx context.Context, v *ent.CreativeVersion,
 		}
 		meta["storyboard"], meta["stage"] = board, StageScript
 		delete(meta, "storyboard_error")
+		// New stills are a new plan: the owner approves it again.
+		delete(meta, metaGenerationPlan)
+		redraw, _ := meta[metaRedrawActor].(bool)
+		delete(meta, metaRedrawActor)
 		// The storyboard job is over: its start time and attempts must not carry into the render.
 		delete(meta, "job_started_at")
 		delete(meta, "attempts")
@@ -249,7 +328,7 @@ func (r *Renderer) settleStoryboard(ctx context.Context, v *ent.CreativeVersion,
 			return err
 		}
 		if sb.Actor != nil && sb.Actor.URL != "" {
-			r.keepActor(ctx, v.BriefID, sb.Actor)
+			r.keepActor(ctx, v.BriefID, sb.Actor, redraw)
 		}
 		if settled {
 			// A WhatsApp turn's video: the stills go to the requester with the render code.
@@ -277,13 +356,14 @@ func (r *Renderer) settleStoryboard(ctx context.Context, v *ent.CreativeVersion,
 	return nil
 }
 
-// keepActor stores the actor on the brief, once: an existing actor is never replaced.
-func (r *Renderer) keepActor(ctx context.Context, briefID uuid.UUID, actor *storyboardActor) {
+// keepActor stores the actor on the brief. An existing actor is replaced only by a redraw the
+// owner asked for (replace), so the brief's later versions get the new presenter.
+func (r *Renderer) keepActor(ctx context.Context, briefID uuid.UUID, actor *storyboardActor, replace bool) {
 	b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(briefID)).Only(ctx)
 	if err != nil {
 		return
 	}
-	if old, ok := b.Metadata["actor"].(map[string]any); ok && str(old["url"]) != "" {
+	if old, ok := b.Metadata["actor"].(map[string]any); ok && str(old["url"]) != "" && !replace {
 		return
 	}
 	meta := copyMap(b.Metadata)

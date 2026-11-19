@@ -143,6 +143,7 @@ func TestPPBApprovalHoldsVideoAdRender(t *testing.T) {
 		SetCopy(map[string]any{"script": map[string]any{"scenes": []any{}}, "end_card": map[string]any{"headline": "Order on WhatsApp", "subline": "Prescription only"}}).
 		SaveX(ctx)
 
+	mustApprovePlan(t, s, tid, v.ID)
 	if _, err := s.RenderVideoAd(ctx, tid, v.ID); !errors.Is(err, ErrPPBApprovalRequired) {
 		t.Fatalf("render must be held, got %v", err)
 	}
@@ -154,6 +155,7 @@ func TestPPBApprovalHoldsVideoAdRender(t *testing.T) {
 	if _, err := s.SetPPBApproval(ctx, tid, key, name, "PPB/ADV/77", nil); err != nil {
 		t.Fatal(err)
 	}
+	mustApprovePlan(t, s, tid, v.ID)
 	queued, err := s.RenderVideoAd(ctx, tid, v.ID)
 	if err != nil {
 		t.Fatalf("render with a reference: %v", err)

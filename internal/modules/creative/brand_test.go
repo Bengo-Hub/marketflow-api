@@ -131,6 +131,7 @@ func TestVideoAdBrandImagesActorNamesAndSound(t *testing.T) {
 		}
 	}
 
+	mustApprovePlan(t, s, tid, v.ID)
 	if _, err := s.RenderVideoAd(ctx, tid, v.ID); err != nil {
 		t.Fatal(err)
 	}

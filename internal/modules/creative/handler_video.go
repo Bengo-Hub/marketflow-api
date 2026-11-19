@@ -1,7 +1,10 @@
 package creative
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/bengobox/marketflow-api/internal/httpapi"
@@ -32,7 +35,15 @@ func (h *Handler) MakeStoryboard(w http.ResponseWriter, r *http.Request) {
 	if !h.requireBrandImages(w, r, tid) {
 		return
 	}
-	v, err := h.svc.MakeStoryboard(r.Context(), tid, id)
+	// An optional body {"redraw_actor": true, "actor_prompt": "..."} draws a new presenter.
+	var opt StoryboardOptions
+	if r.ContentLength != 0 {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10)).Decode(&opt); err != nil && !errors.Is(err, io.EOF) {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
+			return
+		}
+	}
+	v, err := h.svc.MakeStoryboardWith(r.Context(), tid, id, opt)
 	if err != nil {
 		h.fail(w, err)
 		return
@@ -61,7 +72,44 @@ func (h *Handler) ApproveStoryboard(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	v, err := h.svc.ApproveStoryboard(r.Context(), tid, id, userOf(r))
+	// With {"plan_fingerprint": "..."} (from the quote) the generation plan is approved too: the
+	// exact prompts and first frames the quote showed. The render needs that approval.
+	var body struct {
+		PlanFingerprint string `json:"plan_fingerprint"`
+	}
+	if r.ContentLength != 0 {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&body); err != nil && !errors.Is(err, io.EOF) {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
+			return
+		}
+	}
+	if body.PlanFingerprint == "" {
+		v, err := h.svc.ApproveStoryboard(r.Context(), tid, id, userOf(r))
+		if err != nil {
+			h.fail(w, err)
+			return
+		}
+		httpapi.JSON(w, http.StatusOK, v)
+		return
+	}
+	v, err := h.svc.version(r.Context(), tid, id)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	// The plan as the providers will get it, kept with the approval; a scene still waiting for its
+	// storyboard still cannot be approved.
+	var scenes []any
+	if h.jobs != nil {
+		if data, status, err := h.jobs.QuoteVideoAd(r.Context(), v); err == nil && status == http.StatusOK {
+			if scene := missingStill(data); scene != "" {
+				h.fail(w, fmt.Errorf("%w: scene %s needs a storyboard still; make the storyboard first", ErrConflict, scene))
+				return
+			}
+			scenes = planScenes(data)
+		}
+	}
+	v, err = h.svc.ApproveStoryboardAndPlan(r.Context(), tid, id, userOf(r), body.PlanFingerprint, scenes)
 	if err != nil {
 		h.fail(w, err)
 		return
@@ -148,6 +196,9 @@ func (h *Handler) QuoteVideoAd(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	if status >= 500 {
 		status = http.StatusServiceUnavailable
+	}
+	if status == http.StatusOK {
+		data = withPlanFingerprint(data, v)
 	}
 	w.WriteHeader(status)
 	_, _ = w.Write(data)

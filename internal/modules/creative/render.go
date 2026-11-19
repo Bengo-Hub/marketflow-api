@@ -68,7 +68,18 @@ func (r *Renderer) withBrandPhotos(ctx context.Context, tenantID uuid.UUID, phot
 	if err != nil {
 		return photos
 	}
-	links := r.brandLinks.Links(tenantID, brandimages.Keys(t.Metadata, tenantID, limit-len(photos)))
+	// A logo is never a poster reference: the image model would paint it in, and a tenant's
+	// library can hold other businesses' logos (a software house shows its clients').
+	var keys []string
+	for _, img := range brandimages.Read(t.Metadata) {
+		if len(photos)+len(keys) >= limit {
+			break
+		}
+		if brandimages.Owned(img.Key, tenantID) && !brandimages.LooksLikeLogo(img) {
+			keys = append(keys, img.Key)
+		}
+	}
+	links := r.brandLinks.Links(tenantID, keys)
 	return append(append([]string{}, photos...), links...)
 }
 
@@ -233,13 +244,17 @@ func (r *Renderer) render(ctx context.Context, v *ent.CreativeVersion) {
 	if recompose, _ := meta["recompose"].(bool); recompose {
 		call.SceneURL, call.Charge = str(meta["scene_url"]), false
 	}
-	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
+	b, berr := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx)
+	if berr == nil {
 		brand, _ := b.Metadata["brand"].(map[string]any)
-		call.Accent, call.LogoURL, call.Palette = str(brand["accent"]), str(brand["logo_url"]), strs(brand["palette"])
+		call.Accent, call.Palette = str(brand["accent"]), strs(brand["palette"])
 		if len(call.PhotoURLs) == 0 {
 			call.PhotoURLs = strs(b.Offering["photo_urls"])
 		}
+	} else {
+		b = nil
 	}
+	call.LogoURL = brandLogo(ctx, r.db, v.TenantID, b)
 	// A text-only revision reuses its stored scene and needs no photos.
 	if call.SceneURL == "" {
 		call.PhotoURLs = r.withBrandPhotos(ctx, v.TenantID, call.PhotoURLs, maxPhotos)
