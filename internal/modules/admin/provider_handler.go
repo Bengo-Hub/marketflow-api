@@ -2,6 +2,7 @@ package admin
 
 import (
 	"net/http"
+	"strings"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/bengobox/marketflow-api/internal/encryption"
@@ -79,6 +80,23 @@ func (h *PlatformProviderHandler) ConfigureProvider(w http.ResponseWriter, r *ht
 		managedSet[k] = true
 	}
 
+	// The form shows a stored secret as "(leave blank to keep)" and sends it blank, masked or not
+	// at all. Before 2026-11-19 the replace below dropped it, so saving any change to a provider
+	// (for example the Graph version) silently deleted its app secret. Stored secrets are now
+	// carried over unless a new value is sent.
+	existing, err := h.client.ProviderSetting.Query().
+		Where(
+			providersetting.TenantIDEQ(platformTenantID),
+			providersetting.ProviderTypeEQ(req.ProviderType),
+			providersetting.ProviderNameEQ(req.ProviderName),
+			providersetting.EnvironmentEQ(req.Environment),
+		).All(ctx)
+	if err != nil {
+		httpapi.Error(w, http.StatusInternalServerError, "query_failed", "failed to read the current settings", nil)
+		return
+	}
+	kept := keptSecrets(existing, req.Settings)
+
 	// Delete existing settings for this provider+environment (upsert pattern)
 	_, _ = h.client.ProviderSetting.Delete().
 		Where(
@@ -143,6 +161,27 @@ func (h *PlatformProviderHandler) ConfigureProvider(w http.ResponseWriter, r *ht
 			Exec(ctx)
 		if err != nil {
 			h.logger.Warn("failed to create setting", zap.String("key", key), zap.Error(err))
+			continue
+		}
+		created++
+	}
+	for _, s := range kept {
+		err := h.client.ProviderSetting.Create().
+			SetTenantID(platformTenantID).
+			SetProviderType(req.ProviderType).
+			SetProviderName(req.ProviderName).
+			SetEnvironment(req.Environment).
+			SetKey(s.Key).
+			SetValue(s.Value).
+			SetIsPlatform(true).
+			SetIsPlatformManaged(s.IsPlatformManaged).
+			SetIsSecret(s.IsSecret).
+			SetIsEncrypted(s.IsEncrypted).
+			SetIsActive(true).
+			SetStatus("active").
+			Exec(ctx)
+		if err != nil {
+			h.logger.Warn("failed to keep stored secret", zap.String("key", s.Key), zap.Error(err))
 			continue
 		}
 		created++
@@ -369,4 +408,21 @@ func (h *PlatformProviderHandler) DeactivateProvider(w http.ResponseWriter, r *h
 	}
 
 	httpapi.JSON(w, http.StatusOK, map[string]string{"status": "deactivated"})
+}
+
+// keptSecrets are the stored secret rows a save keeps: those the request sends blank, masked or
+// not at all. A new value replaces the stored one; non-secret keys follow the request.
+func keptSecrets(existing []*ent.ProviderSetting, incoming map[string]string) []*ent.ProviderSetting {
+	var out []*ent.ProviderSetting
+	for _, s := range existing {
+		if !(s.IsSecret || s.IsEncrypted) || s.Value == "" || strings.HasPrefix(s.Key, "_") {
+			continue
+		}
+		v, sent := incoming[s.Key]
+		v = strings.TrimSpace(v)
+		if !sent || v == "" || strings.Trim(v, "•*") == "" {
+			out = append(out, s)
+		}
+	}
+	return out
 }
