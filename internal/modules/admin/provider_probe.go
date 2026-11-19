@@ -130,8 +130,10 @@ func runProbe(ctx context.Context, ptype, pname string, s map[string]string) (st
 			firstNonEmpty(s["embedding_model"], "nomic-embed-text"))
 	case "tavily":
 		return probeTavily(ctx, c, firstNonEmpty(s["base_url"], "https://api.tavily.com"), s["api_key"])
-	case "custom_search":
-		return probeGoogleCSE(ctx, c, s["api_key"], s["cse_id"])
+	case "vertex_search":
+		return probeVertexSearch(ctx, c, s)
+	case "typesafe":
+		return probeTypeSafe(ctx, c, firstNonEmpty(s["base_url"], "https://api.typesafe.ai/v1"), s["api_key"], firstNonEmpty(s["model"], "jev-latest"))
 	}
 	// Media generation (Creative Studio): a free, authenticated read per provider
 	// tells a valid key from a bad one (checked against each API 2026-10-24).
@@ -257,13 +259,37 @@ func probeTavily(ctx context.Context, c *http.Client, baseURL, key string) (stri
 	return "Search probe succeeded", true
 }
 
-func probeGoogleCSE(ctx context.Context, c *http.Client, key, cseID string) (string, bool) {
-	if key == "" || cseID == "" {
-		return "api_key or cse_id missing", false
+// vertexSearchBase is Discovery Engine's host; tests point it at a stub.
+var vertexSearchBase = func(location string) string {
+	if location == "" || location == "global" {
+		return "https://discoveryengine.googleapis.com"
 	}
-	u := fmt.Sprintf("https://www.googleapis.com/customsearch/v1?key=%s&cx=%s&q=ping&num=1",
-		url.QueryEscape(key), url.QueryEscape(cseID))
-	req, _ := http.NewRequestWithContext(ctx, "GET", u, nil)
+	return "https://" + location + "-discoveryengine.googleapis.com"
+}
+
+// probeVertexSearch sends one searchLite query when an API key is set. A service account alone
+// is checked for its fields; marketflow-ai's first search proves its access.
+func probeVertexSearch(ctx context.Context, c *http.Client, s map[string]string) (string, bool) {
+	project, engine := strings.TrimSpace(s["project_id"]), strings.TrimSpace(s["engine_id"])
+	if project == "" || engine == "" {
+		return "project_id or engine_id missing", false
+	}
+	if strings.TrimSpace(s["api_key"]) == "" {
+		var sa struct {
+			ClientEmail string `json:"client_email"`
+			PrivateKey  string `json:"private_key"`
+		}
+		if json.Unmarshal([]byte(s["service_account_json"]), &sa) != nil || sa.ClientEmail == "" || sa.PrivateKey == "" {
+			return "set an API key, or a service account JSON with client_email and private_key", false
+		}
+		return "Service account " + sa.ClientEmail + " is set; the first search checks its access to the engine", true
+	}
+	loc := firstNonEmpty(strings.TrimSpace(s["location"]), "global")
+	serving := firstNonEmpty(strings.TrimSpace(s["serving_config"]), "default_search")
+	u := fmt.Sprintf("%s/v1/projects/%s/locations/%s/collections/default_collection/engines/%s/servingConfigs/%s:searchLite?key=%s",
+		vertexSearchBase(loc), url.PathEscape(project), url.PathEscape(loc), url.PathEscape(engine), url.PathEscape(serving), url.QueryEscape(s["api_key"]))
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, u, strings.NewReader(`{"query":"ping","pageSize":1}`))
+	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.Do(req)
 	if err != nil {
 		return err.Error(), false
@@ -274,6 +300,31 @@ func probeGoogleCSE(ctx context.Context, c *http.Client, key, cseID string) (str
 		return fmt.Sprintf("%s: %s", resp.Status, truncate(string(b), 160)), false
 	}
 	return "Search probe succeeded", true
+}
+
+// probeTypeSafe asks Jev one yes-or-no question (POST /systemone, the call marketflow-ai's
+// decide port makes).
+func probeTypeSafe(ctx context.Context, c *http.Client, baseURL, key, model string) (string, bool) {
+	if key == "" {
+		return "api_key missing", false
+	}
+	body, _ := json.Marshal(map[string]any{
+		"model": model, "state": "A probe from MarketFlow.",
+		"questions": map[string]any{"ok": map[string]string{"type": "noul", "instructions": "Is this a probe?"}},
+	})
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimSuffix(baseURL, "/")+"/systemone", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+key)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.Do(req)
+	if err != nil {
+		return err.Error(), false
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Sprintf("%s: %s", resp.Status, truncate(string(b), 160)), false
+	}
+	return "TypeSafe answered with " + model, true
 }
 
 // probeMetaApp validates app_id + app_secret by requesting an app access token.

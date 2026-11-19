@@ -262,6 +262,9 @@ type AIConfig struct {
 	ClaudeModel    string `env:"CLAUDE_MODEL" envDefault:"claude-haiku-4-5-20251001"`
 	EmbeddingModel string `env:"EMBEDDING_MODEL" envDefault:"nomic-embed-text"`
 	EmbeddingDim   int    `env:"EMBEDDING_DIM" envDefault:"768"`
+	// ProviderBalancesKey is the Redis key marketflow-ai's balance watcher writes media provider
+	// balances to (its REDIS_NAMESPACE plus ":provider-balances"), shown on the provider cards.
+	ProviderBalancesKey string `env:"PROVIDER_BALANCES_KEY" envDefault:"marketflow-ai:provider-balances"`
 }
 
 // Load parses environment variables into Config and performs validation.

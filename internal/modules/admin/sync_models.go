@@ -2,14 +2,13 @@ package admin
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
-	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/platform/modelcatalog"
 	"go.uber.org/zap"
 )
 
@@ -27,11 +26,15 @@ type ModelEntry struct {
 	OwnedBy string `json:"owned_by,omitempty"`
 }
 
-// SyncModels fetches the live list of available models from an AI provider
-// using the platform-configured credentials. Supports Groq, OpenAI, Anthropic.
+// SyncModels fetches the provider's live model list with the platform credentials and recommends
+// a model for every role the provider fills (modelcatalog): router, responder and fallback for
+// Groq; standard and premium for OpenAI; Haiku and Sonnet for Anthropic; local chat and
+// embeddings for Ollama; standard and premium voice for ElevenLabs; and, for information, the
+// newest fal model per media tier. The portal preselects the recommendations; nothing is saved
+// until the owner saves the form.
 //
 // @Summary Sync AI models
-// @Description Calls the provider's /models endpoint with the stored API key and returns the available model IDs so the platform admin can pick one from a dropdown.
+// @Description Lists the provider's live models with the stored key and recommends the newest stable model for each role it fills.
 // @Tags Admin - Providers
 // @Accept json
 // @Produce json
@@ -54,159 +57,57 @@ func (h *PlatformProviderHandler) SyncModels(w http.ResponseWriter, r *http.Requ
 	if req.Environment == "" {
 		req.Environment = "production"
 	}
-
-	// Load + decrypt settings.
-	rows, err := h.client.ProviderSetting.Query().
-		Where(
-			providersetting.TenantIDEQ(platformTenantID),
-			providersetting.ProviderTypeEQ(req.ProviderType),
-			providersetting.ProviderNameEQ(req.ProviderName),
-			providersetting.EnvironmentEQ(req.Environment),
-			providersetting.IsActiveEQ(true),
-		).All(r.Context())
-	if err != nil {
-		httpapi.Error(w, http.StatusInternalServerError, "query_failed", err.Error(), nil)
-		return
-	}
-	settings := make(map[string]string, len(rows))
-	for _, s := range rows {
-		v := s.Value
-		if s.IsEncrypted {
-			if dec, err := h.keys.Decrypt(r.Context(), v); err == nil {
-				v = dec
-			}
-		}
-		settings[s.Key] = v
-	}
-	apiKey := settings["api_key"]
-	if apiKey == "" {
-		httpapi.Error(w, http.StatusBadRequest, "missing_api_key",
-			"no api_key configured for this provider", nil)
+	if _, ok := modelcatalog.Sources[req.ProviderName]; !ok {
+		httpapi.Error(w, http.StatusBadRequest, "not_supported", req.ProviderName+" does not publish a model list", nil)
 		return
 	}
 
-	models, err := fetchModels(r.Context(), req.ProviderName, apiKey, settings["base_url"])
+	settings, err := h.loadSettings(r.Context(), req.ProviderType, req.ProviderName, req.Environment)
+	if err != nil && !modelcatalog.Keyless(req.ProviderName) {
+		httpapi.Error(w, http.StatusBadRequest, "not_configured", err.Error(), nil)
+		return
+	}
+	apiKey := strings.TrimSpace(settings["api_key"])
+	if apiKey == "" && !modelcatalog.Keyless(req.ProviderName) {
+		httpapi.Error(w, http.StatusBadRequest, "missing_api_key", "no api_key configured for this provider", nil)
+		return
+	}
+
+	ids, err := modelcatalog.List(r.Context(), &http.Client{Timeout: 15 * time.Second}, req.ProviderName, apiKey, settings["base_url"])
 	if err != nil {
-		h.logger.Warn("sync-models failed",
-			zap.String("provider", req.ProviderName), zap.Error(err))
+		h.logger.Warn("sync-models failed", zap.String("provider", req.ProviderName), zap.Error(err))
 		httpapi.Error(w, http.StatusBadGateway, "sync_failed", err.Error(), nil)
 		return
 	}
+	sort.Strings(ids)
+	models := make([]ModelEntry, len(ids))
+	for i, id := range ids {
+		models[i] = ModelEntry{ID: id, Object: "model", OwnedBy: req.ProviderName}
+	}
+	recs := modelcatalog.Recommend(ids, modelcatalog.RolesFor(req.ProviderName, h.roleOverrides(r.Context())), settings)
+	recommended := map[string]string{}
+	for _, rec := range recs {
+		if !rec.Informational {
+			recommended[rec.Field] = rec.Model
+		}
+	}
 	httpapi.JSON(w, http.StatusOK, map[string]any{
-		"provider_type": req.ProviderType,
-		"provider_name": req.ProviderName,
-		"count":         len(models),
-		"models":        models,
+		"provider_type":   req.ProviderType,
+		"provider_name":   req.ProviderName,
+		"count":           len(models),
+		"models":          models,
+		"recommended":     recommended,
+		"recommendations": recs,
 	})
 }
 
-// fetchModels calls the provider's model-listing endpoint. Shape:
-//   - Groq / OpenAI:  GET {base_url}/models  (OpenAI-compatible)
-//     → { data: [{id, object, owned_by}] }
-//   - Anthropic:      GET {base_url}/models  (requires x-api-key + anthropic-version)
-//     → { data: [{id, display_name, type}] }
-func fetchModels(ctx context.Context, providerName, apiKey, baseURL string) ([]ModelEntry, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
-	switch providerName {
-	case "groq", "openai":
-		if baseURL == "" {
-			if providerName == "groq" {
-				baseURL = "https://api.groq.com/openai/v1"
-			} else {
-				baseURL = "https://api.openai.com/v1"
-			}
-		}
-		req, _ := http.NewRequestWithContext(ctx, "GET", baseURL+"/models", nil)
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-		return doOpenAICompat(client, req)
-	case "anthropic":
-		if baseURL == "" {
-			baseURL = "https://api.anthropic.com/v1"
-		}
-		req, _ := http.NewRequestWithContext(ctx, "GET", baseURL+"/models", nil)
-		req.Header.Set("x-api-key", apiKey)
-		req.Header.Set("anthropic-version", "2023-06-01")
-		return doAnthropic(client, req)
-	case "ollama":
-		if baseURL == "" {
-			baseURL = "http://ollama.shared-infra.svc.cluster.local:11434"
-		}
-		req, _ := http.NewRequestWithContext(ctx, "GET", baseURL+"/api/tags", nil)
-		return doOllama(client, req)
-	default:
-		return nil, fmt.Errorf("sync-models not supported for provider %q", providerName)
-	}
-}
-
-func doOpenAICompat(c *http.Client, req *http.Request) ([]ModelEntry, error) {
-	resp, err := c.Do(req)
+// roleOverrides reads the platform's role families (model_watch/roles, key "roles").
+func (h *PlatformProviderHandler) roleOverrides(ctx context.Context) string {
+	s, err := h.loadSettings(ctx, "model_watch", "roles", "production")
 	if err != nil {
-		return nil, err
+		return ""
 	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("provider %d: %s", resp.StatusCode, truncate(string(body), 200))
-	}
-	var parsed struct {
-		Data []ModelEntry `json:"data"`
-	}
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		return nil, fmt.Errorf("parse: %w", err)
-	}
-	return parsed.Data, nil
-}
-
-func doOllama(c *http.Client, req *http.Request) ([]ModelEntry, error) {
-	resp, err := c.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("ollama %d: %s", resp.StatusCode, truncate(string(body), 200))
-	}
-	var parsed struct {
-		Models []struct {
-			Name string `json:"name"`
-		} `json:"models"`
-	}
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		return nil, fmt.Errorf("parse: %w", err)
-	}
-	out := make([]ModelEntry, len(parsed.Models))
-	for i, m := range parsed.Models {
-		out[i] = ModelEntry{ID: m.Name, Object: "model", OwnedBy: "ollama"}
-	}
-	return out, nil
-}
-
-func doAnthropic(c *http.Client, req *http.Request) ([]ModelEntry, error) {
-	resp, err := c.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("anthropic %d: %s", resp.StatusCode, truncate(string(body), 200))
-	}
-	var parsed struct {
-		Data []struct {
-			ID          string `json:"id"`
-			Type        string `json:"type"`
-			DisplayName string `json:"display_name"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		return nil, fmt.Errorf("parse: %w", err)
-	}
-	out := make([]ModelEntry, len(parsed.Data))
-	for i, m := range parsed.Data {
-		out[i] = ModelEntry{ID: m.ID, Object: m.Type, OwnedBy: "anthropic"}
-	}
-	return out, nil
+	return s["roles"]
 }
 
 func truncate(s string, n int) string {

@@ -189,6 +189,12 @@ type AdminProviderHandlers struct {
 	SyncModels  http.HandlerFunc
 	Test        http.HandlerFunc
 	Deactivate  http.HandlerFunc
+	// Defaults and SetDefault are the provider groups' one default each (GET and POST
+	// /admin/providers/defaults).
+	Defaults   http.HandlerFunc
+	SetDefault http.HandlerFunc
+	// Balances is each media provider's last balance (GET /admin/providers/balances).
+	Balances http.HandlerFunc
 }
 
 // AdminTenantsHandlers groups platform tenant-directory HTTP handlers.
@@ -1283,6 +1289,13 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Get("/resolve", deps.AdminProviderHandlers.Resolve)
 					r.Post("/sync-models", deps.AdminProviderHandlers.SyncModels)
 					r.Post("/test", deps.AdminProviderHandlers.Test)
+					if deps.AdminProviderHandlers.Defaults != nil {
+						r.Get("/defaults", deps.AdminProviderHandlers.Defaults)
+						r.Post("/defaults", deps.AdminProviderHandlers.SetDefault)
+					}
+					if deps.AdminProviderHandlers.Balances != nil {
+						r.Get("/balances", deps.AdminProviderHandlers.Balances)
+					}
 					r.Delete("/{id}", deps.AdminProviderHandlers.Deactivate)
 				})
 

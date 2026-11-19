@@ -11,6 +11,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
@@ -21,6 +22,9 @@ type PlatformProviderHandler struct {
 	client *ent.Client
 	logger *zap.Logger
 	keys   *encryption.KeyProvider
+	// balances and balancesKey reach marketflow-ai's provider balance readings (WithBalances).
+	balances    redis.UniversalClient
+	balancesKey string
 }
 
 // NewPlatformProviderHandler creates a new handler.

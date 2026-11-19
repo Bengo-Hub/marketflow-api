@@ -17,6 +17,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/notifications"
+	"github.com/bengobox/marketflow-api/internal/platform/modelcatalog"
 )
 
 // ModelWatch (owner, 2026-11-11): AI providers rename and release models, so the list MarketFlow
@@ -67,80 +68,13 @@ var defaultModelFamilies = map[string][]string{
 	"fal":        {"seedance", "hailuo", "kling", "fabric", "boreal", "aurora", "seedream", "nano-banana", "elevenlabs", "pixverse", "minimax", "omnihuman", "ideogram"},
 }
 
-func parseOpenAIModels(b []byte) ([]string, string) {
-	var v struct {
-		Data []struct {
-			ID string `json:"id"`
-		} `json:"data"`
-	}
-	if json.Unmarshal(b, &v) != nil {
-		return nil, ""
-	}
-	var out []string
-	for _, m := range v.Data {
-		out = append(out, m.ID)
-	}
-	return out, ""
-}
-
-func parseAnthropicModels(b []byte) ([]string, string) {
-	var v struct {
-		Data []struct {
-			ID string `json:"id"`
-		} `json:"data"`
-		HasMore bool   `json:"has_more"`
-		LastID  string `json:"last_id"`
-	}
-	if json.Unmarshal(b, &v) != nil {
-		return nil, ""
-	}
-	var out []string
-	for _, m := range v.Data {
-		out = append(out, m.ID)
-	}
-	if !v.HasMore {
-		return out, ""
-	}
-	return out, v.LastID
-}
-
-func parseElevenLabsModels(b []byte) ([]string, string) {
-	var v []struct {
-		ModelID string `json:"model_id"`
-	}
-	if json.Unmarshal(b, &v) != nil {
-		return nil, ""
-	}
-	var out []string
-	for _, m := range v {
-		out = append(out, m.ModelID)
-	}
-	return out, ""
-}
-
-func parseFalModels(b []byte) ([]string, string) {
-	var v struct {
-		Models []struct {
-			EndpointID string `json:"endpoint_id"`
-			ID         string `json:"id"`
-		} `json:"models"`
-		HasMore    bool   `json:"has_more"`
-		NextCursor string `json:"next_cursor"`
-	}
-	if json.Unmarshal(b, &v) != nil {
-		return nil, ""
-	}
-	var out []string
-	for _, m := range v.Models {
-		if id := firstNonEmptyString(m.EndpointID, m.ID); id != "" {
-			out = append(out, id)
-		}
-	}
-	if !v.HasMore {
-		return out, ""
-	}
-	return out, v.NextCursor
-}
+// The list parsers live in modelcatalog, shared with the admin Sync models action.
+var (
+	parseOpenAIModels     = modelcatalog.ParseOpenAI
+	parseAnthropicModels  = modelcatalog.ParseAnthropic
+	parseElevenLabsModels = modelcatalog.ParseElevenLabs
+	parseFalModels        = modelcatalog.ParseFal
+)
 
 func firstNonEmptyString(vals ...string) string {
 	for _, v := range vals {

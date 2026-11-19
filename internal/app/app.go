@@ -237,7 +237,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	}
 
 	// ── Platform Provider Admin Handler ────────────────────────────────────
-	platformProviderHandler := admin.NewPlatformProviderHandler(entClient, keyProvider, logger)
+	platformProviderHandler := admin.NewPlatformProviderHandler(entClient, keyProvider, logger).
+		WithBalances(redisClient, cfg.AI.ProviderBalancesKey)
 	encryptionKeyHandler := admin.NewEncryptionKeyHandler(entClient, keyProvider, logger)
 	endpointStore := endpoints.EntStore{DB: entClient}
 	scanServices, err := endpoints.ServicesFromConfig(cfg.EndpointScan.Services)
@@ -872,6 +873,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			SyncModels:  platformProviderHandler.SyncModels,
 			Test:        platformProviderHandler.TestProvider,
 			Deactivate:  platformProviderHandler.DeactivateProvider,
+			Defaults:    platformProviderHandler.ListProviderDefaults,
+			SetDefault:  platformProviderHandler.SetProviderDefault,
+			Balances:    platformProviderHandler.ProviderBalances,
 		},
 		AdminServiceConfigHandlers: httpapi.AdminServiceConfigHandlers{
 			ListPlatform:   serviceConfigHandler.ListPlatformSettings,
