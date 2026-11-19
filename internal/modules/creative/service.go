@@ -561,7 +561,18 @@ func (s *Service) Approve(ctx context.Context, tenantID, id uuid.UUID, by *uuid.
 
 // Discard rejects a ready or failed version; the next hourly purge deletes its files.
 func (s *Service) Discard(ctx context.Context, tenantID, id uuid.UUID) (*ent.CreativeVersion, error) {
-	return s.decide(ctx, tenantID, id, StatusRejected, nil)
+	v, err := s.decide(ctx, tenantID, id, StatusRejected, nil)
+	if err != nil {
+		return nil, err
+	}
+	// A Studio discard follows the same rule as a WhatsApp one (owner 2026-11-19): kept for the
+	// tenant's window (DiscardWindow), then hard deleted; the brief moves to archived once it has
+	// no live version left.
+	if _, err := s.MarkDiscarded(ctx, tenantID, id, s.DiscardWindow(ctx, tenantID)); err != nil {
+		return nil, err
+	}
+	s.archiveIfDone(ctx, tenantID, v.BriefID)
+	return v, nil
 }
 
 // approvalChannel is where an approval came from (metadata.approval.channel).

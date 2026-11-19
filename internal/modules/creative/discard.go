@@ -2,7 +2,10 @@ package creative
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	entsql "entgo.io/ent/dialect/sql"
@@ -13,6 +16,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
 	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
+	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
 )
 
 // Discarded drafts (owner, 2026-11-14): a WhatsApp Discard keeps the Studio draft for a while,
@@ -23,8 +27,75 @@ import (
 // OSTurnDiscarded is marketflow-ai reporting a WhatsApp Discard tap for a turn's video.
 const OSTurnDiscarded = "discarded"
 
-// metaDiscardedAt records when the owner discarded a draft.
-const metaDiscardedAt = "discarded_at"
+// metaDiscardedAt records when the owner discarded a draft; metaDiscardPurgeAt is when it may
+// be hard deleted (the discard time plus the tenant's window, or now for a permanent delete).
+const (
+	metaDiscardedAt    = "discarded_at"
+	metaDiscardPurgeAt = "discard_purge_at"
+)
+
+// DiscardWindowKey is the service-config key (owner 2026-11-19: configurable) for how long a
+// discarded draft is kept before the hard delete: a Go duration ("24h") or a number of hours.
+// A tenant row overrides the platform row, which overrides MF_CREATIVE_DISCARD_PURGE_AFTER.
+const DiscardWindowKey = "creative.discard_purge_after"
+
+// Bounds for the configured window: never less than an hour (a mistaken tap can be undone),
+// never more than 30 days.
+const (
+	minDiscardWindow = time.Hour
+	maxDiscardWindow = 30 * 24 * time.Hour
+)
+
+// parseDiscardWindow reads a configured window; ok is false for an empty, unreadable or
+// out-of-bounds value.
+func parseDiscardWindow(v string) (time.Duration, bool) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return 0, false
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		h, herr := strconv.ParseFloat(v, 64)
+		if herr != nil {
+			return 0, false
+		}
+		d = time.Duration(h * float64(time.Hour))
+	}
+	if d < minDiscardWindow || d > maxDiscardWindow {
+		return 0, false
+	}
+	return d, true
+}
+
+// DiscardWindow is the tenant's window before a discarded draft is hard deleted.
+func (s *Service) DiscardWindow(ctx context.Context, tenantID uuid.UUID) time.Duration {
+	rows, err := s.db.ServiceConfig.Query().
+		Where(serviceconfig.ConfigKey(DiscardWindowKey),
+			serviceconfig.Or(serviceconfig.TenantID(tenantID), serviceconfig.TenantIDIsNil())).
+		Limit(2).All(ctx)
+	if err != nil {
+		return DiscardPurgeAfter
+	}
+	platform, tenant := time.Duration(0), time.Duration(0)
+	for _, r := range rows {
+		d, ok := parseDiscardWindow(r.ConfigValue)
+		if !ok {
+			continue
+		}
+		if r.TenantID != nil && *r.TenantID == tenantID {
+			tenant = d
+		} else if r.TenantID == nil {
+			platform = d
+		}
+	}
+	switch {
+	case tenant > 0:
+		return tenant
+	case platform > 0:
+		return platform
+	}
+	return DiscardPurgeAfter
+}
 
 // DiscardPurgeAfter is how long a discarded draft is kept before it is deleted:
 // MF_CREATIVE_DISCARD_PURGE_AFTER (a Go duration), default DraftTTL.
@@ -53,6 +124,7 @@ func (s *Service) MarkDiscarded(ctx context.Context, tenantID, id uuid.UUID, win
 	now := s.nowFn().UTC()
 	meta := copyMap(v.Metadata)
 	meta[metaDiscardedAt] = now.Format(time.RFC3339)
+	meta[metaDiscardPurgeAt] = now.Add(window).Format(time.RFC3339)
 	n, err := s.db.CreativeVersion.Update().
 		Where(creativeversion.ID(id), creativeversion.TenantID(tenantID), creativeversion.ApprovedAtIsNil()).
 		SetMetadata(meta).Save(ctx)
@@ -81,14 +153,19 @@ const actedOnSince = time.Minute
 // and whose files are all gone: the asset rows, the version, and the brief when it has no other
 // version left. It returns how many versions went.
 func (p *Purger) PurgeDiscarded(ctx context.Context, window time.Duration) (int, error) {
-	cutoff := p.nowFn().UTC().Add(-window)
+	now := p.nowFn().UTC()
 	rows, err := p.db.CreativeVersion.Query().
 		Where(creativeversion.ApprovedAtIsNil(), func(s *entsql.Selector) {
 			col := s.C(creativeversion.FieldMetadata)
-			// The builder numbers the argument for Postgres ($n); a raw "?" was sent as is.
+			// Each discard stores its own purge time (the tenant's window, or now for a permanent
+			// delete); an older discard without one uses the global window. The builder numbers
+			// the arguments for Postgres ($n); a raw "?" was sent as is.
 			s.Where(entsql.P(func(b *entsql.Builder) {
-				b.WriteString("(" + col + "->>'" + metaDiscardedAt + "') IS NOT NULL AND (" + col + "->>'" + metaDiscardedAt + "')::timestamptz < ")
-				b.Arg(cutoff)
+				b.WriteString("(" + col + "->>'" + metaDiscardedAt + "') IS NOT NULL AND COALESCE((" + col + "->>'" + metaDiscardPurgeAt +
+					"')::timestamptz, (" + col + "->>'" + metaDiscardedAt + "')::timestamptz + make_interval(secs => ")
+				b.Arg(window.Seconds())
+				b.WriteString(")) < ")
+				b.Arg(now)
 			}))
 		}).
 		Limit(purgeBatch).All(ctx)
@@ -146,4 +223,59 @@ func (p *Purger) deleteVersion(ctx context.Context, v *ent.CreativeVersion) erro
 		}
 	}
 	return tx.Commit()
+}
+
+// archiveIfDone moves a brief to archived once none of its versions is still live (every one
+// discarded or failed), so the Studio's Current list only shows work in progress.
+func (s *Service) archiveIfDone(ctx context.Context, tenantID, briefID uuid.UUID) {
+	live, err := s.db.CreativeVersion.Query().
+		Where(creativeversion.BriefID(briefID), creativeversion.TenantID(tenantID),
+			creativeversion.StatusNotIn(StatusRejected, StatusFailed)).Exist(ctx)
+	if err != nil || live {
+		return
+	}
+	_ = s.db.CreativeBrief.Update().
+		Where(creativebrief.ID(briefID), creativebrief.TenantID(tenantID), creativebrief.Status("active")).
+		SetStatus("archived").Exec(ctx)
+}
+
+// BriefDeleted is the status of a brief its admin deleted permanently; the hourly purge removes
+// its files and rows, and no list shows it meanwhile.
+const BriefDeleted = "deleted"
+
+// ErrNotDeletable is a brief that cannot be deleted for good: not archived, or it has an approved
+// version (posted, boosted or kept videos stay until their own retention ends).
+var ErrNotDeletable = fmt.Errorf("%w: only an archived ad with no approved version can be deleted permanently", ErrConflict)
+
+// DeleteBrief deletes an archived brief permanently: it is hidden at once and every version is
+// marked for the next hourly purge (files first, then the rows).
+func (s *Service) DeleteBrief(ctx context.Context, tenantID, briefID uuid.UUID) error {
+	b, err := s.brief(ctx, tenantID, briefID)
+	if err != nil {
+		return err
+	}
+	if b.Status != "archived" && b.Status != BriefDeleted {
+		return ErrNotDeletable
+	}
+	approved, err := s.db.CreativeVersion.Query().
+		Where(creativeversion.BriefID(briefID), creativeversion.TenantID(tenantID), creativeversion.ApprovedAtNotNil()).Exist(ctx)
+	if err != nil {
+		return err
+	}
+	if approved {
+		return ErrNotDeletable
+	}
+	ids, err := s.db.CreativeVersion.Query().
+		Where(creativeversion.BriefID(briefID), creativeversion.TenantID(tenantID)).IDs(ctx)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if _, err := s.MarkDiscarded(ctx, tenantID, id, 0); err != nil {
+			return err
+		}
+	}
+	return s.db.CreativeBrief.Update().
+		Where(creativebrief.ID(briefID), creativebrief.TenantID(tenantID)).
+		SetStatus(BriefDeleted).Exec(ctx)
 }

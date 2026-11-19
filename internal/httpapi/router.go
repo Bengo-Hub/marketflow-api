@@ -540,6 +540,7 @@ type CreativeHandlers struct {
 	Extend            http.HandlerFunc
 	CreateMotion      http.HandlerFunc
 	CreateVideoAd     http.HandlerFunc
+	DeleteBrief       http.HandlerFunc
 	UpdateScript      http.HandlerFunc
 	RenderVideoAd     http.HandlerFunc
 	MakeStoryboard    http.HandlerFunc
@@ -1154,6 +1155,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 						r.Post("/briefs/{id}/lead-page", deps.CreativeHandlers.LeadPage)
 					}
 					r.Post("/briefs/{id}/versions", deps.CreativeHandlers.CreateVersion)
+					if deps.CreativeHandlers.DeleteBrief != nil {
+						r.Delete("/briefs/{id}", deps.CreativeHandlers.DeleteBrief)
+					}
 					r.Post("/briefs/{id}/video-ads", deps.CreativeHandlers.CreateVideoAd)
 					r.Get("/versions/{id}", deps.CreativeHandlers.GetVersion)
 					r.Post("/versions/{id}/approve", deps.CreativeHandlers.Approve)

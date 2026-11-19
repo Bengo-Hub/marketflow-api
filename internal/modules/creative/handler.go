@@ -755,3 +755,31 @@ func (h *Handler) OpenReview(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Redirect(w, r, url, http.StatusFound)
 }
+
+// DeleteBrief handles DELETE /api/v1/creative/briefs/{id}: an admin deletes an archived ad for
+// good (owner 2026-11-19). It disappears at once; its files and rows go in the next hourly
+// purge. An ad with an approved version cannot be deleted this way (409).
+// @Summary Delete an archived ad permanently
+// @Tags Creative
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Brief id"
+// @Success 200 {object} map[string]string
+// @Failure 409 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /creative/briefs/{id} [delete]
+func (h *Handler) DeleteBrief(w http.ResponseWriter, r *http.Request) {
+	tid, ok := tenantOf(w, r)
+	if !ok {
+		return
+	}
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	if err := h.svc.DeleteBrief(r.Context(), tid, id); err != nil {
+		h.fail(w, err)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, map[string]string{"status": BriefDeleted})
+}
