@@ -483,7 +483,7 @@ func (h *Handler) TikTokAuthorize(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "no_tenant", "missing tenant context", nil)
 		return
 	}
-	creds, err := h.loadPlatform(r.Context(), "tiktok_ads", "oauth")
+	creds, err := h.tiktokPlatform(r.Context())
 	if err != nil {
 		httpapi.Error(w, http.StatusServiceUnavailable, "tiktok_not_configured",
 			"TikTok app credentials not configured. Set them at /platform/providers.", nil)
@@ -521,7 +521,7 @@ func (h *Handler) TikTokCallback(w http.ResponseWriter, r *http.Request) {
 		h.failConnect(w, r, "tiktok", tenantID, "cancelled", r.URL.Query().Get("error"))
 		return
 	}
-	creds, err := h.loadPlatform(r.Context(), "tiktok_ads", "oauth")
+	creds, err := h.tiktokPlatform(r.Context())
 	if err != nil {
 		h.failConnect(w, r, "tiktok", tenantID, "oauth_not_configured", err.Error())
 		return
@@ -970,4 +970,15 @@ func parseInt64(s string) int64 {
 		n = n*10 + int64(c-'0')
 	}
 	return n
+}
+
+// tiktokPlatform reads the platform TikTok for Business app. Platform > Providers saves it as
+// tiktok_ads/ads; an older row named tiktok_ads/oauth is still read. Before 2026-11-19 only the
+// old name was read, so every TikTok connect answered 503 although the app was configured.
+func (h *Handler) tiktokPlatform(ctx context.Context) (map[string]string, error) {
+	creds, err := h.loadPlatform(ctx, "tiktok_ads", "ads")
+	if err == nil {
+		return creds, nil
+	}
+	return h.loadPlatform(ctx, "tiktok_ads", "oauth")
 }
