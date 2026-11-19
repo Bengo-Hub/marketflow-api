@@ -30,7 +30,7 @@ var platformProvider = map[string]string{PlatformMeta: "meta_ads", PlatformTikTo
 
 // accountTypeProvider wins over platformProvider for an account type that is its own connection
 // on a platform with several (a YouTube channel on Google).
-var accountTypeProvider = map[string]string{AccountYouTubeChannel: providerYouTube}
+var accountTypeProvider = map[string]string{AccountYouTubeChannel: providerYouTube, AccountGoogleAdsCustomer: providerGoogleAds}
 
 // providerOf is the provider type a connected account shows under ("" for none).
 func providerOf(a *ent.ConnectedAccount) string {

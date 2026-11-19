@@ -156,9 +156,10 @@ func (h *Handler) revokeGrant(ctx context.Context, tenantID, token string) {
 	}
 }
 
-// revokeYouTubeGrants revokes each connected channel's grant at Google before a disconnect
-// drops the tokens, so MarketFlow leaves the person's Google third-party access list.
-func (h *Handler) revokeYouTubeGrants(ctx context.Context, tenantID string) {
+// revokeGoogleGrants revokes each connected Google account's grant (YouTube channels, Google Ads
+// accounts) before a disconnect drops the tokens, so MarketFlow leaves the person's Google
+// third-party access list.
+func (h *Handler) revokeGoogleGrants(ctx context.Context, tenantID, accountType string) {
 	tid, err := uuid.Parse(tenantID)
 	if err != nil || h.keys == nil {
 		return
@@ -166,7 +167,7 @@ func (h *Handler) revokeYouTubeGrants(ctx context.Context, tenantID string) {
 	rows, err := h.db.ConnectedAccount.Query().
 		Where(
 			connectedaccount.TenantIDEQ(tid),
-			connectedaccount.AccountTypeEQ(AccountYouTubeChannel),
+			connectedaccount.AccountTypeEQ(accountType),
 			connectedaccount.StatusNEQ("revoked"),
 			connectedaccount.RefreshCiphertextNEQ(""),
 		).

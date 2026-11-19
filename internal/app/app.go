@@ -30,6 +30,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/activities"
 	"github.com/bengobox/marketflow-api/internal/modules/admin"
 	"github.com/bengobox/marketflow-api/internal/modules/adsmanager"
+	"github.com/bengobox/marketflow-api/internal/modules/googleads"
 	"github.com/bengobox/marketflow-api/internal/modules/analytics"
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
 	"github.com/bengobox/marketflow-api/internal/modules/autopublish"
@@ -548,6 +549,12 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		KESPer: fxrate.New(cfg.CrossService.TreasuryURL, cfg.CrossService.InternalServiceKey, cfg.Security.PlatformTenant,
 			sharedcache.New(redisClient, logger)).KESPer,
 	}
+	// Google Ads (owner 2026-11-19): the business's own account results and conversion mapping;
+	// the approving roles change the mapping.
+	googleAdsHandler := googleads.New(entClient, keyProvider, logger.Named("google-ads"))
+	googleAdsHandler.CanManage = func(ctx context.Context, tenantID uuid.UUID) bool {
+		return rbacService.CallerHasAnyRole(ctx, tenantID, reviewActionRoles...)
+	}
 	// Social inbox (Sprint 22): the approving roles may reply for the business.
 	inboxHandler := inbox.NewHandler(entClient, keyProvider, leadService, inbox.NewGraph(meta.GraphURL).WithProof(meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret)), logger)
 	inboxHandler.CanReply = func(ctx context.Context, tenantID uuid.UUID) bool {
@@ -829,6 +836,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			TikTokCallback:                    integrationsHandler.TikTokCallback,
 			YouTubeAuthorize:                  integrationsHandler.YouTubeAuthorize,
 			YouTubeCallback:                   integrationsHandler.YouTubeCallback,
+			GoogleAdsAuthorize:                integrationsHandler.GoogleAdsAuthorize,
+			GoogleAdsCallback:                 integrationsHandler.GoogleAdsCallback,
 			ListTenant:                        integrationsHandler.ListTenant,
 			DisconnectTenant:                  integrationsHandler.DisconnectTenant,
 		},
@@ -1012,6 +1021,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Accounts: adsHandler.Accounts, CreateKES: adsHandler.CreateKESAccount, Quote: adsHandler.Quote, Boost: adsHandler.Boost,
 			Get: adsHandler.Get, ConfirmPaid: adsHandler.ConfirmPaid, Pause: adsHandler.Pause, Resume: adsHandler.Resume, ResumeAd: adsHandler.ResumeAd,
 			BoostOTP:         adsHandler.BoostOTP,
+			GoogleAccounts: googleAdsHandler.Accounts, GoogleCampaigns: googleAdsHandler.Campaigns,
+			GoogleConversionActions: googleAdsHandler.ConversionActions, GoogleSetMapping: googleAdsHandler.SetMapping,
 			OSTurnBoostQuote: adsHandler.OSTurnBoostQuote, OSTurnBoost: adsHandler.OSTurnBoost, OSTurnBoostOTP: adsHandler.OSTurnBoostOTP,
 		},
 		InboxHandlers: httpapi.InboxHandlers{

@@ -56,6 +56,8 @@ type Handler struct {
 	// the zero values are Google's own, tests point them at a fake.
 	googleOAuth    google.OAuth
 	youtubeAPIBase string
+	// googleAdsBase is the Google Ads REST host ("" for Google's own; tests set a fake).
+	googleAdsBase string
 	// states makes connect states single use and bindBrowser ties them to the starting browser
 	// (oauth_state.go); nil states keeps the signed state alone (tests).
 	states      stateStore
@@ -728,8 +730,11 @@ func (h *Handler) DisconnectTenant(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusInternalServerError, "disconnect_failed", err.Error(), nil)
 		return
 	}
-	if provider == providerYouTube {
-		h.revokeYouTubeGrants(r.Context(), tenantID)
+	switch provider {
+	case providerYouTube:
+		h.revokeGoogleGrants(r.Context(), tenantID, AccountYouTubeChannel)
+	case providerGoogleAds:
+		h.revokeGoogleGrants(r.Context(), tenantID, AccountGoogleAdsCustomer)
 	}
 	revoked, err := h.revokeAccounts(r.Context(), tenantID, provider)
 	if err != nil {

@@ -6,16 +6,22 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
+	"github.com/bengobox/marketflow-api/internal/integrations/google"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
+	"github.com/bengobox/marketflow-api/internal/modules/googleads"
 	"github.com/nats-io/nats.go/jetstream"
 	"go.uber.org/zap"
 )
@@ -178,6 +184,12 @@ func (h *ConversionsHandler) dispatchGoogleAdsConversion(ctx context.Context, ev
 	if ev.Gclid == "" {
 		return nil // no gclid → no attribution possible
 	}
+	// Since 2026-11-19 the business connects its Google Ads account in MarketFlow (one
+	// ConnectedAccount per account, event mapping in its metadata). Those accounts are used
+	// first; the older tenant provider rows below stay as a fallback for tenants set up by hand.
+	if sent, err := h.uploadToConnectedAccounts(ctx, ev); sent || err != nil {
+		return err
+	}
 	// Tenant OAuth + customer id (per-FBO).
 	tenant, err := h.loadTenantProvider(ctx, ev.TenantID, "google_ads", "oauth")
 	if err != nil || tenant["customer_id"] == "" || tenant["refresh_token"] == "" {
@@ -222,7 +234,7 @@ func (h *ConversionsHandler) dispatchGoogleAdsConversion(ctx context.Context, ev
 		"partialFailure": true,
 	}
 	body, _ := json.Marshal(payload)
-	endpoint := fmt.Sprintf("https://googleads.googleapis.com/%s/customers/%s:uploadClickConversions", GoogleAdsAPIVersion, customerID)
+	endpoint := fmt.Sprintf("https://googleads.googleapis.com/%s/customers/%s:uploadClickConversions", google.AdsAPIVersion, customerID)
 	req, _ := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(body))
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("developer-token", platform["developer_token"])
@@ -392,9 +404,58 @@ func metaCAPIRow(ev *ConversionEvent, eventTime int64, userData map[string]any, 
 	return row
 }
 
-// GoogleAdsAPIVersion is the one Google Ads API version MarketFlow calls. Google sunsets each
-// major version about 12 months after release and rejects calls to it afterwards; v19 (used here
-// before 2026-11-04) was already past its sunset, so every offline conversion upload failed.
-// v26 was released 2026-10-14 and is supported until November 2027 (developers.google.com/
-// google-ads/api/docs/sunset-dates). Move it forward before that date.
-const GoogleAdsAPIVersion = "v26"
+// uploadToConnectedAccounts sends the conversion to every active connected Google Ads account of
+// the tenant whose mapping names this event. sent is false when no account maps it, so the caller
+// tries the older tenant provider rows. One account's failure does not stop the others.
+func (h *ConversionsHandler) uploadToConnectedAccounts(ctx context.Context, ev *ConversionEvent) (sent bool, err error) {
+	tid, perr := uuid.Parse(ev.TenantID)
+	if perr != nil {
+		return false, nil
+	}
+	accs, qerr := h.db.ConnectedAccount.Query().
+		Where(connectedaccount.TenantIDEQ(tid), connectedaccount.AccountTypeEQ(googleads.AccountType), connectedaccount.StatusEQ("active")).
+		Limit(20).All(ctx)
+	if qerr != nil {
+		return false, fmt.Errorf("google ads accounts: %w", qerr)
+	}
+	convTime, terr := formatGoogleAdsTime(ev.OccurredAt)
+	if terr != nil {
+		return false, fmt.Errorf("format time: %w", terr)
+	}
+	var tokens *google.Tokens
+	var extra map[string]string
+	var errs []error
+	for _, a := range accs {
+		action := googleads.MappingOf(a)[ev.EventName]
+		if action == "" {
+			continue
+		}
+		if tokens == nil {
+			_, x, lerr := google.LoadClient(ctx, h.db, h.keys, google.ProviderGoogleAds, google.ProviderGoogleAdsName)
+			if lerr != nil {
+				h.logger.Warn("google ads platform client missing; skipping conversion", zap.Error(lerr))
+				return true, nil
+			}
+			extra = x
+			tokens = google.NewTokensFor(h.db, h.keys, google.ProviderGoogleAds, google.ProviderGoogleAdsName)
+		}
+		sent = true
+		access, aerr := tokens.AccessToken(ctx, a)
+		if aerr != nil {
+			errs = append(errs, fmt.Errorf("account %s token: %w", a.ExternalID, aerr))
+			continue
+		}
+		ads := google.AdsFromSettings(h.httpClient(), extra, access)
+		ads.LoginCustomerID = ""
+		cur, _ := a.Metadata["currency"].(string)
+		uerr := ads.UploadClickConversions(ctx, a.ExternalID, []google.ClickConversion{{GCLID: ev.Gclid, ConversionAction: action,
+			DateTime: convTime, Value: ev.Value, Currency: firstNonEmptyConv(ev.Currency, cur, "USD")}})
+		if uerr != nil {
+			errs = append(errs, fmt.Errorf("account %s upload: %w", a.ExternalID, uerr))
+			continue
+		}
+		h.logger.Info("google ads conversion uploaded", zap.String("tenant", ev.TenantID), zap.String("event", ev.EventName),
+			zap.String("account", a.ExternalID))
+	}
+	return sent, errors.Join(errs...)
+}

@@ -25,7 +25,7 @@ const MetaAccessExpiresAt = "access_expires_at"
 const refreshMargin = 5 * time.Minute
 
 // ErrNoRefreshToken means the row has no refresh token, so it cannot get a new access token.
-var ErrNoRefreshToken = errors.New("youtube channel has no refresh token; connect it again")
+var ErrNoRefreshToken = errors.New("the connected Google account has no refresh token; connect it again")
 
 // Tokens hands out working access tokens for connected YouTube channels.
 type Tokens struct {
@@ -40,8 +40,17 @@ type Tokens struct {
 // NewTokens reads the platform client from the provider settings store on each refresh, so a
 // rotated client secret takes effect without a restart.
 func NewTokens(db *ent.Client, keys *encryption.KeyProvider) *Tokens {
+	return NewTokensFor(db, keys, ProviderYouTube, "oauth")
+}
+
+// NewTokensFor hands out access tokens for the accounts connected through another platform Google
+// client (Google Ads: "google_ads", "ads"). Refresh, expiry and revoked handling are the same.
+func NewTokensFor(db *ent.Client, keys *encryption.KeyProvider, providerType, providerName string) *Tokens {
 	t := &Tokens{DB: db, Keys: keys, Now: time.Now}
-	t.Client = func(ctx context.Context) (Client, error) { return LoadYouTubeClient(ctx, db, keys) }
+	t.Client = func(ctx context.Context) (Client, error) {
+		c, _, err := LoadClient(ctx, db, keys, providerType, providerName)
+		return c, err
+	}
 	return t
 }
 
@@ -73,7 +82,7 @@ func (t *Tokens) Refresh(ctx context.Context, acc *ent.ConnectedAccount) (string
 	}
 	refresh, err := t.Keys.Decrypt(ctx, acc.RefreshCiphertext)
 	if err != nil || refresh == "" {
-		return "", fmt.Errorf("youtube refresh token unreadable: %w", err)
+		return "", fmt.Errorf("google refresh token unreadable: %w", err)
 	}
 	c, err := t.Client(ctx)
 	if err != nil {

@@ -43,38 +43,52 @@ type Client struct {
 }
 
 // LoadYouTubeClient reads the platform YouTube OAuth client from the provider settings store.
-// client_secret is decrypted (and a legacy plaintext row re-sealed) by SettingValue.
 func LoadYouTubeClient(ctx context.Context, db *ent.Client, keys *encryption.KeyProvider) (Client, error) {
+	c, _, err := LoadClient(ctx, db, keys, ProviderYouTube, "oauth")
+	return c, err
+}
+
+// LoadClient reads one platform Google OAuth client (Calendar, YouTube, Google Ads all use this)
+// from ProviderSetting tenant "platform": client_id, client_secret and redirect_url, plus every
+// other plain key in extra (Google Ads keeps developer_token, login_customer_id and api_version
+// there). Secrets are decrypted (and a legacy plaintext row re-sealed) by SettingValue.
+func LoadClient(ctx context.Context, db *ent.Client, keys *encryption.KeyProvider, providerType, providerName string) (Client, map[string]string, error) {
 	rows, err := db.ProviderSetting.Query().
 		Where(
 			providersetting.TenantIDEQ("platform"),
-			providersetting.ProviderTypeEQ(ProviderYouTube),
-			providersetting.ProviderNameEQ("oauth"),
+			providersetting.ProviderTypeEQ(providerType),
+			providersetting.ProviderNameEQ(providerName),
 			providersetting.IsActiveEQ(true),
 		).
 		All(ctx)
 	if err != nil {
-		return Client{}, err
+		return Client{}, nil, err
 	}
 	var c Client
+	extra := map[string]string{}
 	for _, r := range rows {
+		v := r.Value
+		if r.IsSecret || r.IsEncrypted {
+			if v, err = keys.SettingValue(ctx, db, r); err != nil {
+				return Client{}, nil, fmt.Errorf("%s oauth: decrypt %s: %w", providerType, r.Key, err)
+			}
+		}
+		v = strings.TrimSpace(v)
 		switch r.Key {
 		case "client_id":
-			c.ID = strings.TrimSpace(r.Value)
+			c.ID = v
 		case "client_secret":
-			v, err := keys.SettingValue(ctx, db, r)
-			if err != nil {
-				return Client{}, fmt.Errorf("youtube oauth: decrypt client_secret: %w", err)
-			}
-			c.Secret = strings.TrimSpace(v)
+			c.Secret = v
 		case "redirect_url":
-			c.RedirectURL = strings.TrimSpace(r.Value)
+			c.RedirectURL = v
+		default:
+			extra[r.Key] = v
 		}
 	}
 	if c.ID == "" || c.Secret == "" || c.RedirectURL == "" {
-		return Client{}, fmt.Errorf("youtube oauth client not configured (client_id, client_secret and redirect_url)")
+		return Client{}, nil, fmt.Errorf("%s oauth client not configured (client_id, client_secret and redirect_url)", providerType)
 	}
-	return c, nil
+	return c, extra, nil
 }
 
 // AuthCodeURL is the consent page for the scopes. access_type=offline with prompt=consent makes

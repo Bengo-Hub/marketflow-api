@@ -340,6 +340,8 @@ type IntegrationsHandlers struct {
 	TikTokCallback                    http.HandlerFunc
 	YouTubeAuthorize                  http.HandlerFunc
 	YouTubeCallback                   http.HandlerFunc
+	GoogleAdsAuthorize                http.HandlerFunc
+	GoogleAdsCallback                 http.HandlerFunc
 	ListTenant                        http.HandlerFunc
 	DisconnectTenant                  http.HandlerFunc
 }
@@ -567,6 +569,11 @@ type AdsHandlers struct {
 	ResumeAd http.HandlerFunc
 	// BoostOTP sends the WhatsApp confirmation code a large boost needs.
 	BoostOTP http.HandlerFunc
+	// Google Ads (googleads module): connected accounts, campaign results, conversion mapping.
+	GoogleAccounts          http.HandlerFunc
+	GoogleCampaigns         http.HandlerFunc
+	GoogleConversionActions http.HandlerFunc
+	GoogleSetMapping        http.HandlerFunc
 	// OSTurnBoostQuote, OSTurnBoost and OSTurnBoostOTP are S2S POST
 	// /internal/ads/os-turn/boost-quote, /boost and /boost-otp: boost from WhatsApp (marketflow-ai).
 	OSTurnBoostQuote http.HandlerFunc
@@ -954,6 +961,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				if deps.IntegrationsHandlers.YouTubeAuthorize != nil {
 					r.Get("/youtube/authorize", deps.IntegrationsHandlers.YouTubeAuthorize)
 				}
+				if deps.IntegrationsHandlers.GoogleAdsAuthorize != nil {
+					r.Get("/google-ads/authorize", deps.IntegrationsHandlers.GoogleAdsAuthorize)
+				}
 				r.Get("/", deps.IntegrationsHandlers.ListTenant)
 				r.Delete("/{provider}", deps.IntegrationsHandlers.DisconnectTenant)
 			})
@@ -1185,6 +1195,12 @@ func NewRouter(deps RouterDeps) http.Handler {
 							r.Post("/boosts/{id}/ads/{ad_id}/resume", deps.AdsHandlers.ResumeAd)
 						}
 					}
+					if deps.AdsHandlers.GoogleAccounts != nil {
+						r.Get("/google/accounts", deps.AdsHandlers.GoogleAccounts)
+						r.Get("/google/accounts/{id}/campaigns", deps.AdsHandlers.GoogleCampaigns)
+						r.Get("/google/accounts/{id}/conversion-actions", deps.AdsHandlers.GoogleConversionActions)
+						r.Put("/google/accounts/{id}/conversion-actions", deps.AdsHandlers.GoogleSetMapping)
+					}
 				})
 			}
 
@@ -1404,6 +1420,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 		r.With(readLimit).Get("/integrations/tiktok/callback", deps.IntegrationsHandlers.TikTokCallback)
 		if deps.IntegrationsHandlers.YouTubeCallback != nil {
 			r.With(readLimit).Get("/integrations/youtube/callback", deps.IntegrationsHandlers.YouTubeCallback)
+		}
+		if deps.IntegrationsHandlers.GoogleAdsCallback != nil {
+			r.With(readLimit).Get("/integrations/google-ads/callback", deps.IntegrationsHandlers.GoogleAdsCallback)
 		}
 
 		// Webhook routes (public, no auth — signature-verified by each handler)
