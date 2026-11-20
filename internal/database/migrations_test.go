@@ -54,3 +54,31 @@ func TestRunMigrationsIsIdempotent(t *testing.T) {
 		t.Fatalf("a migrated schema still plans %d changes:\n%s", len(planned), strings.Join(planned, "\n"))
 	}
 }
+
+// The fixups run on every migrate, so they must be idempotent, and the embedding upsert's
+// ON CONFLICT (entry_id, chunk_index) needs their unique index.
+func TestApplyFixupsIdempotent(t *testing.T) {
+	if os.Getenv("SKIP_POSTGRES_TESTS") != "" {
+		t.Skip("SKIP_POSTGRES_TESTS set")
+	}
+	sqlDB, err := sql.Open("pgx", testPostgresDSN)
+	if err != nil || sqlDB.Ping() != nil {
+		t.Skip("local postgres unreachable")
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	ctx := context.Background()
+	var exists bool
+	_ = sqlDB.QueryRowContext(ctx, `SELECT to_regclass('knowledge_base_embeddings') IS NOT NULL`).Scan(&exists)
+	if !exists {
+		t.Skip("knowledge_base_embeddings not in the local database")
+	}
+	for i := 0; i < 2; i++ {
+		if err := ApplyFixups(ctx, sqlDB); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var unique bool
+	if err := sqlDB.QueryRowContext(ctx, `SELECT indisunique FROM pg_index WHERE indexrelid = 'kb_embeddings_entry_chunk'::regclass`).Scan(&unique); err != nil || !unique {
+		t.Fatalf("unique index missing: %v", err)
+	}
+}

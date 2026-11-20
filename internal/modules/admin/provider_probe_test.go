@@ -3,10 +3,30 @@ package admin
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
+
+// An Ollama that is still loading its model answers after the client gives up; the probe says
+// so instead of a bare timeout error.
+func TestProbeOllamaLoadingTimeout(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(300 * time.Millisecond)
+		_, _ = w.Write([]byte(`{"embedding":[0.1]}`))
+	}))
+	defer srv.Close()
+	msg, ok := probeOllama(context.Background(), &http.Client{Timeout: 50 * time.Millisecond}, srv.URL, "nomic-embed-text")
+	if ok || !strings.Contains(msg, "may still be loading") {
+		t.Fatalf("got %v %q", ok, msg)
+	}
+	msg, ok = probeOllama(context.Background(), &http.Client{Timeout: time.Second}, srv.URL, "nomic-embed-text")
+	if !ok || !strings.Contains(msg, "1 dims") {
+		t.Fatalf("got %v %q", ok, msg)
+	}
+}
 
 func TestProbeOfflineBranches(t *testing.T) {
 	c := &http.Client{Timeout: time.Second}

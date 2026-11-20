@@ -50,6 +50,9 @@ func main() {
 		log.Fatalf("migrate: acquire migration lock: %v", err)
 	}
 	migrateErr := database.RunMigrations(ctx, client)
+	if migrateErr == nil {
+		migrateErr = database.ApplyFixups(ctx, sqlDB)
+	}
 	if _, err := sqlDB.ExecContext(context.Background(), "SELECT pg_advisory_unlock($1)", migrationLockKey); err != nil {
 		log.Printf("migrate: release migration lock: %v", err)
 	}

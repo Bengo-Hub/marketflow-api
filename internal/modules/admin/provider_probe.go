@@ -6,10 +6,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -70,6 +72,10 @@ func (h *PlatformProviderHandler) TestProvider(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// A probe may outlast the server's write timeout (10 s by default): Ollama loading a model
+	// on first use takes longer, and the cut connection reached the browser as "Network Error".
+	// Give this one response room for the slowest probe.
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(probeSlowTimeout + 5*time.Second))
 	started := time.Now()
 	msg, ok := runProbe(r.Context(), req.ProviderType, req.ProviderName, settings)
 	latency := time.Since(started).Milliseconds()
@@ -113,8 +119,18 @@ func (h *PlatformProviderHandler) loadSettings(ctx context.Context, ptype, pname
 
 // runProbe dispatches on provider_name. Returns (message, ok). A failing probe
 // still returns OK=false with a human-readable reason — never a 5xx from us.
+// probeTimeout bounds a normal probe; probeSlowTimeout bounds a self-hosted model that may
+// have to load into memory first (Ollama).
+const (
+	probeTimeout     = 10 * time.Second
+	probeSlowTimeout = 45 * time.Second
+)
+
 func runProbe(ctx context.Context, ptype, pname string, s map[string]string) (string, bool) {
-	c := &http.Client{Timeout: 10 * time.Second}
+	c := &http.Client{Timeout: probeTimeout}
+	if pname == "ollama" {
+		c = &http.Client{Timeout: probeSlowTimeout}
+	}
 	switch pname {
 	case "groq":
 		return probeOpenAIChat(ctx, c, firstNonEmpty(s["base_url"], "https://api.groq.com/openai/v1"),
@@ -221,6 +237,9 @@ func probeOllama(ctx context.Context, c *http.Client, baseURL, model string) (st
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.Do(req)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) {
+			return fmt.Sprintf("Ollama did not answer within %s; model %q may still be loading, test again in a minute", c.Timeout, model), false
+		}
 		return err.Error(), false
 	}
 	defer resp.Body.Close()
