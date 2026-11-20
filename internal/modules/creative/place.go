@@ -22,8 +22,8 @@ import (
 //   - posters and end cards show the real contacts with icons (WhatsApp, phone, website, email
 //     or the offering's own link), never a button.
 //
-// The address is the profile's business_address (asked at sign-up), else the website's own
-// (business facts), else, for a Forever Living tenant in Kenya only, the platform default
+// The address is auth-api's head office outlet (auth owns it), else the profile's business_address
+// (a fallback), else the website's own (business facts), else, for a Forever Living tenant in Kenya only, the platform default
 // (service-config creative.flp_default_address, Forever Living Kenya's office). The order of the
 // contacts, the pages read and the default address are service-config, tenant over platform.
 
@@ -142,6 +142,14 @@ func (r *Renderer) resolvePlace(ctx context.Context, tenantID uuid.UUID, offerin
 		budget = 30 * time.Second
 	}
 	facts := r.factsFor(ctx, tenantID, budget)
+	// auth-api owns the address: its head office outlet wins over the MarketFlow profile, which is
+	// only the fallback, and the website's own address comes after both.
+	if facts.AddressSource == "account" && facts.Address != "" {
+		f.Address, f.AddressSource = excerpt(facts.Address, 200), "account"
+		if facts.City != "" {
+			f.City = excerpt(facts.City, 80)
+		}
+	}
 	if f.Address == "" && facts.Address != "" {
 		f.Address, f.AddressSource = excerpt(facts.Address, 200), "website"
 	}

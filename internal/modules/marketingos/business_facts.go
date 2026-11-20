@@ -28,6 +28,8 @@ import (
 // AccountFacts is the business's account record (auth-api), adapted by the app.
 type AccountFacts struct {
 	Name, Phone, Email, Website, Storefront string
+	// Address and City are the head office outlet's (auth-api owns outlets).
+	Address, City string
 }
 
 // AccountSource reads the account record by tenant slug.
@@ -41,15 +43,19 @@ func (s *Service) WithAccountFacts(f AccountSource) *Service {
 
 // BusinessFacts is the block the assistant reads.
 type BusinessFacts struct {
-	Name     string   `json:"name"`
-	Tagline  string   `json:"tagline,omitempty"`
-	About    string   `json:"about,omitempty"`
-	Phone    string   `json:"phone,omitempty"`
-	WhatsApp string   `json:"whatsapp,omitempty"`
-	Email    string   `json:"email,omitempty"`
-	Website  string   `json:"website,omitempty"`
-	Address  string   `json:"address,omitempty"`
-	Hours    []string `json:"hours,omitempty"`
+	Name     string `json:"name"`
+	Tagline  string `json:"tagline,omitempty"`
+	About    string `json:"about,omitempty"`
+	Phone    string `json:"phone,omitempty"`
+	WhatsApp string `json:"whatsapp,omitempty"`
+	Email    string `json:"email,omitempty"`
+	Website  string `json:"website,omitempty"`
+	Address  string `json:"address,omitempty"`
+	// City is the head office's town (auth-api outlet metadata.city).
+	City string `json:"city,omitempty"`
+	// AddressSource is "account" (the SSO head office) or "website".
+	AddressSource string   `json:"address_source,omitempty"`
+	Hours         []string `json:"hours,omitempty"`
 	// Summary is the website's own description of itself, which often names the town and hours.
 	Summary string `json:"summary,omitempty"`
 	// SiteText is the website's main text from the crawler (offers, prices, services, policies,
@@ -101,6 +107,9 @@ func (s *Service) BusinessFacts(ctx context.Context, tenantID uuid.UUID) (Busine
 			if out.Email == "" {
 				out.Email = a.Email
 			}
+			if a.Address != "" {
+				out.Address, out.City, out.AddressSource = a.Address, a.City, "account"
+			}
 			if out.Website == "" {
 				out.Website = firstNonEmpty(a.Website, a.Storefront)
 			}
@@ -114,7 +123,9 @@ func (s *Service) BusinessFacts(ctx context.Context, tenantID uuid.UUID) (Busine
 		if err == nil {
 			out.Sources = append(out.Sources, "website")
 			out.Summary = site.Summary
-			out.Address = site.Address
+			if out.Address == "" && site.Address != "" {
+				out.Address, out.AddressSource = site.Address, "website"
+			}
 			out.Hours = site.Hours
 			if out.Phone == "" {
 				out.Phone = site.Phone

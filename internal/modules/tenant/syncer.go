@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	enttenant "github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/flp"
+	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -424,6 +426,10 @@ type AuthProfile struct {
 	UseCases     []string `json:"use_cases,omitempty"`
 	OrgSize      string   `json:"org_size,omitempty"`
 	PrimaryColor string   `json:"primary_color,omitempty"`
+	// Address and City are the head office outlet's (auth-api owns outlets): is_hq, else the first
+	// active outlet. Empty when the tenant has no outlet with an address.
+	Address string `json:"address,omitempty"`
+	City    string `json:"city,omitempty"`
 }
 
 // AuthProfile reads a tenant's business details from auth-api, bounded by ctx, and reuses a
@@ -473,6 +479,7 @@ func (s *Syncer) fetchAuthProfile(ctx context.Context, slug string) (*AuthProfil
 	if c, ok := t.BrandColors["primary"].(string); ok {
 		p.PrimaryColor = c
 	}
+	p.Address, p.City = s.hqOutlet(ctx, slug)
 	return p, nil
 }
 
@@ -494,3 +501,68 @@ func (s *Syncer) GetOrSync(ctx context.Context, tenantID uuid.UUID, slug string)
 
 // looksLikeDistribID checks if a slug is a numeric FBO distributor ID.
 func looksLikeDistribID(s string) bool { return flp.IsDistribID(s) }
+
+// authOutlet is one outlet of auth-api's public GET /api/v1/tenants/{slug}/outlets.
+type authOutlet struct {
+	Address  string         `json:"address"`
+	IsHQ     bool           `json:"is_hq"`
+	Status   string         `json:"status"`
+	Metadata map[string]any `json:"metadata"`
+}
+
+// hqOutlet reads the head office's address and city from auth-api's public outlet list: the
+// outlet marked is_hq, else the first active one with an address. Best effort: a failed read
+// leaves both empty and the profile keeps the rest of its facts.
+func (s *Syncer) hqOutlet(ctx context.Context, slug string) (address, city string) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/v1/tenants/%s/outlets", s.authAPIURL, url.PathEscape(slug)), nil)
+	if err != nil {
+		return "", ""
+	}
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return "", ""
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", ""
+	}
+	var list []authOutlet
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&list); err != nil {
+		return "", ""
+	}
+	return pickHQ(list)
+}
+
+// pickHQ chooses the head office: is_hq first, else the first active outlet with an address.
+func pickHQ(list []authOutlet) (address, city string) {
+	var pick *authOutlet
+	for i := range list {
+		o := &list[i]
+		if strings.TrimSpace(o.Address) == "" || (o.Status != "" && o.Status != "active") {
+			continue
+		}
+		if o.IsHQ {
+			pick = o
+			break
+		}
+		if pick == nil {
+			pick = o
+		}
+	}
+	if pick == nil {
+		return "", ""
+	}
+	c, _ := pick.Metadata["city"].(string)
+	return strings.TrimSpace(pick.Address), strings.TrimSpace(c)
+}
+
+// AccountFacts is the account record as marketingos reads it for business facts: the auth-api
+// profile with the head office's address.
+func (s *Syncer) AccountFacts(ctx context.Context, slug string) (marketingos.AccountFacts, error) {
+	p, err := s.AuthProfile(ctx, slug)
+	if err != nil || p == nil {
+		return marketingos.AccountFacts{}, fmt.Errorf("account facts: %w", err)
+	}
+	return marketingos.AccountFacts{Name: p.Name, Phone: p.ContactPhone, Email: p.ContactEmail, Website: p.Website,
+		Storefront: p.Storefront, Address: p.Address, City: p.City}, nil
+}

@@ -116,7 +116,7 @@ func (s *Service) Checklist(ctx context.Context, tenantID uuid.UUID) (Checklist,
 		// The business address places the ads' scenes in its own town (owner, 2026-11-20); a Forever
 		// tenant without one uses the platform default (Forever Living Kenya's office).
 		{Key: "profile", Done: str(meta, "tagline") != "" && str(meta, "bio") != "" && (hasChannel || str(meta, "contact_email") != "") &&
-			(str(meta, creative.MetaBusinessAddress) != "" || strings.EqualFold(t.BusinessType, tenant.BusinessTypeFLP))},
+			(str(meta, creative.MetaBusinessAddress) != "" || strings.EqualFold(t.BusinessType, tenant.BusinessTypeFLP) || s.authAddress(ctx, t.Slug) != "")},
 	}...)
 	// No tenant declares products (owner, 2026-11-03). A Forever tenant sells the seeded Forever
 	// products, and its one requirement is a distributor ID, so every product links to its own
@@ -256,7 +256,10 @@ func (s *Service) Draft(ctx context.Context, tenantID uuid.UUID) (Draft, error) 
 		tenant: t, current: current, auth: auth, top: top,
 		catalog: catalog, website: webOK, testimonials: testimonials,
 	})
-	if str(t.Metadata, creative.MetaBusinessAddress) == "" && strings.EqualFold(t.BusinessType, tenant.BusinessTypeFLP) {
+	if auth != nil && auth.Address != "" {
+		// The head office address the account (auth-api) holds, which the ads use first.
+		d.Profile.BusinessAddress = auth.Address
+	} else if str(t.Metadata, creative.MetaBusinessAddress) == "" && strings.EqualFold(t.BusinessType, tenant.BusinessTypeFLP) {
 		d.Profile.BusinessAddress = creative.FLPDefaultAddress(ctx, s.db, tenantID)
 	}
 	return d, nil
@@ -265,4 +268,16 @@ func (s *Service) Draft(ctx context.Context, tenantID uuid.UUID) (Draft, error) 
 func str(meta map[string]any, key string) string {
 	s, _ := meta[key].(string)
 	return strings.TrimSpace(s)
+}
+
+// authAddress is the head office address auth-api holds for the tenant ("" when none or unread).
+func (s *Service) authAddress(ctx context.Context, slug string) string {
+	if s.auth == nil {
+		return ""
+	}
+	p, err := s.auth.AuthProfile(ctx, slug)
+	if err != nil || p == nil {
+		return ""
+	}
+	return strings.TrimSpace(p.Address)
 }

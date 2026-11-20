@@ -407,7 +407,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			if err != nil || p == nil {
 				return marketingos.AccountFacts{}, fmt.Errorf("account facts: %w", err)
 			}
-			return marketingos.AccountFacts{Name: p.Name, Phone: p.ContactPhone, Email: p.ContactEmail, Website: p.Website, Storefront: p.Storefront}, nil
+			return marketingos.AccountFacts{Name: p.Name, Phone: p.ContactPhone, Email: p.ContactEmail, Website: p.Website, Storefront: p.Storefront,
+				Address: p.Address, City: p.City}, nil
 		}).
 		// Sites that add their address and hours in the browser are read through the crawler.
 		WithPageReader(crawlerReader).

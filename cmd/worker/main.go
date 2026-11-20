@@ -38,6 +38,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/adsmanager"
 	"github.com/bengobox/marketflow-api/internal/modules/autopublish"
 	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
+	"github.com/bengobox/marketflow-api/internal/modules/tenant"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
 	"github.com/bengobox/marketflow-api/internal/platform/svcconfig"
@@ -350,7 +351,9 @@ func main() {
 		renderLinks := brandimages.NewLinker(mediaStore, brandImagesCfg.RenderLinkTTL)
 		// The business facts and website pages behind the setting brief and the end card contacts.
 		crawlerReader := marketingos.NewCrawlerReader(cfg.API.CrawlerURL, cfg.API.InternalServiceKey)
-		placeFacts := marketingos.NewService(entClient, nil, logger).WithPageReader(crawlerReader)
+		// The head office address and contacts come from auth-api (it owns tenants and outlets).
+		placeFacts := marketingos.NewService(entClient, nil, logger).WithPageReader(crawlerReader).
+			WithAccountFacts(tenant.NewSyncer(entClient, logger).AccountFacts)
 		afterUse := &creative.AfterUse{DB: entClient, Notify: creative.EmailAfterUse(entClient, tokenNotif, cfg.API.PortalURL, logger), Logger: logger}
 		autopilotStudio := creative.NewService(entClient, logger)
 		if rdb != nil {
