@@ -40,6 +40,9 @@ func smokeCalls(pageID, igID, adAccountID string) []call {
 			call{"pages_manage_ads", "page", "/" + pageID + "/ads_posts", q("limit", "3")},
 			call{"pages_messaging", "page", "/" + pageID + "/conversations", q("limit", "3")},
 			call{"leads_retrieval", "page", "/" + pageID + "/leadgen_forms", q("fields", "id,name,status", "limit", "5")},
+			// Required by the "Manage everything on your Page" and Messenger use cases (2026-11-20).
+			call{"read_insights", "page", "/" + pageID + "/insights", q("metric", "page_post_engagements", "period", "day")},
+			call{"pages_utility_messaging", "page", "/" + pageID + "/message_templates", q("limit", "3")},
 		)
 	}
 	if igID != "" && pageID != "" {
@@ -48,6 +51,10 @@ func smokeCalls(pageID, igID, adAccountID string) []call {
 			call{"instagram_manage_comments", "page", "/" + igID + "/media", q("fields", "id,comments_count,comments.limit(3){text}", "limit", "3")},
 			call{"instagram_content_publish", "page", "/" + igID + "/content_publishing_limit", nil},
 			call{"instagram_manage_messages", "page", "/" + pageID + "/conversations", q("platform", "instagram", "limit", "3")},
+			// Required by the Instagram use case (2026-11-20).
+			call{"instagram_manage_insights", "page", "/" + igID + "/insights", q("metric", "reach", "period", "day")},
+			call{"instagram_shopping_tag_products", "page", "/" + igID + "/available_catalogs", nil},
+			call{"instagram_branded_content_ads_brand", "page", "/" + igID + "/branded_content_ad_permissions", nil},
 		)
 	}
 	return out

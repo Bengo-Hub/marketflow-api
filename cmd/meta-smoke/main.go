@@ -125,6 +125,7 @@ func main() {
 		return false
 	}
 
+	printGrants(ctx, httpc, userTok)
 	ok, total := 0, 0
 	for _, c := range smokeCalls(pageID, igID, adID) {
 		total++
@@ -152,6 +153,38 @@ func main() {
 		runWrites(ctx, httpc, pageID, pageTok, wAd, userTok)
 	}
 	fmt.Printf("done: %d of %d permission calls succeeded\n", ok, total)
+}
+
+// printGrants lists the permissions the connected user token holds, so a FAIL can be told apart:
+// a permission missing here has to be added to the Login for Business configuration and the
+// account reconnected before its test call can pass.
+func printGrants(ctx context.Context, c *http.Client, userTok string) {
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, graphBase+"/me/permissions?access_token="+userTok, nil)
+	resp, err := c.Do(req)
+	if err != nil {
+		fmt.Printf("permissions: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+	var out struct {
+		Data []struct {
+			Permission string `json:"permission"`
+			Status     string `json:"status"`
+		} `json:"data"`
+	}
+	_ = json.NewDecoder(io.LimitReader(resp.Body, 1<<16)).Decode(&out)
+	var granted, other []string
+	for _, p := range out.Data {
+		if p.Status == "granted" {
+			granted = append(granted, p.Permission)
+		} else {
+			other = append(other, p.Permission+"="+p.Status)
+		}
+	}
+	fmt.Printf("granted: %s\n", strings.Join(granted, " "))
+	if len(other) > 0 {
+		fmt.Printf("not granted: %s\n", strings.Join(other, " "))
+	}
 }
 
 func orNone(s string) string {
