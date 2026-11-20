@@ -98,6 +98,13 @@ definitions:
           type: string
         type: object
     type: object
+  admin.setDefaultRequest:
+    properties:
+      group:
+        type: string
+      provider:
+        type: string
+    type: object
   adsmanager.AccountView:
     properties:
       active:
@@ -403,6 +410,10 @@ definitions:
       bytes:
         type: integer
       content_type:
+        type: string
+      from:
+        description: 'From says where on the website, for the portal: "Services page"
+          or "Home page, hero".'
         type: string
       height:
         type: integer
@@ -747,6 +758,10 @@ definitions:
         type: number
       id:
         type: string
+      setting:
+        description: Setting is where the scene happens, from the setting brief (marketflow-ai
+          team/setting_brief.go).
+        type: string
       sfx:
         description: SFX is an optional short sound cue played at the scene's start
           (marketflow-ai renders it).
@@ -810,7 +825,7 @@ definitions:
           type: string
         type: array
       format:
-        description: default 1080x1920 (Reels, TikTok, Status)
+        description: default the tenant's video_format, else the platform's (1920x1080)
         type: string
       headline:
         description: The end card's words; empty fields come from the offering.
@@ -1010,6 +1025,11 @@ definitions:
           StopCPLDays is the window the stop rule judges: the cost per lead over the last this many
           days (today included). 0 means DefaultStopCPLDays.
         type: integer
+      testimonial_drafts:
+        description: |-
+          TestimonialDrafts opts in to one extra draft a day when a testimonial is published (rated 4
+          or 5, or unrated): the agent's next offering, with the new review among the script's proof.
+        type: boolean
       time:
         description: HH:MM, tenant time
         type: string
@@ -1024,6 +1044,15 @@ definitions:
       weekday:
         description: 0 Sunday, for weekly
         type: integer
+    type: object
+  custom_agents.AutopilotDashboard:
+    properties:
+      pending:
+        items:
+          $ref: '#/definitions/custom_agents.PendingDraft'
+        type: array
+      week:
+        $ref: '#/definitions/custom_agents.AutopilotWeek'
     type: object
   custom_agents.AutopilotInput:
     properties:
@@ -1051,6 +1080,21 @@ definitions:
         type: boolean
       upgrade_path:
         type: string
+    type: object
+  custom_agents.AutopilotWeek:
+    properties:
+      ads_made:
+        type: integer
+      cpl:
+        type: number
+      credits:
+        type: integer
+      leads:
+        type: integer
+      since:
+        type: string
+      spend:
+        type: number
     type: object
   custom_agents.DryRun:
     properties:
@@ -1088,6 +1132,23 @@ definitions:
         description: what each run costs
         type: integer
       tier:
+        type: string
+    type: object
+  custom_agents.PendingDraft:
+    properties:
+      brief_id:
+        type: string
+      created_at:
+        type: string
+      kind:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      version_id:
         type: string
     type: object
   custom_agents.createAgentRequest:
@@ -1724,6 +1785,10 @@ definitions:
     properties:
       brand_primary_color:
         type: string
+      business_address:
+        description: 'BusinessAddress prefills the address: the platform default for
+          a Forever tenant only.'
+        type: string
       contact_email:
         type: string
       logo_url:
@@ -1731,6 +1796,62 @@ definitions:
       website:
         type: string
       whatsapp_number:
+        type: string
+    type: object
+  onboarding.SeedItem:
+    properties:
+      area:
+        description: brand_context | profile | knowledge | defaults
+        type: string
+      field:
+        type: string
+      reason:
+        type: string
+      source:
+        type: string
+      source_url:
+        type: string
+      value:
+        type: string
+    type: object
+  onboarding.SeedPage:
+    properties:
+      dry_run:
+        type: boolean
+      limit:
+        type: integer
+      offset:
+        type: integer
+      tenants:
+        items:
+          $ref: '#/definitions/onboarding.SeedReport'
+        type: array
+      total:
+        type: integer
+    type: object
+  onboarding.SeedReport:
+    properties:
+      business_type:
+        type: string
+      dry_run:
+        type: boolean
+      errors:
+        items:
+          type: string
+        type: array
+      filled:
+        items:
+          $ref: '#/definitions/onboarding.SeedItem'
+        type: array
+      name:
+        type: string
+      skipped:
+        items:
+          $ref: '#/definitions/onboarding.SeedItem'
+        type: array
+      slug:
+        type: string
+      tenant_id:
         type: string
     type: object
   onboarding.Step:
@@ -1765,6 +1886,27 @@ definitions:
       is_default:
         type: boolean
       name:
+        type: string
+    type: object
+  publishing.CreatorInfo:
+    properties:
+      avatar_url:
+        type: string
+      comment_disabled:
+        type: boolean
+      duet_disabled:
+        type: boolean
+      max_video_post_duration_sec:
+        type: integer
+      nickname:
+        type: string
+      privacy_level_options:
+        items:
+          type: string
+        type: array
+      stitch_disabled:
+        type: boolean
+      username:
         type: string
     type: object
   publishing.JobView:
@@ -1824,6 +1966,38 @@ definitions:
         type: boolean
       scheduled_at:
         description: zero means now
+        type: string
+      tiktok:
+        allOf:
+        - $ref: '#/definitions/publishing.TikTokOptions'
+        description: |-
+          TikTok is required when a TikTok account is picked: the privacy level (no default, as
+          TikTok's posting guidelines require), the interactions and the commercial content
+          disclosure the person chose.
+      tiktok_consent:
+        description: |-
+          TikTokConsent is the person agreeing to TikTok's Music Usage Confirmation (and the Branded
+          Content Policy when branded content is on) shown under the TikTok options.
+        type: boolean
+    type: object
+  publishing.TikTokOptions:
+    properties:
+      allow_comment:
+        type: boolean
+      allow_duet:
+        type: boolean
+      allow_stitch:
+        type: boolean
+      brand_content:
+        description: |-
+          BrandContent: a paid partnership promoting a third party ("Branded content"). TikTok does
+          not allow it with the SELF_ONLY privacy level.
+        type: boolean
+      brand_organic:
+        description: 'BrandOrganic: the video promotes the business''s own brand ("Your
+          brand").'
+        type: boolean
+      privacy_level:
         type: string
     type: object
   sequences.createSequenceRequest:
@@ -1966,6 +2140,9 @@ definitions:
       email:
         type: string
       lead_id:
+        description: |-
+          LeadID is accepted so an older page's body still decodes, and ignored (OWASP M2): a public
+          caller cannot attach a booking to an existing lead.
         type: string
       meeting_type:
         type: string
@@ -2396,6 +2573,34 @@ paths:
       summary: Scan service specs for new endpoints now
       tags:
       - Admin
+  /admin/platform/cost-report:
+    get:
+      parameters:
+      - description: 'Month as YYYY-MM (default: the current UTC month)'
+        in: query
+        name: month
+        type: string
+      - description: Page, from 1
+        in: query
+        name: page
+        type: integer
+      - description: Tenants per page, 1 to 200 (default 50)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Platform cost and margin report (monthly)
+      tags:
+      - Admin - Platform
   /admin/providers:
     get:
       produces:
@@ -2431,6 +2636,21 @@ paths:
       security:
       - bearerAuth: []
       summary: Deactivate a provider
+      tags:
+      - Admin - Providers
+  /admin/providers/balances:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Media provider balances
       tags:
       - Admin - Providers
   /admin/providers/configure:
@@ -2469,6 +2689,50 @@ paths:
       security:
       - bearerAuth: []
       summary: Configure a platform provider
+      tags:
+      - Admin - Providers
+  /admin/providers/defaults:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Provider groups and their defaults
+      tags:
+      - Admin - Providers
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Group and provider
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/admin.setDefaultRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Set a provider group's default
       tags:
       - Admin - Providers
   /admin/providers/resolve:
@@ -2538,9 +2802,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Calls the provider's /models endpoint with the stored API key and
-        returns the available model IDs so the platform admin can pick one from a
-        dropdown.
+      description: Lists the provider's live models with the stored key and recommends
+        the newest stable model for each role it fills.
       parameters:
       - description: Which provider to sync
         in: body
@@ -2629,6 +2892,67 @@ paths:
       security:
       - bearerAuth: []
       summary: List tenants (platform)
+      tags:
+      - Admin - Tenants
+  /admin/tenants/{tenantID}/seed-defaults:
+    post:
+      description: Fills only empty brand context, profile and FAQ fields from the
+        tenant's own sources (account record, website, POS and inventory, testimonials)
+        and applies missing platform defaults. dry_run defaults to true; pass dry_run=false
+        to write. Platform owner only.
+      parameters:
+      - description: Tenant UUID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Report only (default true)
+        in: query
+        name: dry_run
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/onboarding.SeedReport'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Seed one tenant's defaults (fill gaps only)
+      tags:
+      - Admin - Tenants
+  /admin/tenants/seed-defaults:
+    post:
+      description: One page of active tenants (limit at most 20). dry_run defaults
+        to true. Platform owner only.
+      parameters:
+      - description: Report only (default true)
+        in: query
+        name: dry_run
+        type: boolean
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      - description: Page size (default 5, at most 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/onboarding.SeedPage'
+      security:
+      - bearerAuth: []
+      summary: Seed defaults for active tenants (fill gaps only)
       tags:
       - Admin - Tenants
   /admin/usage:
@@ -2890,6 +3214,110 @@ paths:
       security:
       - bearerAuth: []
       summary: Send the confirmation code for a large boost
+      tags:
+      - Ads
+  /ads/google/accounts:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Connected Google Ads accounts
+      tags:
+      - Ads
+  /ads/google/accounts/{id}/campaigns:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Connected account id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: LAST_7_DAYS | LAST_14_DAYS | LAST_30_DAYS | THIS_MONTH | LAST_MONTH
+        in: query
+        name: period
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Google Ads campaign results
+      tags:
+      - Ads
+  /ads/google/accounts/{id}/conversion-actions:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Connected account id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Google Ads conversion actions
+      tags:
+      - Ads
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Connected account id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - bearerAuth: []
+      summary: Map MarketFlow events to Google Ads conversion actions
       tags:
       - Ads
   /ads/quote:
@@ -3259,6 +3687,35 @@ paths:
       security:
       - bearerAuth: []
       summary: Save an ad autopilot's settings as a new config version
+      tags:
+      - Custom Agents
+  /agents/custom/{id}/autopilot/dashboard:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Agent UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/custom_agents.AutopilotDashboard'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: An ad autopilot's drafts waiting for the owner and its last seven days
       tags:
       - Custom Agents
   /agents/custom/{id}/autopilot/dry-run:
@@ -4229,6 +4686,28 @@ paths:
       summary: Record that a video was downloaded
       tags:
       - Creative
+  /creative/assets/{id}/file:
+    get:
+      parameters:
+      - description: Asset id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      summary: Download a Studio file
+      tags:
+      - creative
   /creative/briefs:
     get:
       parameters:
@@ -4299,6 +4778,36 @@ paths:
       tags:
       - Creative
   /creative/briefs/{id}:
+    delete:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Brief id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Delete an archived ad permanently
+      tags:
+      - Creative
     get:
       parameters:
       - description: Tenant UUID
@@ -5638,6 +6147,36 @@ paths:
       summary: Funnel step drop-off analytics
       tags:
       - Funnels
+  /funnels/{id}/permanent:
+    delete:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Funnel UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Delete an archived funnel permanently
+      tags:
+      - Funnels
   /funnels/{id}/publish:
     post:
       description: Sets funnel status to published and records published_at timestamp
@@ -5955,6 +6494,51 @@ paths:
       summary: List available platform integrations
       tags:
       - Integrations
+  /integrations/google-ads/authorize:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Start the Google Ads account connection for a tenant
+      tags:
+      - Integrations
+  /integrations/google-ads/callback:
+    get:
+      parameters:
+      - description: Authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: Signed state
+        in: query
+        name: state
+        required: true
+        type: string
+      produces:
+      - text/html
+      responses: {}
+      summary: Google Ads OAuth callback
+      tags:
+      - Integrations
   /integrations/google/authorize:
     get:
       parameters:
@@ -6113,6 +6697,51 @@ paths:
           schema:
             $ref: '#/definitions/httpapi.ErrorResponse'
       summary: Meta deauthorize callback
+      tags:
+      - Integrations
+  /integrations/tiktok-creator/authorize:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Start the TikTok account connection (posting) for a tenant
+      tags:
+      - Integrations
+  /integrations/tiktok-creator/callback:
+    get:
+      parameters:
+      - description: Authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: Signed state
+        in: query
+        name: state
+        required: true
+        type: string
+      produces:
+      - text/html
+      responses: {}
+      summary: TikTok account OAuth callback (posting)
       tags:
       - Integrations
   /integrations/tiktok/authorize:
@@ -7376,6 +8005,39 @@ paths:
       summary: Accounts a video can be posted to
       tags:
       - Publishing
+  /publishing/accounts/{id}/tiktok-creator-info:
+    get:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Connected account id (a TikTok account)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/publishing.CreatorInfo'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: TikTok creator info for the publish dialog
+      tags:
+      - Publishing
   /publishing/jobs:
     get:
       parameters:
@@ -8303,11 +8965,13 @@ paths:
       - BrandImages
   /tenant/brand-images/import-site:
     post:
-      description: Reads the website and storefront on the tenant's account and stores
-        up to the maximum number of brand images from the pictures found there (share
-        image, structured data, page pictures). Each picture passes the same checks
-        as an upload; logos, icons, SVG and GIF are skipped. Pictures already linked
-        are not taken twice.
+      description: Reads the website and storefront on the tenant's account (home
+        page plus its services, about, products, projects and blog pages, as robots.txt
+        allows) and stores up to the maximum number of brand images from the pictures
+        that show the business. Pictures in client, partner or logo strips, the navigation
+        and the footer, pictures shown small, logos and pictures naming another business
+        are skipped. Each added picture says where it was found (from). Pictures already
+        linked are not taken twice. 502 site_unreadable when no page of the site answered.
       parameters:
       - description: Tenant UUID
         in: header
@@ -8595,6 +9259,31 @@ paths:
       security:
       - bearerAuth: []
       summary: Hide or show the setup prompt
+      tags:
+      - Onboarding
+  /tenant/onboarding/steps/{key}/done:
+    post:
+      parameters:
+      - description: Tenant UUID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: plan, widget or share_page
+        in: path
+        name: key
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Mark a quick start step done
       tags:
       - Onboarding
   /tenant/os-settings:
@@ -8889,6 +9578,26 @@ paths:
           schema:
             $ref: '#/definitions/httpapi.ErrorResponse'
       summary: Receive delivery telemetry from notifications-api
+      tags:
+      - Webhooks
+  /webhooks/tiktok/events:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.ErrorResponse'
+      summary: TikTok developer app webhook (post status, deauthorization)
       tags:
       - Webhooks
   /webhooks/tiktok/leads:

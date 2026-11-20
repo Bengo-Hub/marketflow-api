@@ -510,6 +510,51 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/platform/cost-report": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin - Platform"
+                ],
+                "summary": "Platform cost and margin report (monthly)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Month as YYYY-MM (default: the current UTC month)",
+                        "name": "month",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page, from 1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tenants per page, 1 to 200 (default 50)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/admin/providers": {
             "get": {
                 "security": [
@@ -524,6 +569,31 @@ const docTemplate = `{
                     "Admin - Providers"
                 ],
                 "summary": "List platform providers",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/providers/balances": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin - Providers"
+                ],
+                "summary": "Media provider balances",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -583,6 +653,77 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/providers/defaults": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin - Providers"
+                ],
+                "summary": "Provider groups and their defaults",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin - Providers"
+                ],
+                "summary": "Set a provider group's default",
+                "parameters": [
+                    {
+                        "description": "Group and provider",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/admin.setDefaultRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -695,7 +836,7 @@ const docTemplate = `{
                         "bearerAuth": []
                     }
                 ],
-                "description": "Calls the provider's /models endpoint with the stored API key and returns the available model IDs so the platform admin can pick one from a dropdown.",
+                "description": "Lists the provider's live models with the stored key and recommends the newest stable model for each role it fills.",
                 "consumes": [
                     "application/json"
                 ],
@@ -867,6 +1008,97 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/tenants/seed-defaults": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "One page of active tenants (limit at most 20). dry_run defaults to true. Platform owner only.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin - Tenants"
+                ],
+                "summary": "Seed defaults for active tenants (fill gaps only)",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "Report only (default true)",
+                        "name": "dry_run",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default 5, at most 20)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/onboarding.SeedPage"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/tenants/{tenantID}/seed-defaults": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Fills only empty brand context, profile and FAQ fields from the tenant's own sources (account record, website, POS and inventory, testimonials) and applies missing platform defaults. dry_run defaults to true; pass dry_run=false to write. Platform owner only.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin - Tenants"
+                ],
+                "summary": "Seed one tenant's defaults (fill gaps only)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Report only (default true)",
+                        "name": "dry_run",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/onboarding.SeedReport"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
                         }
                     }
                 }
@@ -1279,6 +1511,170 @@ const docTemplate = `{
                         "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ads/google/accounts": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ads"
+                ],
+                "summary": "Connected Google Ads accounts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/ads/google/accounts/{id}/campaigns": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ads"
+                ],
+                "summary": "Google Ads campaign results",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Connected account id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "LAST_7_DAYS | LAST_14_DAYS | LAST_30_DAYS | THIS_MONTH | LAST_MONTH",
+                        "name": "period",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/ads/google/accounts/{id}/conversion-actions": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ads"
+                ],
+                "summary": "Google Ads conversion actions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Connected account id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ads"
+                ],
+                "summary": "Map MarketFlow events to Google Ads conversion actions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Connected account id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -1858,6 +2254,52 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/agents/custom/{id}/autopilot/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Custom Agents"
+                ],
+                "summary": "An ad autopilot's drafts waiting for the owner and its last seven days",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Agent UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/custom_agents.AutopilotDashboard"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/httpapi.ErrorResponse"
                         }
@@ -3370,6 +3812,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/creative/assets/{id}/file": {
+            "get": {
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "creative"
+                ],
+                "summary": "Download a Studio file",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Asset id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/creative/briefs": {
             "get": {
                 "security": [
@@ -3575,6 +4051,53 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Creative"
+                ],
+                "summary": "Delete an archived ad permanently",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Brief id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/httpapi.ErrorResponse"
                         }
@@ -5570,6 +6093,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/funnels/{id}/permanent": {
+            "delete": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Funnels"
+                ],
+                "summary": "Delete an archived funnel permanently",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Funnel UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/funnels/{id}/publish": {
             "post": {
                 "security": [
@@ -6026,6 +6596,76 @@ const docTemplate = `{
                 }
             }
         },
+        "/integrations/google-ads/authorize": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Start the Google Ads account connection for a tenant",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/integrations/google-ads/callback": {
+            "get": {
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Google Ads OAuth callback",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization code",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Signed state",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
         "/integrations/google/authorize": {
             "get": {
                 "security": [
@@ -6272,6 +6912,76 @@ const docTemplate = `{
                         }
                     }
                 }
+            }
+        },
+        "/integrations/tiktok-creator/authorize": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Start the TikTok account connection (posting) for a tenant",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/integrations/tiktok-creator/callback": {
+            "get": {
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "TikTok account OAuth callback (posting)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization code",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Signed state",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {}
             }
         },
         "/integrations/tiktok/authorize": {
@@ -8247,6 +8957,58 @@ const docTemplate = `{
                 }
             }
         },
+        "/publishing/accounts/{id}/tiktok-creator-info": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Publishing"
+                ],
+                "summary": "TikTok creator info for the publish dialog",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Connected account id (a TikTok account)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/publishing.CreatorInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/publishing/jobs": {
             "get": {
                 "security": [
@@ -9659,7 +10421,7 @@ const docTemplate = `{
                         "bearerAuth": []
                     }
                 ],
-                "description": "Reads the website and storefront on the tenant's account and stores up to the maximum number of brand images from the pictures found there (share image, structured data, page pictures). Each picture passes the same checks as an upload; logos, icons, SVG and GIF are skipped. Pictures already linked are not taken twice.",
+                "description": "Reads the website and storefront on the tenant's account (home page plus its services, about, products, projects and blog pages, as robots.txt allows) and stores up to the maximum number of brand images from the pictures that show the business. Pictures in client, partner or logo strips, the navigation and the footer, pictures shown small, logos and pictures naming another business are skipped. Each added picture says where it was found (from). Pictures already linked are not taken twice. 502 site_unreadable when no page of the site answered.",
                 "produces": [
                     "application/json"
                 ],
@@ -10155,6 +10917,46 @@ const docTemplate = `{
                 }
             }
         },
+        "/tenant/onboarding/steps/{key}/done": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Onboarding"
+                ],
+                "summary": "Mark a quick start step done",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "plan, widget or share_page",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/tenant/os-settings": {
             "get": {
                 "security": [
@@ -10617,6 +11419,37 @@ const docTemplate = `{
                 }
             }
         },
+        "/webhooks/tiktok/events": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Webhooks"
+                ],
+                "summary": "TikTok developer app webhook (post status, deauthorization)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "boolean"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/webhooks/tiktok/leads": {
             "post": {
                 "description": "Receives lead form submissions from TikTok ads. Upserts leads with source=tiktok.",
@@ -10869,6 +11702,17 @@ const docTemplate = `{
                     "additionalProperties": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "admin.setDefaultRequest": {
+            "type": "object",
+            "properties": {
+                "group": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
                 }
             }
         },
@@ -11322,6 +12166,10 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "content_type": {
+                    "type": "string"
+                },
+                "from": {
+                    "description": "From says where on the website, for the portal: \"Services page\" or \"Home page, hero\".",
                     "type": "string"
                 },
                 "height": {
@@ -11833,6 +12681,10 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "setting": {
+                    "description": "Setting is where the scene happens, from the setting brief (marketflow-ai team/setting_brief.go).",
+                    "type": "string"
+                },
                 "sfx": {
                     "description": "SFX is an optional short sound cue played at the scene's start (marketflow-ai renders it).",
                     "type": "string"
@@ -11913,7 +12765,7 @@ const docTemplate = `{
                     }
                 },
                 "format": {
-                    "description": "default 1080x1920 (Reels, TikTok, Status)",
+                    "description": "default the tenant's video_format, else the platform's (1920x1080)",
                     "type": "string"
                 },
                 "headline": {
@@ -12185,6 +13037,10 @@ const docTemplate = `{
                     "description": "StopCPLDays is the window the stop rule judges: the cost per lead over the last this many\ndays (today included). 0 means DefaultStopCPLDays.",
                     "type": "integer"
                 },
+                "testimonial_drafts": {
+                    "description": "TestimonialDrafts opts in to one extra draft a day when a testimonial is published (rated 4\nor 5, or unrated): the agent's next offering, with the new review among the script's proof.",
+                    "type": "boolean"
+                },
                 "time": {
                     "description": "HH:MM, tenant time",
                     "type": "string"
@@ -12203,6 +13059,20 @@ const docTemplate = `{
                 "weekday": {
                     "description": "0 Sunday, for weekly",
                     "type": "integer"
+                }
+            }
+        },
+        "custom_agents.AutopilotDashboard": {
+            "type": "object",
+            "properties": {
+                "pending": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/custom_agents.PendingDraft"
+                    }
+                },
+                "week": {
+                    "$ref": "#/definitions/custom_agents.AutopilotWeek"
                 }
             }
         },
@@ -12244,6 +13114,29 @@ const docTemplate = `{
                 },
                 "upgrade_path": {
                     "type": "string"
+                }
+            }
+        },
+        "custom_agents.AutopilotWeek": {
+            "type": "object",
+            "properties": {
+                "ads_made": {
+                    "type": "integer"
+                },
+                "cpl": {
+                    "type": "number"
+                },
+                "credits": {
+                    "type": "integer"
+                },
+                "leads": {
+                    "type": "integer"
+                },
+                "since": {
+                    "type": "string"
+                },
+                "spend": {
+                    "type": "number"
                 }
             }
         },
@@ -12297,6 +13190,32 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "tier": {
+                    "type": "string"
+                }
+            }
+        },
+        "custom_agents.PendingDraft": {
+            "type": "object",
+            "properties": {
+                "brief_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version_id": {
                     "type": "string"
                 }
             }
@@ -13218,6 +14137,10 @@ const docTemplate = `{
                 "brand_primary_color": {
                     "type": "string"
                 },
+                "business_address": {
+                    "description": "BusinessAddress prefills the address: the platform default for a Forever tenant only.",
+                    "type": "string"
+                },
                 "contact_email": {
                     "type": "string"
                 },
@@ -13228,6 +14151,91 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "whatsapp_number": {
+                    "type": "string"
+                }
+            }
+        },
+        "onboarding.SeedItem": {
+            "type": "object",
+            "properties": {
+                "area": {
+                    "description": "brand_context | profile | knowledge | defaults",
+                    "type": "string"
+                },
+                "field": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "source_url": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "onboarding.SeedPage": {
+            "type": "object",
+            "properties": {
+                "dry_run": {
+                    "type": "boolean"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "tenants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/onboarding.SeedReport"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "onboarding.SeedReport": {
+            "type": "object",
+            "properties": {
+                "business_type": {
+                    "type": "string"
+                },
+                "dry_run": {
+                    "type": "boolean"
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "filled": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/onboarding.SeedItem"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "skipped": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/onboarding.SeedItem"
+                    }
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "tenant_id": {
                     "type": "string"
                 }
             }
@@ -13280,6 +14288,38 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "publishing.CreatorInfo": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "comment_disabled": {
+                    "type": "boolean"
+                },
+                "duet_disabled": {
+                    "type": "boolean"
+                },
+                "max_video_post_duration_sec": {
+                    "type": "integer"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "privacy_level_options": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "stitch_disabled": {
+                    "type": "boolean"
+                },
+                "username": {
                     "type": "string"
                 }
             }
@@ -13364,6 +14404,43 @@ const docTemplate = `{
                 },
                 "scheduled_at": {
                     "description": "zero means now",
+                    "type": "string"
+                },
+                "tiktok": {
+                    "description": "TikTok is required when a TikTok account is picked: the privacy level (no default, as\nTikTok's posting guidelines require), the interactions and the commercial content\ndisclosure the person chose.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/publishing.TikTokOptions"
+                        }
+                    ]
+                },
+                "tiktok_consent": {
+                    "description": "TikTokConsent is the person agreeing to TikTok's Music Usage Confirmation (and the Branded\nContent Policy when branded content is on) shown under the TikTok options.",
+                    "type": "boolean"
+                }
+            }
+        },
+        "publishing.TikTokOptions": {
+            "type": "object",
+            "properties": {
+                "allow_comment": {
+                    "type": "boolean"
+                },
+                "allow_duet": {
+                    "type": "boolean"
+                },
+                "allow_stitch": {
+                    "type": "boolean"
+                },
+                "brand_content": {
+                    "description": "BrandContent: a paid partnership promoting a third party (\"Branded content\"). TikTok does\nnot allow it with the SELF_ONLY privacy level.",
+                    "type": "boolean"
+                },
+                "brand_organic": {
+                    "description": "BrandOrganic: the video promotes the business's own brand (\"Your brand\").",
+                    "type": "boolean"
+                },
+                "privacy_level": {
                     "type": "string"
                 }
             }
@@ -13578,6 +14655,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "lead_id": {
+                    "description": "LeadID is accepted so an older page's body still decodes, and ignored (OWASP M2): a public\ncaller cannot attach a booking to an existing lead.",
                     "type": "string"
                 },
                 "meeting_type": {

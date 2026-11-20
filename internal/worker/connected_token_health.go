@@ -25,6 +25,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/integrations/google"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
+	"github.com/bengobox/marketflow-api/internal/integrations/tiktok"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/rbac"
 	"github.com/bengobox/marketflow-api/internal/notifications"
@@ -64,6 +65,8 @@ type ConnectedTokenHealth struct {
 	appToken func(context.Context) (string, bool)
 	// youtube renews YouTube channel tokens; a refused renewal is the sign to reconnect.
 	youtube *google.Tokens
+	// tiktok renews TikTok account tokens the same way; a refused renewal is the sign to reconnect.
+	tiktok *tiktok.Tokens
 	// wa sends the WhatsApp copy of the reconnect notice (whatsapp_notice.go); nil sends email only.
 	wa *waNotifier
 }
@@ -124,6 +127,7 @@ func NewConnectedTokenHealth(db *ent.Client, keys *encryption.KeyProvider, notif
 	}
 	j.appToken = j.metaAppToken
 	j.youtube = google.NewTokens(db, keys)
+	j.tiktok = tiktok.NewTokens(db, keys)
 	return j
 }
 
@@ -189,6 +193,13 @@ func (j *ConnectedTokenHealth) check(ctx context.Context, now time.Time) (int, i
 	}
 	if j.youtube != nil {
 		n, err := j.checkGoogle(ctx, notices)
+		checked += n
+		if err != nil {
+			return checked, 0, err
+		}
+	}
+	if j.tiktok != nil {
+		n, err := j.checkTikTok(ctx, notices)
 		checked += n
 		if err != nil {
 			return checked, 0, err
@@ -299,6 +310,57 @@ func (j *ConnectedTokenHealth) checkGoogle(ctx context.Context, notices map[uuid
 }
 
 // checkOne updates one account from debug_token and says whether the tenant must be told.
+// checkTikTok renews each active TikTok account's access token once a day, like checkGoogle:
+// TikTok answers invalid_grant once the person removed MarketFlow or the refresh token lapsed
+// (tiktok.Tokens then marks the row expired), and the daily use keeps the refresh token fresh.
+// TikTok down or slow is left for the next run.
+func (j *ConnectedTokenHealth) checkTikTok(ctx context.Context, notices map[uuid.UUID][]tokenNotice) (int, error) {
+	checked := 0
+	var after uuid.UUID
+	for batch := 0; batch < tokenHealthMaxBatches; batch++ {
+		q := j.db.ConnectedAccount.Query().
+			Where(
+				connectedaccount.Platform("tiktok"),
+				connectedaccount.AccountType(tiktok.AccountCreator),
+				connectedaccount.Status("active"),
+				connectedaccount.RefreshCiphertextNEQ(""),
+			).
+			Order(ent.Asc(connectedaccount.FieldID)).
+			Limit(tokenHealthBatch)
+		if after != uuid.Nil {
+			q = q.Where(connectedaccount.IDGT(after))
+		}
+		rows, err := q.All(ctx)
+		if err != nil {
+			return checked, err
+		}
+		for _, acc := range rows {
+			after = acc.ID
+			if ctx.Err() != nil {
+				return checked, ctx.Err()
+			}
+			checked++
+			_, err := j.tiktok.Refresh(ctx, acc)
+			var te *tiktok.TokenError
+			if err == nil || !errors.As(err, &te) || !te.Revoked() {
+				if err != nil {
+					j.logger.Warn("tiktok token not renewed", zap.String("account", acc.ID.String()), zap.Error(err))
+				}
+				continue
+			}
+			name := acc.DisplayName
+			if name == "" {
+				name = acc.ExternalID
+			}
+			notices[acc.TenantID] = append(notices[acc.TenantID], tokenNotice{Name: name, Type: acc.AccountType, Expired: true})
+		}
+		if len(rows) < tokenHealthBatch {
+			break
+		}
+	}
+	return checked, nil
+}
+
 func (j *ConnectedTokenHealth) checkOne(ctx context.Context, acc *ent.ConnectedAccount, appToken string, now time.Time) (tokenNotice, bool) {
 	notice := tokenNotice{Name: acc.DisplayName, Type: acc.AccountType}
 	if notice.Name == "" {
