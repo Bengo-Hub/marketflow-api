@@ -297,6 +297,8 @@ type FunnelHandlers struct {
 	Delete    http.HandlerFunc
 	Publish   http.HandlerFunc
 	Analytics http.HandlerFunc
+	// Purge deletes an archived funnel for good (admins).
+	Purge http.HandlerFunc
 }
 
 // SequenceHandlers groups nurture sequence HTTP handlers.
@@ -896,6 +898,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Get("/{id}", deps.FunnelHandlers.Get)
 				r.Put("/{id}", deps.FunnelHandlers.Update)
 				r.Delete("/{id}", deps.FunnelHandlers.Delete)
+				if deps.FunnelHandlers.Purge != nil {
+					r.Delete("/{id}/permanent", deps.FunnelHandlers.Purge)
+				}
 				r.Post("/{id}/publish", deps.FunnelHandlers.Publish)
 				r.Get("/{id}/analytics", deps.FunnelHandlers.Analytics)
 			})

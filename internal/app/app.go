@@ -775,6 +775,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Delete:    funnelHandler.Delete,
 			Publish:   funnelHandler.Publish,
 			Analytics: funnelAnalyticsHandler.GetAnalytics,
+			Purge:     funnelHandler.Purge,
 		},
 		SequenceHandlers: httpapi.SequenceHandlers{
 			Create:    sequenceHandler.Create,

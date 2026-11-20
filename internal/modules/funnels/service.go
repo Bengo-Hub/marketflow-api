@@ -233,6 +233,10 @@ func (s *Service) Delete(ctx context.Context, tenantID, funnelID uuid.UUID) erro
 	if err != nil {
 		return fmt.Errorf("delete funnel: %w", err)
 	}
+	// The automatic hard delete counts from here (retention.go).
+	if err := s.markArchived(ctx, tenantID, funnelID, time.Now()); err != nil {
+		s.logger.Warn("funnel archive time not recorded", zap.String("funnel", funnelID.String()), zap.Error(err))
+	}
 	return nil
 }
 

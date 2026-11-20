@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 
 	entsql "entgo.io/ent/dialect/sql"
@@ -16,7 +14,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
 	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
-	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
+	"github.com/bengobox/marketflow-api/internal/platform/svcconfig"
 )
 
 // Discarded drafts (owner, 2026-11-14): a WhatsApp Discard keeps the Studio draft for a while,
@@ -46,55 +44,10 @@ const (
 	maxDiscardWindow = 30 * 24 * time.Hour
 )
 
-// parseDiscardWindow reads a configured window; ok is false for an empty, unreadable or
-// out-of-bounds value.
-func parseDiscardWindow(v string) (time.Duration, bool) {
-	v = strings.TrimSpace(v)
-	if v == "" {
-		return 0, false
-	}
-	d, err := time.ParseDuration(v)
-	if err != nil {
-		h, herr := strconv.ParseFloat(v, 64)
-		if herr != nil {
-			return 0, false
-		}
-		d = time.Duration(h * float64(time.Hour))
-	}
-	if d < minDiscardWindow || d > maxDiscardWindow {
-		return 0, false
-	}
-	return d, true
-}
-
-// DiscardWindow is the tenant's window before a discarded draft is hard deleted.
+// DiscardWindow is the tenant's window before a discarded draft is hard deleted (shared
+// tenant-over-platform reader: platform/svcconfig).
 func (s *Service) DiscardWindow(ctx context.Context, tenantID uuid.UUID) time.Duration {
-	rows, err := s.db.ServiceConfig.Query().
-		Where(serviceconfig.ConfigKey(DiscardWindowKey),
-			serviceconfig.Or(serviceconfig.TenantID(tenantID), serviceconfig.TenantIDIsNil())).
-		Limit(2).All(ctx)
-	if err != nil {
-		return DiscardPurgeAfter
-	}
-	platform, tenant := time.Duration(0), time.Duration(0)
-	for _, r := range rows {
-		d, ok := parseDiscardWindow(r.ConfigValue)
-		if !ok {
-			continue
-		}
-		if r.TenantID != nil && *r.TenantID == tenantID {
-			tenant = d
-		} else if r.TenantID == nil {
-			platform = d
-		}
-	}
-	switch {
-	case tenant > 0:
-		return tenant
-	case platform > 0:
-		return platform
-	}
-	return DiscardPurgeAfter
+	return svcconfig.Duration(ctx, s.db, tenantID, DiscardWindowKey, DiscardPurgeAfter, minDiscardWindow, maxDiscardWindow)
 }
 
 // DiscardPurgeAfter is how long a discarded draft is kept before it is deleted:

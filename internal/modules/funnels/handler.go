@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/Bengo-Hub/pagination"
+	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
 	"github.com/go-chi/chi/v5"
@@ -347,4 +348,43 @@ func extractTenantID(r *http.Request) (uuid.UUID, error) {
 		return uuid.UUID{}, fmt.Errorf("X-Tenant-ID header is required")
 	}
 	return uuid.Parse(header)
+}
+
+// Purge handles DELETE /api/v1/funnels/{id}/permanent: an admin deletes an archived funnel for
+// good. Its leads stay (with the funnel's name kept on them); campaigns are unlinked.
+// @Summary Delete an archived funnel permanently
+// @Tags Funnels
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Funnel UUID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 409 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /funnels/{id}/permanent [delete]
+func (h *Handler) Purge(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := extractTenantID(r)
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing or invalid X-Tenant-ID header", nil)
+		return
+	}
+	funnelID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_id", "invalid funnel ID", nil)
+		return
+	}
+	switch err := h.service.Purge(r.Context(), tenantID, funnelID); {
+	case err == nil:
+	case errors.Is(err, ErrNotArchived):
+		httpapi.Error(w, http.StatusConflict, "not_archived", err.Error(), nil)
+		return
+	case ent.IsNotFound(err):
+		httpapi.Error(w, http.StatusNotFound, "not_found", "funnel not found", nil)
+		return
+	default:
+		h.logger.Error("failed to delete funnel permanently", zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "delete_failed", "failed to delete funnel", nil)
+		return
+	}
+	audit.Tenant(r.Context(), h.service.client, h.logger, tenantID, "funnel.deleted", "funnel", &funnelID, nil)
+	httpapi.JSON(w, http.StatusOK, map[string]any{"status": "deleted_permanently"})
 }

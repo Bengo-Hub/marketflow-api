@@ -30,7 +30,7 @@ var adminWritePrefixes = []string{
 var (
 	autopilotPath = regexp.MustCompile(`^/agents/custom/[^/]+/autopilot(/|$)`)
 	// A lead, a contact or a Studio ad deleted for good (the ad: owner 2026-11-19).
-	recordDelete = regexp.MustCompile(`^/(leads|contacts|creative/briefs)/[^/]+$`)
+	recordDelete = regexp.MustCompile(`^/(leads|contacts|creative/briefs)/[^/]+$|^/funnels/[^/]+/permanent$`)
 	exportPath    = regexp.MustCompile(`^/(leads|contacts)/export$`)
 	// connectPath starts an integration's OAuth connection. It is a GET, yet it connects or
 	// replaces the business's account, so owner 2026-11-12 made it admin only.

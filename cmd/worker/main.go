@@ -39,6 +39,9 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/autopublish"
 	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
+	"github.com/bengobox/marketflow-api/internal/modules/funnels"
+	"github.com/bengobox/marketflow-api/internal/platform/svcconfig"
+	"github.com/google/uuid"
 	"github.com/bengobox/marketflow-api/internal/modules/publishing"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/modules/endpoints"
@@ -368,6 +371,10 @@ func main() {
 					cfg.PlatformTenant, "marketflow-worker").WithRich(rdb, waRichCfg).WithTemplates(waTplCfg, logger), logger)).
 			WithAutopilot(autopilotPipeline).Run(ctx)
 		go creative.NewPurger(entClient, mediaStore, logger).Run(ctx)
+		// Archived funnels past their tenant's window are deleted for good; the check interval is
+		// the platform service-config funnels.purge_interval (hourly when unset).
+		go funnels.NewService(entClient, logger).RunPurge(ctx,
+			svcconfig.Duration(ctx, entClient, uuid.Nil, "funnels.purge_interval", time.Hour, 5*time.Minute, 24*time.Hour))
 		pubRunner := publishing.NewRunner(pubStore, pubStore, pubStore,
 			publishing.NewFacebookReels(meta.GraphURL).WithProof(metaSecret),
 			publishing.NewInstagramReels(meta.GraphURL).WithProof(metaSecret),
