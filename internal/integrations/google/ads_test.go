@@ -3,6 +3,7 @@ package google
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,17 +11,19 @@ import (
 	"testing"
 )
 
-// The Ads calls send the developer token and bearer, use the configured version, and read
+// The Ads calls send the bearer and no developer token, use the configured version, and read
 // Google's JSON shapes (numbers as strings, cost in micros, partial failures).
 func TestAdsCalls(t *testing.T) {
 	var gotQuery, gotLogin string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("developer-token") != "dev" || r.Header.Get("Authorization") != "Bearer tok" {
+		if r.Header.Get("developer-token") != "" || r.Header.Get("Authorization") != "Bearer tok" {
 			http.Error(w, `{"error":{"message":"bad headers"}}`, http.StatusUnauthorized)
 			return
 		}
 		gotLogin = r.Header.Get("login-customer-id")
 		switch {
+		case r.URL.Path == "/v99/customers/333/googleAds:search":
+			http.Error(w, `{"error":{"code":403,"message":"The caller does not have permission","details":[{"errors":[{"errorCode":{"authorizationError":"CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION"}}]}]}}`, http.StatusForbidden)
 		case r.URL.Path == "/v99/customers:listAccessibleCustomers":
 			_, _ = w.Write([]byte(`{"resourceNames":["customers/111","customers/222"]}`))
 		case strings.HasSuffix(r.URL.Path, "/googleAds:search"):
@@ -41,6 +44,7 @@ func TestAdsCalls(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
+	// A developer_token left on the row is ignored: Google retired them on 2026-09-09.
 	ads := AdsFromSettings(srv.Client(), map[string]string{"developer_token": "dev", "api_version": "v99", "login_customer_id": "932-084-9278"}, "tok")
 	ads.Base = srv.URL
 	ctx := context.Background()
@@ -61,7 +65,9 @@ func TestAdsCalls(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "gclid not found") {
 		t.Fatalf("partial failure must surface: %v", err)
 	}
-	if err := (Ads{Base: srv.URL, Version: "v99", AccessToken: "tok"}).do(ctx, http.MethodGet, "/x", nil, nil); err == nil {
-		t.Fatal("no developer token must refuse")
+	_, err = ads.CustomerInfo(ctx, "333")
+	var ae *AdsError
+	if !errors.As(err, &ae) || ae.Status != http.StatusForbidden || ae.Message != ProjectAccessMessage {
+		t.Fatalf("Test-only project access must read as the Cloud Console step: %v", err)
 	}
 }

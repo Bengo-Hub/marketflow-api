@@ -69,9 +69,10 @@ func (h *Handler) GoogleAdsAuthorize(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "no tenant context; pass X-Tenant-ID or X-Tenant-Slug", nil)
 		return
 	}
-	c, extra, err := google.LoadClient(r.Context(), h.db, h.keys, google.ProviderGoogleAds, google.ProviderGoogleAdsName)
-	if err != nil || extra["developer_token"] == "" {
-		httpapi.Error(w, http.StatusServiceUnavailable, "oauth_not_configured", "platform Google Ads client or developer token not configured", nil)
+	// No developer token check: Google retired them on 2026-09-09 (see google/ads.go).
+	c, _, err := google.LoadClient(r.Context(), h.db, h.keys, google.ProviderGoogleAds, google.ProviderGoogleAdsName)
+	if err != nil {
+		httpapi.Error(w, http.StatusServiceUnavailable, "oauth_not_configured", "platform Google Ads client not configured", nil)
 		return
 	}
 	state, ok := h.issueStateOrFail(w, r, tenantID)

@@ -167,8 +167,8 @@ func (h *ConversionsHandler) dispatchMetaCAPI(ctx context.Context, ev *Conversio
 // dispatchGoogleAdsConversion uploads an offline conversion to Google Ads via
 // the REST endpoint. Requires:
 //
-//   - Platform provider row google_ads/oauth { client_id, client_secret,
-//     developer_token } — the app-level credentials shared by every tenant.
+//   - Platform provider row google_ads/ads { client_id, client_secret } — the app-level
+//     credentials shared by every tenant (no developer token since 2026-09-09).
 //   - Tenant provider row google_ads/oauth { refresh_token, customer_id,
 //     login_customer_id? } — the FBO's Google Ads account OAuth grant.
 //   - Tenant provider row google_ads/conversion_actions { {EventName}: {action_resource_name} }
@@ -195,9 +195,9 @@ func (h *ConversionsHandler) dispatchGoogleAdsConversion(ctx context.Context, ev
 	if err != nil || tenant["customer_id"] == "" || tenant["refresh_token"] == "" {
 		return nil
 	}
-	// Platform app credentials + developer token (shared).
+	// Platform app credentials (shared). No developer token since Google retired them.
 	platform, err := h.loadTenantProvider(ctx, "platform", "google_ads", "ads")
-	if err != nil || platform["client_id"] == "" || platform["client_secret"] == "" || platform["developer_token"] == "" {
+	if err != nil || platform["client_id"] == "" || platform["client_secret"] == "" {
 		h.logger.Warn("google ads platform credentials missing; skipping conversion")
 		return nil
 	}
@@ -213,9 +213,6 @@ func (h *ConversionsHandler) dispatchGoogleAdsConversion(ctx context.Context, ev
 		return fmt.Errorf("google ads token exchange: %w", err)
 	}
 
-	customerID := strings.ReplaceAll(tenant["customer_id"], "-", "")
-	loginCustomerID := strings.ReplaceAll(firstNonEmptyConv(tenant["login_customer_id"], platform["login_customer_id"]), "-", "")
-
 	// Google Ads REST expects ISO-like datetime with `±HH:MM` offset, e.g.
 	// "2026-04-16 09:30:00+03:00". Parse from RFC3339 and reformat.
 	convTime, err := formatGoogleAdsTime(ev.OccurredAt)
@@ -223,34 +220,14 @@ func (h *ConversionsHandler) dispatchGoogleAdsConversion(ctx context.Context, ev
 		return fmt.Errorf("format time: %w", err)
 	}
 
-	payload := map[string]any{
-		"conversions": []map[string]any{{
-			"gclid":              ev.Gclid,
-			"conversionAction":   actionResource,
-			"conversionDateTime": convTime,
-			"conversionValue":    ev.Value,
-			"currencyCode":       firstNonEmptyConv(ev.Currency, "USD"),
-		}},
-		"partialFailure": true,
+	// Same caller as the connected-account path (version from the row, partial failures surfaced).
+	ads := google.AdsFromSettings(h.httpClient(), platform, accessToken)
+	if login := firstNonEmptyConv(tenant["login_customer_id"], platform["login_customer_id"]); login != "" {
+		ads.LoginCustomerID = google.CustomerDigits(login)
 	}
-	body, _ := json.Marshal(payload)
-	endpoint := fmt.Sprintf("https://googleads.googleapis.com/%s/customers/%s:uploadClickConversions", google.AdsAPIVersion, customerID)
-	req, _ := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(body))
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("developer-token", platform["developer_token"])
-	req.Header.Set("Content-Type", "application/json")
-	if loginCustomerID != "" {
-		req.Header.Set("login-customer-id", loginCustomerID)
-	}
-
-	resp, err := h.httpClient().Do(req)
-	if err != nil {
+	if err := ads.UploadClickConversions(ctx, tenant["customer_id"], []google.ClickConversion{{GCLID: ev.Gclid,
+		ConversionAction: actionResource, DateTime: convTime, Value: ev.Value, Currency: firstNonEmptyConv(ev.Currency, "USD")}}); err != nil {
 		return err
-	}
-	defer resp.Body.Close()
-	rb, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode >= 300 {
-		return fmt.Errorf("google ads %d: %s", resp.StatusCode, string(rb))
 	}
 
 	h.logger.Info("google ads conversion uploaded",

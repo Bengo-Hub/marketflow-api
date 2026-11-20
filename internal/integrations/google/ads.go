@@ -13,8 +13,14 @@ import (
 // Google Ads API calls MarketFlow makes for a business's own Google Ads account (owner
 // 2026-11-19: connect, results, conversion upload; scope https://www.googleapis.com/auth/adwords).
 // The platform client is ProviderSetting "google_ads"/"ads": client_id, client_secret,
-// redirect_url, developer_token, login_customer_id (manager account, optional) and api_version
-// (optional, AdsAPIVersion when empty). REST, not the gRPC client library, to keep the binary small.
+// redirect_url, login_customer_id (manager account, optional) and api_version (optional,
+// AdsAPIVersion when empty). REST, not the gRPC client library, to keep the binary small.
+//
+// No developer token. Google retired them on 2026-09-09: the API ignores the header today and
+// a future major version rejects it, so MarketFlow never sends one, and a developer_token
+// still stored on the row is ignored. API access now belongs to the Google Cloud project that
+// owns the OAuth client (marketflow-os); its level (Test, Explorer, Basic, Standard) is set on
+// that project's Google Ads API Overview page (developers.google.com/google-ads/api/docs/api-policy/developer-token).
 
 const (
 	// ProviderGoogleAds and ProviderGoogleAdsName are the platform client's ProviderSetting row.
@@ -33,10 +39,9 @@ const (
 
 // Ads is a Google Ads API caller for one access token.
 type Ads struct {
-	HTTP           *http.Client
-	Base           string // AdsAPIBase unless a test sets it
-	Version        string
-	DeveloperToken string
+	HTTP    *http.Client
+	Base    string // AdsAPIBase unless a test sets it
+	Version string
 	// LoginCustomerID is the manager account the call goes through, when the customer is reached
 	// through one (digits only).
 	LoginCustomerID string
@@ -49,7 +54,7 @@ func AdsFromSettings(hc *http.Client, extra map[string]string, accessToken strin
 	if v == "" {
 		v = AdsAPIVersion
 	}
-	return Ads{HTTP: hc, Base: AdsAPIBase, Version: v, DeveloperToken: extra["developer_token"],
+	return Ads{HTTP: hc, Base: AdsAPIBase, Version: v,
 		LoginCustomerID: CustomerDigits(extra["login_customer_id"]), AccessToken: accessToken}
 }
 
@@ -64,10 +69,15 @@ type AdsError struct {
 
 func (e *AdsError) Error() string { return fmt.Sprintf("google ads %d: %s", e.Status, e.Message) }
 
+// errProjectNotApproved is what Google returns (v25 on) when the Cloud project only has Test
+// access and the call reaches a real account.
+const errProjectNotApproved = "CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION"
+
+// ProjectAccessMessage replaces Google's raw refusal with what to do about it.
+const ProjectAccessMessage = "MarketFlow's Google Cloud project only has Test access to the Google Ads API. " +
+	"The platform owner requests Explorer or Basic access on the project's Google Ads API Overview page in the Cloud Console."
+
 func (a Ads) do(ctx context.Context, method, path string, body any, out any) error {
-	if a.DeveloperToken == "" {
-		return fmt.Errorf("google ads developer token not configured")
-	}
 	var rdr io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
@@ -85,7 +95,6 @@ func (a Ads) do(ctx context.Context, method, path string, body any, out any) err
 		return err
 	}
 	req.Header.Set("Authorization", "Bearer "+a.AccessToken)
-	req.Header.Set("developer-token", a.DeveloperToken)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -110,6 +119,9 @@ func (a Ads) do(ctx context.Context, method, path string, body any, out any) err
 		}
 		_ = json.Unmarshal(data, &e)
 		msg := e.Error.Message
+		if strings.Contains(string(data), errProjectNotApproved) {
+			msg = ProjectAccessMessage
+		}
 		if msg == "" {
 			msg = strings.TrimSpace(string(data))
 			if len(msg) > 300 {
