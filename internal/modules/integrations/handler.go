@@ -36,6 +36,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/integrations/google"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
+	"github.com/bengobox/marketflow-api/internal/integrations/tiktok"
 	chirouter "github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -58,6 +59,9 @@ type Handler struct {
 	youtubeAPIBase string
 	// googleAdsBase is the Google Ads REST host ("" for Google's own; tests set a fake).
 	googleAdsBase string
+	// tiktokOAuth is TikTok's token, revoke and user info endpoints (tiktok_creator.go); the zero
+	// value is TikTok's own, tests point it at a fake.
+	tiktokOAuth tiktok.OAuth
 	// states makes connect states single use and bindBrowser ties them to the starting browser
 	// (oauth_state.go); nil states keeps the signed state alone (tests).
 	states      stateStore
@@ -752,6 +756,8 @@ func (h *Handler) DisconnectTenant(w http.ResponseWriter, r *http.Request) {
 		h.revokeGoogleGrants(r.Context(), tenantID, AccountYouTubeChannel)
 	case providerGoogleAds:
 		h.revokeGoogleGrants(r.Context(), tenantID, AccountGoogleAdsCustomer)
+	case providerTikTok:
+		h.revokeTikTokGrants(r.Context(), tenantID)
 	}
 	revoked, err := h.revokeAccounts(r.Context(), tenantID, provider)
 	if err != nil {

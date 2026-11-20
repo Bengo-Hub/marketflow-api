@@ -86,6 +86,9 @@ func tiktokChunks(size int64) (chunk int64, count int) {
 }
 
 type tiktokCreator struct {
+	CreatorAvatarURL        string   `json:"creator_avatar_url"`
+	CreatorUsername         string   `json:"creator_username"`
+	CreatorNickname         string   `json:"creator_nickname"`
 	PrivacyLevelOptions     []string `json:"privacy_level_options"`
 	CommentDisabled         bool     `json:"comment_disabled"`
 	DuetDisabled            bool     `json:"duet_disabled"`
@@ -93,24 +96,42 @@ type tiktokCreator struct {
 	MaxVideoPostDurationSec int      `json:"max_video_post_duration_sec"`
 }
 
+// CreatorInfo is what the publish dialog shows for a TikTok account: who will post, the privacy
+// levels the creator may choose, the interactions the creator turned off in TikTok, and the
+// longest video allowed.
+type CreatorInfo struct {
+	Nickname        string   `json:"nickname"`
+	Username        string   `json:"username"`
+	AvatarURL       string   `json:"avatar_url"`
+	PrivacyLevels   []string `json:"privacy_level_options"`
+	CommentDisabled bool     `json:"comment_disabled"`
+	DuetDisabled    bool     `json:"duet_disabled"`
+	StitchDisabled  bool     `json:"stitch_disabled"`
+	MaxVideoSeconds int      `json:"max_video_post_duration_sec"`
+}
+
+// CreatorInfo calls creator_info/query for the account.
+func (t *TikTokDirect) CreatorInfo(ctx context.Context, a Account) (CreatorInfo, error) {
+	var ci tiktokCreator
+	if err := t.call(ctx, a, "/v2/post/publish/creator_info/query/", map[string]any{}, &ci); err != nil {
+		return CreatorInfo{}, fmt.Errorf("tiktok creator info: %w", err)
+	}
+	return CreatorInfo{Nickname: ci.CreatorNickname, Username: ci.CreatorUsername, AvatarURL: ci.CreatorAvatarURL,
+		PrivacyLevels: ci.PrivacyLevelOptions, CommentDisabled: ci.CommentDisabled, DuetDisabled: ci.DuetDisabled,
+		StitchDisabled: ci.StitchDisabled, MaxVideoSeconds: ci.MaxVideoPostDurationSec}, nil
+}
+
 func (t *TikTokDirect) Start(ctx context.Context, a Account, v Video, p Post) (UploadState, error) {
 	var ci tiktokCreator
 	if err := t.call(ctx, a, "/v2/post/publish/creator_info/query/", map[string]any{}, &ci); err != nil {
 		return UploadState{}, fmt.Errorf("tiktok creator info: %w", err)
 	}
-	if !slices.Contains(ci.PrivacyLevelOptions, t.Privacy) {
-		return UploadState{}, fmt.Errorf("this TikTok account does not allow the %s privacy level", t.Privacy)
+	postInfo, err := tiktokPostInfo(ci, p, t.Privacy)
+	if err != nil {
+		return UploadState{}, err
 	}
 	if ci.MaxVideoPostDurationSec > 0 && v.DurationMS > ci.MaxVideoPostDurationSec*1000 {
 		return UploadState{}, fmt.Errorf("this TikTok account can post videos up to %d seconds", ci.MaxVideoPostDurationSec)
-	}
-	postInfo := map[string]any{
-		"title":           p.Caption,
-		"privacy_level":   t.Privacy,
-		"disable_comment": ci.CommentDisabled,
-		"disable_duet":    ci.DuetDisabled,
-		"disable_stitch":  ci.StitchDisabled,
-		"is_aigc":         p.AIGenerated,
 	}
 	pull := t.canPull(v.URL)
 	out, err := t.initPost(ctx, a, v, postInfo, pull)
@@ -131,6 +152,39 @@ func (t *TikTokDirect) Start(ctx context.Context, a Account, v Video, p Post) (U
 		st.Offset = v.Bytes // TikTok pulls the file itself
 	}
 	return st, nil
+}
+
+// tiktokPostInfo builds post_info from the person's choices, checked against what the creator
+// allows right now (creator_info is read again at post time, so a setting changed on TikTok
+// since the dialog still wins). A job without choices (scheduled before they existed, or by the
+// autopilot) keeps the earlier behaviour: the fallback privacy level and the creator's own
+// interaction settings.
+func tiktokPostInfo(ci tiktokCreator, p Post, fallbackPrivacy string) (map[string]any, error) {
+	o := TikTokOptions{PrivacyLevel: fallbackPrivacy, AllowComment: true, AllowDuet: true, AllowStitch: true}
+	if p.TikTok != nil {
+		o = *p.TikTok
+	}
+	if !slices.Contains(ci.PrivacyLevelOptions, o.PrivacyLevel) {
+		return nil, fmt.Errorf("this TikTok account does not allow the %s privacy level", o.PrivacyLevel)
+	}
+	if o.BrandContent && o.PrivacyLevel == "SELF_ONLY" {
+		return nil, fmt.Errorf("TikTok does not allow branded content to be private (only me)")
+	}
+	info := map[string]any{
+		"title":           p.Caption,
+		"privacy_level":   o.PrivacyLevel,
+		"disable_comment": ci.CommentDisabled || !o.AllowComment,
+		"disable_duet":    ci.DuetDisabled || !o.AllowDuet,
+		"disable_stitch":  ci.StitchDisabled || !o.AllowStitch,
+		"is_aigc":         p.AIGenerated,
+	}
+	if o.BrandOrganic {
+		info["brand_organic_toggle"] = true
+	}
+	if o.BrandContent {
+		info["brand_content_toggle"] = true
+	}
+	return info, nil
 }
 
 type tiktokInit struct {

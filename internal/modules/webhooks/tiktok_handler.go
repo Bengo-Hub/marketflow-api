@@ -2,21 +2,17 @@ package webhooks
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
 	"crypto/subtle"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/integrations/tiktok"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -73,41 +69,12 @@ func readWebhookBody(w http.ResponseWriter, r *http.Request) (body []byte, tooLa
 }
 
 // tiktokSignatureHeader carries "t=<unix seconds>,s=<hex HMAC-SHA256 of "<t>.<body>">".
-const (
-	tiktokSignatureHeader = "TikTok-Signature"
-	tiktokSignatureSkew   = 5 * time.Minute
-)
+const tiktokSignatureHeader = tiktok.SignatureHeader
 
-// verifyTikTokSignature checks a TikTok-Signature header against the raw body.
+// verifyTikTokSignature checks a TikTok-Signature header against the raw body (one shared
+// check for the lead webhook and the posting webhook).
 func verifyTikTokSignature(header string, body []byte, secret string, now time.Time) bool {
-	if secret == "" {
-		return false
-	}
-	var ts, sig string
-	for _, part := range strings.Split(header, ",") {
-		k, v, ok := strings.Cut(strings.TrimSpace(part), "=")
-		if !ok {
-			continue
-		}
-		switch k {
-		case "t":
-			ts = v
-		case "s":
-			sig = v
-		}
-	}
-	sec, err := strconv.ParseInt(ts, 10, 64)
-	if err != nil || sig == "" {
-		return false
-	}
-	if d := now.Sub(time.Unix(sec, 0)); d > tiktokSignatureSkew || d < -tiktokSignatureSkew {
-		return false
-	}
-	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(ts + "."))
-	mac.Write(body)
-	want := hex.EncodeToString(mac.Sum(nil))
-	return hmac.Equal([]byte(want), []byte(strings.ToLower(sig)))
+	return tiktok.VerifySignature(header, body, secret, now)
 }
 
 // authorised decides whether an event is TikTok's: a valid signature first, else the query

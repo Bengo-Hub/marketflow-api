@@ -16,6 +16,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/bengobox/marketflow-api/internal/ent/publishjob"
 	"github.com/bengobox/marketflow-api/internal/integrations/google"
+	"github.com/bengobox/marketflow-api/internal/integrations/tiktok"
 	"github.com/google/uuid"
 )
 
@@ -40,6 +41,8 @@ type EntStore struct {
 	Keys *encryption.KeyProvider
 	// YouTube renews YouTube channel access tokens; nil uses google.NewTokens(DB, Keys).
 	YouTube TokenSource
+	// TikTok renews TikTok account access tokens; nil uses tiktok.NewTokens(DB, Keys).
+	TikTok TokenSource
 }
 
 // Claim takes up to limit due jobs. Each is claimed by one conditional UPDATE (still running,
@@ -107,6 +110,12 @@ func (s *EntStore) load(ctx context.Context, row *ent.PublishJob) (*Job, error) 
 	j.Post.Caption = row.Caption
 	j.Post.AIGenerated, _ = row.Metadata["ai_generated"].(bool)
 	j.Post.MadeForKids, _ = row.Metadata["made_for_kids"].(bool)
+	if raw, ok := row.Metadata["tiktok"]; ok {
+		var o TikTokOptions
+		if b, err := json.Marshal(raw); err == nil && json.Unmarshal(b, &o) == nil && o.PrivacyLevel != "" {
+			j.Post.TikTok = &o
+		}
+	}
 	if raw, ok := row.Metadata["upload"]; ok {
 		b, _ := json.Marshal(raw)
 		_ = json.Unmarshal(b, &j.State)
@@ -187,6 +196,18 @@ func (s *EntStore) Account(ctx context.Context, tenantID, accountID string) (Acc
 		}
 		return Account{ID: acc.ID.String(), ExternalID: acc.ExternalID, Token: tok, Scopes: acc.Scopes}, nil
 	}
+	if acc.AccountType == tiktok.AccountCreator {
+		// TikTok access tokens last 24 hours; the refresh token stored at connect renews them.
+		src := s.TikTok
+		if src == nil {
+			src = tiktok.NewTokens(s.DB, s.Keys)
+		}
+		tok, err := src.AccessToken(ctx, acc)
+		if err != nil {
+			return Account{}, &AccountTokenError{Platform: TikTok, Err: err, Reconnect: tiktokNeedsReconnect(err)}
+		}
+		return Account{ID: acc.ID.String(), ExternalID: acc.ExternalID, Token: tok, Scopes: acc.Scopes}, nil
+	}
 	if acc.TokenCiphertext == "" {
 		return Account{}, errors.New("no token")
 	}
@@ -223,6 +244,12 @@ func (e *AccountTokenError) Error() string {
 }
 
 func (e *AccountTokenError) Unwrap() error { return e.Err }
+
+// tiktokNeedsReconnect: TikTok said invalid_grant, or the row has no refresh token at all.
+func tiktokNeedsReconnect(err error) bool {
+	var te *tiktok.TokenError
+	return errors.Is(err, tiktok.ErrNoRefreshToken) || (errors.As(err, &te) && te.Revoked())
+}
 
 // googleNeedsReconnect: Google said invalid_grant, or the row has no refresh token at all.
 func googleNeedsReconnect(err error) bool {

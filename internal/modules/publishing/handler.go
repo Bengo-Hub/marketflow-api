@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -45,6 +46,10 @@ type Handler struct {
 	WhatsApp WhatsAppPublishDeps
 	// Kick asks the worker to run now; nil leaves it to its next tick.
 	Kick func()
+	// TikTokInfo reads creator_info for the publish dialog; nil calls TikTok's own API.
+	TikTokInfo TikTokCreatorInfoFunc
+	// now is the clock of the TikTok webhook signature check (tests set it).
+	now func() time.Time
 }
 
 // allowed answers 403 when the caller may not post for the tenant.
@@ -67,6 +72,31 @@ type ScheduleInput struct {
 	Caption     string    `json:"caption"`
 	ScheduledAt time.Time `json:"scheduled_at"` // zero means now
 	MadeForKids bool      `json:"made_for_kids"`
+	// TikTok is required when a TikTok account is picked: the privacy level (no default, as
+	// TikTok's posting guidelines require), the interactions and the commercial content
+	// disclosure the person chose.
+	TikTok *TikTokOptions `json:"tiktok,omitempty"`
+	// TikTokConsent is the person agreeing to TikTok's Music Usage Confirmation (and the Branded
+	// Content Policy when branded content is on) shown under the TikTok options.
+	TikTokConsent bool `json:"tiktok_consent"`
+}
+
+// tiktokPrivacyLevels are the privacy_level values TikTok defines.
+var tiktokPrivacyLevels = []string{"PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY"}
+
+// checkTikTokChoice says what is wrong with the TikTok choices ("" when they are complete).
+func checkTikTokChoice(o *TikTokOptions, consent bool) string {
+	switch {
+	case o == nil || o.PrivacyLevel == "":
+		return "choose who can see the TikTok post"
+	case !slices.Contains(tiktokPrivacyLevels, o.PrivacyLevel):
+		return "unknown TikTok privacy level " + o.PrivacyLevel
+	case o.BrandContent && o.PrivacyLevel == "SELF_ONLY":
+		return "branded content cannot be private on TikTok; choose another audience"
+	case !consent:
+		return "agree to TikTok's Music Usage Confirmation to post to TikTok"
+	}
+	return ""
 }
 
 // JobView is one calendar entry.
@@ -183,6 +213,12 @@ func (h *Handler) Schedule(w http.ResponseWriter, r *http.Request) {
 			httpapi.Error(w, http.StatusBadRequest, "invalid_account", fmt.Sprintf("%s cannot take an organic post", acc.DisplayName), nil)
 			return
 		}
+		if platform == TikTok {
+			if msg := checkTikTokChoice(in.TikTok, in.TikTokConsent); msg != "" {
+				httpapi.Error(w, http.StatusBadRequest, "tiktok_options_required", msg, nil)
+				return
+			}
+		}
 		if !h.Store.Enabled(ctx, platform) {
 			httpapi.Error(w, http.StatusConflict, "platform_disabled", fmt.Sprintf("posting to %s is not switched on yet", title(platform)), nil)
 			return
@@ -201,6 +237,15 @@ func (h *Handler) Schedule(w http.ResponseWriter, r *http.Request) {
 	out := make([]JobView, 0, len(targets))
 	for _, t := range targets {
 		key := asset.ID.String() + ":" + t.acc.ID.String()
+		md := map[string]any{
+			"ai_generated":  post.AIGenerated,
+			"made_for_kids": post.MadeForKids,
+			"planned_at":    when.Format(time.RFC3339),
+		}
+		if t.platform == TikTok && in.TikTok != nil {
+			md["tiktok"] = in.TikTok
+			md["tiktok_consent_at"] = now.Format(time.RFC3339)
+		}
 		c := h.Store.DB.PublishJob.Create().
 			SetTenantID(tid).
 			SetAssetID(asset.ID).
@@ -209,11 +254,7 @@ func (h *Handler) Schedule(w http.ResponseWriter, r *http.Request) {
 			SetCaption(post.Caption).
 			SetScheduledAt(when).
 			SetDedupeKey(key).
-			SetMetadata(map[string]any{
-				"ai_generated":  post.AIGenerated,
-				"made_for_kids": post.MadeForKids,
-				"planned_at":    when.Format(time.RFC3339),
-			})
+			SetMetadata(md)
 		if u := userOf(r); u != nil {
 			c.SetCreatedBy(*u)
 		}

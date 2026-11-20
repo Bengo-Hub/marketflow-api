@@ -45,6 +45,24 @@ type Post struct {
 	AIGenerated bool
 	// MadeForKids is YouTube's selfDeclaredMadeForKids, always sent explicitly.
 	MadeForKids bool
+	// TikTok holds what the person chose in the publish dialog for a TikTok post. TikTok's
+	// posting guidelines require the privacy level and the interaction switches to be the
+	// person's own choice, so nil (a job from before this field) falls back to the defaults.
+	TikTok *TikTokOptions
+}
+
+// TikTokOptions is the post_info the person chose for a TikTok post (stored on the job's
+// metadata under "tiktok").
+type TikTokOptions struct {
+	PrivacyLevel string `json:"privacy_level"`
+	AllowComment bool   `json:"allow_comment"`
+	AllowDuet    bool   `json:"allow_duet"`
+	AllowStitch  bool   `json:"allow_stitch"`
+	// BrandOrganic: the video promotes the business's own brand ("Your brand").
+	BrandOrganic bool `json:"brand_organic"`
+	// BrandContent: a paid partnership promoting a third party ("Branded content"). TikTok does
+	// not allow it with the SELF_ONLY privacy level.
+	BrandContent bool `json:"brand_content"`
 }
 
 // UploadState is the resumable position, stored in PublishJob.metadata after every

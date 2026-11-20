@@ -346,6 +346,8 @@ type IntegrationsHandlers struct {
 	MetaDeletionStatus                http.HandlerFunc // Public
 	TikTokAuthorize                   http.HandlerFunc
 	TikTokCallback                    http.HandlerFunc
+	TikTokCreatorAuthorize            http.HandlerFunc
+	TikTokCreatorCallback             http.HandlerFunc
 	YouTubeAuthorize                  http.HandlerFunc
 	YouTubeCallback                   http.HandlerFunc
 	GoogleAdsAuthorize                http.HandlerFunc
@@ -621,6 +623,10 @@ type PublishingHandlers struct {
 	// OSTurnPublish is S2S POST /internal/creative/os-turn/publish: approve and post a finished
 	// ad from WhatsApp (Sprint 17), organic only.
 	OSTurnPublish http.HandlerFunc
+	// TikTokCreatorInfo reads creator_info for the publish dialog's TikTok options.
+	TikTokCreatorInfo http.HandlerFunc
+	// TikTokWebhook is the TikTok developer app webhook (public, signature verified).
+	TikTokWebhook http.HandlerFunc
 }
 
 // CustomAgentHandlers groups custom agent HTTP handlers.
@@ -975,6 +981,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Put("/google/business-hours", deps.IntegrationsHandlers.UpdateGoogleCalendarBusinessHours)
 				r.Get("/meta/authorize", deps.IntegrationsHandlers.MetaAuthorize)
 				r.Get("/tiktok/authorize", deps.IntegrationsHandlers.TikTokAuthorize)
+				if deps.IntegrationsHandlers.TikTokCreatorAuthorize != nil {
+					r.Get("/tiktok-creator/authorize", deps.IntegrationsHandlers.TikTokCreatorAuthorize)
+				}
 				if deps.IntegrationsHandlers.YouTubeAuthorize != nil {
 					r.Get("/youtube/authorize", deps.IntegrationsHandlers.YouTubeAuthorize)
 				}
@@ -1249,6 +1258,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 			if deps.PublishingHandlers.Schedule != nil {
 				r.Route("/publishing", func(r chi.Router) {
 					r.Get("/accounts", deps.PublishingHandlers.Accounts)
+					if deps.PublishingHandlers.TikTokCreatorInfo != nil {
+						r.Get("/accounts/{id}/tiktok-creator-info", deps.PublishingHandlers.TikTokCreatorInfo)
+					}
 					r.Post("/jobs", deps.PublishingHandlers.Schedule)
 					r.Get("/jobs", deps.PublishingHandlers.List)
 					r.Post("/jobs/{id}/cancel", deps.PublishingHandlers.Cancel)
@@ -1453,6 +1465,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 			r.With(readLimit).Get("/public/data-deletion/{code}", deps.IntegrationsHandlers.MetaDeletionStatus)
 		}
 		r.With(readLimit).Get("/integrations/tiktok/callback", deps.IntegrationsHandlers.TikTokCallback)
+		if deps.IntegrationsHandlers.TikTokCreatorCallback != nil {
+			r.With(readLimit).Get("/integrations/tiktok-creator/callback", deps.IntegrationsHandlers.TikTokCreatorCallback)
+		}
 		if deps.IntegrationsHandlers.YouTubeCallback != nil {
 			r.With(readLimit).Get("/integrations/youtube/callback", deps.IntegrationsHandlers.YouTubeCallback)
 		}
@@ -1470,6 +1485,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					Post("/notifications/delivery", deps.WebhookHandlers.NotificationsDelivery)
 			}
 			r.With(hookLimit).Post("/tiktok/leads", deps.WebhookHandlers.TikTokLeads)
+			if deps.PublishingHandlers.TikTokWebhook != nil {
+				r.With(hookLimit).Post("/tiktok/events", deps.PublishingHandlers.TikTokWebhook)
+			}
 		})
 
 		// Public API routes (no auth). Each write has its own per-IP limit (Sprint 7 #61) on top of

@@ -34,16 +34,18 @@ const (
 // providerPlatforms maps a ProviderSetting provider_type to the ConnectedAccount platform it
 // connects, so a disconnect revokes both.
 var providerPlatforms = map[string]string{"meta_ads": PlatformMeta, "tiktok_ads": PlatformTikTok,
-	providerYouTube: PlatformGoogle, providerGoogleAds: PlatformGoogle}
+	providerYouTube: PlatformGoogle, providerGoogleAds: PlatformGoogle, providerTikTok: PlatformTikTok}
 
 // providerAccountTypes narrows a disconnect to the provider's own account types where one
-// platform has several connections: disconnecting YouTube must not touch a Google Ads customer.
+// platform has several connections: disconnecting YouTube must not touch a Google Ads customer,
+// and TikTok for Business (advertisers) and the posting connection (creators) are separate.
 var providerAccountTypes = map[string][]string{providerYouTube: {AccountYouTubeChannel},
-	providerGoogleAds: {AccountGoogleAdsCustomer}}
+	providerGoogleAds: {AccountGoogleAdsCustomer}, "tiktok_ads": {AccountTikTokAdvertiser},
+	providerTikTok: {AccountTikTokCreator}}
 
 // accountOnlyProviders keep no tenant ProviderSetting rows: their ConnectedAccount rows are the
 // whole connection.
-var accountOnlyProviders = []string{providerYouTube}
+var accountOnlyProviders = []string{providerYouTube, providerTikTok}
 
 // account is one external asset found at connect time.
 type account struct {

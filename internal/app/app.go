@@ -859,6 +859,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			MetaDeletionStatus:                integrationsHandler.MetaDeletionStatus,
 			TikTokAuthorize:                   integrationsHandler.TikTokAuthorize,
 			TikTokCallback:                    integrationsHandler.TikTokCallback,
+			TikTokCreatorAuthorize:            integrationsHandler.TikTokCreatorAuthorize,
+			TikTokCreatorCallback:             integrationsHandler.TikTokCreatorCallback,
 			YouTubeAuthorize:                  integrationsHandler.YouTubeAuthorize,
 			YouTubeCallback:                   integrationsHandler.YouTubeCallback,
 			GoogleAdsAuthorize:                integrationsHandler.GoogleAdsAuthorize,
@@ -1078,6 +1080,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Move:               publishingHandler.Move,
 			DeleteFromPlatform: publishingHandler.DeleteFromPlatform,
 			OSTurnPublish:      publishingHandler.OSTurnPublish,
+			TikTokCreatorInfo:  publishingHandler.TikTokCreatorInfo,
+			TikTokWebhook:      publishingHandler.TikTokWebhook,
 		},
 		SegmentHandlers: httpapi.SegmentHandlers{
 			Create:   segmentHandler.Create,
