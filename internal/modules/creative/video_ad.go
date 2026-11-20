@@ -561,6 +561,8 @@ type scriptCall struct {
 	PresenterSpeaker string `json:"presenter_speaker,omitempty"`
 	// Place is where the business is and how it looks, for the setting brief (place.go).
 	Place *placeFacts `json:"place,omitempty"`
+	// ActorPrompt is the presenter the owner described (the brief's actor when kept), for the writer.
+	ActorPrompt string `json:"actor_prompt,omitempty"`
 }
 
 // maxScriptReviews is the most published reviews sent with one script call.
@@ -647,6 +649,12 @@ func (r *Renderer) writeScript(ctx context.Context, v *ent.CreativeVersion) {
 		Kind: videoKind(v), Charge: true, BrandPhotos: len(strs(meta[metaBrandImageKeys])), Format: v.Format,
 		Delivery: str(meta["delivery"]), Approach: str(meta["approach"]),
 		PresenterSpeaker: briefActorGender(b.Metadata), Reviews: r.publishedReviews(ctx, v.TenantID)}
+	call.ActorPrompt = excerpt(str(meta["actor_prompt"]), 300)
+	if call.ActorPrompt == "" {
+		if actor, ok := b.Metadata["actor"].(map[string]any); ok {
+			call.ActorPrompt = excerpt(str(actor["prompt"]), 300)
+		}
+	}
 	if t, err := r.db.Tenant.Get(ctx, v.TenantID); err == nil {
 		call.ActorNameStyle, call.ActorNames = marketingos.ActorNaming(t.Metadata)
 	}
