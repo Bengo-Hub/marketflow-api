@@ -8,6 +8,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
+	"github.com/bengobox/marketflow-api/internal/flp"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -164,6 +165,11 @@ func (s *Service) Get(ctx context.Context, tenantID, campaignID uuid.UUID) (*ent
 func (s *Service) List(ctx context.Context, in ListInput) ([]*ent.Campaign, int, error) {
 	query := s.client.Campaign.Query().
 		Where(campaign.TenantID(in.TenantID))
+	// The platform starter templates live under the platform tenant's id; the Forever ones are
+	// for Forever distributors only.
+	if !flp.TenantIsFLP(ctx, s.client, in.TenantID) {
+		query = query.Where(flp.NotPlatformFLP())
+	}
 
 	if in.Status != nil {
 		query = query.Where(campaign.StatusEQ(*in.Status))

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -56,6 +57,14 @@ func markedDone(meta map[string]any, key string) bool {
 	}
 	at, ok := steps[key].(string)
 	return ok && at != ""
+}
+
+// billingExempt reports a caller the subscription gates let through (auth-client
+// Claims.IsGatingExempt: the platform owner, a demo or service-charge tenant, a sub_exempt
+// tenant), as the feature gate and every fleet service read it. Such a tenant is never on a trial.
+func billingExempt(ctx context.Context) bool {
+	c, ok := authclient.ClaimsFromContext(ctx)
+	return ok && c != nil && c.IsGatingExempt()
 }
 
 // quickStartSteps are the plan, widget and share steps of a tenant's checklist.

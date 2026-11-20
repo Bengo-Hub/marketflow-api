@@ -10,6 +10,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
+	"github.com/bengobox/marketflow-api/internal/flp"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -136,7 +137,12 @@ func (s *Service) ListEntries(ctx context.Context, in ListEntriesInput) ([]*ent.
 	if in.Suggested {
 		query = query.Where(knowledgebaseentry.TenantID(in.TenantID), isSuggested())
 	} else {
-		query = query.Where(notSuggested())
+		query = query.Where(notSuggested(), notRetiredPlatform())
+	}
+	// Forever platform sets are for Forever distributors only. The platform tenant anchors every
+	// platform row, so its own id must not let them through either.
+	if !flp.TenantIsFLP(ctx, s.client, in.TenantID) {
+		query = query.Where(flp.NotPlatformFLP())
 	}
 	if in.Category != nil {
 		query = query.Where(knowledgebaseentry.CategoryEQ(*in.Category))

@@ -88,9 +88,12 @@ func (r *ReEngagement) tick(ctx context.Context) {
 // enrolDormant does one run: it walks every eligible lead once, in id order, with all filters
 // in SQL, and returns how many enrolments it created.
 func (r *ReEngagement) enrolDormant(ctx context.Context, now time.Time) (int, error) {
-	// One sequence per tenant: the oldest active contact.dormant sequence.
+	// One sequence per tenant: the oldest active contact.dormant sequence of the tenant's own.
+	// Platform templates live under the platform tenant's id and would otherwise enrol its
+	// leads, as the lead.created handler already guards against.
 	seqs, err := r.db.NurtureSequence.Query().
 		Where(
+			nurturesequence.ScopeEQ("tenant"),
 			nurturesequence.TriggerEventEQ("contact.dormant"),
 			nurturesequence.ActiveEQ(true),
 		).

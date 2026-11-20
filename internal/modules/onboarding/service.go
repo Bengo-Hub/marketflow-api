@@ -105,11 +105,16 @@ func (s *Service) Checklist(ctx context.Context, tenantID uuid.UUID) (Checklist,
 	team, _ := s.db.MarketflowUser.Query().Where(marketflowuser.TenantID(tenantID)).Limit(2).Count(ctx)
 
 	planStep, widgetStep, shareStep := s.quickStartSteps(ctx, tenantID, meta)
-	steps := []Step{
-		// The plan comes first, as at sign-up: a business starts on its trial and chooses here.
-		planStep,
-		{Key: "profile", Done: str(meta, "tagline") != "" && str(meta, "bio") != "" && (hasChannel || str(meta, "contact_email") != "")},
+	var steps []Step
+	// The plan comes first, as at sign-up: a business starts on its trial and chooses here. A
+	// billing-exempt caller (the platform owner, a sub_exempt tenant) has every feature and no
+	// trial, so it gets no plan step.
+	if !billingExempt(ctx) {
+		steps = append(steps, planStep)
 	}
+	steps = append(steps, []Step{
+		{Key: "profile", Done: str(meta, "tagline") != "" && str(meta, "bio") != "" && (hasChannel || str(meta, "contact_email") != "")},
+	}...)
 	// No tenant declares products (owner, 2026-11-03). A Forever tenant sells the seeded Forever
 	// products, and its one requirement is a distributor ID, so every product links to its own
 	// Forever shop. Every other tenant's offerings come from its own catalogue (inventory, POS,

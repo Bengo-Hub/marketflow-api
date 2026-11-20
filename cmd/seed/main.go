@@ -16,6 +16,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
 	"github.com/bengobox/marketflow-api/internal/ent/rolepermission"
+	"github.com/bengobox/marketflow-api/internal/flp"
 	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
@@ -389,9 +390,10 @@ func seedRolePermissionMappings(ctx context.Context, client *ent.Client, tenantI
 }
 
 // ── Default nurture sequence templates ───────────────────────────────────
-// Five canonical FBO flows derived from docs/use-cases/fbo-workflows.md.
-// Seeded with scope='platform' so every tenant auto-enrols leads into them
-// via worker.LeadCreatedHandler without any per-tenant configuration.
+// Generic templates for every business plus five Forever (FBO) flows derived from
+// docs/use-cases/fbo-workflows.md. Seeded with scope='platform' under the anchor tenant; leads
+// are never auto-enrolled into platform templates. The Forever flows carry BusinessType "flp"
+// and are created only when the anchor tenant is a Forever tenant.
 // Idempotent — dedupe on (scope='platform', name).
 
 type seqStep struct {
@@ -409,6 +411,9 @@ type seqDef struct {
 	LeadTypeFilter string
 	Description  string
 	Steps        []seqStep
+	// BusinessType "flp" marks a Forever template. It is never created under a non-FLP anchor
+	// tenant (the platform tenant is not FLP), so generic tenants only get the generic defaults.
+	BusinessType string
 }
 
 func defaultSequences() []seqDef {
@@ -431,6 +436,7 @@ func defaultSequences() []seqDef {
 		},
 		{
 			Name:         "Welcome",
+			BusinessType: flp.BusinessType,
 			TriggerEvent: "lead.created",
 			Description:  "Convert new leads into first-order customers within 10 days.",
 			Steps: []seqStep{
@@ -449,6 +455,7 @@ func defaultSequences() []seqDef {
 		},
 		{
 			Name:         "C9 Offer",
+			BusinessType: flp.BusinessType,
 			TriggerEvent: "lead.qualified",
 			Description:  "Enrol lead in the 9-day Clean 9 educational drip + final purchase CTA on day 10.",
 			Steps: []seqStep{
@@ -469,6 +476,7 @@ func defaultSequences() []seqDef {
 		},
 		{
 			Name:         "Reorder",
+			BusinessType: flp.BusinessType,
 			TriggerEvent: "order.placed",
 			LeadTypeFilter: "customer",
 			Description:  "Lift reorder rate from ~18% to 35% by nudging consumables at day 25/28/35.",
@@ -484,6 +492,7 @@ func defaultSequences() []seqDef {
 		},
 		{
 			Name:         "Recruitment",
+			BusinessType: flp.BusinessType,
 			TriggerEvent: "lead.qualified",
 			LeadTypeFilter: "recruit",
 			Description:  "Move curious leads toward an Opportunity Call + FBO signup.",
@@ -504,6 +513,7 @@ func defaultSequences() []seqDef {
 		},
 		{
 			Name:         "Re-engagement",
+			BusinessType: flp.BusinessType,
 			TriggerEvent: "contact.dormant",
 			Description:  "Reactivate 5-10% of 60-day dormant leads; clean the rest.",
 			Steps: []seqStep{
@@ -585,12 +595,15 @@ type campaignTemplate struct {
 	Currency     string
 	AudienceMeta map[string]any
 	Description  string
+	// BusinessType "flp" marks a Forever template, created only under an FLP anchor tenant.
+	BusinessType string
 }
 
 func defaultCampaignTemplates() []campaignTemplate {
 	return []campaignTemplate{
 		{
 			Name:        "Meta Lead Ads — Starter",
+			BusinessType: flp.BusinessType,
 			Type:        "lead_gen",
 			Platform:    "meta",
 			BudgetDaily: 10.0,
@@ -604,7 +617,21 @@ func defaultCampaignTemplates() []campaignTemplate {
 			},
 		},
 		{
+			Name:        "Meta Lead Ads, local business starter",
+			Type:        "lead_gen",
+			Platform:    "meta",
+			BudgetDaily: 10.0,
+			Currency:    "USD",
+			Description: "Facebook and Instagram lead ads for any local business. Clone it, link a Page, attach a funnel and set your own audience.",
+			AudienceMeta: map[string]any{
+				"age_min": 18, "age_max": 65,
+				"gender":    "all",
+				"locations": []string{"KE"},
+			},
+		},
+		{
 			Name:        "Meta Retargeting — Website visitors (30d)",
+			BusinessType: flp.BusinessType,
 			Type:        "retargeting",
 			Platform:    "meta",
 			BudgetDaily: 5.0,
@@ -617,6 +644,7 @@ func defaultCampaignTemplates() []campaignTemplate {
 		},
 		{
 			Name:        "TikTok — Gen-Z wellness awareness",
+			BusinessType: flp.BusinessType,
 			Type:        "lead_gen",
 			Platform:    "tiktok",
 			BudgetDaily: 15.0,
@@ -630,6 +658,7 @@ func defaultCampaignTemplates() []campaignTemplate {
 		},
 		{
 			Name:        "Google Ads — Search (brand + category)",
+			BusinessType: flp.BusinessType,
 			Type:        "lead_gen",
 			Platform:    "google",
 			BudgetDaily: 20.0,
@@ -654,6 +683,7 @@ func defaultCampaignTemplates() []campaignTemplate {
 		},
 		{
 			Name:        "FBO Recruitment — LinkedIn sponsored",
+			BusinessType: flp.BusinessType,
 			Type:        "recruitment",
 			Platform:    "linkedin",
 			BudgetDaily: 15.0,
@@ -678,12 +708,26 @@ func defaultCampaignTemplates() []campaignTemplate {
 	}
 }
 
+// templateMeta is the metadata of a seeded platform template. A Forever template carries
+// business_type "flp" so the lists show it to Forever tenants only.
+func templateMeta(description, businessType string) map[string]any {
+	m := map[string]any{"description": description, "platform_template": true}
+	if businessType != "" {
+		m[flp.MetaBusinessType] = businessType
+	}
+	return m
+}
+
 func seedCampaignTemplates(ctx context.Context, client *ent.Client, tenantID uuid.UUID, scope string) int {
 	if scope != "platform" {
 		return 0
 	}
+	anchorFLP := flp.TenantIsFLP(ctx, client, tenantID)
 	count := 0
 	for _, t := range defaultCampaignTemplates() {
+		if t.BusinessType == flp.BusinessType && !anchorFLP {
+			continue
+		}
 		exists, _ := client.Campaign.Query().
 			Where(campaign.ScopeEQ("platform"), campaign.NameEQ(t.Name)).
 			Exist(ctx)
@@ -698,10 +742,7 @@ func seedCampaignTemplates(ctx context.Context, client *ent.Client, tenantID uui
 			SetPlatform(t.Platform).
 			SetStatus("draft").
 			SetCurrency(t.Currency).
-			SetMetadata(map[string]any{
-				"description":       t.Description,
-				"platform_template": true,
-			})
+			SetMetadata(templateMeta(t.Description, t.BusinessType))
 		if t.BudgetDaily > 0 {
 			b.SetBudgetDaily(t.BudgetDaily)
 		}
@@ -724,8 +765,12 @@ func seedNurtureSequences(ctx context.Context, client *ent.Client, tenantID uuid
 	if scope != "platform" {
 		return 0
 	}
+	anchorFLP := flp.TenantIsFLP(ctx, client, tenantID)
 	count := 0
 	for _, s := range defaultSequences() {
+		if s.BusinessType == flp.BusinessType && !anchorFLP {
+			continue
+		}
 		exists, _ := client.NurtureSequence.Query().
 			Where(
 				nurturesequence.ScopeEQ("platform"),
@@ -752,10 +797,7 @@ func seedNurtureSequences(ctx context.Context, client *ent.Client, tenantID uuid
 			SetTriggerEvent(s.TriggerEvent).
 			SetSteps(steps).
 			SetActive(true).
-			SetMetadata(map[string]any{
-				"description":       s.Description,
-				"platform_template": true,
-			})
+			SetMetadata(templateMeta(s.Description, s.BusinessType))
 		if s.LeadTypeFilter != "" {
 			builder.SetLeadTypeFilter(s.LeadTypeFilter)
 		}

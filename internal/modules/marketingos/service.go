@@ -214,6 +214,10 @@ type OSContext struct {
 	Exempt bool `json:"exempt,omitempty"`
 	// MarketSignals is the Find, Flip, Fix block (market_signals.go); absent until there is one.
 	MarketSignals *MarketSignals `json:"market_signals,omitempty"`
+	// PaymentMethods and Glossary are the team's terms (glossary.go): the only payment methods
+	// it may name, and spellings it must correct.
+	PaymentMethods []string       `json:"payment_methods,omitempty"`
+	Glossary       []GlossaryTerm `json:"glossary,omitempty"`
 }
 
 // Service serves the Marketing OS data.
@@ -508,6 +512,7 @@ func (s *Service) Context(ctx context.Context, tenantID uuid.UUID) (OSContext, e
 	if sig := marketSignals(t.Metadata); !sig.Empty() {
 		out.MarketSignals = &sig
 	}
+	out.PaymentMethods, out.Glossary = s.glossaryFor(ctx, tenantID)
 	titles, err := s.db.KnowledgeBaseEntry.Query().
 		Where(knowledgebaseentry.TenantID(tenantID), knowledgebaseentry.CategoryIn(offeringCategories...)).
 		Order(ent.Asc(knowledgebaseentry.FieldTitle)).

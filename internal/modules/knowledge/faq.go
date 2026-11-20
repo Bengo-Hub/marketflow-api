@@ -177,6 +177,15 @@ func isSuggested() func(*entsql.Selector) {
 	}
 }
 
+// notRetiredPlatform leaves out platform rows a seed set retired (metadata.stale). They are
+// already out of search; listing them showed old duplicates next to the live entries.
+func notRetiredPlatform() func(*entsql.Selector) {
+	return func(sel *entsql.Selector) {
+		sel.Where(entsql.ExprP("NOT (" + sel.C(knowledgebaseentry.FieldScope) + " = 'platform' AND COALESCE(" +
+			sel.C(knowledgebaseentry.FieldMetadata) + "->>'stale', '') = 'true')"))
+	}
+}
+
 // notSuggested matches the knowledge base proper: no pending and no rejected suggestions.
 func notSuggested() func(*entsql.Selector) {
 	return func(sel *entsql.Selector) {

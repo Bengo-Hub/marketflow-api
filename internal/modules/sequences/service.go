@@ -7,6 +7,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
+	"github.com/bengobox/marketflow-api/internal/flp"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -107,6 +108,11 @@ func (s *Service) Get(ctx context.Context, tenantID, sequenceID uuid.UUID) (*ent
 func (s *Service) List(ctx context.Context, in ListInput) ([]*ent.NurtureSequence, int, error) {
 	query := s.client.NurtureSequence.Query().
 		Where(nurturesequence.TenantID(in.TenantID))
+	// The platform templates live under the platform tenant's id; the Forever ones are for
+	// Forever distributors only.
+	if !flp.TenantIsFLP(ctx, s.client, in.TenantID) {
+		query = query.Where(flp.NotPlatformFLP())
+	}
 
 	if in.TriggerEvent != nil {
 		query = query.Where(nurturesequence.TriggerEventEQ(*in.TriggerEvent))

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	authclient "github.com/Bengo-Hub/shared-auth-client"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -123,5 +124,44 @@ func TestQuickStartSteps(t *testing.T) {
 	}
 	if code := post("profile"); code != http.StatusBadRequest {
 		t.Fatalf("mark profile: %d", code)
+	}
+}
+
+// A billing-exempt caller (platform owner, sub_exempt) is never on a trial, so the checklist has
+// no plan step for it; everyone else still gets it first.
+func TestChecklistHasNoPlanStepForExemptCallers(t *testing.T) {
+	db := openDB(t)
+	ctx := context.Background()
+	tid := uuid.New()
+	if _, err := db.Tenant.Create().SetID(tid).SetName("EX " + tid.String()).SetSlug("ex-" + tid.String()).
+		SetBusinessType("generic").Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Tenant.DeleteOneID(tid).Exec(ctx) })
+	svc := NewService(db, marketingos.NewService(db, nil, zap.NewNop()), nil, nil, nil, "codevertex", zap.NewNop()).
+		WithPlanStatus(func(context.Context, string) (string, bool) { return "TRIAL", true })
+
+	hasPlan := func(ctx context.Context) bool {
+		c, err := svc.Checklist(ctx, tid)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, st := range c.Steps {
+			if st.Key == StepPlan {
+				return true
+			}
+		}
+		return false
+	}
+	if !hasPlan(ctx) {
+		t.Fatal("a billed tenant must get the plan step")
+	}
+	for name, c := range map[string]*authclient.Claims{
+		"platform owner": {IsPlatformOwner: true},
+		"sub_exempt":     {SubscriptionExempt: true},
+	} {
+		if hasPlan(authclient.ContextWithClaims(ctx, c)) {
+			t.Errorf("%s caller got the plan step", name)
+		}
 	}
 }
