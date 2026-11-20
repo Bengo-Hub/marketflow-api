@@ -148,6 +148,49 @@ func (h *Handler) revokeAccounts(ctx context.Context, tenantID, provider string)
 		Save(ctx)
 }
 
+// revokeMissing marks the tenant's accounts of these types on a platform revoked when a fresh,
+// complete listing from the provider no longer contains them (owner 2026-11-20: an ad account
+// removed from the business on Meta stayed active, because a reconnect only ever added or
+// updated rows). Call it only after a listing call that succeeded; an empty keep with ok=false
+// does nothing. Boosts, autopilot and the integrations page already ignore revoked rows.
+func (h *Handler) revokeMissing(ctx context.Context, tenantID, platform string, types []string, keep []string) (int, error) {
+	tid, err := uuid.Parse(tenantID)
+	if err != nil || len(types) == 0 {
+		return 0, nil
+	}
+	u := h.db.ConnectedAccount.Update().
+		Where(
+			connectedaccount.TenantID(tid),
+			connectedaccount.Platform(platform),
+			connectedaccount.AccountTypeIn(types...),
+			connectedaccount.StatusNEQ("revoked"),
+		)
+	if len(keep) > 0 {
+		u = u.Where(connectedaccount.ExternalIDNotIn(keep...))
+	}
+	n, err := u.SetStatus("revoked").ClearTokenCiphertext().ClearRefreshCiphertext().Save(ctx)
+	if err == nil && n > 0 && h.logger != nil {
+		h.logger.Info("connected accounts no longer granted were revoked", zap.String("tenant", tenantID),
+			zap.String("platform", platform), zap.Strings("types", types), zap.Int("revoked", n))
+	}
+	return n, err
+}
+
+// externalIDsOf lists the external ids of the accounts of the given types.
+func externalIDsOf(accounts []account, types ...string) []string {
+	want := map[string]bool{}
+	for _, t := range types {
+		want[t] = true
+	}
+	var out []string
+	for _, a := range accounts {
+		if want[a.Type] {
+			out = append(out, a.ExternalID)
+		}
+	}
+	return out
+}
+
 // localUserID maps an auth user id to the tenant's MarketFlow user id (nil when unknown).
 func (h *Handler) localUserID(ctx context.Context, tenantID uuid.UUID, authUserID string) *uuid.UUID {
 	aid, err := uuid.Parse(authUserID)
@@ -311,7 +354,8 @@ func metaAccounts(pages []metaPage, adAccounts []metaAdAccount, userToken string
 		}
 	}
 	for _, a := range adAccounts {
-		if a.ID == "" {
+		// A closed (or closing) account can never run an ad: left out, so revokeMissing retires it.
+		if a.ID == "" || metaAdAccountClosed(a.AccountStatus) {
 			continue
 		}
 		out = append(out, account{
@@ -322,6 +366,10 @@ func metaAccounts(pages []metaPage, adAccounts []metaAdAccount, userToken string
 	}
 	return out
 }
+
+// metaAdAccountClosed reports Meta's own account_status codes for an account that is closed (101)
+// or pending closure (100); these are Graph API facts, not business settings.
+func metaAdAccountClosed(status int) bool { return status == 100 || status == 101 }
 
 // metaIGAccount is a Page's linked Instagram professional account.
 type metaIGAccount struct {

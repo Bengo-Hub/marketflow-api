@@ -406,6 +406,7 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 		"fields":       {"id,name,access_token,instagram_business_account{id,username,profile_picture_url}"},
 		"limit":        {"100"},
 	}, 5)
+	pagesListed := err == nil // a complete listing: Pages missing from it were un-granted
 	if err != nil && len(pages) == 0 {
 		h.failConnect(w, r, "meta", tenantID, "pages_fetch_failed", err.Error())
 		return
@@ -451,6 +452,7 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 		"fields":       {"id,name,currency,account_status"},
 		"limit":        {"100"},
 	}, 5)
+	adListed := err == nil
 	if err != nil {
 		h.logger.Info("meta connect: ad accounts not listed", zap.String("tenant", tenantID), zap.Error(err))
 	}
@@ -459,6 +461,17 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 		// The default Page is already saved above, so the connect still works; the full list
 		// is stored again on the next connect.
 		h.logger.Error("meta connect: connected accounts not stored", zap.String("tenant", tenantID), zap.Error(err))
+	} else {
+		// Assets the person no longer grants (an ad account removed from the business, a Page
+		// unticked) are retired, but only from listings that completed.
+		if pagesListed {
+			_, _ = h.revokeMissing(r.Context(), tenantID, PlatformMeta, []string{AccountFacebookPage, AccountInstagramBusiness},
+				externalIDsOf(accounts, AccountFacebookPage, AccountInstagramBusiness))
+		}
+		if adListed {
+			_, _ = h.revokeMissing(r.Context(), tenantID, PlatformMeta, []string{AccountMetaAdAccount},
+				externalIDsOf(accounts, AccountMetaAdAccount))
+		}
 	}
 	target := h.integrationsURL(r.Context(), tenantID, "meta=connected&page="+url.QueryEscape(p.Name))
 	http.Redirect(w, r, target, http.StatusFound)
@@ -575,6 +588,10 @@ func (h *Handler) TikTokCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.saveAccounts(r.Context(), tenantID, userID, advertisers); err != nil {
 		h.logger.Error("tiktok connect: connected accounts not stored", zap.String("tenant", tenantID), zap.Error(err))
+	} else {
+		// The token's advertiser list is the whole grant: advertisers no longer in it are retired.
+		_, _ = h.revokeMissing(r.Context(), tenantID, PlatformTikTok, []string{AccountTikTokAdvertiser},
+			externalIDsOf(advertisers, AccountTikTokAdvertiser))
 	}
 	target := h.integrationsURL(r.Context(), tenantID, "tiktok=connected")
 	http.Redirect(w, r, target, http.StatusFound)

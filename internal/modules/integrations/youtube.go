@@ -138,10 +138,13 @@ func (h *Handler) YouTubeCallback(w http.ResponseWriter, r *http.Request) {
 		h.failConnect(w, r, "youtube", tenantID, "no_channel", "the Google account has no YouTube channel")
 		return
 	}
-	if err := h.saveAccounts(ctx, tenantID, userID, youtubeAccounts(chans, tok, time.Now())); err != nil {
+	accs := youtubeAccounts(chans, tok, time.Now())
+	if err := h.saveAccounts(ctx, tenantID, userID, accs); err != nil {
 		h.failConnect(w, r, "youtube", tenantID, "persist_failed", err.Error())
 		return
 	}
+	// A channel the person no longer picks on Google's page is retired.
+	_, _ = h.revokeMissing(ctx, tenantID, PlatformGoogle, []string{AccountYouTubeChannel}, externalIDsOf(accs, AccountYouTubeChannel))
 	target := h.integrationsURL(ctx, tenantID, "youtube=connected&channel="+url.QueryEscape(chans[0].Title))
 	http.Redirect(w, r, target, http.StatusFound)
 }
