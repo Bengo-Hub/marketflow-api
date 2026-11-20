@@ -348,13 +348,17 @@ func main() {
 		// refunds, daily render cap and the agent's monthly ceiling. The Renderer hands each settled
 		// step on; the sweep catches anything missed and closes ended windows.
 		renderLinks := brandimages.NewLinker(mediaStore, brandImagesCfg.RenderLinkTTL)
+		// The business facts and website pages behind the setting brief and the end card contacts.
+		crawlerReader := marketingos.NewCrawlerReader(cfg.API.CrawlerURL, cfg.API.InternalServiceKey)
+		placeFacts := marketingos.NewService(entClient, nil, logger).WithPageReader(crawlerReader)
 		afterUse := &creative.AfterUse{DB: entClient, Notify: creative.EmailAfterUse(entClient, tokenNotif, cfg.API.PortalURL, logger), Logger: logger}
 		autopilotStudio := creative.NewService(entClient, logger)
 		if rdb != nil {
 			autopilotStudio = autopilotStudio.WithQuota(ratelimit.NewQuota(rdb))
 		}
 		autopilotPipeline := autopublish.New(autopublish.Deps{DB: entClient, Studio: autopilotStudio,
-			Quoter:  creative.NewRenderer(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).WithBrandImages(renderLinks),
+			Quoter: creative.NewRenderer(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).WithBrandImages(renderLinks).
+				WithFacts(placeFacts.BusinessFacts, crawlerReader),
 			Publish: pubStore, Gate: worker.AutopilotGate(cfg, entClient), Notif: tokenNotif,
 			Links:    autopublish.NewVetoLinks(encryption.KeyFromEnv(os.Getenv("MF_SECURITY_ENCRYPTION_KEY"))),
 			AfterUse: afterUse, AppURL: cfg.API.PortalURL, Config: cfg.Autopilot, Logger: logger})
@@ -363,7 +367,7 @@ func main() {
 		go autopilotPipeline.Run(ctx)
 
 		go creative.NewRenderer(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).
-			WithBrandImages(renderLinks).
+			WithBrandImages(renderLinks).WithFacts(placeFacts.BusinessFacts, crawlerReader).
 			// The fallback poll settles jobs too, so it sends a WhatsApp turn's messages as well.
 			WithOSTurn(creative.NewWhatsAppTurnNotifier(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey,
 				creative.NewPlatformWhatsApp(entClient,

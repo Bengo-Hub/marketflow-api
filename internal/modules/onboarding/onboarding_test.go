@@ -189,7 +189,7 @@ func TestChecklistAndDismissInDatabase(t *testing.T) {
 
 	// Profile and brand context written by their own paths; a published funnel.
 	if err := metastore.SetKeys(ctx, db, tid, map[string]any{
-		"bio": "Groceries in Thika", "contact_email": "a@b.co",
+		"bio": "Groceries in Thika", "contact_email": "a@b.co", "business_address": "Kenyatta Highway, Thika",
 	}); err != nil {
 		t.Fatal(err)
 	}

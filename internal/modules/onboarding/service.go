@@ -113,7 +113,10 @@ func (s *Service) Checklist(ctx context.Context, tenantID uuid.UUID) (Checklist,
 		steps = append(steps, planStep)
 	}
 	steps = append(steps, []Step{
-		{Key: "profile", Done: str(meta, "tagline") != "" && str(meta, "bio") != "" && (hasChannel || str(meta, "contact_email") != "")},
+		// The business address places the ads' scenes in its own town (owner, 2026-11-20); a Forever
+		// tenant without one uses the platform default (Forever Living Kenya's office).
+		{Key: "profile", Done: str(meta, "tagline") != "" && str(meta, "bio") != "" && (hasChannel || str(meta, "contact_email") != "") &&
+			(str(meta, creative.MetaBusinessAddress) != "" || strings.EqualFold(t.BusinessType, tenant.BusinessTypeFLP))},
 	}...)
 	// No tenant declares products (owner, 2026-11-03). A Forever tenant sells the seeded Forever
 	// products, and its one requirement is a distributor ID, so every product links to its own
@@ -169,6 +172,8 @@ type ProfileDefaults struct {
 	LogoURL      string `json:"logo_url,omitempty"`
 	Website      string `json:"website,omitempty"`
 	BrandColor   string `json:"brand_primary_color,omitempty"`
+	// BusinessAddress prefills the address: the platform default for a Forever tenant only.
+	BusinessAddress string `json:"business_address,omitempty"`
 }
 
 // Suggestion is a catalogue entry the owner can add to the public profile's offerings.
@@ -247,10 +252,14 @@ func (s *Service) Draft(ctx context.Context, tenantID uuid.UUID) (Draft, error) 
 	}
 	wg.Wait()
 
-	return compose(composeInput{
+	d := compose(composeInput{
 		tenant: t, current: current, auth: auth, top: top,
 		catalog: catalog, website: webOK, testimonials: testimonials,
-	}), nil
+	})
+	if str(t.Metadata, creative.MetaBusinessAddress) == "" && strings.EqualFold(t.BusinessType, tenant.BusinessTypeFLP) {
+		d.Profile.BusinessAddress = creative.FLPDefaultAddress(ctx, s.db, tenantID)
+	}
+	return d, nil
 }
 
 func str(meta map[string]any, key string) string {

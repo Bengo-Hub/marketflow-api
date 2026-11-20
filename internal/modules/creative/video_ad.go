@@ -88,20 +88,20 @@ func stage(v *ent.CreativeVersion) string {
 
 // VideoAdInput asks for a template video ad of a brief's offering.
 type VideoAdInput struct {
-	Format      string   `json:"format"`   // default the tenant's video_format, else the platform's (1920x1080)
-	Seconds     int      `json:"seconds"`  // 15 to 60, default 30
-	Language    string   `json:"language"` // en or sw; default the brief's
-	Tier        string   `json:"tier"`     // standard (default) or premium
-	Voice       string   `json:"voice"`    // a voice id or name; "" picks the best for the delivery
-	Delivery    string   `json:"delivery"` // ad (default) | ugc | kids | story | info
-	VoiceGender string   `json:"voice_gender"`
-	VoiceAccent string   `json:"voice_accent"` // e.g. african, kenyan, nigerian
+	Format      string `json:"format"`   // default the tenant's video_format, else the platform's (1920x1080)
+	Seconds     int    `json:"seconds"`  // 15 to 60, default 30
+	Language    string `json:"language"` // en or sw; default the brief's
+	Tier        string `json:"tier"`     // standard (default) or premium
+	Voice       string `json:"voice"`    // a voice id or name; "" picks the best for the delivery
+	Delivery    string `json:"delivery"` // ad (default) | ugc | kids | story | info
+	VoiceGender string `json:"voice_gender"`
+	VoiceAccent string `json:"voice_accent"` // e.g. african, kenyan, nigerian
 	// Kind is the video type: template (default), presenter or presenter_premium.
 	Kind string `json:"kind"`
 	// ActorPrompt describes the presenter for a new actor (presenter types); the brief's
 	// actor is kept once it exists.
 	ActorPrompt string   `json:"actor_prompt"`
-	PhotoURLs   []string `json:"photo_urls"` // default: the offering's photos
+	PhotoURLs   []string `json:"photo_urls"`   // default: the offering's photos
 	FootageURLs []string `json:"footage_urls"` // the owner's clips
 	// The end card's words; empty fields come from the offering.
 	Headline string `json:"headline"`
@@ -304,8 +304,10 @@ type ScriptScene struct {
 	Shot      string  `json:"shot"`
 	Asset     int     `json:"asset,omitempty"`
 	Visual    string  `json:"visual"`
-	Voiceover string  `json:"voiceover"`
-	Caption   string  `json:"caption"`
+	// Setting is where the scene happens, from the setting brief (marketflow-ai team/setting_brief.go).
+	Setting   string `json:"setting,omitempty"`
+	Voiceover string `json:"voiceover"`
+	Caption   string `json:"caption"`
 	// SFX is an optional short sound cue played at the scene's start (marketflow-ai renders it).
 	SFX string `json:"sfx,omitempty"`
 	// Speaker is who reads the line in a two-voice UGC ad: "male", "female" or "" (one voice).
@@ -315,10 +317,12 @@ type ScriptScene struct {
 
 // Script sound, approach and actor limits, the same as marketflow-ai's.
 const (
-	maxSceneSFX   = 60
-	maxScriptMood = 120
-	maxApproach   = 40
+	maxSceneSFX    = 60
+	maxScriptMood  = 120
+	maxApproach    = 40
 	maxScriptActor = 300
+	// maxSceneSetting is marketflow-ai's setting line cap.
+	maxSceneSetting = 240
 )
 
 // scriptSpeakers are the speakers a scene may have.
@@ -355,6 +359,9 @@ func (v *VideoScript) validate(photos, footage int, kind string) error {
 		sc := &v.Scenes[i]
 		sc.Voiceover, sc.Caption = strings.TrimSpace(sc.Voiceover), strings.TrimSpace(sc.Caption)
 		sc.Visual = strings.TrimSpace(sc.Visual)
+		if sc.Setting = strings.TrimSpace(sc.Setting); utf8.RuneCountInString(sc.Setting) > maxSceneSetting {
+			return invalid(fmt.Sprintf("scene %d: the setting is up to %d characters", i+1, maxSceneSetting))
+		}
 		if sc.Speaker = strings.ToLower(strings.TrimSpace(sc.Speaker)); !scriptSpeakers[sc.Speaker] {
 			return invalid(fmt.Sprintf("scene %d: the speaker is male, female or empty", i+1))
 		}
@@ -552,6 +559,8 @@ type scriptCall struct {
 	// PresenterSpeaker is the gender of the actor already saved on the brief: presenter lines
 	// follow it, so the voice matches the face (owner, 2026-11-14).
 	PresenterSpeaker string `json:"presenter_speaker,omitempty"`
+	// Place is where the business is and how it looks, for the setting brief (place.go).
+	Place *placeFacts `json:"place,omitempty"`
 }
 
 // maxScriptReviews is the most published reviews sent with one script call.
@@ -641,6 +650,9 @@ func (r *Renderer) writeScript(ctx context.Context, v *ent.CreativeVersion) {
 	if t, err := r.db.Tenant.Get(ctx, v.TenantID); err == nil {
 		call.ActorNameStyle, call.ActorNames = marketingos.ActorNaming(t.Metadata)
 	}
+	if p := r.resolvePlace(ctx, v.TenantID, b.Offering, true); p.Facts.Address != "" || len(p.Facts.Pages) > 0 || len(p.Facts.Pictures) > 0 {
+		call.Place = &p.Facts
+	}
 	data, status, err := r.aiCall(ctx, http.MethodPost, "/api/v1/internal/creative/script", call, scriptCallTimeout)
 	if err == nil && status != http.StatusOK {
 		err = aiStatusError(status, data)
@@ -657,6 +669,7 @@ func (r *Renderer) writeScript(ctx context.Context, v *ent.CreativeVersion) {
 	}
 	var reply struct {
 		Script         *VideoScript     `json:"script"`
+		SettingBrief   map[string]any   `json:"setting_brief"`
 		Findings       []map[string]any `json:"findings"`
 		CreditsCharged int              `json:"credits_charged"`
 		CostUSD        float64          `json:"cost_usd"`
@@ -673,6 +686,10 @@ func (r *Renderer) writeScript(ctx context.Context, v *ent.CreativeVersion) {
 	copyFields := copyMap(v.Copy)
 	copyFields["script"] = toMap(reply.Script)
 	meta["script_cost_usd"] = reply.CostUSD
+	if len(reply.SettingBrief) > 0 {
+		// Where the scenes happen, as the Strategist wrote it; the Studio shows it with the plan.
+		meta[metaSettingBrief] = reply.SettingBrief
+	}
 	if len(reply.Findings) > 0 {
 		meta["findings"] = reply.Findings
 	}
@@ -729,6 +746,11 @@ type adCall struct {
 	// AILabel is the tenant's AI label choice (AILabelKey): false leaves out the on-screen
 	// "AI-generated" note on presenter ads. Always sent; marketflow-ai treats a missing value as on.
 	AILabel bool `json:"ai_label"`
+	// Contacts are the real ways to reach the business, drawn with icons on the end card; Brand and
+	// Place tell the self-review whose ad it is and where the business is (place.go).
+	Contacts []contact `json:"contacts,omitempty"`
+	Brand    string    `json:"brand,omitempty"`
+	Place    string    `json:"place,omitempty"`
 }
 
 // startAd starts a claimed video ad's render job in marketflow-ai.
@@ -762,6 +784,12 @@ func (r *Renderer) adCallFor(ctx context.Context, v *ent.CreativeVersion, script
 	} else {
 		b = nil
 	}
+	var offering map[string]any
+	if b != nil {
+		offering = b.Offering
+	}
+	place := r.resolvePlace(ctx, v.TenantID, offering, false)
+	call.Contacts, call.Brand, call.Place = place.Contacts, place.Brand, place.Line()
 	call.LogoURL = brandLogo(ctx, r.db, v.TenantID, b)
 	// Every kind sends its generated stills: a scene with no matching picture starts from one
 	// (frames.go in marketflow-ai), a template ad's included.

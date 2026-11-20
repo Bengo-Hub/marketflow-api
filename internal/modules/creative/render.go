@@ -16,6 +16,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
+	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -48,6 +49,9 @@ type Renderer struct {
 	// osTurn tells a WhatsApp requester about a video made from their Marketing Manager turn
 	// (os_turn.go); nil tells nobody.
 	osTurn OSTurnNotifier
+	// facts and pages read the business's address, contacts and website pages (place.go).
+	facts FactsSource
+	pages marketingos.PageReader
 	// autopilot carries an autopilot agent's video on after each step in veto-window mode
 	// (autopilot_hook.go); nil leaves every video for a person.
 	autopilot AutopilotHook
@@ -206,6 +210,11 @@ type posterCall struct {
 	Charge    bool     `json:"charge"`
 	// SceneURL makes it a text-only revision over that stored scene (free).
 	SceneURL string `json:"scene_url,omitempty"`
+	// Contacts are the real ways to reach the business, drawn with icons (place.go); Brand and
+	// Place tell the self-review whose poster it is and where the business is.
+	Contacts []contact `json:"contacts,omitempty"`
+	Brand    string    `json:"brand,omitempty"`
+	Place    string    `json:"place,omitempty"`
 }
 
 // posterReply is its 200 answer.
@@ -254,6 +263,12 @@ func (r *Renderer) render(ctx context.Context, v *ent.CreativeVersion) {
 	} else {
 		b = nil
 	}
+	var offering map[string]any
+	if b != nil {
+		offering = b.Offering
+	}
+	place := r.resolvePlace(ctx, v.TenantID, offering, false)
+	call.Contacts, call.Brand, call.Place = place.Contacts, place.Brand, place.Line()
 	call.LogoURL = brandLogo(ctx, r.db, v.TenantID, b)
 	// A text-only revision reuses its stored scene and needs no photos.
 	if call.SceneURL == "" {

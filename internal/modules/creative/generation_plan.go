@@ -27,6 +27,9 @@ import (
 // metaGenerationPlan is the version metadata key of the approved plan.
 const metaGenerationPlan = "generation_plan"
 
+// metaSettingBrief is where a video ad's scenes happen, as marketflow-ai's Strategist wrote it.
+const metaSettingBrief = "setting_brief"
+
 // planInputs is everything that shapes the generation plan.
 type planInputs struct {
 	Format   string         `json:"format"`

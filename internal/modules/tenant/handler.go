@@ -111,6 +111,10 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 			httpapi.Error(w, http.StatusBadRequest, "invalid_report_settings", err.Error(), nil)
 			return
 		}
+		if err := ValidateBusinessAddress(req.Metadata); err != nil {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_business_address", err.Error(), nil)
+			return
+		}
 		// Owner 2026-11-14: only owners and admins change the AI label. A form that sends the
 		// stored value back unchanged is not a change.
 		if v, ok := req.Metadata[AILabelKey]; ok {

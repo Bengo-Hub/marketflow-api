@@ -533,6 +533,7 @@ type OnboardingHandlers struct {
 // versions, review links).
 type CreativeHandlers struct {
 	Downloaded        http.HandlerFunc // POST /creative/assets/{id}/downloaded
+	DownloadFile      http.HandlerFunc // GET /creative/assets/{id}/file (Content-Disposition: attachment)
 	ListBriefs        http.HandlerFunc
 	SearchOfferings   http.HandlerFunc
 	AdTemplates       http.HandlerFunc // GET /creative/ad-templates (the Studio's template picker)
@@ -1175,6 +1176,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Post("/versions/{id}/discard", deps.CreativeHandlers.Discard)
 					if deps.CreativeHandlers.Downloaded != nil {
 						r.Post("/assets/{id}/downloaded", deps.CreativeHandlers.Downloaded)
+					}
+					if deps.CreativeHandlers.DownloadFile != nil {
+						r.Get("/assets/{id}/file", deps.CreativeHandlers.DownloadFile)
 					}
 					r.Post("/versions/{id}/revise", deps.CreativeHandlers.Revise)
 					r.Post("/versions/{id}/extend", deps.CreativeHandlers.Extend)

@@ -384,6 +384,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	customAgentHandler.CanApprove = func(ctx context.Context, tenantID uuid.UUID) bool {
 		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
 	}
+	crawlerReader := marketingos.NewCrawlerReader(cfg.CrossService.CrawlerURL, cfg.CrossService.InternalServiceKey)
 	marketingOSService := marketingos.NewService(entClient, subsClient, logger).
 		// Team setup reads the website and online store from auth-api, their owner, read only.
 		WithWebPresence(func(ctx context.Context, tenantID uuid.UUID) (bool, bool) {
@@ -409,7 +410,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			return marketingos.AccountFacts{Name: p.Name, Phone: p.ContactPhone, Email: p.ContactEmail, Website: p.Website, Storefront: p.Storefront}, nil
 		}).
 		// Sites that add their address and hours in the browser are read through the crawler.
-		WithPageReader(marketingos.NewCrawlerReader(cfg.CrossService.CrawlerURL, cfg.CrossService.InternalServiceKey)).
+		WithPageReader(crawlerReader).
 		// Only the platform owner's tenant gets every plan level in the AI work (not demo tenants).
 		WithPlatformTenant(cfg.Security.PlatformTenant).
 		// A demo tenant follows the free plan's features and chat limit (its password is public).
@@ -502,7 +503,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	pubStore := &publishing.EntStore{DB: entClient, Keys: keyProvider}
 	autopilotPipeline = autopublish.New(autopublish.Deps{DB: entClient,
 		Studio:  creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)).WithFeatureCheck(consumerFeatureGate),
-		Quoter:  creative.NewRenderer(entClient, cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey, logger).WithBrandImages(brandLinks),
+		Quoter: creative.NewRenderer(entClient, cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey, logger).WithBrandImages(brandLinks).
+			WithFacts(marketingOSService.BusinessFacts, crawlerReader),
 		Publish: pubStore,
 		Gate:    custom_agents.AutoPublishGate{DB: entClient, HasFeature: strictFeature, TermsVersion: cfg.Autopilot.TermsVersion, TermsEffectiveAt: cfg.Autopilot.TermsEffective(), CheckFeature: subsClient.StrictFeature, Terms: autopilotTerms, TermsPageURL: cfg.Autopilot.TermsPageURL},
 		Notif:   notifications.New(notifications.Config{BaseURL: cfg.CrossService.NotificationsURL, APIKey: cfg.CrossService.InternalServiceKey}),
@@ -526,6 +528,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		// "unsupported protocol scheme" (fixed 2026-11-19). Run is never started here, so this
 		// instance does not poll the queue.
 		WithJobs(creative.NewRenderer(entClient, cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey, logger).WithBrandImages(brandLinks).
+			// The address, contacts and website pages for the setting brief and the end card (place.go).
+			WithFacts(marketingOSService.BusinessFacts, crawlerReader).
 			// A video made from a WhatsApp turn: marketflow-ai writes the storyboard and finished-ad
 			// messages (with the render code); they go out from the platform number.
 			WithOSTurn(creative.NewWhatsAppTurnNotifier(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey,
@@ -1014,6 +1018,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		},
 		CreativeHandlers: httpapi.CreativeHandlers{
 			Downloaded:        creativeHandler.Downloaded,
+			DownloadFile:      creativeHandler.DownloadFile,
 			ListBriefs:        creativeHandler.ListBriefs,
 			SearchOfferings:   creativeHandler.SearchOfferings,
 			AdTemplates:       creativeHandler.AdTemplates,

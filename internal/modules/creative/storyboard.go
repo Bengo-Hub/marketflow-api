@@ -230,6 +230,9 @@ type storyboardCall struct {
 	Charge      bool           `json:"charge"`
 	// Delivery is the ad's voice delivery: "ugc" draws candid phone-style stills.
 	Delivery string `json:"delivery,omitempty"`
+	// Brand and Place tell the self-review whose ad it is and where the business is (place.go).
+	Brand string `json:"brand,omitempty"`
+	Place string `json:"place,omitempty"`
 }
 
 // startStoryboard starts a claimed version's storyboard job in marketflow-ai.
@@ -246,6 +249,8 @@ func (r *Renderer) startStoryboard(ctx context.Context, v *ent.CreativeVersion) 
 		// The owner's description wins; the script writer's one-line actor is the fallback.
 		ActorPrompt: excerpt(firstNonEmpty(str(meta["actor_prompt"]), script.Actor), 300)}
 	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
+		place := r.resolvePlace(ctx, v.TenantID, b.Offering, false)
+		call.Brand, call.Place = place.Brand, place.Line()
 		if actor, ok := b.Metadata["actor"].(map[string]any); ok && str(actor["url"]) != "" {
 			call.Actor = actor
 			if redraw, _ := meta[metaRedrawActor].(bool); redraw {

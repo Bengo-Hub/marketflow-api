@@ -179,3 +179,28 @@ func safeURL(s string) bool {
 	}
 	return (u.Scheme == "https" || u.Scheme == "http") && u.Host != ""
 }
+
+// Business address limits (profile metadata business_address and business_city, owner
+// 2026-11-20): the ads place their scenes in the business's own town and the chat states it.
+const (
+	maxBusinessAddressLen = 200
+	maxBusinessCityLen    = 80
+)
+
+// ValidateBusinessAddress checks the profile's address fields: strings within their limits.
+func ValidateBusinessAddress(meta map[string]any) error {
+	for key, limit := range map[string]int{"business_address": maxBusinessAddressLen, "business_city": maxBusinessCityLen} {
+		v, ok := meta[key]
+		if !ok || v == nil {
+			continue
+		}
+		s, isStr := v.(string)
+		if !isStr {
+			return fmt.Errorf("%s must be text", key)
+		}
+		if len([]rune(strings.TrimSpace(s))) > limit {
+			return fmt.Errorf("%s is limited to %d characters", key, limit)
+		}
+	}
+	return nil
+}

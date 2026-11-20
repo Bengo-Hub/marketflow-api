@@ -104,6 +104,8 @@ type APIConfig struct {
 	InventoryURL       string `env:"INVENTORY_URL" envDefault:"http://inventory-api.inventory.svc.cluster.local:4000"`
 	WebsiteURL         string `env:"WEBSITE_URL" envDefault:"http://codevertex-website.codevertex.svc.cluster.local"`
 	InternalServiceKey string `env:"INTERNAL_SERVICE_KEY"`
+	// CrawlerURL is marketflow-crawler, which reads a business's website pages for the ads' setting brief.
+	CrawlerURL string `env:"CRAWLER_URL" envDefault:"http://marketflow-crawler.marketflow.svc.cluster.local:4010"`
 	// PortalURL is the tenant portal, for links in notices (reconnect an integration).
 	PortalURL string `env:"PORTAL_URL" envDefault:"https://marketflow.codevertexafrica.com"`
 	// CRMLinkServices lists the services asked "do you still link this CRM contact" before an
