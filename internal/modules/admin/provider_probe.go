@@ -106,11 +106,10 @@ func (h *PlatformProviderHandler) loadSettings(ctx context.Context, ptype, pname
 	}
 	out := make(map[string]string, len(rows))
 	for _, s := range rows {
-		v := s.Value
-		if s.IsEncrypted {
-			if dec, err := h.keys.Decrypt(ctx, v); err == nil {
-				v = dec
-			}
+		// SettingValue decrypts, and re-seals a secret still stored as plain text.
+		v, err := h.keys.SettingValue(ctx, h.client, s)
+		if err != nil {
+			v = s.Value
 		}
 		out[s.Key] = v
 	}

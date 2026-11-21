@@ -72,8 +72,9 @@ func (m *Manager) LoadSettings(ctx context.Context, tenantID, providerType, prov
 
 		// Decrypt if needed (tries every candidate key, falls back to legacy
 		// plaintext for values stored before a key was configured).
-		if r.IsEncrypted && val != "" {
-			decrypted, err := m.keys.Decrypt(ctx, val)
+		if val != "" {
+			// SettingValue decrypts, and re-seals a secret still stored as plain text.
+			decrypted, err := m.keys.SettingValue(ctx, m.client, r)
 			if err != nil {
 				m.logger.Warn("failed to decrypt setting",
 					zap.String("key", r.Key),

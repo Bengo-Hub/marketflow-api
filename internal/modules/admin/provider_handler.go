@@ -170,6 +170,13 @@ func (h *PlatformProviderHandler) ConfigureProvider(w http.ResponseWriter, r *ht
 		created++
 	}
 	for _, s := range kept {
+		// A secret saved before encryption was set up is still plain text; encrypt it now
+		// instead of copying it forward as it is.
+		if s.IsSecret && !s.IsEncrypted {
+			if enc, err := h.keys.Encrypt(ctx, s.Value); err == nil {
+				s.Value, s.IsEncrypted = enc, true
+			}
+		}
 		err := h.client.ProviderSetting.Create().
 			SetTenantID(platformTenantID).
 			SetProviderType(req.ProviderType).
@@ -366,14 +373,11 @@ func (h *PlatformProviderHandler) ResolveProvider(w http.ResponseWriter, r *http
 
 	out := make(map[string]string, len(rows))
 	for _, s := range rows {
-		value := s.Value
-		if s.IsEncrypted {
-			if dec, err := h.keys.Decrypt(r.Context(), value); err == nil {
-				value = dec
-			} else {
-				h.logger.Warn("decrypt failed",
-					zap.String("key", s.Key), zap.Error(err))
-			}
+		// SettingValue decrypts, and re-seals a secret still stored as plain text.
+		value, err := h.keys.SettingValue(r.Context(), h.client, s)
+		if err != nil {
+			h.logger.Warn("decrypt failed", zap.String("key", s.Key), zap.Error(err))
+			value = s.Value
 		}
 		out[s.Key] = value
 	}
