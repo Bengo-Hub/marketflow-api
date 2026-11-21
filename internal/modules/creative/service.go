@@ -109,6 +109,8 @@ type Service struct {
 	leadFunnels LeadFunnelMaker
 	logger      *zap.Logger
 	nowFn       func() time.Time
+	// files deletes stored files at once (a version deleted permanently); nil refuses that.
+	files FileDeleter
 	// brandImagesMin is how many brand images a video ad needs (brand_gate.go); 0 uses the default.
 	brandImagesMin int
 	// hasFeature is the video plan gate's entitlement check (plan_gate.go); nil turns it off.

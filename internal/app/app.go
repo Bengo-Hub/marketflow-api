@@ -514,6 +514,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// Review links are signed with the env encryption key (stable, like the OAuth
 	// state), separated from it by the token's own HMAC domain.
 	creativeHandler := creative.NewHandler(creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)).
+		// A version deleted permanently loses its stored files at once (delete_version.go).
+		WithFiles(creativeFiles(mediaStore)).
 		WithLeadFunnels(funnelService.ForAds()).WithBrandImagesMin(brandImagesCfg.Min).
 		// Gate G0: a video is made only when the plan includes that kind of video (plan_gate.go).
 		WithFeatureCheck(consumerFeatureGate),
@@ -1034,6 +1036,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Approve:           creativeHandler.Approve,
 			Discard:           creativeHandler.Discard,
 			DeleteBrief:       creativeHandler.DeleteBrief,
+			DeleteVersion:     creativeHandler.DeleteVersion,
 			Revise:            creativeHandler.Revise,
 			Extend:            creativeHandler.Extend,
 			CreateMotion:      creativeHandler.CreateMotion,

@@ -144,6 +144,8 @@ func (h *Handler) fail(w http.ResponseWriter, err error) {
 		writeNotInPlan(w, err) // 403 feature_not_in_plan (plan_gate.go)
 	case errors.Is(err, ErrInvalid):
 		httpapi.Error(w, http.StatusBadRequest, "invalid_request", err.Error(), nil)
+	case errors.Is(err, ErrFilesUnavailable):
+		httpapi.Error(w, http.StatusServiceUnavailable, "files_unavailable", err.Error(), nil)
 	case errors.Is(err, ErrConflict):
 		httpapi.Error(w, http.StatusConflict, "conflict", err.Error(), nil)
 	case errors.Is(err, ErrDraftLimit):

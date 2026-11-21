@@ -548,6 +548,7 @@ type CreativeHandlers struct {
 	Approve           http.HandlerFunc
 	Discard           http.HandlerFunc
 	DeleteBrief       http.HandlerFunc
+	DeleteVersion     http.HandlerFunc // DELETE /creative/versions/{id}: a never-approved version, permanently
 	Revise            http.HandlerFunc
 	Extend            http.HandlerFunc
 	CreateMotion      http.HandlerFunc
@@ -1181,6 +1182,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Post("/briefs/{id}/versions", deps.CreativeHandlers.CreateVersion)
 					r.Post("/briefs/{id}/video-ads", deps.CreativeHandlers.CreateVideoAd)
 					r.Get("/versions/{id}", deps.CreativeHandlers.GetVersion)
+					if deps.CreativeHandlers.DeleteVersion != nil {
+						r.Delete("/versions/{id}", deps.CreativeHandlers.DeleteVersion)
+					}
 					r.Post("/versions/{id}/approve", deps.CreativeHandlers.Approve)
 					r.Post("/versions/{id}/discard", deps.CreativeHandlers.Discard)
 					if deps.CreativeHandlers.Downloaded != nil {
