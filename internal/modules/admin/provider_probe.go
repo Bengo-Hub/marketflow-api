@@ -175,6 +175,25 @@ func runProbe(ctx context.Context, ptype, pname string, s map[string]string) (st
 			return "Client credentials present — full OAuth test runs on tenant connect", true
 		}
 		return "missing client credentials", false
+	case "tiktok":
+		// TikTok for Developers (Login Kit + Content Posting): only an authorised user can be
+		// asked anything, so the static app credentials are what can be checked.
+		if s["client_key"] == "" || s["client_secret"] == "" {
+			return "TikTok client key or secret missing", false
+		}
+		return "TikTok client key and secret present; the OAuth test runs when a business connects TikTok", true
+	case "ads":
+		// A platform switch row (for example ads/meta meta_enabled), not an external account.
+		return "Platform switch, nothing external to test", true
+	case "adintel":
+		if s["api_key"] == "" {
+			return "api_key missing", false
+		}
+		if pname == "serpapi" {
+			return probeSerpAPI(ctx, c, s["api_key"])
+		}
+		// Serper has no free account call; a real check would spend a search credit.
+		return "Key present; a live check would use a search credit", true
 	}
 	return fmt.Sprintf("no test probe implemented for %s/%s", ptype, pname), false
 }
@@ -254,6 +273,26 @@ func probeOllama(ctx context.Context, c *http.Client, baseURL, model string) (st
 		return "empty embedding returned", false
 	}
 	return fmt.Sprintf("Embedding OK (%d dims)", len(parsed.Embedding)), true
+}
+
+// probeSerpAPI reads the account endpoint, which is free and reports the searches left.
+func probeSerpAPI(ctx context.Context, c *http.Client, key string) (string, bool) {
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://serpapi.com/account.json?api_key="+url.QueryEscape(key), nil)
+	resp, err := c.Do(req)
+	if err != nil {
+		return err.Error(), false
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Sprintf("%s: %s", resp.Status, truncate(string(b), 160)), false
+	}
+	var acc struct {
+		PlanName          string `json:"plan_name"`
+		TotalSearchesLeft int    `json:"total_searches_left"`
+	}
+	_ = json.Unmarshal(b, &acc)
+	return fmt.Sprintf("Key valid (%s, %d searches left)", firstNonEmpty(acc.PlanName, "plan unknown"), acc.TotalSearchesLeft), true
 }
 
 func probeTavily(ctx context.Context, c *http.Client, baseURL, key string) (string, bool) {
