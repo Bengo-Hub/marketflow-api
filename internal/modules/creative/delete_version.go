@@ -11,6 +11,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/modules/audit"
 )
 
 // Deleting one version permanently (owner, 2026-11-21): an admin removes a draft that was never
@@ -72,6 +73,8 @@ func (s *Service) DeleteVersion(ctx context.Context, tenantID, id uuid.UUID) err
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+	audit.Tenant(ctx, s.db, s.logger, tenantID, AuditVersionDeleted, "creative_version", &id,
+		map[string]any{"brief_id": v.BriefID.String(), "files": len(assets)})
 	s.archiveIfDone(ctx, tenantID, v.BriefID)
 	return nil
 }

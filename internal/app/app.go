@@ -1037,6 +1037,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Discard:           creativeHandler.Discard,
 			DeleteBrief:       creativeHandler.DeleteBrief,
 			DeleteVersion:     creativeHandler.DeleteVersion,
+			RestoreVersion:    creativeHandler.RestoreVersion,
 			Revise:            creativeHandler.Revise,
 			Extend:            creativeHandler.Extend,
 			CreateMotion:      creativeHandler.CreateMotion,

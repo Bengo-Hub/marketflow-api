@@ -549,6 +549,7 @@ type CreativeHandlers struct {
 	Discard           http.HandlerFunc
 	DeleteBrief       http.HandlerFunc
 	DeleteVersion     http.HandlerFunc // DELETE /creative/versions/{id}: a never-approved version, permanently
+	RestoreVersion    http.HandlerFunc // POST /creative/versions/{id}/restore: a discarded version back
 	Revise            http.HandlerFunc
 	Extend            http.HandlerFunc
 	CreateMotion      http.HandlerFunc
@@ -1187,6 +1188,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					}
 					r.Post("/versions/{id}/approve", deps.CreativeHandlers.Approve)
 					r.Post("/versions/{id}/discard", deps.CreativeHandlers.Discard)
+					if deps.CreativeHandlers.RestoreVersion != nil {
+						r.Post("/versions/{id}/restore", deps.CreativeHandlers.RestoreVersion)
+					}
 					if deps.CreativeHandlers.Downloaded != nil {
 						r.Post("/assets/{id}/downloaded", deps.CreativeHandlers.Downloaded)
 					}

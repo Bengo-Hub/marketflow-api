@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
 	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
+	"github.com/bengobox/marketflow-api/internal/modules/audit"
 	"github.com/bengobox/marketflow-api/internal/platform/svcconfig"
 )
 
@@ -84,6 +85,8 @@ func (s *Service) MarkDiscarded(ctx context.Context, tenantID, id uuid.UUID, win
 	if err != nil || n == 0 {
 		return false, err
 	}
+	audit.Tenant(ctx, s.db, s.logger, tenantID, AuditVersionDiscarded, "creative_version", &id,
+		map[string]any{"brief_id": v.BriefID.String(), "purge_at": meta[metaDiscardPurgeAt]})
 	until := now.Add(window)
 	_, err = s.db.CreativeAsset.Update().
 		Where(creativeasset.VersionID(id), creativeasset.PurgedAtIsNil(),
