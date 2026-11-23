@@ -150,6 +150,14 @@ func runProbe(ctx context.Context, ptype, pname string, s map[string]string) (st
 	case "typesafe":
 		return probeTypeSafe(ctx, c, firstNonEmpty(s["base_url"], "https://api.typesafe.ai/v1"), s["api_key"], firstNonEmpty(s["model"], "jev-latest"))
 	}
+	// Any other ai_llm provider with a base URL is an OpenAI-compatible endpoint
+	// (OpenRouter, Gemini's OpenAI endpoint, Cerebras): a 1-token chat on its model.
+	if ptype == "ai_llm" && s["base_url"] != "" {
+		if s["main_model"] == "" {
+			return "main_model missing: set the model this provider serves", false
+		}
+		return probeOpenAIChat(ctx, c, s["base_url"], s["api_key"], s["main_model"])
+	}
 	// Media generation (Creative Studio): a free, authenticated read per provider
 	// tells a valid key from a bad one (checked against each API 2026-10-24).
 	if ptype == "media" {
