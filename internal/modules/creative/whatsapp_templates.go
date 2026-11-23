@@ -236,7 +236,9 @@ func (p *PlatformWhatsApp) SendTemplate(ctx context.Context, to, kind string, pa
 		Channel:          "whatsapp",
 		Recipient:        "+" + strings.TrimPrefix(to, "+"),
 		Body:             text,
-		Metadata:         map[string]string{"source": p.source, "kind": "whatsapp_assistant_" + kind},
+		// preference_key lets notifications-api's per-type settings switch each MarketFlow notice
+		// off (the weekly summary is off by default there, owner 2026-11-24).
+		Metadata:         map[string]string{"source": p.source, "kind": "whatsapp_assistant_" + kind, "preference_key": "marketflow/" + kind + "_whatsapp"},
 		IdempotencyKey:   key,
 		Template:         &notifications.WhatsAppTemplate{Name: p.tpl.cfg.Name(kind), Params: params, ButtonParam: button},
 		PlatformDialCode: "254",
