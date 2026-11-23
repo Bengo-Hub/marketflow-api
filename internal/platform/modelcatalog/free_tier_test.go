@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 // serve answers GET /models with body when the bearer key is "k".
@@ -76,6 +77,28 @@ func TestOpenRouterPicksTheNewestFreeVisionModel(t *testing.T) {
 	})
 	if text["main_model"] != "deepseek/deepseek-r2:free" || text["premium_model"] != "meta-llama/llama-3.3-70b-instruct:free" {
 		t.Fatalf("text only = %v", text)
+	}
+}
+
+// Shapes from the live list (2026-11-24): a music generator outputs audio and is not a chat
+// model, and a free model retiring within two weeks is left out.
+func TestOpenRouterSkipsNonChatAndExpiring(t *testing.T) {
+	body := []byte(`{"data":[
+	 {"id":"google/lyria-3-clip-preview","created":30,"pricing":{"prompt":"0","completion":"0"},
+	  "architecture":{"input_modalities":["text","image"],"output_modalities":["text","audio"]}},
+	 {"id":"soon/gone:free","created":40,"expiration_date":"2026-12-01","pricing":{"prompt":"0","completion":"0"},
+	  "architecture":{"input_modalities":["text","image"],"output_modalities":["text"]}},
+	 {"id":"later/ok:free","created":20,"expiration_date":"2027-03-01","pricing":{"prompt":"0","completion":"0"},
+	  "architecture":{"input_modalities":["text","image"],"output_modalities":["text"]}},
+	 {"id":"old/plain:free","created":10,"pricing":{"prompt":"0","completion":"0"},"architecture":{"input_modalities":["text"]}}]}`)
+	now, _ := time.Parse("2006-01-02", "2026-11-24")
+	got, _ := describeOpenRouterAt(body, now)
+	ids := map[string]bool{}
+	for _, m := range got {
+		ids[m.ID] = true
+	}
+	if ids["google/lyria-3-clip-preview"] || ids["soon/gone:free"] || !ids["later/ok:free"] || !ids["old/plain:free"] {
+		t.Fatalf("kept %v", ids)
 	}
 }
 

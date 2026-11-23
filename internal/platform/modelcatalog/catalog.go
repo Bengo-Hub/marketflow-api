@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Source is one provider's model listing.
@@ -200,17 +201,31 @@ func DescribeGemini(b []byte) ([]Model, string) {
 // completion}, architecture: {input_modalities}}]}. Prices are decimal strings in USD per
 // token; a model is free when both are zero or its id ends in ":free". A negative price
 // (openrouter/auto) means variable, never free.
+//
+// Checked against the live list on 2026-11-24 (fields: created, architecture.input_modalities
+// and output_modalities, pricing as strings, expiration_date "YYYY-MM-DD"). Only chat models
+// are kept: output text and nothing else (music and image generators such as Lyria output
+// audio or images). A model OpenRouter retires within openRouterExpiryMargin is left out, so a
+// pick never lapses days after a sync.
 func DescribeOpenRouter(b []byte) ([]Model, string) {
+	return describeOpenRouterAt(b, time.Now())
+}
+
+const openRouterExpiryMargin = 14 * 24 * time.Hour
+
+func describeOpenRouterAt(b []byte, now time.Time) ([]Model, string) {
 	var v struct {
 		Data []struct {
-			ID      string `json:"id"`
-			Created int64  `json:"created"`
-			Pricing struct {
+			ID             string `json:"id"`
+			Created        int64  `json:"created"`
+			ExpirationDate string `json:"expiration_date"`
+			Pricing        struct {
 				Prompt     string `json:"prompt"`
 				Completion string `json:"completion"`
 			} `json:"pricing"`
 			Architecture struct {
-				InputModalities []string `json:"input_modalities"`
+				InputModalities  []string `json:"input_modalities"`
+				OutputModalities []string `json:"output_modalities"`
 			} `json:"architecture"`
 		} `json:"data"`
 	}
@@ -219,7 +234,10 @@ func DescribeOpenRouter(b []byte) ([]Model, string) {
 	}
 	var out []Model
 	for _, m := range v.Data {
-		if m.ID == "" {
+		if m.ID == "" || !textOnlyOutput(m.Architecture.OutputModalities) {
+			continue
+		}
+		if exp, err := time.Parse("2006-01-02", strings.TrimSpace(m.ExpirationDate)); err == nil && exp.Before(now.Add(openRouterExpiryMargin)) {
 			continue
 		}
 		vision := false
@@ -232,6 +250,17 @@ func DescribeOpenRouter(b []byte) ([]Model, string) {
 		out = append(out, Model{ID: m.ID, Created: m.Created, Free: free, Vision: vision})
 	}
 	return out, ""
+}
+
+// textOnlyOutput is true for a chat model: it outputs text and nothing else. An empty list
+// (an older entry without the field) counts as text.
+func textOnlyOutput(out []string) bool {
+	for _, o := range out {
+		if !strings.EqualFold(o, "text") {
+			return false
+		}
+	}
+	return true
 }
 
 func zeroPrice(s string) bool {
