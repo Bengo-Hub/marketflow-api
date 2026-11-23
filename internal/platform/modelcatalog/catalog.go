@@ -16,6 +16,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -30,8 +31,21 @@ type Source struct {
 	Path, Query string
 	Auth        func(req *http.Request, key string)
 	Parse       func([]byte) (ids []string, next string)
+	// Describe, when set, replaces Parse and also reads each model's age, price and inputs.
+	Describe func([]byte) (models []Model, next string)
 	// Page builds the next page's URL from the first page's URL and the cursor.
 	Page func(first, next string) string
+}
+
+// Model is one listed model. Lists that only give ids leave the other fields zero.
+type Model struct {
+	ID string `json:"id"`
+	// Created is the release time in Unix seconds, when the list gives one.
+	Created int64 `json:"created,omitempty"`
+	// Free is true when the provider charges nothing for it (OpenRouter's :free models).
+	Free bool `json:"free,omitempty"`
+	// Vision is true when it accepts images, so it can serve the media review.
+	Vision bool `json:"vision,omitempty"`
 }
 
 func bearer(req *http.Request, key string) { req.Header.Set("Authorization", "Bearer "+key) }
@@ -54,13 +68,34 @@ var Sources = map[string]Source{
 		Auth:  func(req *http.Request, key string) { req.Header.Set("Authorization", "Key "+key) },
 		Parse: ParseFal,
 		Page:  func(first, next string) string { return first + "&cursor=" + url.QueryEscape(next) }},
+	// The free-tier fallbacks use OpenAI-compatible endpoints: GET {base_url}/models with the
+	// saved key. OpenRouter's list also carries prices and input modalities.
+	"openrouter": {Provider: "openrouter", Type: "ai_llm", Name: "openrouter", DefaultBase: "https://openrouter.ai/api/v1", Path: "/models",
+		Auth: bearer, Describe: DescribeOpenRouter},
+	"gemini": {Provider: "gemini", Type: "ai_llm", Name: "gemini", DefaultBase: "https://generativelanguage.googleapis.com/v1beta/openai", Path: "/models",
+		Auth: bearer, Describe: DescribeGemini},
+	"cerebras": {Provider: "cerebras", Type: "ai_llm", Name: "cerebras", DefaultBase: "https://api.cerebras.ai/v1", Path: "/models",
+		Auth: bearer, Describe: DescribeOpenAI},
 }
 
 // Keyless reports whether a provider lists its models without an API key (the cluster's Ollama).
 func Keyless(provider string) bool { return provider == "ollama" }
 
-// List reads every page of a provider's model list.
+// List reads every page of a provider's model list and returns the ids.
 func List(ctx context.Context, hc *http.Client, provider, key, baseURL string) ([]string, error) {
+	models, err := ListModels(ctx, hc, provider, key, baseURL)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, len(models))
+	for i, m := range models {
+		ids[i] = m.ID
+	}
+	return ids, nil
+}
+
+// ListModels reads every page of a provider's model list.
+func ListModels(ctx context.Context, hc *http.Client, provider, key, baseURL string) ([]Model, error) {
 	src, ok := Sources[provider]
 	if !ok {
 		return nil, fmt.Errorf("%s does not publish a model list", provider)
@@ -70,7 +105,7 @@ func List(ctx context.Context, hc *http.Client, provider, key, baseURL string) (
 	if src.Query != "" {
 		first += "?" + src.Query
 	}
-	var all []string
+	var all []Model
 	next := ""
 	for page := 0; page < 30; page++ {
 		u := first
@@ -91,8 +126,18 @@ func List(ctx context.Context, hc *http.Client, provider, key, baseURL string) (
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("%s models: status %d: %s", provider, resp.StatusCode, truncate(string(body), 200))
 		}
-		ids, n := src.Parse(body)
-		all = append(all, ids...)
+		var n string
+		if src.Describe != nil {
+			var ms []Model
+			ms, n = src.Describe(body)
+			all = append(all, ms...)
+		} else {
+			var ids []string
+			ids, n = src.Parse(body)
+			for _, id := range ids {
+				all = append(all, Model{ID: id})
+			}
+		}
 		if n == "" || src.Page == nil {
 			break
 		}
@@ -116,6 +161,86 @@ func ParseOpenAI(b []byte) ([]string, string) {
 		out = append(out, m.ID)
 	}
 	return out, ""
+}
+
+// DescribeOpenAI reads an OpenAI-compatible list with each model's created time (Cerebras:
+// {object: "list", data: [{id, object, created, owned_by}]}).
+func DescribeOpenAI(b []byte) ([]Model, string) {
+	var v struct {
+		Data []struct {
+			ID      string `json:"id"`
+			Created int64  `json:"created"`
+		} `json:"data"`
+	}
+	if json.Unmarshal(b, &v) != nil {
+		return nil, ""
+	}
+	var out []Model
+	for _, m := range v.Data {
+		if m.ID != "" {
+			out = append(out, Model{ID: m.ID, Created: m.Created})
+		}
+	}
+	return out, ""
+}
+
+// DescribeGemini reads Gemini's OpenAI-compatible list. Ids come back as "models/gemini-...";
+// chat completions take the bare id, so the prefix is dropped.
+func DescribeGemini(b []byte) ([]Model, string) {
+	models, next := DescribeOpenAI(b)
+	for i := range models {
+		models[i].ID = strings.TrimPrefix(models[i].ID, "models/")
+		// Every current Gemini chat model reads images.
+		models[i].Vision = strings.HasPrefix(models[i].ID, "gemini-") && !strings.Contains(models[i].ID, "embedding")
+	}
+	return models, next
+}
+
+// DescribeOpenRouter reads OpenRouter's /models: {data: [{id, created, pricing: {prompt,
+// completion}, architecture: {input_modalities}}]}. Prices are decimal strings in USD per
+// token; a model is free when both are zero or its id ends in ":free". A negative price
+// (openrouter/auto) means variable, never free.
+func DescribeOpenRouter(b []byte) ([]Model, string) {
+	var v struct {
+		Data []struct {
+			ID      string `json:"id"`
+			Created int64  `json:"created"`
+			Pricing struct {
+				Prompt     string `json:"prompt"`
+				Completion string `json:"completion"`
+			} `json:"pricing"`
+			Architecture struct {
+				InputModalities []string `json:"input_modalities"`
+			} `json:"architecture"`
+		} `json:"data"`
+	}
+	if json.Unmarshal(b, &v) != nil {
+		return nil, ""
+	}
+	var out []Model
+	for _, m := range v.Data {
+		if m.ID == "" {
+			continue
+		}
+		vision := false
+		for _, in := range m.Architecture.InputModalities {
+			if strings.EqualFold(in, "image") {
+				vision = true
+			}
+		}
+		free := strings.HasSuffix(m.ID, ":free") || (zeroPrice(m.Pricing.Prompt) && zeroPrice(m.Pricing.Completion))
+		out = append(out, Model{ID: m.ID, Created: m.Created, Free: free, Vision: vision})
+	}
+	return out, ""
+}
+
+func zeroPrice(s string) bool {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return false
+	}
+	f, err := strconv.ParseFloat(s, 64)
+	return err == nil && f == 0
 }
 
 // ParseAnthropic reads Anthropic's paged list.

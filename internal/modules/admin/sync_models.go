@@ -24,12 +24,17 @@ type ModelEntry struct {
 	ID      string `json:"id"`
 	Object  string `json:"object,omitempty"`
 	OwnedBy string `json:"owned_by,omitempty"`
+	// Free and Vision come from lists that say so (OpenRouter; Gemini reads images).
+	Free   bool `json:"free,omitempty"`
+	Vision bool `json:"vision,omitempty"`
 }
 
 // SyncModels fetches the provider's live model list with the platform credentials and recommends
 // a model for every role the provider fills (modelcatalog): router, responder and fallback for
 // Groq; standard and premium for OpenAI; Haiku and Sonnet for Anthropic; local chat and
-// embeddings for Ollama; standard and premium voice for ElevenLabs; and, for information, the
+// embeddings for Ollama; the newest free (vision first) model for OpenRouter, the newest stable
+// Flash for Gemini and the largest general model for Cerebras; standard and premium voice for
+// ElevenLabs; and, for information, the
 // newest fal model per media tier. The portal preselects the recommendations; nothing is saved
 // until the owner saves the form.
 //
@@ -73,18 +78,18 @@ func (h *PlatformProviderHandler) SyncModels(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	ids, err := modelcatalog.List(r.Context(), &http.Client{Timeout: 15 * time.Second}, req.ProviderName, apiKey, settings["base_url"])
+	listed, err := modelcatalog.ListModels(r.Context(), &http.Client{Timeout: 15 * time.Second}, req.ProviderName, apiKey, settings["base_url"])
 	if err != nil {
 		h.logger.Warn("sync-models failed", zap.String("provider", req.ProviderName), zap.Error(err))
 		httpapi.Error(w, http.StatusBadGateway, "sync_failed", err.Error(), nil)
 		return
 	}
-	sort.Strings(ids)
-	models := make([]ModelEntry, len(ids))
-	for i, id := range ids {
-		models[i] = ModelEntry{ID: id, Object: "model", OwnedBy: req.ProviderName}
+	sort.Slice(listed, func(i, j int) bool { return listed[i].ID < listed[j].ID })
+	models := make([]ModelEntry, len(listed))
+	for i, m := range listed {
+		models[i] = ModelEntry{ID: m.ID, Object: "model", OwnedBy: req.ProviderName, Free: m.Free, Vision: m.Vision}
 	}
-	recs := modelcatalog.Recommend(ids, modelcatalog.RolesFor(req.ProviderName, h.roleOverrides(r.Context())), settings)
+	recs := modelcatalog.RecommendModels(listed, modelcatalog.RolesFor(req.ProviderName, h.roleOverrides(r.Context())), settings)
 	recommended := map[string]string{}
 	for _, rec := range recs {
 		if !rec.Informational {

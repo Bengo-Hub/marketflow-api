@@ -22,6 +22,16 @@ type Role struct {
 	// Informational roles are shown as the newest model per family but are not a setting:
 	// the media routes that use them are fixed in marketflow-ai.
 	Informational bool `json:"informational,omitempty"`
+	// FreeOnly keeps models the list marks free (OpenRouter's :free models).
+	FreeOnly bool `json:"free_only,omitempty"`
+	// PreferVision tries the models that read images first, so the pick can serve the media
+	// review; without one it falls back to the other matches.
+	PreferVision bool `json:"prefer_vision,omitempty"`
+	// Order picks among a family's matches: "" (newest version), "created" (newest release by
+	// the list's created time) or "largest" (most parameters, then newest).
+	Order string `json:"order,omitempty"`
+	// AllowInstruct keeps "-instruct" ids, which are the general chat models on open-model hosts.
+	AllowInstruct bool `json:"allow_instruct,omitempty"`
 }
 
 // DefaultRoles is the documented fallback list. Roles cover every tier a provider fills:
@@ -48,6 +58,20 @@ var DefaultRoles = map[string]map[string]Role{
 		"voice_model":         {Label: "Voice (standard)", Families: []string{`^eleven_v\d+_turbo$`, `^eleven_turbo_v[\d_]+$`, `^eleven_flash_v[\d_]+$`}},
 		"voice_premium_model": {Label: "Voice (premium)", Families: []string{`^eleven_v\d+$`, `^eleven_multilingual_v[\d_]+$`}},
 	},
+	// Free-tier fallbacks. OpenRouter: the newest free model, a vision one first for main_model
+	// so it can serve the media review; the premium slot takes the largest free model.
+	"openrouter": {
+		"main_model":    {Label: "Free model (vision first)", Families: []string{`.`}, FreeOnly: true, PreferVision: true, Order: "created", AllowInstruct: true, Exclude: []string{`^openrouter/`}},
+		"premium_model": {Label: "Premium (largest free model)", Families: []string{`.`}, FreeOnly: true, Order: "largest", AllowInstruct: true, Exclude: []string{`^openrouter/`}},
+	},
+	// Gemini: the newest stable Flash, then Flash-Lite.
+	"gemini": {
+		"main_model": {Label: "Flash (stable)", Families: []string{`^gemini-[\d.]+-flash$`, `^gemini-[\d.]+-flash-lite$`}},
+	},
+	// Cerebras: the largest current general model.
+	"cerebras": {
+		"main_model": {Label: "Largest general model", Families: []string{`.`}, Order: "largest", AllowInstruct: true},
+	},
 	"fal": {
 		"image_standard": {Label: "Poster image (standard)", Families: []string{`seedream`}, Informational: true},
 		"image_premium":  {Label: "Poster image (premium)", Families: []string{`nano-banana-pro`, `nano-banana`}, Informational: true},
@@ -60,6 +84,10 @@ var DefaultRoles = map[string]map[string]Role{
 // unstable marks ids that are not a stable, general model: previews, betas, dated experiments and
 // single-purpose variants (audio, speech, search, moderation).
 var unstable = regexp.MustCompile(`(?i)(preview|beta|alpha|\bexp\b|experimental|latest|\brc\d*\b|realtime|audio|transcribe|tts|whisper|search|moderation|guard|instruct|codex|deep-research|computer-use|-chat$|chat-)`)
+
+// unstableExceptInstruct is unstable without "instruct", for hosts of open models where the
+// instruct build is the general chat model.
+var unstableExceptInstruct = regexp.MustCompile(`(?i)(preview|beta|alpha|\bexp\b|experimental|latest|\brc\d*\b|realtime|audio|transcribe|tts|whisper|search|moderation|guard|codex|deep-research|computer-use|-chat$|chat-|embed)`)
 
 // RolesFor returns a provider's roles with the platform's overrides (JSON as in the package
 // doc) applied role by role.
@@ -96,9 +124,19 @@ type Recommendation struct {
 // Recommend picks a model from ids for every role it can fill. current is the provider's saved
 // settings, read for KeepCurrent roles.
 func Recommend(ids []string, roles map[string]Role, current map[string]string) []Recommendation {
+	models := make([]Model, len(ids))
+	for i, id := range ids {
+		models[i] = Model{ID: id}
+	}
+	return RecommendModels(models, roles, current)
+}
+
+// RecommendModels is Recommend over a described list, so roles can ask for free, vision or
+// newest-released models.
+func RecommendModels(models []Model, roles map[string]Role, current map[string]string) []Recommendation {
 	live := map[string]bool{}
-	for _, id := range ids {
-		live[id] = true
+	for _, m := range models {
+		live[m.ID] = true
 	}
 	var out []Recommendation
 	for field, role := range roles {
@@ -106,7 +144,7 @@ func Recommend(ids []string, roles map[string]Role, current map[string]string) [
 			out = append(out, Recommendation{Field: field, Label: role.Label, Model: current[field], Informational: role.Informational})
 			continue
 		}
-		if m := pick(ids, role); m != "" {
+		if m := pick(models, role); m != "" {
 			out = append(out, Recommendation{Field: field, Label: role.Label, Model: m, Informational: role.Informational})
 		}
 	}
@@ -114,38 +152,92 @@ func Recommend(ids []string, roles map[string]Role, current map[string]string) [
 	return out
 }
 
-func pick(ids []string, role Role) string {
+func pick(models []Model, role Role) string {
 	var excl []*regexp.Regexp
 	for _, e := range role.Exclude {
 		if re, err := regexp.Compile("(?i)" + e); err == nil {
 			excl = append(excl, re)
 		}
 	}
-	for _, fam := range role.Families {
-		re, err := regexp.Compile("(?i)" + fam)
+	notStable := unstable
+	if role.AllowInstruct {
+		notStable = unstableExceptInstruct
+	}
+	// With PreferVision the vision models are tried first, then every match.
+	passes := []bool{false}
+	if role.PreferVision {
+		passes = []bool{true, false}
+	}
+	for _, visionOnly := range passes {
+		for _, fam := range role.Families {
+			re, err := regexp.Compile("(?i)" + fam)
+			if err != nil {
+				continue
+			}
+			var cands []Model
+		next:
+			for _, m := range models {
+				if !re.MatchString(m.ID) || notStable.MatchString(stripFreeSuffix(m.ID)) {
+					continue
+				}
+				if (role.FreeOnly && !m.Free) || (visionOnly && !m.Vision) {
+					continue
+				}
+				for _, x := range excl {
+					if x.MatchString(m.ID) {
+						continue next
+					}
+				}
+				cands = append(cands, m)
+			}
+			if len(cands) == 0 {
+				continue
+			}
+			sort.SliceStable(cands, func(i, j int) bool { return better(cands[i], cands[j], role.Order) })
+			return cands[0].ID
+		}
+	}
+	return ""
+}
+
+// stripFreeSuffix drops OpenRouter's ":free" so the stable filter reads the model's own name.
+func stripFreeSuffix(id string) string { return strings.TrimSuffix(id, ":free") }
+
+// better orders a before b for the role's Order.
+func better(a, b Model, order string) bool {
+	switch order {
+	case "created":
+		if a.Created != b.Created {
+			return a.Created > b.Created
+		}
+	case "largest":
+		if sa, sb := sizeOf(a.ID), sizeOf(b.ID); sa != sb {
+			return sa > sb
+		}
+		if a.Created != b.Created {
+			return a.Created > b.Created
+		}
+	}
+	return newer(a.ID, b.ID)
+}
+
+// sizeOf reads a model's parameter count in billions from its id ("gpt-oss-120b" is 120,
+// "qwen-3-235b-a22b" is 235: the active-parameter "a22b" is not a size). Zero when unknown.
+func sizeOf(id string) float64 {
+	best := 0.0
+	for _, m := range sizeRe.FindAllStringSubmatch(id, -1) {
+		n, err := strconv.ParseFloat(strings.TrimRight(strings.ToLower(m[0]), "bm"), 64)
 		if err != nil {
 			continue
 		}
-		var cands []string
-	next:
-		for _, id := range ids {
-			if !re.MatchString(id) || unstable.MatchString(id) {
-				continue
-			}
-			for _, x := range excl {
-				if x.MatchString(id) {
-					continue next
-				}
-			}
-			cands = append(cands, id)
+		if strings.HasSuffix(strings.ToLower(m[0]), "m") {
+			n /= 1000
 		}
-		if len(cands) == 0 {
-			continue
+		if n > best {
+			best = n
 		}
-		sort.Slice(cands, func(i, j int) bool { return newer(cands[i], cands[j]) })
-		return cands[0]
 	}
-	return ""
+	return best
 }
 
 var (
