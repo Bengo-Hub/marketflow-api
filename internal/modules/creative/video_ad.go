@@ -13,6 +13,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
+	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/testimonial"
 	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
@@ -250,7 +251,7 @@ func (s *Service) CreateVideoAd(ctx context.Context, tenantID, briefID uuid.UUID
 		name = brief.Title
 	}
 	card := map[string]any{"headline": firstNonEmpty(in.Headline, name), "subline": in.Subline,
-		"price": firstNonEmpty(in.Price, offeringPrice(brief.Offering)), "cta": in.CTA}
+		"price": firstNonEmpty(in.Price, offeringPrice(brief.Offering), s.catalogPrice(ctx, tenantID, brief.Offering)), "cta": in.CTA}
 	meta := map[string]any{"stage": StageScript, "seconds": in.Seconds, "language": in.Language,
 		"photo_urls": in.PhotoURLs, "footage_urls": in.FootageURLs, "video_kind": in.Kind}
 	for k, v := range map[string]string{"voice": in.Voice, "delivery": in.Delivery, "voice_gender": in.VoiceGender,
@@ -907,4 +908,22 @@ func firstNonEmpty(vals ...string) string {
 		}
 	}
 	return ""
+}
+
+// catalogPrice is the offering's price from the tenant's own catalogue (a knowledge base product,
+// service, course or menu entry with the same name and a price) when the offering snapshot has
+// none: the end card shows a real price or none, never an invented one.
+func (s *Service) catalogPrice(ctx context.Context, tenantID uuid.UUID, offering map[string]any) string {
+	name := strings.TrimSpace(str(offering["name"]))
+	if name == "" {
+		return ""
+	}
+	e, err := s.db.KnowledgeBaseEntry.Query().
+		Where(knowledgebaseentry.TenantID(tenantID), knowledgebaseentry.TitleEqualFold(name),
+			knowledgebaseentry.ProductPriceGT(0)).
+		First(ctx)
+	if err != nil || e.ProductPrice == nil {
+		return ""
+	}
+	return "KES " + formatAmount(*e.ProductPrice)
 }

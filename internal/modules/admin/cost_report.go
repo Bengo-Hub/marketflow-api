@@ -184,6 +184,12 @@ type CostReport struct {
 	Tenants        []tenantCostLine `json:"tenants"`
 	Pagination     costPagination   `json:"pagination"`
 	Gaps           []string         `json:"gaps"`
+	// Breakdowns of the same month (cost_breakdown.go).
+	ByFeature     []costBreakdownLine `json:"by_feature"`
+	ByRoute       []costBreakdownLine `json:"by_route"`
+	Daily         []costDay           `json:"daily"`
+	Monthly       []costDay           `json:"monthly"` // the six months up to this one; day holds YYYY-MM
+	PlatformOwner *platformOwnerLine  `json:"platform_owner,omitempty"`
 }
 
 type costPagination struct {
@@ -238,6 +244,8 @@ func round(v float64, places int) float64 {
 const versionCostCTE = `
 WITH v AS (
 	SELECT cv.tenant_id,
+		cv.kind,
+		cv.created_at,
 		cv.credits,
 		COALESCE(CASE WHEN jsonb_typeof(cv.metadata->'cost_usd') = 'number'
 			THEN (cv.metadata->>'cost_usd')::numeric END, 0)
@@ -324,6 +332,8 @@ type CostReportHandler struct {
 	kesPer func(ctx context.Context, currency string) (float64, error)
 	logger *zap.Logger
 	nowFn  func() time.Time
+	// platformSlug is the platform owner's tenant, shown apart (WithPlatformSlug).
+	platformSlug string
 }
 
 // NewCostReportHandler builds the report handler.
@@ -417,6 +427,32 @@ func (h *CostReportHandler) CostReport(w http.ResponseWriter, r *http.Request) {
 			TenantID: s.TenantID.String(), Name: s.Name, Slug: s.Slug,
 			costLine: price(s.Versions, s.Credits, s.CostUSD, fx, creditKES, reg.MarginFloor),
 		})
+	}
+	bd, err := queryCostBreakdowns(ctx, h.db, start, end, h.platformSlug)
+	if err != nil {
+		h.logger.Error("cost breakdowns failed", zap.Error(err))
+		httpapi.Error(w, http.StatusInternalServerError, "query_failed", "could not build the cost report", nil)
+		return
+	}
+	line := func(s costBreakdownSum) costLine {
+		return price(s.Versions, s.Credits, s.CostUSD, fx, creditKES, reg.MarginFloor)
+	}
+	report.ByFeature, report.ByRoute, report.Daily = []costBreakdownLine{}, []costBreakdownLine{}, []costDay{}
+	for _, s := range bd.ByFeature {
+		report.ByFeature = append(report.ByFeature, costBreakdownLine{Key: s.Key, costLine: line(s)})
+	}
+	for _, s := range bd.ByRoute {
+		report.ByRoute = append(report.ByRoute, costBreakdownLine{Key: s.Key, costLine: line(s)})
+	}
+	for _, s := range bd.Daily {
+		report.Daily = append(report.Daily, costDay{Day: s.Key, costLine: line(s)})
+	}
+	report.Monthly = []costDay{}
+	for _, s := range bd.Monthly {
+		report.Monthly = append(report.Monthly, costDay{Day: s.Key, costLine: line(s)})
+	}
+	if o := bd.Owner; o != nil {
+		report.PlatformOwner = &platformOwnerLine{Slug: h.platformSlug, costLine: price(o.Versions, o.Credits, o.CostUSD, fx, creditKES, reg.MarginFloor)}
 	}
 	httpapi.JSON(w, http.StatusOK, report)
 }

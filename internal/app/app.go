@@ -252,7 +252,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// to the output registry's fx_rate when treasury has none.
 	costReportHandler := admin.NewCostReportHandler(entClient, sqlDB,
 		fxrate.New(cfg.CrossService.TreasuryURL, cfg.CrossService.InternalServiceKey, cfg.Security.PlatformTenant,
-			sharedcache.New(redisClient, logger)).KESPer, logger)
+			sharedcache.New(redisClient, logger)).KESPer, logger).
+		// The platform owner's own spend (no credits) is shown apart.
+		WithPlatformSlug(cfg.Security.PlatformTenant)
 	serviceConfigHandler := admin.NewServiceConfigHandler(entClient, logger)
 
 	// ── Auth Middleware (JWT via shared auth-client JWKS) ──────────────────
