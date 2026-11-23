@@ -203,3 +203,47 @@ func (h *Handler) QuoteVideoAd(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(status)
 	_, _ = w.Write(data)
 }
+
+// RecomposeEndCardPreview handles POST /api/v1/creative/versions/{id}/end-card-preview: the end
+// card preview made again over the storyboard's own end card still, with the current words,
+// contacts and logo plate. Nothing is redrawn or charged and an approval stands.
+// @Summary Recompose a video ad's end card preview
+// @Tags Creative
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Video ad version UUID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 409 {object} httpapi.ErrorResponse
+// @Failure 503 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /creative/versions/{id}/end-card-preview [post]
+func (h *Handler) RecomposeEndCardPreview(w http.ResponseWriter, r *http.Request) {
+	tid, ok := tenantOf(w, r)
+	if !ok {
+		return
+	}
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	if h.jobs == nil {
+		httpapi.Error(w, http.StatusServiceUnavailable, "unavailable", "video is not available right now", nil)
+		return
+	}
+	v, err := h.svc.version(r.Context(), tid, id)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	v, err = h.jobs.RecomposeEndCardPreview(r.Context(), v)
+	if err != nil {
+		if errors.Is(err, ErrConflict) {
+			h.fail(w, err)
+			return
+		}
+		h.logger.Warn("end card preview not recomposed", zap.String("version_id", id.String()), zap.Error(err))
+		httpapi.Error(w, http.StatusServiceUnavailable, "preview_unavailable", "the end card preview could not be made right now", nil)
+		return
+	}
+	httpapi.JSON(w, http.StatusOK, v)
+}

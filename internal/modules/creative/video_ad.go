@@ -760,6 +760,10 @@ type adCall struct {
 	Contacts []contact `json:"contacts,omitempty"`
 	Brand    string    `json:"brand,omitempty"`
 	Place    string    `json:"place,omitempty"`
+	// LogoPlate is how the logo is backed; LogoEveryScene lays it small over every scene
+	// (logo_plate.go). Always sent; marketflow-ai treats a missing value as on.
+	LogoPlate      logoPlate `json:"logo_plate"`
+	LogoEveryScene bool      `json:"logo_every_scene"`
 }
 
 // startAd starts a claimed video ad's render job in marketflow-ai.
@@ -800,6 +804,7 @@ func (r *Renderer) adCallFor(ctx context.Context, v *ent.CreativeVersion, script
 	place := r.resolvePlace(ctx, v.TenantID, offering, false)
 	call.Contacts, call.Brand, call.Place = place.Contacts, place.Brand, place.Line()
 	call.LogoURL = brandLogo(ctx, r.db, v.TenantID, b)
+	call.LogoPlate, call.LogoEveryScene = logoPlateFor(ctx, r.db, v.TenantID, b), logoEveryScene(ctx, r.db, v.TenantID)
 	// Every kind sends its generated stills: a scene with no matching picture starts from one
 	// (frames.go in marketflow-ai), a template ad's included.
 	if sb, ok := meta["storyboard"].(map[string]any); ok {

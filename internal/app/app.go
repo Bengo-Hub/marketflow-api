@@ -1050,6 +1050,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			ApproveStoryboard: creativeHandler.ApproveStoryboard,
 			ReviseVideoAd:     creativeHandler.ReviseVideoAd,
 			QuoteVideoAd:      creativeHandler.QuoteVideoAd,
+			RecomposeEndCard:  creativeHandler.RecomposeEndCardPreview,
 			JobCallback:       creativeHandler.JobCallback,
 			OSTurnEvent:       creativeHandler.OSTurnEvent,
 			CreateReviewLink:  creativeHandler.CreateReviewLink,

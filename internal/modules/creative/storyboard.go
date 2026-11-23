@@ -233,8 +233,12 @@ type storyboardCall struct {
 	// Brand and Place tell the self-review whose ad it is and where the business is (place.go).
 	Brand string `json:"brand,omitempty"`
 	Place string `json:"place,omitempty"`
-	// The end card's words, contacts, colour and logo: marketflow-ai composes them over the end
-	// card's still as a preview, so the plan shows the end card that renders.
+	endCardWords
+}
+
+// endCardWords are the end card's words, contacts, colour and logo: marketflow-ai composes them
+// over the end card's still as a preview, so the plan shows the end card that renders.
+type endCardWords struct {
 	Headline string    `json:"headline,omitempty"`
 	Subline  string    `json:"subline,omitempty"`
 	Price    string    `json:"price,omitempty"`
@@ -242,6 +246,22 @@ type storyboardCall struct {
 	Contacts []contact `json:"contacts,omitempty"`
 	Accent   string    `json:"accent,omitempty"`
 	LogoURL  string    `json:"logo_url,omitempty"`
+	// LogoPlate is how the logo is backed (logo_plate.go).
+	LogoPlate logoPlate `json:"logo_plate"`
+}
+
+// endCardWordsFor reads a version's end card as the render draws it: its words, the tenant's
+// contacts in the configured order, the brand colour, the logo and its plate.
+func (r *Renderer) endCardWordsFor(ctx context.Context, v *ent.CreativeVersion, b *ent.CreativeBrief, place placeInfo) endCardWords {
+	card, _ := v.Copy["end_card"].(map[string]any)
+	w := endCardWords{Headline: str(card["headline"]), Subline: str(card["subline"]), Price: str(card["price"]), CTA: str(card["cta"]),
+		Contacts: place.Contacts, LogoURL: brandLogo(ctx, r.db, v.TenantID, b), LogoPlate: logoPlateFor(ctx, r.db, v.TenantID, b)}
+	if b != nil {
+		if brand, ok := b.Metadata["brand"].(map[string]any); ok {
+			w.Accent = str(brand["accent"])
+		}
+	}
+	return w
 }
 
 // startStoryboard starts a claimed version's storyboard job in marketflow-ai.
@@ -260,13 +280,7 @@ func (r *Renderer) startStoryboard(ctx context.Context, v *ent.CreativeVersion) 
 	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
 		place := r.resolvePlace(ctx, v.TenantID, b.Offering, false)
 		call.Brand, call.Place = place.Brand, place.Line()
-		card, _ := v.Copy["end_card"].(map[string]any)
-		call.Headline, call.Subline, call.Price, call.CTA = str(card["headline"]), str(card["subline"]), str(card["price"]), str(card["cta"])
-		call.Contacts = place.Contacts
-		if brand, ok := b.Metadata["brand"].(map[string]any); ok {
-			call.Accent = str(brand["accent"])
-		}
-		call.LogoURL = brandLogo(ctx, r.db, v.TenantID, b)
+		call.endCardWords = r.endCardWordsFor(ctx, v, b, place)
 		if actor, ok := b.Metadata["actor"].(map[string]any); ok && str(actor["url"]) != "" {
 			call.Actor = actor
 			if redraw, _ := meta[metaRedrawActor].(bool); redraw {
@@ -450,4 +464,95 @@ func (r *Renderer) QuoteVideoAd(ctx context.Context, v *ent.CreativeVersion) (js
 		return nil, 0, errors.New("marketflow-ai sent an unreadable quote")
 	}
 	return data, status, nil
+}
+
+// endCardPreviewCall is marketflow-ai's POST /api/v1/internal/creative/end-card-preview body.
+type endCardPreviewCall struct {
+	TenantID  string `json:"tenant_id"`
+	VersionID string `json:"version_id"`
+	Format    string `json:"format"`
+	SceneID   string `json:"scene_id"`
+	StillURL  string `json:"still_url"`
+	endCardWords
+}
+
+// RecomposeEndCardPreview lays the end card's current words, contacts and logo plate over the
+// end card still the storyboard already drew (owner, 2026-11-24): nothing is redrawn and nothing
+// is charged, and an approval stands, since the plan's fingerprint covers the stills, not the
+// preview. Only a video ad script waiting for review with a storyboard has a preview to recompose.
+func (r *Renderer) RecomposeEndCardPreview(ctx context.Context, v *ent.CreativeVersion) (*ent.CreativeVersion, error) {
+	sb, ok := v.Metadata["storyboard"].(map[string]any)
+	if v.Kind != KindVideoAd || v.Status != StatusScriptReady || !ok {
+		return nil, fmt.Errorf("%w: only a video ad with a storyboard waiting for review has an end card preview", ErrConflict)
+	}
+	var script VideoScript
+	if b, err := json.Marshal(v.Copy["script"]); err != nil || json.Unmarshal(b, &script) != nil {
+		return nil, fmt.Errorf("%w: this video ad has no script", ErrConflict)
+	}
+	call := endCardPreviewCall{TenantID: v.TenantID.String(), VersionID: v.ID.String(), Format: v.Format}
+	for _, sc := range script.Scenes {
+		if sc.Shot == "end_card" {
+			call.SceneID = sc.ID
+		}
+	}
+	if stills, ok := sb["stills"].([]any); ok && call.SceneID != "" {
+		for _, x := range stills {
+			if st, ok := x.(map[string]any); ok && str(st["scene_id"]) == call.SceneID && str(st["url"]) != "" {
+				call.StillURL = str(st["url"])
+			}
+		}
+	}
+	if call.StillURL == "" {
+		return nil, fmt.Errorf("%w: the storyboard has no end card still; make the storyboard first", ErrConflict)
+	}
+	b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx)
+	if err != nil {
+		b = nil
+	}
+	var offering map[string]any
+	if b != nil {
+		offering = b.Offering
+	}
+	call.endCardWords = r.endCardWordsFor(ctx, v, b, r.resolvePlace(ctx, v.TenantID, offering, false))
+	data, status, err := r.aiCall(ctx, http.MethodPost, "/api/v1/internal/creative/end-card-preview", call, 60*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	if status != http.StatusOK {
+		return nil, aiStatusError(status, data)
+	}
+	var reply struct {
+		Preview *struct {
+			SceneID string `json:"scene_id"`
+			URL     string `json:"url"`
+			Key     string `json:"key"`
+		} `json:"end_card_preview"`
+	}
+	if json.Unmarshal(data, &reply) != nil || reply.Preview == nil || reply.Preview.URL == "" {
+		return nil, errors.New("marketflow-ai sent an unreadable end card preview")
+	}
+	p := reply.Preview
+	meta := copyMap(v.Metadata)
+	board := copyMap(sb)
+	board["end_card_preview"] = map[string]any{"scene_id": p.SceneID, "url": p.URL, "key": p.Key}
+	meta["storyboard"] = board
+	err = withTx(ctx, r.db, func(tx *ent.Tx) error {
+		n, err := tx.CreativeVersion.Update().
+			Where(creativeversion.ID(v.ID), creativeversion.StatusEQ(StatusScriptReady), creativeversion.UpdatedAt(v.UpdatedAt)).
+			SetMetadata(meta).Save(ctx)
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return fmt.Errorf("%w: the version changed meanwhile; try again", ErrConflict)
+		}
+		if p.Key == "" {
+			return nil
+		}
+		return r.recordAsset(ctx, tx, v, AssetKeyframe, p.Key, p.URL, map[string]any{"end_card_preview": true})
+	})
+	if err != nil {
+		return nil, err
+	}
+	return r.db.CreativeVersion.Get(ctx, v.ID)
 }

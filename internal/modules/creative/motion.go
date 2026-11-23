@@ -95,6 +95,8 @@ type clipCall struct {
 	Price     string `json:"price,omitempty"`
 	CTA       string `json:"cta,omitempty"`
 	Charge    bool   `json:"charge"`
+	// LogoPlate is how the logo is backed (logo_plate.go).
+	LogoPlate logoPlate `json:"logo_plate"`
 }
 
 // startClip starts a claimed motion poster's job in marketflow-ai.
@@ -112,5 +114,6 @@ func (r *Renderer) startClip(ctx context.Context, v *ent.CreativeVersion) {
 		b = nil
 	}
 	call.LogoURL = brandLogo(ctx, r.db, v.TenantID, b)
+	call.LogoPlate = logoPlateFor(ctx, r.db, v.TenantID, b)
 	r.startJob(ctx, v, meta, "/api/v1/internal/creative/clip", call)
 }

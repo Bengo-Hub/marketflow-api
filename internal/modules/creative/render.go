@@ -215,6 +215,8 @@ type posterCall struct {
 	Contacts []contact `json:"contacts,omitempty"`
 	Brand    string    `json:"brand,omitempty"`
 	Place    string    `json:"place,omitempty"`
+	// LogoPlate is how the logo is backed (logo_plate.go).
+	LogoPlate logoPlate `json:"logo_plate"`
 }
 
 // posterReply is its 200 answer.
@@ -271,6 +273,7 @@ func (r *Renderer) render(ctx context.Context, v *ent.CreativeVersion) {
 	place := r.resolvePlace(ctx, v.TenantID, offering, false)
 	call.Contacts, call.Brand, call.Place = place.Contacts, place.Brand, place.Line()
 	call.LogoURL = brandLogo(ctx, r.db, v.TenantID, b)
+	call.LogoPlate = logoPlateFor(ctx, r.db, v.TenantID, b)
 	// A text-only revision reuses its stored scene and needs no photos.
 	if call.SceneURL == "" {
 		call.PhotoURLs = r.withBrandPhotos(ctx, v.TenantID, call.PhotoURLs, maxPhotos)
