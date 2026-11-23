@@ -67,6 +67,12 @@ type Job struct {
 			CostUSD float64           `json:"cost_usd"`
 			// Review is marketflow-ai's self-review of the stills (media/review.go).
 			Review map[string]any `json:"review"`
+			// EndCardPreview is the end card as it will render (its still with the overlay).
+			EndCardPreview *struct {
+				SceneID string `json:"scene_id"`
+				URL     string `json:"url"`
+				Key     string `json:"key"`
+			} `json:"end_card_preview"`
 		} `json:"storyboard"`
 	} `json:"result,omitempty"`
 	CreditsCharged int    `json:"credits_charged"`

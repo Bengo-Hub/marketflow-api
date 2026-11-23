@@ -43,3 +43,11 @@ func TestDownloadName(t *testing.T) {
 		t.Fatalf("name %q", got)
 	}
 }
+
+func TestReadablePhone(t *testing.T) {
+	for in, want := range map[string]string{"254743793901": "+254 743 793 901", "0712345678": "+254 712 345 678", "+254 743 793 901": "+254 743 793 901", "+1 415 555 0100": "+1 415 555 0100"} {
+		if got := readablePhone(in); got != want {
+			t.Fatalf("%q = %q, want %q", in, got, want)
+		}
+	}
+}

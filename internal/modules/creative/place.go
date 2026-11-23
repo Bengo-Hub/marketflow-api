@@ -203,7 +203,7 @@ func contactsFor(order string, t *ent.Tenant, facts marketingos.BusinessFacts, o
 	if email == "" {
 		email = str(t.Metadata["contact_email"])
 	}
-	values := map[string]string{"whatsapp": whatsapp, "phone": facts.Phone, "web": website, "email": email}
+	values := map[string]string{"whatsapp": readablePhone(whatsapp), "phone": readablePhone(facts.Phone), "web": website, "email": email}
 	if httpURL(offeringURL) {
 		values["link"] = offeringURL
 	} else {
@@ -351,4 +351,25 @@ func (r *Renderer) factsFor(ctx context.Context, tenantID uuid.UUID, budget time
 // creative.flp_default_address, else DefaultFLPAddress.
 func FLPDefaultAddress(ctx context.Context, db *ent.Client, tenantID uuid.UUID) string {
 	return svcconfigOr(ctx, db, tenantID, FLPDefaultAddressKey, DefaultFLPAddress)
+}
+
+// readablePhone writes a Kenyan number the way people read it ("+254 743 793 901"); any other
+// number is left as given.
+func readablePhone(s string) string {
+	var d strings.Builder
+	for _, r := range s {
+		if r >= '0' && r <= '9' {
+			d.WriteRune(r)
+		}
+	}
+	n := d.String()
+	switch {
+	case len(n) == 12 && strings.HasPrefix(n, "254"):
+		n = n[3:]
+	case len(n) == 10 && strings.HasPrefix(n, "0"):
+		n = n[1:]
+	default:
+		return strings.TrimSpace(s)
+	}
+	return "+254 " + n[:3] + " " + n[3:6] + " " + n[6:]
 }

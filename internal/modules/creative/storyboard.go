@@ -233,6 +233,15 @@ type storyboardCall struct {
 	// Brand and Place tell the self-review whose ad it is and where the business is (place.go).
 	Brand string `json:"brand,omitempty"`
 	Place string `json:"place,omitempty"`
+	// The end card's words, contacts, colour and logo: marketflow-ai composes them over the end
+	// card's still as a preview, so the plan shows the end card that renders.
+	Headline string    `json:"headline,omitempty"`
+	Subline  string    `json:"subline,omitempty"`
+	Price    string    `json:"price,omitempty"`
+	CTA      string    `json:"cta,omitempty"`
+	Contacts []contact `json:"contacts,omitempty"`
+	Accent   string    `json:"accent,omitempty"`
+	LogoURL  string    `json:"logo_url,omitempty"`
 }
 
 // startStoryboard starts a claimed version's storyboard job in marketflow-ai.
@@ -251,6 +260,13 @@ func (r *Renderer) startStoryboard(ctx context.Context, v *ent.CreativeVersion) 
 	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
 		place := r.resolvePlace(ctx, v.TenantID, b.Offering, false)
 		call.Brand, call.Place = place.Brand, place.Line()
+		card, _ := v.Copy["end_card"].(map[string]any)
+		call.Headline, call.Subline, call.Price, call.CTA = str(card["headline"]), str(card["subline"]), str(card["price"]), str(card["cta"])
+		call.Contacts = place.Contacts
+		if brand, ok := b.Metadata["brand"].(map[string]any); ok {
+			call.Accent = str(brand["accent"])
+		}
+		call.LogoURL = brandLogo(ctx, r.db, v.TenantID, b)
 		if actor, ok := b.Metadata["actor"].(map[string]any); ok && str(actor["url"]) != "" {
 			call.Actor = actor
 			if redraw, _ := meta[metaRedrawActor].(bool); redraw {
@@ -300,6 +316,9 @@ func (r *Renderer) settleStoryboard(ctx context.Context, v *ent.CreativeVersion,
 		if len(sb.Review) > 0 {
 			board["review"] = sb.Review
 		}
+		if sb.EndCardPreview != nil && sb.EndCardPreview.URL != "" {
+			board["end_card_preview"] = toMap(sb.EndCardPreview)
+		}
 		meta["storyboard"], meta["stage"] = board, StageScript
 		delete(meta, "storyboard_error")
 		// New stills are a new plan: the owner approves it again.
@@ -324,6 +343,11 @@ func (r *Renderer) settleStoryboard(ctx context.Context, v *ent.CreativeVersion,
 					continue
 				}
 				if err := r.recordAsset(ctx, tx, v, AssetKeyframe, st.Key, st.URL, map[string]any{"scene_id": st.SceneID}); err != nil {
+					return err
+				}
+			}
+			if p := sb.EndCardPreview; p != nil && p.Key != "" {
+				if err := r.recordAsset(ctx, tx, v, AssetKeyframe, p.Key, p.URL, map[string]any{"end_card_preview": true}); err != nil {
 					return err
 				}
 			}
