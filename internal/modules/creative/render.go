@@ -220,18 +220,19 @@ type posterCall struct {
 // posterReply is its 200 answer.
 type posterReply struct {
 	Poster struct {
-		URL       string  `json:"url"`
-		Key       string  `json:"key"`
-		Width     int     `json:"width"`
-		Height    int     `json:"height"`
-		Bytes     int     `json:"bytes"`
-		SHA256    string  `json:"sha256"`
-		Route     string  `json:"route"`
-		CostUSD   float64 `json:"cost_usd"`
-		SourceURL string  `json:"source_url"`
-		SceneKey  string  `json:"scene_key"`
-		SceneURL  string  `json:"scene_url"`
-		Attempts  int     `json:"attempts"`
+		URL       string         `json:"url"`
+		Key       string         `json:"key"`
+		Width     int            `json:"width"`
+		Height    int            `json:"height"`
+		Bytes     int            `json:"bytes"`
+		SHA256    string         `json:"sha256"`
+		Route     string         `json:"route"`
+		CostUSD   float64        `json:"cost_usd"`
+		SourceURL string         `json:"source_url"`
+		SceneKey  string         `json:"scene_key"`
+		SceneURL  string         `json:"scene_url"`
+		Attempts  int            `json:"attempts"`
+		Review    map[string]any `json:"review"`
 	} `json:"poster"`
 	CreditsCharged int `json:"credits_charged"`
 }
@@ -282,6 +283,9 @@ func (r *Renderer) render(ctx context.Context, v *ent.CreativeVersion) {
 	}
 	p := reply.Poster
 	meta["route"], meta["cost_usd"], meta["provider_attempts"] = p.Route, p.CostUSD, p.Attempts
+	if len(p.Review) > 0 {
+		meta["review"] = p.Review
+	}
 	if p.SourceURL != "" {
 		meta["scene_url"] = p.SourceURL
 	}

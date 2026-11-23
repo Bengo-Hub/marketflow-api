@@ -297,6 +297,9 @@ func (r *Renderer) settleStoryboard(ctx context.Context, v *ent.CreativeVersion,
 		if sb.Actor != nil {
 			board["actor"] = toMap(sb.Actor)
 		}
+		if len(sb.Review) > 0 {
+			board["review"] = sb.Review
+		}
 		meta["storyboard"], meta["stage"] = board, StageScript
 		delete(meta, "storyboard_error")
 		// New stills are a new plan: the owner approves it again.

@@ -51,18 +51,22 @@ type Job struct {
 		Attempts     int     `json:"attempts"`
 		CaptionLines int     `json:"caption_lines"`
 		// Video ads: the voice used and the scenes, kept for the scene cache.
-		Voice      string           `json:"voice"`
-		Scenes     []map[string]any `json:"scenes"`
+		Voice  string           `json:"voice"`
+		Scenes []map[string]any `json:"scenes"`
 		// Voices are a two-voice UGC ad's voices by speaker (male, female); TwoVoiceNote says
 		// why an ad written for two voices was read by one.
 		Voices       map[string]string `json:"voices"`
 		TwoVoiceNote string            `json:"two_voice_note"`
 		// Music is the generated music, kept so the ad's revisions can reuse it.
 		Music map[string]any `json:"music"`
+		// Review is marketflow-ai's self-review of the finished ad (media/review.go).
+		Review     map[string]any `json:"review"`
 		Storyboard *struct {
 			Actor   *storyboardActor  `json:"actor"`
 			Stills  []storyboardStill `json:"stills"`
 			CostUSD float64           `json:"cost_usd"`
+			// Review is marketflow-ai's self-review of the stills (media/review.go).
+			Review map[string]any `json:"review"`
 		} `json:"storyboard"`
 	} `json:"result,omitempty"`
 	CreditsCharged int    `json:"credits_charged"`
@@ -236,6 +240,9 @@ func (r *Renderer) SettleJob(ctx context.Context, id uuid.UUID, job Job) error {
 				cache = append(cache, sc)
 			}
 			meta["scene_cache"] = cache
+		}
+		if len(res.Review) > 0 {
+			meta["review"] = res.Review
 		}
 		if res.Music != nil {
 			// The generated music, kept so a revision with the same mood reuses it (WP1).
