@@ -888,6 +888,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Defaults:    platformProviderHandler.ListProviderDefaults,
 			SetDefault:  platformProviderHandler.SetProviderDefault,
 			Balances:    platformProviderHandler.ProviderBalances,
+			Billing:     platformProviderHandler.ProviderBilling,
 		},
 		AdminServiceConfigHandlers: httpapi.AdminServiceConfigHandlers{
 			ListPlatform:   serviceConfigHandler.ListPlatformSettings,

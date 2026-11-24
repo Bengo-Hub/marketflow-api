@@ -195,6 +195,9 @@ type AdminProviderHandlers struct {
 	SetDefault http.HandlerFunc
 	// Balances is each media provider's last balance (GET /admin/providers/balances).
 	Balances http.HandlerFunc
+	// Billing is a provider's own billing page (public GET /public/provider-billing/{provider}),
+	// where the platform owner's WhatsApp balance alert forwards.
+	Billing http.HandlerFunc
 }
 
 // AdminTenantsHandlers groups platform tenant-directory HTTP handlers.
@@ -1519,6 +1522,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 			if deps.CustomAgentHandlers.PublicVetoView != nil {
 				r.With(readLimit).Get("/autopilot/veto/{token}", deps.CustomAgentHandlers.PublicVetoView)
 				r.With(bookLimit).Post("/autopilot/veto/{token}", deps.CustomAgentHandlers.PublicVetoPost)
+			}
+			if deps.AdminProviderHandlers.Billing != nil {
+				r.With(readLimit).Get("/provider-billing/{provider}", deps.AdminProviderHandlers.Billing)
 			}
 		})
 	})

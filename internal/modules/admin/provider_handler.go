@@ -71,6 +71,9 @@ func (h *PlatformProviderHandler) ConfigureProvider(w http.ResponseWriter, r *ht
 	if req.Environment == "" {
 		req.Environment = "production"
 	}
+	if !checkBillingURL(w, req.Settings, h.logger) {
+		return
+	}
 
 	ctx := r.Context()
 
@@ -317,7 +320,12 @@ func (h *PlatformProviderHandler) GetProviderSettings(w http.ResponseWriter, r *
 		}
 	}
 
-	httpapi.JSON(w, http.StatusOK, map[string]any{"data": result})
+	// defaults are what an empty field falls back to (the card shows them as placeholders).
+	defaults := map[string]string{}
+	if d := DefaultBillingURL(providerName); d != "" {
+		defaults[BillingURLKey] = d
+	}
+	httpapi.JSON(w, http.StatusOK, map[string]any{"data": result, "defaults": defaults})
 }
 
 // ResolveProvider returns **decrypted** provider settings for internal
@@ -380,6 +388,9 @@ func (h *PlatformProviderHandler) ResolveProvider(w http.ResponseWriter, r *http
 			value = s.Value
 		}
 		out[s.Key] = value
+	}
+	if scope == platformTenantID {
+		withBillingDefault(providerName, out)
 	}
 	httpapi.JSON(w, http.StatusOK, map[string]any{
 		"tenant_id":     scope,
