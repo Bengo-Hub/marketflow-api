@@ -65,9 +65,48 @@ func CustomerDigits(id string) string { return strings.ReplaceAll(strings.TrimSp
 type AdsError struct {
 	Status  int
 	Message string
+	// Code is the first Google Ads error code in the details, e.g. "CUSTOMER_NOT_ENABLED". Google's
+	// top-level message for a 403 is only "The caller does not have permission"; the code says why.
+	Code string
 }
 
-func (e *AdsError) Error() string { return fmt.Sprintf("google ads %d: %s", e.Status, e.Message) }
+func (e *AdsError) Error() string {
+	if e.Code != "" {
+		return fmt.Sprintf("google ads %d: %s (%s)", e.Status, e.Message, e.Code)
+	}
+	return fmt.Sprintf("google ads %d: %s", e.Status, e.Message)
+}
+
+// ErrCustomerNotEnabled is Google's code for an account that is not set up yet (billing or the
+// first campaign unfinished) or was cancelled.
+const ErrCustomerNotEnabled = "CUSTOMER_NOT_ENABLED"
+
+// adsErrorCode returns the first error code in a Google Ads failure body
+// (error.details[].errors[].errorCode, an object with one key such as authorizationError).
+func adsErrorCode(data []byte) string {
+	var e struct {
+		Error struct {
+			Details []struct {
+				Errors []struct {
+					ErrorCode map[string]any `json:"errorCode"`
+				} `json:"errors"`
+			} `json:"details"`
+		} `json:"error"`
+	}
+	if json.Unmarshal(data, &e) != nil {
+		return ""
+	}
+	for _, d := range e.Error.Details {
+		for _, x := range d.Errors {
+			for _, v := range x.ErrorCode {
+				if s, ok := v.(string); ok && s != "" {
+					return s
+				}
+			}
+		}
+	}
+	return ""
+}
 
 // errProjectNotApproved is what Google returns (v25 on) when the Cloud project only has Test
 // access and the call reaches a real account.
@@ -128,7 +167,7 @@ func (a Ads) do(ctx context.Context, method, path string, body any, out any) err
 				msg = msg[:300]
 			}
 		}
-		return &AdsError{Status: resp.StatusCode, Message: msg}
+		return &AdsError{Status: resp.StatusCode, Message: msg, Code: adsErrorCode(data)}
 	}
 	if out != nil && len(data) > 0 {
 		return json.Unmarshal(data, out)

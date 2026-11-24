@@ -2,6 +2,7 @@ package integrations
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -124,13 +125,19 @@ func (h *Handler) GoogleAdsCallback(w http.ResponseWriter, r *http.Request) {
 		h.failConnect(w, r, "google_ads", tenantID, "missing_scope", "granted: "+strings.Join(tok.Scopes, " "))
 		return
 	}
-	custs, err := h.googleAdsCustomers(ctx, extra, tok.Access)
+	custs, notEnabled, err := h.googleAdsCustomers(ctx, extra, tok.Access)
 	if err != nil {
 		h.revokeGrant(ctx, tenantID, tok.Refresh)
 		h.failConnect(w, r, "google_ads", tenantID, "account_read_failed", err.Error())
 		return
 	}
 	accs := googleAdsAccounts(custs, tok, time.Now())
+	if len(accs) == 0 && notEnabled {
+		// A new account whose billing or first campaign is unfinished: Google refuses it until then.
+		h.revokeGrant(ctx, tenantID, tok.Refresh)
+		h.failConnect(w, r, "google_ads", tenantID, "account_not_enabled", "the Google Ads account is not set up yet (finish billing and the first campaign), or it was cancelled")
+		return
+	}
 	if len(accs) == 0 {
 		h.revokeGrant(ctx, tenantID, tok.Refresh)
 		h.failConnect(w, r, "google_ads", tenantID, "no_account", "this Google identity reaches no Google Ads account that runs ads")
@@ -146,7 +153,8 @@ func (h *Handler) GoogleAdsCallback(w http.ResponseWriter, r *http.Request) {
 
 // googleAdsCustomers lists the accounts the token reaches with their names. The direct list call
 // needs no login customer; each account is then read as itself.
-func (h *Handler) googleAdsCustomers(ctx context.Context, extra map[string]string, access string) ([]google.Customer, error) {
+// notEnabled reports that at least one reachable account was refused as not set up yet.
+func (h *Handler) googleAdsCustomers(ctx context.Context, extra map[string]string, access string) (out []google.Customer, notEnabled bool, err error) {
 	ads := google.AdsFromSettings(h.httpClient(), extra, access)
 	ads.LoginCustomerID = "" // a direct read of each reachable account needs no manager header
 	if h.googleAdsBase != "" {
@@ -154,9 +162,9 @@ func (h *Handler) googleAdsCustomers(ctx context.Context, extra map[string]strin
 	}
 	ids, err := ads.AccessibleCustomers(ctx)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	out := make([]google.Customer, 0, len(ids))
+	out = make([]google.Customer, 0, len(ids))
 	for i, id := range ids {
 		if i == maxGoogleAdsAccounts {
 			break
@@ -165,9 +173,13 @@ func (h *Handler) googleAdsCustomers(ctx context.Context, extra map[string]strin
 		if err != nil {
 			// An account the identity lists but cannot read (cancelled, no access) is skipped.
 			h.logger.Info("google ads account not readable", zap.String("customer", id), zap.Error(err))
+			var ae *google.AdsError
+			if errors.As(err, &ae) && ae.Code == google.ErrCustomerNotEnabled {
+				notEnabled = true
+			}
 			continue
 		}
 		out = append(out, cust)
 	}
-	return out, nil
+	return out, notEnabled, nil
 }
