@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -35,6 +36,14 @@ type Testimonial struct {
 	DisplayOrder int `json:"display_order,omitempty"`
 	// IsPublished holds the value of the "is_published" field.
 	IsPublished bool `json:"is_published,omitempty"`
+	// pending | approved | rejected
+	Status string `json:"status,omitempty"`
+	// manual | form | website
+	Source string `json:"source,omitempty"`
+	// Fingerprint holds the value of the "fingerprint" field.
+	Fingerprint *string `json:"fingerprint,omitempty"`
+	// consent, consent_at, submitter_email, submitter_phone, media_url, media_kind, source_url, reviewed_by, reviewed_at, ip_hash
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -70,11 +79,13 @@ func (*Testimonial) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case testimonial.FieldMetadata:
+			values[i] = new([]byte)
 		case testimonial.FieldIsPublished:
 			values[i] = new(sql.NullBool)
 		case testimonial.FieldRating, testimonial.FieldDisplayOrder:
 			values[i] = new(sql.NullInt64)
-		case testimonial.FieldAuthorName, testimonial.FieldAuthorRole, testimonial.FieldBody, testimonial.FieldAvatarURL:
+		case testimonial.FieldAuthorName, testimonial.FieldAuthorRole, testimonial.FieldBody, testimonial.FieldAvatarURL, testimonial.FieldStatus, testimonial.FieldSource, testimonial.FieldFingerprint:
 			values[i] = new(sql.NullString)
 		case testimonial.FieldCreatedAt, testimonial.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -148,6 +159,33 @@ func (_m *Testimonial) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field is_published", values[i])
 			} else if value.Valid {
 				_m.IsPublished = value.Bool
+			}
+		case testimonial.FieldStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field status", values[i])
+			} else if value.Valid {
+				_m.Status = value.String
+			}
+		case testimonial.FieldSource:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field source", values[i])
+			} else if value.Valid {
+				_m.Source = value.String
+			}
+		case testimonial.FieldFingerprint:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field fingerprint", values[i])
+			} else if value.Valid {
+				_m.Fingerprint = new(string)
+				*_m.Fingerprint = value.String
+			}
+		case testimonial.FieldMetadata:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field metadata", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Metadata); err != nil {
+					return fmt.Errorf("unmarshal field metadata: %w", err)
+				}
 			}
 		case testimonial.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -225,6 +263,20 @@ func (_m *Testimonial) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("is_published=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsPublished))
+	builder.WriteString(", ")
+	builder.WriteString("status=")
+	builder.WriteString(_m.Status)
+	builder.WriteString(", ")
+	builder.WriteString("source=")
+	builder.WriteString(_m.Source)
+	builder.WriteString(", ")
+	if v := _m.Fingerprint; v != nil {
+		builder.WriteString("fingerprint=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("metadata=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

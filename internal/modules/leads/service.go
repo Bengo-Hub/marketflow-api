@@ -8,7 +8,6 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
-	"github.com/bengobox/marketflow-api/internal/outbox"
 	"github.com/bengobox/marketflow-api/internal/platform/search"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -48,6 +47,9 @@ type CreateInput struct {
 	Interest             *string
 	QualificationAnswers map[string]any
 	Metadata             map[string]any
+	// Status and CreatedAt are set only by Import, which keeps a migrated lead's state and age.
+	Status    string
+	CreatedAt *time.Time
 }
 
 // UpdateInput contains the data to update a lead.
@@ -68,8 +70,13 @@ type ListInput struct {
 	TenantID uuid.UUID
 	Status   *string
 	Source   *string
-	LeadType *string
-	// Search matches name, email or phone (case-insensitive substring), at most 100 characters.
+	// Sources and ExcludeSources filter on several sources at once (a website's enquiry forms,
+	// or every lead but those).
+	Sources        []string
+	ExcludeSources []string
+	LeadType       *string
+	// Search matches name, email, phone or interest (case-insensitive substring), at most 100
+	// characters.
 	Search string
 	From   *time.Time
 	To     *time.Time
@@ -77,87 +84,17 @@ type ListInput struct {
 	Offset int
 }
 
-// Create creates a new lead and, in the same transaction, the outbox row for its lead.created
-// event. Every lead source (public funnel, availability booking, Meta and TikTok webhooks, API)
-// goes through here, so nurture auto-enrolment and lead scoring see every lead exactly once.
+// Create saves a lead submission through Capture and returns the lead: a new one (with
+// lead.created in the same transaction) or, for a person the tenant already has, their existing
+// lead with the submission recorded on it. Every lead source (public funnel, availability
+// booking, Meta and TikTok webhooks, API) goes through here, so nurture auto-enrolment and lead
+// scoring see every person exactly once.
 func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Lead, error) {
-	tx, err := s.client.Tx(ctx)
+	res, err := s.Capture(ctx, in)
 	if err != nil {
-		return nil, fmt.Errorf("create lead: begin tx: %w", err)
+		return nil, err
 	}
-	rollback := func(cause error) (*ent.Lead, error) {
-		_ = tx.Rollback()
-		return nil, cause
-	}
-
-	builder := tx.Lead.Create().
-		SetTenantID(in.TenantID).
-		SetSource(in.Source).
-		SetLeadType(in.LeadType)
-	if in.ID != nil {
-		builder.SetID(*in.ID)
-	}
-
-	if in.Email != nil {
-		builder.SetNillableEmail(in.Email)
-	}
-	if in.Phone != nil {
-		builder.SetNillablePhone(in.Phone)
-	}
-	if in.FirstName != nil {
-		builder.SetNillableFirstName(in.FirstName)
-	}
-	if in.LastName != nil {
-		builder.SetNillableLastName(in.LastName)
-	}
-	if in.CampaignID != nil {
-		builder.SetNillableCampaignID(in.CampaignID)
-	}
-	if in.FunnelID != nil {
-		builder.SetNillableFunnelID(in.FunnelID)
-	}
-	if in.UTMSource != nil {
-		builder.SetNillableUtmSource(in.UTMSource)
-	}
-	if in.UTMMedium != nil {
-		builder.SetNillableUtmMedium(in.UTMMedium)
-	}
-	if in.UTMCampaign != nil {
-		builder.SetNillableUtmCampaign(in.UTMCampaign)
-	}
-	if in.Interest != nil {
-		builder.SetNillableInterest(in.Interest)
-	}
-	if in.QualificationAnswers != nil {
-		builder.SetQualificationAnswers(in.QualificationAnswers)
-	}
-	if in.Metadata != nil {
-		builder.SetMetadata(in.Metadata)
-	}
-
-	result, err := builder.Save(ctx)
-	if err != nil {
-		if in.ID != nil && ent.IsConstraintError(err) {
-			return rollback(ErrDuplicateLead)
-		}
-		return rollback(fmt.Errorf("create lead: %w", err))
-	}
-
-	// In the transaction: a lead without its event would never be nurtured or scored.
-	if err := outbox.Enqueue(ctx, tx.OutboxEvent, leadCreatedEvent(result)); err != nil {
-		return rollback(err)
-	}
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("create lead: commit: %w", err)
-	}
-
-	s.logger.Info("lead created",
-		zap.String("id", result.ID.String()),
-		zap.String("tenant_id", in.TenantID.String()),
-		zap.String("source", in.Source),
-	)
-
-	return result, nil
+	return res.Lead, nil
 }
 
 // Get retrieves a lead by ID within a tenant.
@@ -252,6 +189,12 @@ func (s *Service) filtered(in ListInput) *ent.LeadQuery {
 	if in.Source != nil {
 		query = query.Where(lead.SourceEQ(*in.Source))
 	}
+	if len(in.Sources) > 0 {
+		query = query.Where(lead.SourceIn(in.Sources...))
+	}
+	if len(in.ExcludeSources) > 0 {
+		query = query.Where(lead.SourceNotIn(in.ExcludeSources...))
+	}
 	if in.LeadType != nil {
 		query = query.Where(lead.LeadTypeEQ(*in.LeadType))
 	}
@@ -269,6 +212,7 @@ func (s *Service) filtered(in ListInput) *ent.LeadQuery {
 			lead.LastNameContainsFold(t),
 			lead.EmailContainsFold(t),
 			lead.PhoneContains(t),
+			lead.InterestContainsFold(t),
 		))
 	}
 	return query
@@ -305,7 +249,7 @@ func (s *Service) Update(ctx context.Context, tenantID, leadID uuid.UUID, in Upd
 		builder.SetQualificationAnswers(in.QualificationAnswers)
 	}
 	if in.Metadata != nil {
-		builder.SetMetadata(in.Metadata)
+		builder.SetMetadata(mergeMetadata(existing.Metadata, in.Metadata))
 	}
 
 	// Handle status transitions with timestamp tracking
@@ -355,4 +299,22 @@ var metaLeadNamespace = uuid.MustParse("6f1e0b3a-6b0e-4c55-9a2f-3d5b7c1e8a90")
 // redelivered or racing webhook cannot create a second lead.
 func MetaLeadID(tenantID uuid.UUID, leadgenID string) uuid.UUID {
 	return uuid.NewSHA1(metaLeadNamespace, []byte(tenantID.String()+"/"+leadgenID))
+}
+
+// mergeMetadata applies a metadata patch to a lead's metadata: keys in the patch replace or add,
+// a key set to null is removed, and every other key stays. Before this an update replaced the
+// whole map, so editing a note wiped the consent record and the ad attribution.
+func mergeMetadata(current, patch map[string]any) map[string]any {
+	out := make(map[string]any, len(current)+len(patch))
+	for k, v := range current {
+		out[k] = v
+	}
+	for k, v := range patch {
+		if v == nil {
+			delete(out, k)
+			continue
+		}
+		out[k] = v
+	}
+	return out
 }

@@ -58,6 +58,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/sequences"
 	"github.com/bengobox/marketflow-api/internal/modules/shortlinks"
 	"github.com/bengobox/marketflow-api/internal/modules/tasks"
+	enttenant "github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant"
 	"github.com/bengobox/marketflow-api/internal/modules/testimonials"
 	"github.com/bengobox/marketflow-api/internal/modules/webhooks"
@@ -905,8 +906,21 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		},
 		InternalLeadHandlers: httpapi.InternalLeadHandlers{
 			IngestFromService: leadHandler.IngestFromService,
+			List:              leadHandler.ListInternal,
+			Stats:             leadHandler.StatsInternal,
+			Get:               leadHandler.GetInternal,
+			Patch:             leadHandler.PatchInternal,
+			Delete:            leadHandler.DeleteInternal,
+			Import:            leadHandler.ImportInternal,
 		},
 		InternalServiceKey: cfg.Subscriptions.APIKey,
+		ResolveTenantSlug: func(ctx context.Context, slug string) (uuid.UUID, error) {
+			t, err := entClient.Tenant.Query().Where(enttenant.SlugEQ(slug), enttenant.StatusEQ("active")).Only(ctx)
+			if err != nil {
+				return uuid.Nil, err
+			}
+			return t.ID, nil
+		},
 		DealHandlers: httpapi.DealHandlers{
 			Create:   dealHandler.Create,
 			List:     dealHandler.List,

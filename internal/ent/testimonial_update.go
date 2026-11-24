@@ -169,6 +169,66 @@ func (_u *TestimonialUpdate) SetNillableIsPublished(v *bool) *TestimonialUpdate 
 	return _u
 }
 
+// SetStatus sets the "status" field.
+func (_u *TestimonialUpdate) SetStatus(v string) *TestimonialUpdate {
+	_u.mutation.SetStatus(v)
+	return _u
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_u *TestimonialUpdate) SetNillableStatus(v *string) *TestimonialUpdate {
+	if v != nil {
+		_u.SetStatus(*v)
+	}
+	return _u
+}
+
+// SetSource sets the "source" field.
+func (_u *TestimonialUpdate) SetSource(v string) *TestimonialUpdate {
+	_u.mutation.SetSource(v)
+	return _u
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_u *TestimonialUpdate) SetNillableSource(v *string) *TestimonialUpdate {
+	if v != nil {
+		_u.SetSource(*v)
+	}
+	return _u
+}
+
+// SetFingerprint sets the "fingerprint" field.
+func (_u *TestimonialUpdate) SetFingerprint(v string) *TestimonialUpdate {
+	_u.mutation.SetFingerprint(v)
+	return _u
+}
+
+// SetNillableFingerprint sets the "fingerprint" field if the given value is not nil.
+func (_u *TestimonialUpdate) SetNillableFingerprint(v *string) *TestimonialUpdate {
+	if v != nil {
+		_u.SetFingerprint(*v)
+	}
+	return _u
+}
+
+// ClearFingerprint clears the value of the "fingerprint" field.
+func (_u *TestimonialUpdate) ClearFingerprint() *TestimonialUpdate {
+	_u.mutation.ClearFingerprint()
+	return _u
+}
+
+// SetMetadata sets the "metadata" field.
+func (_u *TestimonialUpdate) SetMetadata(v map[string]interface{}) *TestimonialUpdate {
+	_u.mutation.SetMetadata(v)
+	return _u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (_u *TestimonialUpdate) ClearMetadata() *TestimonialUpdate {
+	_u.mutation.ClearMetadata()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *TestimonialUpdate) SetUpdatedAt(v time.Time) *TestimonialUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -254,6 +314,11 @@ func (_u *TestimonialUpdate) check() error {
 			return &ValidationError{Name: "rating", err: fmt.Errorf(`ent: validator failed for field "Testimonial.rating": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Fingerprint(); ok {
+		if err := testimonial.FingerprintValidator(v); err != nil {
+			return &ValidationError{Name: "fingerprint", err: fmt.Errorf(`ent: validator failed for field "Testimonial.fingerprint": %w`, err)}
+		}
+	}
 	if _u.mutation.TenantCleared() && len(_u.mutation.TenantIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Testimonial.tenant"`)
 	}
@@ -310,6 +375,24 @@ func (_u *TestimonialUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.IsPublished(); ok {
 		_spec.SetField(testimonial.FieldIsPublished, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Status(); ok {
+		_spec.SetField(testimonial.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Source(); ok {
+		_spec.SetField(testimonial.FieldSource, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Fingerprint(); ok {
+		_spec.SetField(testimonial.FieldFingerprint, field.TypeString, value)
+	}
+	if _u.mutation.FingerprintCleared() {
+		_spec.ClearField(testimonial.FieldFingerprint, field.TypeString)
+	}
+	if value, ok := _u.mutation.Metadata(); ok {
+		_spec.SetField(testimonial.FieldMetadata, field.TypeJSON, value)
+	}
+	if _u.mutation.MetadataCleared() {
+		_spec.ClearField(testimonial.FieldMetadata, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(testimonial.FieldUpdatedAt, field.TypeTime, value)
@@ -503,6 +586,66 @@ func (_u *TestimonialUpdateOne) SetNillableIsPublished(v *bool) *TestimonialUpda
 	return _u
 }
 
+// SetStatus sets the "status" field.
+func (_u *TestimonialUpdateOne) SetStatus(v string) *TestimonialUpdateOne {
+	_u.mutation.SetStatus(v)
+	return _u
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_u *TestimonialUpdateOne) SetNillableStatus(v *string) *TestimonialUpdateOne {
+	if v != nil {
+		_u.SetStatus(*v)
+	}
+	return _u
+}
+
+// SetSource sets the "source" field.
+func (_u *TestimonialUpdateOne) SetSource(v string) *TestimonialUpdateOne {
+	_u.mutation.SetSource(v)
+	return _u
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_u *TestimonialUpdateOne) SetNillableSource(v *string) *TestimonialUpdateOne {
+	if v != nil {
+		_u.SetSource(*v)
+	}
+	return _u
+}
+
+// SetFingerprint sets the "fingerprint" field.
+func (_u *TestimonialUpdateOne) SetFingerprint(v string) *TestimonialUpdateOne {
+	_u.mutation.SetFingerprint(v)
+	return _u
+}
+
+// SetNillableFingerprint sets the "fingerprint" field if the given value is not nil.
+func (_u *TestimonialUpdateOne) SetNillableFingerprint(v *string) *TestimonialUpdateOne {
+	if v != nil {
+		_u.SetFingerprint(*v)
+	}
+	return _u
+}
+
+// ClearFingerprint clears the value of the "fingerprint" field.
+func (_u *TestimonialUpdateOne) ClearFingerprint() *TestimonialUpdateOne {
+	_u.mutation.ClearFingerprint()
+	return _u
+}
+
+// SetMetadata sets the "metadata" field.
+func (_u *TestimonialUpdateOne) SetMetadata(v map[string]interface{}) *TestimonialUpdateOne {
+	_u.mutation.SetMetadata(v)
+	return _u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (_u *TestimonialUpdateOne) ClearMetadata() *TestimonialUpdateOne {
+	_u.mutation.ClearMetadata()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *TestimonialUpdateOne) SetUpdatedAt(v time.Time) *TestimonialUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -601,6 +744,11 @@ func (_u *TestimonialUpdateOne) check() error {
 			return &ValidationError{Name: "rating", err: fmt.Errorf(`ent: validator failed for field "Testimonial.rating": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Fingerprint(); ok {
+		if err := testimonial.FingerprintValidator(v); err != nil {
+			return &ValidationError{Name: "fingerprint", err: fmt.Errorf(`ent: validator failed for field "Testimonial.fingerprint": %w`, err)}
+		}
+	}
 	if _u.mutation.TenantCleared() && len(_u.mutation.TenantIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Testimonial.tenant"`)
 	}
@@ -674,6 +822,24 @@ func (_u *TestimonialUpdateOne) sqlSave(ctx context.Context) (_node *Testimonial
 	}
 	if value, ok := _u.mutation.IsPublished(); ok {
 		_spec.SetField(testimonial.FieldIsPublished, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Status(); ok {
+		_spec.SetField(testimonial.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Source(); ok {
+		_spec.SetField(testimonial.FieldSource, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Fingerprint(); ok {
+		_spec.SetField(testimonial.FieldFingerprint, field.TypeString, value)
+	}
+	if _u.mutation.FingerprintCleared() {
+		_spec.ClearField(testimonial.FieldFingerprint, field.TypeString)
+	}
+	if value, ok := _u.mutation.Metadata(); ok {
+		_spec.SetField(testimonial.FieldMetadata, field.TypeJSON, value)
+	}
+	if _u.mutation.MetadataCleared() {
+		_spec.ClearField(testimonial.FieldMetadata, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(testimonial.FieldUpdatedAt, field.TypeTime, value)

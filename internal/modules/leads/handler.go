@@ -401,26 +401,39 @@ const exportFlushEvery = 500
 // Called by Codevertex platform services (codevertex-website, ordering-backend, etc.)
 // to push leads into MarketFlow via the shared INTERNAL_SERVICE_KEY.
 type ingestFromServiceRequest struct {
-	ServiceOrigin string         `json:"service_origin"` // e.g. "codevertex-website", "ordering-backend"
-	Email         *string        `json:"email"`
-	Phone         *string        `json:"phone"`
-	FirstName     *string        `json:"first_name"`
-	LastName      *string        `json:"last_name"`
-	LeadType      string         `json:"lead_type"`   // customer | recruit
-	Interest      *string        `json:"interest"`
-	UTMSource     *string        `json:"utm_source"`
-	UTMMedium     *string        `json:"utm_medium"`
-	UTMCampaign   *string        `json:"utm_campaign"`
-	Metadata      map[string]any `json:"metadata"`
+	ServiceOrigin string `json:"service_origin"` // e.g. "codevertex-website", "maskani-api"
+	// Source is the lead source to record ("website_contact", "property_enquiry"); default
+	// platform_service.
+	Source      string         `json:"source"`
+	Email       *string        `json:"email"`
+	Phone       *string        `json:"phone"`
+	FirstName   *string        `json:"first_name"`
+	LastName    *string        `json:"last_name"`
+	LeadType    string         `json:"lead_type"` // customer | recruit
+	Interest    *string        `json:"interest"`
+	UTMSource   *string        `json:"utm_source"`
+	UTMMedium   *string        `json:"utm_medium"`
+	UTMCampaign *string        `json:"utm_campaign"`
+	Metadata    map[string]any `json:"metadata"`
 }
 
 // IngestFromService handles POST /api/v1/internal/leads.
-// Authenticated by X-API-Key (INTERNAL_SERVICE_KEY); no JWT required.
-// X-Tenant-ID must be a valid UUID identifying the target tenant.
+// Authenticated by X-API-Key (INTERNAL_SERVICE_KEY); no JWT required. X-Tenant-ID is the tenant's
+// UUID or slug. A person the tenant already has (same email or last 9 phone digits) is not a new
+// lead: the submission goes on their lead and the answer is 200 with "created": false; a new
+// person is 201 with "created": true.
+// @Summary Push a lead from another service
+// @Tags Internal
+// @Accept json
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID or slug"
+// @Param request body ingestFromServiceRequest true "Lead"
+// @Success 201 {object} map[string]interface{}
+// @Success 200 {object} map[string]interface{}
+// @Router /internal/leads [post]
 func (h *Handler) IngestFromService(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := extractTenantID(r)
-	if err != nil {
-		httpapi.Error(w, http.StatusBadRequest, "invalid_tenant", "missing or invalid X-Tenant-ID header", nil)
+	tenantID, ok := h.tenantOr400(w, r)
+	if !ok {
 		return
 	}
 
@@ -430,36 +443,33 @@ func (h *Handler) IngestFromService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Email == nil && req.Phone == nil {
+	if blank(req.Email) && blank(req.Phone) {
 		httpapi.Error(w, http.StatusBadRequest, "missing_contact", "at least one of email or phone is required", nil)
 		return
 	}
 	if req.ServiceOrigin == "" {
 		req.ServiceOrigin = "unknown"
 	}
-	if req.LeadType == "" {
-		req.LeadType = "customer"
-	}
 
 	// Merge service_origin into metadata so it's queryable from the CRM.
-	meta := req.Metadata
-	if meta == nil {
-		meta = make(map[string]any)
+	meta := map[string]any{}
+	for k, v := range req.Metadata {
+		meta[k] = v
 	}
 	meta["service_origin"] = req.ServiceOrigin
 
-	result, err := h.service.Create(r.Context(), CreateInput{
+	res, err := h.service.Capture(r.Context(), CreateInput{
 		TenantID:    tenantID,
-		Email:       req.Email,
-		Phone:       req.Phone,
-		FirstName:   req.FirstName,
-		LastName:    req.LastName,
-		Source:      "platform_service",
+		Email:       trimPtr(req.Email),
+		Phone:       trimPtr(req.Phone),
+		FirstName:   trimPtr(req.FirstName),
+		LastName:    trimPtr(req.LastName),
+		Source:      orDefault(req.Source, "platform_service"),
 		UTMSource:   req.UTMSource,
 		UTMMedium:   req.UTMMedium,
 		UTMCampaign: req.UTMCampaign,
-		LeadType:    req.LeadType,
-		Interest:    req.Interest,
+		LeadType:    orDefault(req.LeadType, "customer"),
+		Interest:    trimPtr(req.Interest),
 		Metadata:    meta,
 	})
 	if err != nil {
@@ -467,8 +477,18 @@ func (h *Handler) IngestFromService(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusInternalServerError, "ingest_failed", "failed to create lead", nil)
 		return
 	}
+	status := http.StatusOK
+	if res.Created {
+		status = http.StatusCreated
+	}
+	httpapi.JSON(w, status, map[string]any{"lead": res.Lead, "created": res.Created, "submission_id": nilIfZero(res.ActivityID)})
+}
 
-	httpapi.JSON(w, http.StatusCreated, result)
+func nilIfZero(id uuid.UUID) any {
+	if id == uuid.Nil {
+		return nil
+	}
+	return id
 }
 
 // derefStr safely dereferences a string pointer.

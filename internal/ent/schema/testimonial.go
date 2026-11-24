@@ -44,6 +44,23 @@ func (Testimonial) Fields() []ent.Field {
 			Comment("Lower = shown first. Used to sort testimonials on /p/{slug}."),
 		field.Bool("is_published").
 			Default(true),
+		// Review state. Rows the tenant writes itself are approved; a customer's form or a quote
+		// found on the tenant's website waits for an admin. Only approved rows can be published.
+		field.String("status").
+			Default("approved").
+			Comment("pending | approved | rejected"),
+		field.String("source").
+			Default("manual").
+			Comment("manual | form | website"),
+		// Fingerprint is a hash of the normalised author and words, so the same testimonial sent
+		// twice or found again on the website is stored once per tenant.
+		field.String("fingerprint").
+			Optional().
+			Nillable().
+			MaxLen(64),
+		field.JSON("metadata", map[string]any{}).
+			Optional().
+			Comment("consent, consent_at, submitter_email, submitter_phone, media_url, media_kind, source_url, reviewed_by, reviewed_at, ip_hash"),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),
@@ -67,5 +84,7 @@ func (Testimonial) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("tenant_id", "is_published", "display_order"),
 		index.Fields("tenant_id", "created_at"),
+		index.Fields("tenant_id", "status", "created_at"),
+		index.Fields("tenant_id", "fingerprint").Unique(),
 	}
 }

@@ -25,6 +25,10 @@ type BulkImportRow struct {
 	ContactType    string
 	LifecycleStage string
 	Metadata       map[string]any
+	// SubscribedEmail true records the person's own email opt-in (a newsletter signup); the
+	// caller puts consent_source and consent_at in Metadata. It turns the flag on for an existing
+	// contact too, and never turns it off.
+	SubscribedEmail bool
 }
 
 // BulkImportRowResult reports what happened to a single input row.
@@ -86,6 +90,12 @@ func (s *Service) upsertOne(ctx context.Context, tenantID uuid.UUID, row BulkImp
 		phoneDigits = nationalSubscriberDigits(*row.Phone)
 	}
 	if existing, _ := s.findExistingContact(ctx, tenantID, emailNorm, phoneDigits); existing != nil {
+		if row.SubscribedEmail && !existing.SubscribedEmail {
+			if err := s.client.Contact.UpdateOne(existing).SetSubscribedEmail(true).
+				SetMetadata(mergeContactMeta(existing.Metadata, row.Metadata)).Exec(ctx); err != nil {
+				return uuid.Nil, "failed", fmt.Errorf("opt in contact: %w", err)
+			}
+		}
 		return existing.ID, "existing", nil
 	}
 
@@ -117,6 +127,9 @@ func (s *Service) upsertOne(ctx context.Context, tenantID uuid.UUID, row BulkImp
 	if row.Metadata != nil {
 		builder = builder.SetMetadata(row.Metadata)
 	}
+	if row.SubscribedEmail {
+		builder = builder.SetSubscribedEmail(true)
+	}
 
 	created, err := builder.Save(ctx)
 	if err != nil {
@@ -133,4 +146,16 @@ func (s *Service) upsertOne(ctx context.Context, tenantID uuid.UUID, row BulkImp
 		return uuid.Nil, "failed", fmt.Errorf("create contact: %w", err)
 	}
 	return created.ID, "created", nil
+}
+
+// mergeContactMeta adds the patch's keys to a contact's metadata, keeping every other key.
+func mergeContactMeta(current, patch map[string]any) map[string]any {
+	out := make(map[string]any, len(current)+len(patch))
+	for k, v := range current {
+		out[k] = v
+	}
+	for k, v := range patch {
+		out[k] = v
+	}
+	return out
 }

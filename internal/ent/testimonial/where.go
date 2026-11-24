@@ -96,6 +96,21 @@ func IsPublished(v bool) predicate.Testimonial {
 	return predicate.Testimonial(sql.FieldEQ(FieldIsPublished, v))
 }
 
+// Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
+func Status(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldEQ(FieldStatus, v))
+}
+
+// Source applies equality check predicate on the "source" field. It's identical to SourceEQ.
+func Source(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldEQ(FieldSource, v))
+}
+
+// Fingerprint applies equality check predicate on the "fingerprint" field. It's identical to FingerprintEQ.
+func Fingerprint(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldEQ(FieldFingerprint, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Testimonial {
 	return predicate.Testimonial(sql.FieldEQ(FieldCreatedAt, v))
@@ -494,6 +509,221 @@ func IsPublishedEQ(v bool) predicate.Testimonial {
 // IsPublishedNEQ applies the NEQ predicate on the "is_published" field.
 func IsPublishedNEQ(v bool) predicate.Testimonial {
 	return predicate.Testimonial(sql.FieldNEQ(FieldIsPublished, v))
+}
+
+// StatusEQ applies the EQ predicate on the "status" field.
+func StatusEQ(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldEQ(FieldStatus, v))
+}
+
+// StatusNEQ applies the NEQ predicate on the "status" field.
+func StatusNEQ(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldNEQ(FieldStatus, v))
+}
+
+// StatusIn applies the In predicate on the "status" field.
+func StatusIn(vs ...string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldIn(FieldStatus, vs...))
+}
+
+// StatusNotIn applies the NotIn predicate on the "status" field.
+func StatusNotIn(vs ...string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldNotIn(FieldStatus, vs...))
+}
+
+// StatusGT applies the GT predicate on the "status" field.
+func StatusGT(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldGT(FieldStatus, v))
+}
+
+// StatusGTE applies the GTE predicate on the "status" field.
+func StatusGTE(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldGTE(FieldStatus, v))
+}
+
+// StatusLT applies the LT predicate on the "status" field.
+func StatusLT(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldLT(FieldStatus, v))
+}
+
+// StatusLTE applies the LTE predicate on the "status" field.
+func StatusLTE(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldLTE(FieldStatus, v))
+}
+
+// StatusContains applies the Contains predicate on the "status" field.
+func StatusContains(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldContains(FieldStatus, v))
+}
+
+// StatusHasPrefix applies the HasPrefix predicate on the "status" field.
+func StatusHasPrefix(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldHasPrefix(FieldStatus, v))
+}
+
+// StatusHasSuffix applies the HasSuffix predicate on the "status" field.
+func StatusHasSuffix(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldHasSuffix(FieldStatus, v))
+}
+
+// StatusEqualFold applies the EqualFold predicate on the "status" field.
+func StatusEqualFold(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldEqualFold(FieldStatus, v))
+}
+
+// StatusContainsFold applies the ContainsFold predicate on the "status" field.
+func StatusContainsFold(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldContainsFold(FieldStatus, v))
+}
+
+// SourceEQ applies the EQ predicate on the "source" field.
+func SourceEQ(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldEQ(FieldSource, v))
+}
+
+// SourceNEQ applies the NEQ predicate on the "source" field.
+func SourceNEQ(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldNEQ(FieldSource, v))
+}
+
+// SourceIn applies the In predicate on the "source" field.
+func SourceIn(vs ...string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldIn(FieldSource, vs...))
+}
+
+// SourceNotIn applies the NotIn predicate on the "source" field.
+func SourceNotIn(vs ...string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldNotIn(FieldSource, vs...))
+}
+
+// SourceGT applies the GT predicate on the "source" field.
+func SourceGT(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldGT(FieldSource, v))
+}
+
+// SourceGTE applies the GTE predicate on the "source" field.
+func SourceGTE(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldGTE(FieldSource, v))
+}
+
+// SourceLT applies the LT predicate on the "source" field.
+func SourceLT(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldLT(FieldSource, v))
+}
+
+// SourceLTE applies the LTE predicate on the "source" field.
+func SourceLTE(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldLTE(FieldSource, v))
+}
+
+// SourceContains applies the Contains predicate on the "source" field.
+func SourceContains(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldContains(FieldSource, v))
+}
+
+// SourceHasPrefix applies the HasPrefix predicate on the "source" field.
+func SourceHasPrefix(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldHasPrefix(FieldSource, v))
+}
+
+// SourceHasSuffix applies the HasSuffix predicate on the "source" field.
+func SourceHasSuffix(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldHasSuffix(FieldSource, v))
+}
+
+// SourceEqualFold applies the EqualFold predicate on the "source" field.
+func SourceEqualFold(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldEqualFold(FieldSource, v))
+}
+
+// SourceContainsFold applies the ContainsFold predicate on the "source" field.
+func SourceContainsFold(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldContainsFold(FieldSource, v))
+}
+
+// FingerprintEQ applies the EQ predicate on the "fingerprint" field.
+func FingerprintEQ(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldEQ(FieldFingerprint, v))
+}
+
+// FingerprintNEQ applies the NEQ predicate on the "fingerprint" field.
+func FingerprintNEQ(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldNEQ(FieldFingerprint, v))
+}
+
+// FingerprintIn applies the In predicate on the "fingerprint" field.
+func FingerprintIn(vs ...string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldIn(FieldFingerprint, vs...))
+}
+
+// FingerprintNotIn applies the NotIn predicate on the "fingerprint" field.
+func FingerprintNotIn(vs ...string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldNotIn(FieldFingerprint, vs...))
+}
+
+// FingerprintGT applies the GT predicate on the "fingerprint" field.
+func FingerprintGT(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldGT(FieldFingerprint, v))
+}
+
+// FingerprintGTE applies the GTE predicate on the "fingerprint" field.
+func FingerprintGTE(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldGTE(FieldFingerprint, v))
+}
+
+// FingerprintLT applies the LT predicate on the "fingerprint" field.
+func FingerprintLT(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldLT(FieldFingerprint, v))
+}
+
+// FingerprintLTE applies the LTE predicate on the "fingerprint" field.
+func FingerprintLTE(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldLTE(FieldFingerprint, v))
+}
+
+// FingerprintContains applies the Contains predicate on the "fingerprint" field.
+func FingerprintContains(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldContains(FieldFingerprint, v))
+}
+
+// FingerprintHasPrefix applies the HasPrefix predicate on the "fingerprint" field.
+func FingerprintHasPrefix(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldHasPrefix(FieldFingerprint, v))
+}
+
+// FingerprintHasSuffix applies the HasSuffix predicate on the "fingerprint" field.
+func FingerprintHasSuffix(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldHasSuffix(FieldFingerprint, v))
+}
+
+// FingerprintIsNil applies the IsNil predicate on the "fingerprint" field.
+func FingerprintIsNil() predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldIsNull(FieldFingerprint))
+}
+
+// FingerprintNotNil applies the NotNil predicate on the "fingerprint" field.
+func FingerprintNotNil() predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldNotNull(FieldFingerprint))
+}
+
+// FingerprintEqualFold applies the EqualFold predicate on the "fingerprint" field.
+func FingerprintEqualFold(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldEqualFold(FieldFingerprint, v))
+}
+
+// FingerprintContainsFold applies the ContainsFold predicate on the "fingerprint" field.
+func FingerprintContainsFold(v string) predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldContainsFold(FieldFingerprint, v))
+}
+
+// MetadataIsNil applies the IsNil predicate on the "metadata" field.
+func MetadataIsNil() predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldIsNull(FieldMetadata))
+}
+
+// MetadataNotNil applies the NotNil predicate on the "metadata" field.
+func MetadataNotNil() predicate.Testimonial {
+	return predicate.Testimonial(sql.FieldNotNull(FieldMetadata))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

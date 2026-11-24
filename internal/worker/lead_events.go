@@ -16,6 +16,8 @@ type leadCreated struct {
 	LeadID   uuid.UUID
 	LeadType string
 	Source   string
+	// FunnelID is the funnel the submission came through (uuid.Nil when none).
+	FunnelID uuid.UUID
 }
 
 // decodeLeadCreated reads a lead.created message from the shared-events envelope. The tenant
@@ -39,5 +41,27 @@ func decodeLeadCreated(data []byte) (leadCreated, error) {
 	if leadID == uuid.Nil {
 		return leadCreated{}, errors.New("lead.created without lead id")
 	}
-	return leadCreated{TenantID: env.TenantID, LeadID: leadID, LeadType: p.LeadType, Source: p.Source}, nil
+	out := leadCreated{TenantID: env.TenantID, LeadID: leadID, LeadType: p.LeadType, Source: p.Source}
+	if f, err := uuid.Parse(p.FunnelID); err == nil {
+		out.FunnelID = f
+	}
+	return out, nil
+}
+
+// decodeLeadResubmitted reads a lead.resubmitted message: a person the tenant already had
+// submitted again (leads.Capture). Same shape as lead.created plus the submission activity.
+func decodeLeadResubmitted(data []byte) (leadCreated, error) {
+	env, p, err := eventslib.DecodeEvent[leads.LeadResubmittedPayload](data)
+	if err != nil {
+		return leadCreated{}, err
+	}
+	leadID, err := uuid.Parse(p.LeadID)
+	if err != nil || env.TenantID == uuid.Nil {
+		return leadCreated{}, errors.New("lead.resubmitted without tenant or lead id")
+	}
+	out := leadCreated{TenantID: env.TenantID, LeadID: leadID, LeadType: p.LeadType, Source: p.Source}
+	if f, err := uuid.Parse(p.FunnelID); err == nil {
+		out.FunnelID = f
+	}
+	return out, nil
 }

@@ -50807,6 +50807,10 @@ type TestimonialMutation struct {
 	display_order    *int
 	adddisplay_order *int
 	is_published     *bool
+	status           *string
+	source           *string
+	fingerprint      *string
+	metadata         *map[string]interface{}
 	created_at       *time.Time
 	updated_at       *time.Time
 	clearedFields    map[string]struct{}
@@ -51275,6 +51279,176 @@ func (m *TestimonialMutation) ResetIsPublished() {
 	m.is_published = nil
 }
 
+// SetStatus sets the "status" field.
+func (m *TestimonialMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *TestimonialMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the Testimonial entity.
+// If the Testimonial object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TestimonialMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *TestimonialMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetSource sets the "source" field.
+func (m *TestimonialMutation) SetSource(s string) {
+	m.source = &s
+}
+
+// Source returns the value of the "source" field in the mutation.
+func (m *TestimonialMutation) Source() (r string, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSource returns the old "source" field's value of the Testimonial entity.
+// If the Testimonial object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TestimonialMutation) OldSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSource: %w", err)
+	}
+	return oldValue.Source, nil
+}
+
+// ResetSource resets all changes to the "source" field.
+func (m *TestimonialMutation) ResetSource() {
+	m.source = nil
+}
+
+// SetFingerprint sets the "fingerprint" field.
+func (m *TestimonialMutation) SetFingerprint(s string) {
+	m.fingerprint = &s
+}
+
+// Fingerprint returns the value of the "fingerprint" field in the mutation.
+func (m *TestimonialMutation) Fingerprint() (r string, exists bool) {
+	v := m.fingerprint
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFingerprint returns the old "fingerprint" field's value of the Testimonial entity.
+// If the Testimonial object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TestimonialMutation) OldFingerprint(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFingerprint is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFingerprint requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFingerprint: %w", err)
+	}
+	return oldValue.Fingerprint, nil
+}
+
+// ClearFingerprint clears the value of the "fingerprint" field.
+func (m *TestimonialMutation) ClearFingerprint() {
+	m.fingerprint = nil
+	m.clearedFields[testimonial.FieldFingerprint] = struct{}{}
+}
+
+// FingerprintCleared returns if the "fingerprint" field was cleared in this mutation.
+func (m *TestimonialMutation) FingerprintCleared() bool {
+	_, ok := m.clearedFields[testimonial.FieldFingerprint]
+	return ok
+}
+
+// ResetFingerprint resets all changes to the "fingerprint" field.
+func (m *TestimonialMutation) ResetFingerprint() {
+	m.fingerprint = nil
+	delete(m.clearedFields, testimonial.FieldFingerprint)
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *TestimonialMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *TestimonialMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the Testimonial entity.
+// If the Testimonial object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TestimonialMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (m *TestimonialMutation) ClearMetadata() {
+	m.metadata = nil
+	m.clearedFields[testimonial.FieldMetadata] = struct{}{}
+}
+
+// MetadataCleared returns if the "metadata" field was cleared in this mutation.
+func (m *TestimonialMutation) MetadataCleared() bool {
+	_, ok := m.clearedFields[testimonial.FieldMetadata]
+	return ok
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *TestimonialMutation) ResetMetadata() {
+	m.metadata = nil
+	delete(m.clearedFields, testimonial.FieldMetadata)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *TestimonialMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -51408,7 +51582,7 @@ func (m *TestimonialMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TestimonialMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 14)
 	if m.tenant != nil {
 		fields = append(fields, testimonial.FieldTenantID)
 	}
@@ -51432,6 +51606,18 @@ func (m *TestimonialMutation) Fields() []string {
 	}
 	if m.is_published != nil {
 		fields = append(fields, testimonial.FieldIsPublished)
+	}
+	if m.status != nil {
+		fields = append(fields, testimonial.FieldStatus)
+	}
+	if m.source != nil {
+		fields = append(fields, testimonial.FieldSource)
+	}
+	if m.fingerprint != nil {
+		fields = append(fields, testimonial.FieldFingerprint)
+	}
+	if m.metadata != nil {
+		fields = append(fields, testimonial.FieldMetadata)
 	}
 	if m.created_at != nil {
 		fields = append(fields, testimonial.FieldCreatedAt)
@@ -51463,6 +51649,14 @@ func (m *TestimonialMutation) Field(name string) (ent.Value, bool) {
 		return m.DisplayOrder()
 	case testimonial.FieldIsPublished:
 		return m.IsPublished()
+	case testimonial.FieldStatus:
+		return m.Status()
+	case testimonial.FieldSource:
+		return m.Source()
+	case testimonial.FieldFingerprint:
+		return m.Fingerprint()
+	case testimonial.FieldMetadata:
+		return m.Metadata()
 	case testimonial.FieldCreatedAt:
 		return m.CreatedAt()
 	case testimonial.FieldUpdatedAt:
@@ -51492,6 +51686,14 @@ func (m *TestimonialMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldDisplayOrder(ctx)
 	case testimonial.FieldIsPublished:
 		return m.OldIsPublished(ctx)
+	case testimonial.FieldStatus:
+		return m.OldStatus(ctx)
+	case testimonial.FieldSource:
+		return m.OldSource(ctx)
+	case testimonial.FieldFingerprint:
+		return m.OldFingerprint(ctx)
+	case testimonial.FieldMetadata:
+		return m.OldMetadata(ctx)
 	case testimonial.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case testimonial.FieldUpdatedAt:
@@ -51560,6 +51762,34 @@ func (m *TestimonialMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetIsPublished(v)
+		return nil
+	case testimonial.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case testimonial.FieldSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSource(v)
+		return nil
+	case testimonial.FieldFingerprint:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFingerprint(v)
+		return nil
+	case testimonial.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
 		return nil
 	case testimonial.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -51638,6 +51868,12 @@ func (m *TestimonialMutation) ClearedFields() []string {
 	if m.FieldCleared(testimonial.FieldAvatarURL) {
 		fields = append(fields, testimonial.FieldAvatarURL)
 	}
+	if m.FieldCleared(testimonial.FieldFingerprint) {
+		fields = append(fields, testimonial.FieldFingerprint)
+	}
+	if m.FieldCleared(testimonial.FieldMetadata) {
+		fields = append(fields, testimonial.FieldMetadata)
+	}
 	return fields
 }
 
@@ -51657,6 +51893,12 @@ func (m *TestimonialMutation) ClearField(name string) error {
 		return nil
 	case testimonial.FieldAvatarURL:
 		m.ClearAvatarURL()
+		return nil
+	case testimonial.FieldFingerprint:
+		m.ClearFingerprint()
+		return nil
+	case testimonial.FieldMetadata:
+		m.ClearMetadata()
 		return nil
 	}
 	return fmt.Errorf("unknown Testimonial nullable field %s", name)
@@ -51689,6 +51931,18 @@ func (m *TestimonialMutation) ResetField(name string) error {
 		return nil
 	case testimonial.FieldIsPublished:
 		m.ResetIsPublished()
+		return nil
+	case testimonial.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case testimonial.FieldSource:
+		m.ResetSource()
+		return nil
+	case testimonial.FieldFingerprint:
+		m.ResetFingerprint()
+		return nil
+	case testimonial.FieldMetadata:
+		m.ResetMetadata()
 		return nil
 	case testimonial.FieldCreatedAt:
 		m.ResetCreatedAt()

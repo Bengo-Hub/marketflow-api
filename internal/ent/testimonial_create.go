@@ -113,6 +113,54 @@ func (_c *TestimonialCreate) SetNillableIsPublished(v *bool) *TestimonialCreate 
 	return _c
 }
 
+// SetStatus sets the "status" field.
+func (_c *TestimonialCreate) SetStatus(v string) *TestimonialCreate {
+	_c.mutation.SetStatus(v)
+	return _c
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_c *TestimonialCreate) SetNillableStatus(v *string) *TestimonialCreate {
+	if v != nil {
+		_c.SetStatus(*v)
+	}
+	return _c
+}
+
+// SetSource sets the "source" field.
+func (_c *TestimonialCreate) SetSource(v string) *TestimonialCreate {
+	_c.mutation.SetSource(v)
+	return _c
+}
+
+// SetNillableSource sets the "source" field if the given value is not nil.
+func (_c *TestimonialCreate) SetNillableSource(v *string) *TestimonialCreate {
+	if v != nil {
+		_c.SetSource(*v)
+	}
+	return _c
+}
+
+// SetFingerprint sets the "fingerprint" field.
+func (_c *TestimonialCreate) SetFingerprint(v string) *TestimonialCreate {
+	_c.mutation.SetFingerprint(v)
+	return _c
+}
+
+// SetNillableFingerprint sets the "fingerprint" field if the given value is not nil.
+func (_c *TestimonialCreate) SetNillableFingerprint(v *string) *TestimonialCreate {
+	if v != nil {
+		_c.SetFingerprint(*v)
+	}
+	return _c
+}
+
+// SetMetadata sets the "metadata" field.
+func (_c *TestimonialCreate) SetMetadata(v map[string]interface{}) *TestimonialCreate {
+	_c.mutation.SetMetadata(v)
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *TestimonialCreate) SetCreatedAt(v time.Time) *TestimonialCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -207,6 +255,14 @@ func (_c *TestimonialCreate) defaults() {
 		v := testimonial.DefaultIsPublished
 		_c.mutation.SetIsPublished(v)
 	}
+	if _, ok := _c.mutation.Status(); !ok {
+		v := testimonial.DefaultStatus
+		_c.mutation.SetStatus(v)
+	}
+	if _, ok := _c.mutation.Source(); !ok {
+		v := testimonial.DefaultSource
+		_c.mutation.SetSource(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := testimonial.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -265,6 +321,17 @@ func (_c *TestimonialCreate) check() error {
 	}
 	if _, ok := _c.mutation.IsPublished(); !ok {
 		return &ValidationError{Name: "is_published", err: errors.New(`ent: missing required field "Testimonial.is_published"`)}
+	}
+	if _, ok := _c.mutation.Status(); !ok {
+		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Testimonial.status"`)}
+	}
+	if _, ok := _c.mutation.Source(); !ok {
+		return &ValidationError{Name: "source", err: errors.New(`ent: missing required field "Testimonial.source"`)}
+	}
+	if v, ok := _c.mutation.Fingerprint(); ok {
+		if err := testimonial.FingerprintValidator(v); err != nil {
+			return &ValidationError{Name: "fingerprint", err: fmt.Errorf(`ent: validator failed for field "Testimonial.fingerprint": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Testimonial.created_at"`)}
@@ -338,6 +405,22 @@ func (_c *TestimonialCreate) createSpec() (*Testimonial, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.IsPublished(); ok {
 		_spec.SetField(testimonial.FieldIsPublished, field.TypeBool, value)
 		_node.IsPublished = value
+	}
+	if value, ok := _c.mutation.Status(); ok {
+		_spec.SetField(testimonial.FieldStatus, field.TypeString, value)
+		_node.Status = value
+	}
+	if value, ok := _c.mutation.Source(); ok {
+		_spec.SetField(testimonial.FieldSource, field.TypeString, value)
+		_node.Source = value
+	}
+	if value, ok := _c.mutation.Fingerprint(); ok {
+		_spec.SetField(testimonial.FieldFingerprint, field.TypeString, value)
+		_node.Fingerprint = &value
+	}
+	if value, ok := _c.mutation.Metadata(); ok {
+		_spec.SetField(testimonial.FieldMetadata, field.TypeJSON, value)
+		_node.Metadata = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(testimonial.FieldCreatedAt, field.TypeTime, value)
@@ -533,6 +616,66 @@ func (u *TestimonialUpsert) SetIsPublished(v bool) *TestimonialUpsert {
 // UpdateIsPublished sets the "is_published" field to the value that was provided on create.
 func (u *TestimonialUpsert) UpdateIsPublished() *TestimonialUpsert {
 	u.SetExcluded(testimonial.FieldIsPublished)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *TestimonialUpsert) SetStatus(v string) *TestimonialUpsert {
+	u.Set(testimonial.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *TestimonialUpsert) UpdateStatus() *TestimonialUpsert {
+	u.SetExcluded(testimonial.FieldStatus)
+	return u
+}
+
+// SetSource sets the "source" field.
+func (u *TestimonialUpsert) SetSource(v string) *TestimonialUpsert {
+	u.Set(testimonial.FieldSource, v)
+	return u
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *TestimonialUpsert) UpdateSource() *TestimonialUpsert {
+	u.SetExcluded(testimonial.FieldSource)
+	return u
+}
+
+// SetFingerprint sets the "fingerprint" field.
+func (u *TestimonialUpsert) SetFingerprint(v string) *TestimonialUpsert {
+	u.Set(testimonial.FieldFingerprint, v)
+	return u
+}
+
+// UpdateFingerprint sets the "fingerprint" field to the value that was provided on create.
+func (u *TestimonialUpsert) UpdateFingerprint() *TestimonialUpsert {
+	u.SetExcluded(testimonial.FieldFingerprint)
+	return u
+}
+
+// ClearFingerprint clears the value of the "fingerprint" field.
+func (u *TestimonialUpsert) ClearFingerprint() *TestimonialUpsert {
+	u.SetNull(testimonial.FieldFingerprint)
+	return u
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *TestimonialUpsert) SetMetadata(v map[string]interface{}) *TestimonialUpsert {
+	u.Set(testimonial.FieldMetadata, v)
+	return u
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *TestimonialUpsert) UpdateMetadata() *TestimonialUpsert {
+	u.SetExcluded(testimonial.FieldMetadata)
+	return u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *TestimonialUpsert) ClearMetadata() *TestimonialUpsert {
+	u.SetNull(testimonial.FieldMetadata)
 	return u
 }
 
@@ -736,6 +879,76 @@ func (u *TestimonialUpsertOne) SetIsPublished(v bool) *TestimonialUpsertOne {
 func (u *TestimonialUpsertOne) UpdateIsPublished() *TestimonialUpsertOne {
 	return u.Update(func(s *TestimonialUpsert) {
 		s.UpdateIsPublished()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *TestimonialUpsertOne) SetStatus(v string) *TestimonialUpsertOne {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *TestimonialUpsertOne) UpdateStatus() *TestimonialUpsertOne {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetSource sets the "source" field.
+func (u *TestimonialUpsertOne) SetSource(v string) *TestimonialUpsertOne {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.SetSource(v)
+	})
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *TestimonialUpsertOne) UpdateSource() *TestimonialUpsertOne {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.UpdateSource()
+	})
+}
+
+// SetFingerprint sets the "fingerprint" field.
+func (u *TestimonialUpsertOne) SetFingerprint(v string) *TestimonialUpsertOne {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.SetFingerprint(v)
+	})
+}
+
+// UpdateFingerprint sets the "fingerprint" field to the value that was provided on create.
+func (u *TestimonialUpsertOne) UpdateFingerprint() *TestimonialUpsertOne {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.UpdateFingerprint()
+	})
+}
+
+// ClearFingerprint clears the value of the "fingerprint" field.
+func (u *TestimonialUpsertOne) ClearFingerprint() *TestimonialUpsertOne {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.ClearFingerprint()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *TestimonialUpsertOne) SetMetadata(v map[string]interface{}) *TestimonialUpsertOne {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *TestimonialUpsertOne) UpdateMetadata() *TestimonialUpsertOne {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *TestimonialUpsertOne) ClearMetadata() *TestimonialUpsertOne {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.ClearMetadata()
 	})
 }
 
@@ -1108,6 +1321,76 @@ func (u *TestimonialUpsertBulk) SetIsPublished(v bool) *TestimonialUpsertBulk {
 func (u *TestimonialUpsertBulk) UpdateIsPublished() *TestimonialUpsertBulk {
 	return u.Update(func(s *TestimonialUpsert) {
 		s.UpdateIsPublished()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *TestimonialUpsertBulk) SetStatus(v string) *TestimonialUpsertBulk {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *TestimonialUpsertBulk) UpdateStatus() *TestimonialUpsertBulk {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.UpdateStatus()
+	})
+}
+
+// SetSource sets the "source" field.
+func (u *TestimonialUpsertBulk) SetSource(v string) *TestimonialUpsertBulk {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.SetSource(v)
+	})
+}
+
+// UpdateSource sets the "source" field to the value that was provided on create.
+func (u *TestimonialUpsertBulk) UpdateSource() *TestimonialUpsertBulk {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.UpdateSource()
+	})
+}
+
+// SetFingerprint sets the "fingerprint" field.
+func (u *TestimonialUpsertBulk) SetFingerprint(v string) *TestimonialUpsertBulk {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.SetFingerprint(v)
+	})
+}
+
+// UpdateFingerprint sets the "fingerprint" field to the value that was provided on create.
+func (u *TestimonialUpsertBulk) UpdateFingerprint() *TestimonialUpsertBulk {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.UpdateFingerprint()
+	})
+}
+
+// ClearFingerprint clears the value of the "fingerprint" field.
+func (u *TestimonialUpsertBulk) ClearFingerprint() *TestimonialUpsertBulk {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.ClearFingerprint()
+	})
+}
+
+// SetMetadata sets the "metadata" field.
+func (u *TestimonialUpsertBulk) SetMetadata(v map[string]interface{}) *TestimonialUpsertBulk {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.SetMetadata(v)
+	})
+}
+
+// UpdateMetadata sets the "metadata" field to the value that was provided on create.
+func (u *TestimonialUpsertBulk) UpdateMetadata() *TestimonialUpsertBulk {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.UpdateMetadata()
+	})
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (u *TestimonialUpsertBulk) ClearMetadata() *TestimonialUpsertBulk {
+	return u.Update(func(s *TestimonialUpsert) {
+		s.ClearMetadata()
 	})
 }
 

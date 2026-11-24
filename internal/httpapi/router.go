@@ -118,6 +118,9 @@ type RouterDeps struct {
 	// Internal S2S handlers — X-API-Key auth only, no JWT
 	InternalLeadHandlers InternalLeadHandlers
 	InternalServiceKey   string
+	// ResolveTenantSlug maps an active tenant's slug to its id, so a service can name the tenant
+	// by slug on internal routes that take X-Tenant-ID (nil: UUIDs only).
+	ResolveTenantSlug func(ctx context.Context, slug string) (uuid.UUID, error)
 
 	// CRM Sprint 9 handlers
 	DealHandlers        DealHandlers
@@ -242,6 +245,13 @@ type LeadHandlers struct {
 // These routes are protected by X-API-Key only (no JWT required).
 type InternalLeadHandlers struct {
 	IngestFromService http.HandlerFunc
+	// The rest of the S2S lead API: other services keep no lead copy and read and write here.
+	List   http.HandlerFunc // GET /internal/leads
+	Stats  http.HandlerFunc // GET /internal/leads/stats
+	Get    http.HandlerFunc // GET /internal/leads/{id}
+	Patch  http.HandlerFunc // PATCH /internal/leads/{id}
+	Delete http.HandlerFunc // DELETE /internal/leads/{id} (marks lost)
+	Import http.HandlerFunc // POST /internal/leads/import (migrations, no lead.created)
 }
 
 // ContactHandlers groups contact management HTTP handlers.
@@ -1405,6 +1415,14 @@ func NewRouter(deps RouterDeps) http.Handler {
 				})
 				r.Route("/internal", func(r chi.Router) {
 					r.Post("/leads", deps.InternalLeadHandlers.IngestFromService)
+					if il := deps.InternalLeadHandlers; il.List != nil {
+						r.Get("/leads", il.List)
+						r.Get("/leads/stats", il.Stats)
+						r.Post("/leads/import", il.Import)
+						r.Get("/leads/{id}", il.Get)
+						r.Patch("/leads/{id}", il.Patch)
+						r.Delete("/leads/{id}", il.Delete)
+					}
 					// Marketing OS context for marketflow-ai (tenant in the query, service key only).
 					if deps.MarketingOSHandlers.InternalContext != nil {
 						r.Get("/os/context", deps.MarketingOSHandlers.InternalContext)
@@ -1450,6 +1468,11 @@ func NewRouter(deps RouterDeps) http.Handler {
 					}
 					if deps.ContactHandlers.UpsertByPhone != nil {
 						r.Post("/contacts/upsert", deps.ContactHandlers.UpsertByPhone)
+					}
+					// Batch upsert by email or phone for services moving their contact lists
+					// (newsletter signups) into MarketFlow.
+					if deps.ContactHandlers.BulkImport != nil {
+						r.Post("/contacts/bulk-import", tenantBySlug(deps.ResolveTenantSlug, deps.ContactHandlers.BulkImport))
 					}
 					if deps.ContactHandlers.SearchInternal != nil {
 						r.Get("/contacts/search", deps.ContactHandlers.SearchInternal)
@@ -1555,4 +1578,21 @@ func NewRouter(deps RouterDeps) http.Handler {
 	}
 
 	return r
+}
+
+// tenantBySlug lets an internal handler that reads X-Tenant-ID as a UUID also take the tenant's
+// slug: a value that is not a UUID is looked up and replaced by the tenant's id.
+func tenantBySlug(resolve func(ctx context.Context, slug string) (uuid.UUID, error), next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		v := strings.TrimSpace(r.Header.Get("X-Tenant-ID"))
+		if _, err := uuid.Parse(v); err != nil && v != "" && resolve != nil {
+			id, err := resolve(r.Context(), strings.ToLower(v))
+			if err != nil {
+				Error(w, http.StatusBadRequest, "invalid_tenant", "X-Tenant-ID must be a tenant UUID or slug", nil)
+				return
+			}
+			r.Header.Set("X-Tenant-ID", id.String())
+		}
+		next(w, r)
+	}
 }

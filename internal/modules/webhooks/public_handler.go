@@ -546,16 +546,18 @@ func (h *PublicHandler) PublicCreateLead(w http.ResponseWriter, r *http.Request)
 		input.UTMCampaign = &in.UTMCampaign
 	}
 
-	lead, err := h.leadService.Create(r.Context(), input)
+	res, err := h.leadService.Capture(r.Context(), input)
 	if err != nil {
 		h.logger.Error("public lead create failed",
 			zap.String("slug", slug), zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "create_failed", "could not create lead", nil)
 		return
 	}
+	lead := res.Lead
 
-	// Lead creation already emits `lead.created` via the service's outbox hook;
-	// marketflow-worker's LeadCreatedHandler picks it up and auto-enrols the lead.
+	// A new person emits lead.created through the service's outbox (nurture auto-enrol, alerts);
+	// a person the tenant already has gets the submission as an activity and lead.resubmitted,
+	// so one person stays one lead (owner, 2026-11-24). The answer looks the same either way.
 	httpapi.JSON(w, http.StatusCreated, map[string]any{
 		"id":         lead.ID,
 		"tenant_id":  lead.TenantID,

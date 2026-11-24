@@ -16,8 +16,6 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
-	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
-	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/modules/activities"
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
@@ -115,6 +113,7 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, keys *encryption.Ke
 			&EmbeddingHandler{cfg: cfg, db: db, rawDB: rawDB, logger: logger.Named("embedding")},
 			&ChatCompletedHandler{db: db, logger: logger.Named("audit")},
 			&LeadCreatedHandler{cfg: cfg, db: db, logger: logger.Named("lead")},
+			&LeadResubmittedHandler{db: db, logger: logger.Named("lead-resubmitted")},
 			&ConversionsHandler{cfg: cfg, db: db, keys: keys, logger: logger.Named("conversions")},
 			&MetaLeadEnricher{
 				db: db,
@@ -276,7 +275,10 @@ func (r *Registry) Add(hs ...Handler) { r.handlers = append(r.handlers, hs...) }
 // RegisterAll, so no consumer goroutine reads the field while it is set.
 func (r *Registry) SetNurtureKick(kick func()) {
 	for _, h := range r.handlers {
-		if lh, ok := h.(*LeadCreatedHandler); ok {
+		switch lh := h.(type) {
+		case *LeadCreatedHandler:
+			lh.kick = kick
+		case *LeadResubmittedHandler:
 			lh.kick = kick
 		}
 	}
@@ -701,78 +703,7 @@ func (h *LeadCreatedHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 			zap.String("tenant", ev.TenantID.String()), zap.String("lead", ev.LeadID.String()))
 		return nil
 	}
-	tenantUUID, leadUUID := ev.TenantID, ev.LeadID
-
-	// Match the first active sequence with trigger_event="lead.created" whose
-	// lead_type_filter is either nil or equals the lead's type.
-	// Only the tenant's own sequences. Platform templates (scope platform) live under the
-	// platform tenant's id and are offered to every tenant to copy; before this filter the
-	// platform tenant's own leads were enrolled in them.
-	q := h.db.NurtureSequence.Query().Where(
-		nurturesequence.TenantIDEQ(tenantUUID),
-		nurturesequence.ScopeEQ("tenant"),
-		nurturesequence.TriggerEventEQ("lead.created"),
-		nurturesequence.ActiveEQ(true),
-	)
-	seqs, err := q.All(ctx)
-	if err != nil {
-		return fmt.Errorf("query sequences: %w", err)
-	}
-	var chosen *ent.NurtureSequence
-	for _, s := range seqs {
-		if s.LeadTypeFilter == nil || *s.LeadTypeFilter == "" || *s.LeadTypeFilter == ev.LeadType {
-			chosen = s
-			break
-		}
-	}
-	if chosen == nil {
-		h.logger.Debug("no matching nurture sequence",
-			zap.String("tenant", ev.TenantID.String()), zap.String("lead_type", ev.LeadType))
-		return nil
-	}
-
-	// A redelivered event must not enrol the lead twice (index tenant_id, lead_id, sequence_id).
-	already, err := h.db.NurtureEnrollment.Query().Where(
-		nurtureenrollment.TenantIDEQ(tenantUUID),
-		nurtureenrollment.LeadIDEQ(leadUUID),
-		nurtureenrollment.SequenceIDEQ(chosen.ID),
-	).Exist(ctx)
-	if err != nil {
-		return fmt.Errorf("check existing enrollment: %w", err)
-	}
-	if already {
-		return nil
-	}
-
-	now := time.Now().UTC()
-	enrollment, err := h.db.NurtureEnrollment.Create().
-		SetTenantID(tenantUUID).
-		SetSequenceID(chosen.ID).
-		SetLeadID(leadUUID).
-		SetCurrentStep(0).
-		SetStatus("active").
-		SetNextStepAt(now). // fire first step ASAP
-		SetMetadata(map[string]any{"source": ev.Source, "auto_enrolled": true}).
-		Save(ctx)
-	if err != nil {
-		return fmt.Errorf("create enrollment: %w", err)
-	}
-
-	// Bump sequence counter (best-effort; not critical if it fails).
-	_, _ = h.db.NurtureSequence.UpdateOneID(chosen.ID).
-		AddTotalEnrolled(1).
-		Save(ctx)
-	if h.kick != nil {
-		h.kick()
-	}
-
-	h.logger.Info("lead auto-enrolled",
-		zap.String("tenant", ev.TenantID.String()),
-		zap.String("lead", ev.LeadID.String()),
-		zap.String("sequence", chosen.ID.String()),
-		zap.String("enrollment", enrollment.ID.String()),
-	)
-	return nil
+	return enrolLead(ctx, h.db, h.logger, h.kick, ev, false)
 }
 
 // recordFirstReply merges metadata.first_reply_at into a lead once, in one UPDATE (metadata ||

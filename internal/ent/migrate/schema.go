@@ -2106,6 +2106,10 @@ var (
 		{Name: "rating", Type: field.TypeInt, Default: 5},
 		{Name: "display_order", Type: field.TypeInt, Default: 0},
 		{Name: "is_published", Type: field.TypeBool, Default: true},
+		{Name: "status", Type: field.TypeString, Default: "approved"},
+		{Name: "source", Type: field.TypeString, Default: "manual"},
+		{Name: "fingerprint", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "tenant_id", Type: field.TypeUUID},
@@ -2118,7 +2122,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "testimonials_tenants_testimonials",
-				Columns:    []*schema.Column{TestimonialsColumns[10]},
+				Columns:    []*schema.Column{TestimonialsColumns[14]},
 				RefColumns: []*schema.Column{TenantsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -2127,12 +2131,22 @@ var (
 			{
 				Name:    "testimonial_tenant_id_is_published_display_order",
 				Unique:  false,
-				Columns: []*schema.Column{TestimonialsColumns[10], TestimonialsColumns[7], TestimonialsColumns[6]},
+				Columns: []*schema.Column{TestimonialsColumns[14], TestimonialsColumns[7], TestimonialsColumns[6]},
 			},
 			{
 				Name:    "testimonial_tenant_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{TestimonialsColumns[10], TestimonialsColumns[8]},
+				Columns: []*schema.Column{TestimonialsColumns[14], TestimonialsColumns[12]},
+			},
+			{
+				Name:    "testimonial_tenant_id_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{TestimonialsColumns[14], TestimonialsColumns[8], TestimonialsColumns[12]},
+			},
+			{
+				Name:    "testimonial_tenant_id_fingerprint",
+				Unique:  true,
+				Columns: []*schema.Column{TestimonialsColumns[14], TestimonialsColumns[10]},
 			},
 		},
 	}

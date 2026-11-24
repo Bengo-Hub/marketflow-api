@@ -19,6 +19,8 @@ type bulkImportRowRequest struct {
 	ContactType    string         `json:"contact_type"`
 	LifecycleStage string         `json:"lifecycle_stage"`
 	Metadata       map[string]any `json:"metadata"`
+	// SubscribedEmail is the person's own email opt-in (a newsletter signup).
+	SubscribedEmail bool `json:"subscribed_email"`
 }
 
 // MaxBulkImportRows is the most contacts one bulk-import request may carry.
@@ -70,15 +72,16 @@ func (h *Handler) BulkImport(w http.ResponseWriter, r *http.Request) {
 	rows := make([]BulkImportRow, 0, len(req.Contacts))
 	for _, c := range req.Contacts {
 		rows = append(rows, BulkImportRow{
-			ExternalRef:    c.ExternalRef,
-			ID:             c.ID,
-			Email:          c.Email,
-			Phone:          c.Phone,
-			FirstName:      c.FirstName,
-			LastName:       c.LastName,
-			ContactType:    c.ContactType,
-			LifecycleStage: c.LifecycleStage,
-			Metadata:       c.Metadata,
+			ExternalRef:     c.ExternalRef,
+			ID:              c.ID,
+			Email:           c.Email,
+			Phone:           c.Phone,
+			FirstName:       c.FirstName,
+			LastName:        c.LastName,
+			ContactType:     c.ContactType,
+			LifecycleStage:  c.LifecycleStage,
+			Metadata:        c.Metadata,
+			SubscribedEmail: c.SubscribedEmail,
 		})
 	}
 

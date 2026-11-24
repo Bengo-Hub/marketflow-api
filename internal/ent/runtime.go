@@ -1546,12 +1546,24 @@ func init() {
 	testimonialDescIsPublished := testimonialFields[8].Descriptor()
 	// testimonial.DefaultIsPublished holds the default value on creation for the is_published field.
 	testimonial.DefaultIsPublished = testimonialDescIsPublished.Default.(bool)
+	// testimonialDescStatus is the schema descriptor for status field.
+	testimonialDescStatus := testimonialFields[9].Descriptor()
+	// testimonial.DefaultStatus holds the default value on creation for the status field.
+	testimonial.DefaultStatus = testimonialDescStatus.Default.(string)
+	// testimonialDescSource is the schema descriptor for source field.
+	testimonialDescSource := testimonialFields[10].Descriptor()
+	// testimonial.DefaultSource holds the default value on creation for the source field.
+	testimonial.DefaultSource = testimonialDescSource.Default.(string)
+	// testimonialDescFingerprint is the schema descriptor for fingerprint field.
+	testimonialDescFingerprint := testimonialFields[11].Descriptor()
+	// testimonial.FingerprintValidator is a validator for the "fingerprint" field. It is called by the builders before save.
+	testimonial.FingerprintValidator = testimonialDescFingerprint.Validators[0].(func(string) error)
 	// testimonialDescCreatedAt is the schema descriptor for created_at field.
-	testimonialDescCreatedAt := testimonialFields[9].Descriptor()
+	testimonialDescCreatedAt := testimonialFields[13].Descriptor()
 	// testimonial.DefaultCreatedAt holds the default value on creation for the created_at field.
 	testimonial.DefaultCreatedAt = testimonialDescCreatedAt.Default.(func() time.Time)
 	// testimonialDescUpdatedAt is the schema descriptor for updated_at field.
-	testimonialDescUpdatedAt := testimonialFields[10].Descriptor()
+	testimonialDescUpdatedAt := testimonialFields[14].Descriptor()
 	// testimonial.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	testimonial.DefaultUpdatedAt = testimonialDescUpdatedAt.Default.(func() time.Time)
 	// testimonial.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
