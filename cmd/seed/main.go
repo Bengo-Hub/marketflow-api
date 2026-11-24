@@ -419,6 +419,20 @@ type seqDef struct {
 func defaultSequences() []seqDef {
 	return []seqDef{
 		{
+			// Owner 2026-11-24: ask won customers for a testimonial. Opt-in like every template:
+			// a tenant copies it in Nurture; the worker (ConvertedEnrol) enrols leads marked
+			// converted in the last 30 days, and the delay counts from the sale.
+			Name:         "Ask for a testimonial",
+			TriggerEvent: "lead.converted",
+			Description:  "A week after a lead becomes a customer, ask them to share their experience on your testimonial page.",
+			Steps: []seqStep{
+				{DelayHours: 168, Channel: "email",
+					Subject: "How was your experience with {{fbo_name}}?",
+					Body: "Hi {{first_name}}, thank you for choosing {{fbo_name}}. If you have a minute, we would love to hear how it went: " +
+						"<a href=\"{{testimonial_link}}\">share your experience</a>. We read every word, and nothing is shown publicly without your consent."},
+			},
+		},
+		{
 			// Sprint 23 (owner, 2026-11-03): opt-in per tenant. A tenant copies it from the
 			// templates in Nurture; nothing is sent until it does. WhatsApp only with the lead's
 			// consent tick (metadata.whatsapp_consent), else the worker sends the email instead.

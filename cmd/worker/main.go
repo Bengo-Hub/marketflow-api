@@ -265,6 +265,9 @@ func main() {
 		)
 		go reeng.Run(ctx)
 
+		// Converted leads join the tenant's "lead.converted" sequence (e.g. Ask for a testimonial).
+		go worker.NewConvertedEnrol(entClient, logger).Run(ctx)
+
 		// Chat transcript retention (30 days after last activity by default).
 		go worker.NewChatRetention(entClient, cfg.Scheduler.ChatRetentionDays, logger).Run(ctx)
 
