@@ -45,7 +45,9 @@ var providerAccountTypes = map[string][]string{providerYouTube: {AccountYouTubeC
 
 // accountOnlyProviders keep no tenant ProviderSetting rows: their ConnectedAccount rows are the
 // whole connection.
-var accountOnlyProviders = []string{providerYouTube, providerTikTok}
+// Google Ads is one too: its customers are ConnectedAccounts with no tenant ProviderSetting row,
+// so without it the card read "Not connected" after a successful connect (2026-11-24).
+var accountOnlyProviders = []string{providerYouTube, providerTikTok, providerGoogleAds}
 
 // account is one external asset found at connect time.
 type account struct {

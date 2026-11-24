@@ -569,10 +569,14 @@ func (h *Handler) TikTokCallback(w http.ResponseWriter, r *http.Request) {
 		h.failConnect(w, r, "tiktok", tenantID, "token_exchange_failed", fmt.Sprintf("tiktok: code=%d msg=%s", tokResp.Code, tokResp.Message))
 		return
 	}
-	advertiserID := ""
-	if len(tokResp.Data.AdvertiserIDs) > 0 {
-		advertiserID = tokResp.Data.AdvertiserIDs[0]
+	// A login whose TikTok account has no ad account yet returns a token and no advertisers.
+	// Saving that showed "Connected" with an empty advertiser_id (2026-11-24); say what is
+	// missing instead, as the Google Ads connect does.
+	if len(tokResp.Data.AdvertiserIDs) == 0 {
+		h.failConnect(w, r, "tiktok", tenantID, "no_account", "tiktok: no advertiser accounts on this login")
+		return
 	}
+	advertiserID := tokResp.Data.AdvertiserIDs[0]
 	if err := h.upsertTenantKV(r.Context(), tenantID, "tiktok_ads", "oauth", map[string]string{
 		"access_token":  tokResp.Data.AccessToken,
 		"advertiser_id": advertiserID,
