@@ -840,6 +840,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			// The business types an owner can pick, with descriptions (Sprint 7 #32).
 			BusinessTypes: tenantProfileHandler.ListBusinessTypes,
 			LeadFilter:    tenantProfileHandler.GetLeadFilter,
+			LeadResponse:  tenantProfileHandler.GetLeadResponse,
 			KESRate:       tenantProfileHandler.GetKESRate,
 		},
 		TenantMemberHandlers: httpapi.TenantMemberHandlers{

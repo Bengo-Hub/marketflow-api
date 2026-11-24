@@ -71,6 +71,8 @@ func resolveNurtureVariables(
 		if ld.LeadType != "" {
 			putIfEmpty(vars, "lead_type", ld.LeadType)
 		}
+		// A lead without a name is greeted "Hi there", never with a raw {{first_name}}.
+		putIfEmpty(vars, "first_name", "there")
 	}
 
 	// Per-tenant FLP + branding vars. These only need resolving when the

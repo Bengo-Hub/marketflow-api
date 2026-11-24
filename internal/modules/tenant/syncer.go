@@ -20,6 +20,7 @@ import (
 	enttenant "github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/flp"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
+	"github.com/bengobox/marketflow-api/internal/platform/leadresponse"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -216,6 +217,12 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 	// (e.g. pos on-account) can be attributed to it. Idempotent; best-effort. pos-api/treasury also
 	// upsert/lookup this same contact by walkInPhone on demand, so existing tenants self-heal too.
 	s.createWalkInContactIfMissing(ctx, realID)
+
+	// The new tenant's own copy of the default lead follow-up (owner, 2026-11-24), unless it is
+	// switched off. Best-effort: the worker's hourly provisioner and the first lead retry it.
+	if _, err := leadresponse.ProvisionFollowUp(ctx, s.client, realID); err != nil {
+		s.logger.Warn("default follow-up not provisioned", zap.String("tenant", realID.String()), zap.Error(err))
+	}
 
 	return realID, nil
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant/metastore"
+	"github.com/bengobox/marketflow-api/internal/platform/leadresponse"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -127,6 +128,22 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		if err := ValidateLeadFilterSetting(req.Metadata); err != nil {
 			httpapi.Error(w, http.StatusBadRequest, "invalid_lead_filter", err.Error(), nil)
 			return
+		}
+		if err := leadresponse.Validate(req.Metadata); err != nil {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_lead_response", err.Error(), nil)
+			return
+		}
+		// Lead response (owner, 2026-11-24) is changed by owners and admins only. A form that
+		// sends the stored value back unchanged is not a change.
+		if v, ok := req.Metadata[leadresponse.TenantKey]; ok {
+			if leadresponse.Changed(t.Metadata, v) {
+				if h.CanApprove != nil && !h.CanApprove(r.Context(), tenantID) {
+					httpapi.Error(w, http.StatusForbidden, "forbidden", "only the account owner or an admin can change lead response settings", nil)
+					return
+				}
+			} else {
+				delete(req.Metadata, leadresponse.TenantKey)
+			}
 		}
 		// The lead filter decides which submissions are dropped, so only owners and admins
 		// change it. A form that sends the stored words back unchanged is not a change.

@@ -398,6 +398,8 @@ type TenantProfileHandlers struct {
 	BusinessTypes http.HandlerFunc
 	// LeadFilter shows the platform's lead filter words and the tenant's own (item 61).
 	LeadFilter http.HandlerFunc
+	// LeadResponse shows the tenant's lead response settings beside the platform defaults (item 62).
+	LeadResponse http.HandlerFunc
 	// KESRate is KES per unit of the tenant's currency, for forms feeding a KES engine (item 57).
 	KESRate http.HandlerFunc
 }
@@ -970,6 +972,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				}
 				if deps.TenantProfileHandlers.LeadFilter != nil {
 					r.Get("/lead-filter", deps.TenantProfileHandlers.LeadFilter)
+				}
+				if deps.TenantProfileHandlers.LeadResponse != nil {
+					r.Get("/lead-response", deps.TenantProfileHandlers.LeadResponse)
 				}
 				if deps.TenantProfileHandlers.KESRate != nil {
 					r.Get("/kes-rate", deps.TenantProfileHandlers.KESRate)

@@ -14,9 +14,11 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/lead"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/notifications"
+	"github.com/bengobox/marketflow-api/internal/platform/leadresponse"
 	"github.com/bengobox/marketflow-api/internal/platform/reqid"
 )
 
@@ -116,7 +118,14 @@ func (j *DailyBrief) forTenant(ctx context.Context, tenantID uuid.UUID) (bool, e
 	if err != nil {
 		return false, err
 	}
+	briefOn := true
 	if v, ok := t.Metadata[DailyBriefOptOutKey].(bool); ok && !v {
+		briefOn = false
+	}
+	// The list of leads nobody contacted yet (owner, 2026-11-24) rides on the brief, and goes out
+	// on its own when the brief is off or has nothing to say.
+	lr, _ := leadresponse.Load(ctx, j.db, t)
+	if !briefOn && !lr.DailyList {
 		return false, nil
 	}
 	tz := ""
@@ -141,24 +150,45 @@ func (j *DailyBrief) forTenant(ctx context.Context, tenantID uuid.UUID) (bool, e
 	if !j.claim(ctx, "marketflow:os-brief:"+tenantID.String()+":"+date, 36*time.Hour) {
 		return false, nil
 	}
-	metrics, err := j.svc.BriefMetrics(ctx, tenantID, dayStart)
-	if err != nil {
-		return false, err
+	var waiting uncontactedList
+	if lr.DailyList {
+		if waiting, err = uncontactedLeads(ctx, j.db, tenantID, now); err != nil {
+			j.logger.Warn("uncontacted leads not read", zap.String("tenant", tenantID.String()), zap.Error(err))
+		}
 	}
-	if !marketingos.HasActivity(metrics) {
+	var metrics []marketingos.BriefMetric
+	if briefOn {
+		if metrics, err = j.svc.BriefMetrics(ctx, tenantID, dayStart); err != nil {
+			return false, err
+		}
+	}
+	hasBrief := briefOn && marketingos.HasActivity(metrics)
+	if !hasBrief && waiting.Total == 0 {
 		return false, nil
 	}
 	recipients, err := tenantAdminEmails(ctx, j.db, tenantID, briefRoles)
 	if err != nil || len(recipients) == 0 {
 		return false, err
 	}
-	lang := "en"
-	if strings.EqualFold(stringOr(t.Metadata["brief_language"], ""), "sw") {
-		lang = "sw"
+	leadsLink := j.portalURL + "/" + t.Slug + "/leads?status=new"
+	var subject, body string
+	var words briefWords
+	if hasBrief {
+		lang := "en"
+		if strings.EqualFold(stringOr(t.Metadata["brief_language"], ""), "sw") {
+			lang = "sw"
+		}
+		words = j.words(ctx, lang, metrics)
+		subject = fmt.Sprintf("Your marketing brief for %s", dayStart.AddDate(0, 0, -1).Format("Mon 2 Jan"))
+		body = renderBrief(t.Name, metrics, words, j.portalURL+"/"+t.Slug+"/dashboard")
+		if waiting.Total > 0 {
+			body = renderUncontacted(waiting, now, leadsLink) + "\n\n" + body
+		}
+	} else {
+		subject = fmt.Sprintf("%d %s still waiting for a reply", waiting.Total, pickWord(waiting.Total, "lead", "leads"))
+		body = "Good morning, " + t.Name + ".\n\n" + renderUncontacted(waiting, now, leadsLink) +
+			"\n\nTo stop this list, switch off the daily list in MarketFlow under Settings, Lead response."
 	}
-	words := j.words(ctx, lang, metrics)
-	subject := fmt.Sprintf("Your marketing brief for %s", dayStart.AddDate(0, 0, -1).Format("Mon 2 Jan"))
-	body := renderBrief(t.Name, metrics, words, j.portalURL+"/"+t.Slug+"/dashboard")
 	delivered := false
 	for _, email := range recipients {
 		err := j.notif.Send(ctx, tenantID.String(), notifications.Message{
@@ -176,7 +206,7 @@ func (j *DailyBrief) forTenant(ctx context.Context, tenantID uuid.UUID) (bool, e
 		delivered = true
 	}
 	// WhatsApp (Sprint 17): the template outside the window, only once Meta approved it.
-	if j.sendWhatsApp(ctx, t, date, dayStart.AddDate(0, 0, -1), words) > 0 {
+	if hasBrief && j.sendWhatsApp(ctx, t, date, dayStart.AddDate(0, 0, -1), words) > 0 {
 		delivered = true
 	}
 	return delivered, nil
@@ -246,6 +276,71 @@ func renderBrief(tenantName string, metrics []marketingos.BriefMetric, w briefWo
 	parts = append(parts, "Open your dashboard: "+link,
 		"To stop these emails, switch off the morning brief in MarketFlow under Settings, Brand context.")
 	return strings.Join(parts, "\n\n")
+}
+
+// maxListedUncontacted bounds the leads the daily list names; the rest are counted.
+const maxListedUncontacted = 30
+
+// uncontactedList is the tenant's leads still new, arrived since lead response went live.
+type uncontactedList struct {
+	Total int
+	Leads []*ent.Lead
+}
+
+// uncontactedLeads reads the leads nobody contacted yet, oldest first, served by
+// leads(tenant_id, status).
+func uncontactedLeads(ctx context.Context, db *ent.Client, tenantID uuid.UUID, now time.Time) (uncontactedList, error) {
+	started, ok := leadresponse.StartedAt(ctx, db)
+	if !ok {
+		return uncontactedList{}, nil
+	}
+	q := db.Lead.Query().Where(lead.TenantID(tenantID), lead.StatusEQ(leadresponse.StatusNew), lead.CreatedAtGTE(started), lead.CreatedAtLTE(now))
+	total, err := q.Clone().Count(ctx)
+	if err != nil || total == 0 {
+		return uncontactedList{}, err
+	}
+	rows, err := q.Order(ent.Asc(lead.FieldCreatedAt)).Limit(maxListedUncontacted).All(ctx)
+	if err != nil {
+		return uncontactedList{}, err
+	}
+	return uncontactedList{Total: total, Leads: rows}, nil
+}
+
+// renderUncontacted is the daily list paragraph: each lead with how long it has waited.
+func renderUncontacted(l uncontactedList, now time.Time, link string) string {
+	lines := []string{fmt.Sprintf("%d %s still waiting for a reply:", l.Total, pickWord(l.Total, "lead is", "leads are"))}
+	for _, ld := range l.Leads {
+		line := "- " + leadDisplayName(ld) + ", waiting " + waitedFor(now.Sub(ld.CreatedAt))
+		if it := strings.TrimSpace(deref(ld.Interest)); it != "" {
+			line += " (" + it + ")"
+		}
+		lines = append(lines, line)
+	}
+	if more := l.Total - len(l.Leads); more > 0 {
+		lines = append(lines, fmt.Sprintf("- and %d more", more))
+	}
+	lines = append(lines, "Answer them: "+link)
+	return strings.Join(lines, "\n")
+}
+
+// waitedFor writes a waiting time as whole days, else hours, else minutes.
+func waitedFor(d time.Duration) string {
+	switch {
+	case d >= 48*time.Hour:
+		return fmt.Sprintf("%d days", int(d/(24*time.Hour)))
+	case d >= 2*time.Hour:
+		return fmt.Sprintf("%d hours", int(d/time.Hour))
+	case d >= time.Hour:
+		return "1 hour"
+	}
+	return fmt.Sprintf("%d minutes", int(d/time.Minute))
+}
+
+func pickWord(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }
 
 func fmtMetric(v float64, unit string) string {

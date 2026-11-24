@@ -21,6 +21,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/notifications"
+	"github.com/bengobox/marketflow-api/internal/platform/leadresponse"
 	"github.com/bengobox/marketflow-api/internal/platform/reqid"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go/jetstream"
@@ -339,6 +340,22 @@ func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 	}
 	stepDef := seq.Steps[enrollment.CurrentStep]
 
+	// A lead follow-up stops once a person has the conversation (owner, 2026-11-24): the lead
+	// replied, booked a meeting or moved past new, or the tenant switched its default off.
+	if seq.TriggerEvent == leadresponse.TriggerLeadCreated && enrollment.LeadID != nil {
+		reason, err := followUpStopReason(ctx, h.db, enrollment, seq)
+		if err != nil {
+			return fmt.Errorf("follow-up stop check: %w", err)
+		}
+		if reason != "" {
+			h.logger.Info("lead follow-up stopped", zap.String("enrollment", enrollmentID.String()), zap.String("reason", reason))
+			return h.stopEnrollment(ctx, enrollment, reason)
+		}
+	}
+	// An optional step that cannot reach the lead is skipped, not moved to another channel and
+	// not the end of the sequence.
+	optional, _ := stepDef["optional"].(bool)
+
 	// Resolve recipient from the lead row. Channel selection is a step property;
 	// email/phone come from the lead. Fall back to the sequence default.
 	var recipient string
@@ -367,6 +384,9 @@ func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 	// the "OK to contact me on WhatsApp" tick on forms, stored as metadata.whatsapp_consent.
 	// Without it the step goes by email when the lead has one, else it is skipped.
 	if channel == "whatsapp" && leadRow != nil && !whatsAppConsent(leadRow) {
+		if optional {
+			return h.skipStep(ctx, enrollment, seq, "no WhatsApp consent")
+		}
 		if leadRow.Email != nil && *leadRow.Email != "" {
 			channel, recipient = "email", *leadRow.Email
 		} else {
@@ -394,6 +414,10 @@ func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 		}
 		emailOut, phoneOut := contactOptOuts(ctx, h.db, enrollment.TenantID, email, phone)
 		ch, to, ok := nurtureChannelAfterOptOut(channel, recipient, email, emailOut, phoneOut)
+		if optional && ok && ch != channel {
+			// An optional step never moves to another channel; the other steps cover it.
+			return h.skipStep(ctx, enrollment, seq, "opted out of "+channel)
+		}
 		if !ok {
 			h.logger.Info("nurture cancelled: the person opted out",
 				zap.String("enrollment", enrollmentID.String()), zap.String("channel", channel))
@@ -406,6 +430,9 @@ func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 			return err
 		}
 		channel, recipient = ch, to
+	}
+	if recipient == "" && optional {
+		return h.skipStep(ctx, enrollment, seq, "no "+channel+" address")
 	}
 	if recipient == "" {
 		h.logger.Warn("no recipient on lead; marking enrollment errored",
@@ -443,6 +470,11 @@ func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 		},
 		IdempotencyKey: idemKey,
 	}
+	// A WhatsApp step naming an approved Meta template goes as that template from the tenant's
+	// own number: the only way to write to a lead outside the 24-hour window.
+	if channel == "whatsapp" {
+		payload.Template = stepWhatsAppTemplate(stepDef, vars)
+	}
 
 	h.logger.Info("dispatching nurture step",
 		zap.String("tenant", enrollment.TenantID.String()),
@@ -451,6 +483,13 @@ func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 		zap.String("idem", idemKey),
 	)
 	if err := h.notif.Send(ctx, enrollment.TenantID.String(), payload); err != nil {
+		if optional {
+			// A template still in Meta review or a tenant without its own WhatsApp number: the
+			// other steps still go.
+			h.logger.Warn("optional nurture step not sent; skipped", zap.String("enrollment", enrollmentID.String()),
+				zap.String("channel", channel), zap.Error(err))
+			return h.skipStep(ctx, enrollment, seq, "send failed")
+		}
 		return fmt.Errorf("notifications send: %w", err)
 	}
 	// The message on the lead's timeline (Sprint 23 L29). Best effort: it was already sent.
@@ -469,8 +508,20 @@ func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 		}
 	}
 
-	// Advance: move to next step, compute its next_step_at from delay_hours,
-	// or mark completed when no steps remain.
+	return h.advance(ctx, enrollment, seq)
+}
+
+// skipStep moves past an optional step the lead cannot receive, without sending it.
+func (h *NurtureStepHandler) skipStep(ctx context.Context, e *ent.NurtureEnrollment, seq *ent.NurtureSequence, why string) error {
+	h.logger.Info("optional nurture step skipped", zap.String("enrollment", e.ID.String()),
+		zap.Int("step", e.CurrentStep), zap.String("why", why))
+	return h.advance(ctx, e, seq)
+}
+
+// advance moves the enrollment to its next step, timed by that step's delay_hours, or completes
+// it when no steps remain.
+func (h *NurtureStepHandler) advance(ctx context.Context, enrollment *ent.NurtureEnrollment, seq *ent.NurtureSequence) error {
+	enrollmentID := enrollment.ID
 	nextIdx := enrollment.CurrentStep + 1
 	update := h.db.NurtureEnrollment.UpdateOneID(enrollmentID).
 		SetCurrentStep(nextIdx).
@@ -497,6 +548,17 @@ func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 		return fmt.Errorf("advance enrollment: %w", err)
 	}
 	return nil
+}
+
+// stopEnrollment ends a lead follow-up early, as cancelled with the reason it stopped.
+func (h *NurtureStepHandler) stopEnrollment(ctx context.Context, e *ent.NurtureEnrollment, reason string) error {
+	_, err := h.db.NurtureEnrollment.UpdateOneID(e.ID).
+		SetStatus("cancelled").
+		SetExitReason(reason).
+		SetCompletedAt(time.Now().UTC()).
+		ClearNextStepAt().
+		Save(ctx)
+	return err
 }
 
 // completeEnrollment marks an enrollment terminal with the given reason.

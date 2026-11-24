@@ -195,6 +195,7 @@ func main() {
 	reg := worker.NewRegistry(cfg, entClient, rawDB, keys, logger)
 	// Custom agents that run on events (new lead, lead qualified) or a schedule.
 	var agentSvc *custom_agents.Service
+	var leadAlerts *worker.NewLeadAlertHandler
 	if entClient != nil {
 		agentSvc = custom_agents.NewService(entClient, logger, custom_agents.WithNATS(nc))
 		reg.Add(worker.NewAgentEventTriggers(agentSvc, logger)...)
@@ -228,10 +229,12 @@ func main() {
 		// Contact enricher (Sprint 10): a new or changed contact's profile from the business's own
 		// records, no AI and no paid source, so no credits.
 		reg.Add(worker.NewContactEnricherHandlers(entClient, logger)...)
-		// New-lead email to the business (Sprint 18 L58; owner 2026-11-11): at most one every 15 minutes.
-		reg.Add(worker.NewNewLeadAlertHandler(entClient, rdb,
+		// New-lead email to the business (owner 2026-11-24): every lead; a burst within the alert
+		// window goes out together in one email, sent by the lead response job below.
+		leadAlerts = worker.NewNewLeadAlertHandler(entClient, rdb,
 			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
-			cfg.API.PortalURL, logger))
+			cfg.API.PortalURL, logger)
+		reg.Add(leadAlerts)
 		reg.Add(worker.NewWhatsAppAssistantHandler(entClient, rdb,
 			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
 			cfg.AuthServiceURL, cfg.CrossServiceKey,
@@ -267,6 +270,12 @@ func main() {
 
 		// Converted leads join the tenant's "lead.converted" sequence (e.g. Ask for a testimonial).
 		go worker.NewConvertedEnrol(entClient, logger).Run(ctx)
+
+		// Lead response (owner, 2026-11-24): every tenant's copy of the default follow-up, the
+		// batched team alerts and the business-hours reminders for leads nobody contacted.
+		go worker.NewLeadResponse(entClient,
+			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
+			leadAlerts, cfg.API.PortalURL, logger).Run(ctx)
 
 		// Chat transcript retention (30 days after last activity by default).
 		go worker.NewChatRetention(entClient, cfg.Scheduler.ChatRetentionDays, logger).Run(ctx)

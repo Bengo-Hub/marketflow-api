@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
@@ -16,7 +17,9 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowpermission"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowrole"
 	"github.com/bengobox/marketflow-api/internal/ent/rolepermission"
+	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
 	"github.com/bengobox/marketflow-api/internal/flp"
+	"github.com/bengobox/marketflow-api/internal/platform/leadresponse"
 	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
@@ -116,6 +119,9 @@ func main() {
 	// clone them into tenant scope later when they want customisation.
 	sequencesSeeded := seedNurtureSequences(ctx, client, tid, scope)
 	log.Printf("Nurture: %d sequence templates seeded", sequencesSeeded)
+	if scope == "platform" {
+		log.Printf("Lead response: %d platform defaults seeded", seedLeadResponseDefaults(ctx, client))
+	}
 
 	// Phase 4: Default campaign templates — starter lead-gen / recruitment /
 	// retargeting blueprints tenants can clone and populate with their own
@@ -403,7 +409,51 @@ type seqStep struct {
 	Subject    string `json:"subject,omitempty"`
 	Body       string `json:"body,omitempty"`
 	Branch     string `json:"branch,omitempty"` // optional next-sequence slug
+	// Optional: a step that cannot reach the lead on its channel (no address, no WhatsApp consent,
+	// a send the provider refuses) is skipped instead of moving to another channel or stopping.
+	Optional bool `json:"optional,omitempty"`
+	// WATemplate, WAParams and WAButton send a WhatsApp step as an approved Meta template from the
+	// tenant's own number: WAParams name the variables for {{1}}..{{n}}, WAButton is the URL
+	// button's suffix (variables allowed).
+	WATemplate string   `json:"wa_template,omitempty"`
+	WAParams   []string `json:"wa_params,omitempty"`
+	WAButton   string   `json:"wa_button,omitempty"`
 }
+
+// stepMaps turns template steps into the stored JSON form.
+func stepMaps(in []seqStep) []map[string]any {
+	steps := make([]map[string]any, 0, len(in))
+	for _, st := range in {
+		m := map[string]any{
+			"delay_hours": st.DelayHours,
+			"channel":     st.Channel,
+			"template":    st.Template,
+			"subject":     st.Subject,
+			"body":        st.Body,
+			"branch":      st.Branch,
+		}
+		if st.Optional {
+			m["optional"] = true
+		}
+		if st.WATemplate != "" {
+			m["wa_template"] = st.WATemplate
+			params := make([]any, len(st.WAParams))
+			for i, p := range st.WAParams {
+				params[i] = p
+			}
+			m["wa_params"] = params
+			m["wa_button"] = st.WAButton
+		}
+		steps = append(steps, m)
+	}
+	return steps
+}
+
+// instantFollowUpVersion is the version of the "Instant follow-up" steps below. The seed rewrites
+// the stored platform template when its metadata.steps_version is older, once, so the copy every
+// tenant gets (leadresponse.ProvisionFollowUp) carries the current wording. Bump it with each
+// change to those steps.
+const instantFollowUpVersion = 2
 
 type seqDef struct {
 	Name         string
@@ -433,19 +483,32 @@ func defaultSequences() []seqDef {
 			},
 		},
 		{
-			// Sprint 23 (owner, 2026-11-03): opt-in per tenant. A tenant copies it from the
-			// templates in Nurture; nothing is sent until it does. WhatsApp only with the lead's
-			// consent tick (metadata.whatsapp_consent), else the worker sends the email instead.
+			// Owner 2026-11-24: on by default for every tenant (opt-out in Settings, Lead
+			// response). Every tenant gets its own copy (leadresponse.ProvisionFollowUp), so the
+			// words come from the tenant's own name and links. The follow-up stops as soon as the
+			// lead replies, books a meeting or the team contacts them. Honest wording only: no
+			// invented deadlines or scarcity. Every step is optional: one the lead cannot receive
+			// is skipped. WhatsApp goes only with the lead's consent tick, from the tenant's own
+			// number, as the mf_lead_hello_v1_btn template once Meta approved it.
 			Name:         "Instant follow-up",
 			TriggerEvent: "lead.created",
-			Description:  "Answer every new lead within a minute with a booking link, then remind them the next day.",
+			Description:  "Thank every new lead within a minute with a link to book a call, then follow up after a day and after three days unless they reply, book or your team contacts them.",
 			Steps: []seqStep{
-				{DelayHours: 0, Channel: "whatsapp", Template: "mf_lead_hello_btn",
-					Subject: "Thanks for getting in touch with {{fbo_name}}",
-					Body:    "Hi {{first_name}}, thanks for getting in touch with {{fbo_name}}. Pick a time for a short call: {{booking_link}}"},
-				{DelayHours: 24, Channel: "email",
-					Subject: "A time to talk, {{first_name}}?",
-					Body:    "Hi {{first_name}}, we would love to help. Choose a time that suits you: <a href=\"{{booking_link}}\">book a short call</a>, or <a href=\"{{whatsapp_link}}\">message us on WhatsApp</a>."},
+				{DelayHours: 0, Channel: "email", Optional: true,
+					Subject: "Thank you for contacting {{fbo_name}}",
+					Body: "Hi {{first_name}},\n\nThank you for getting in touch with {{fbo_name}}. We have your message and a member of our team will reply to you.\n\n" +
+						"If a call suits you, you can pick a time here: {{booking_link}}"},
+				{DelayHours: 0, Channel: "whatsapp", Optional: true,
+					WATemplate: "mf_lead_hello_v1_btn", WAParams: []string{"first_name", "fbo_name"}, WAButton: "book/{{tenant_slug}}",
+					Body: "Hi {{first_name}}, thank you for your enquiry to {{fbo_name}}. We have received it and a member of our team will contact you. You can also pick a time for a call with the button below."},
+				{DelayHours: 24, Channel: "email", Optional: true,
+					Subject: "Following up on your enquiry to {{fbo_name}}",
+					Body: "Hi {{first_name}},\n\nI am following up on the enquiry you sent to {{fbo_name}} yesterday. We would be glad to help.\n\n" +
+						"If it is easier to talk it through, choose a time that suits you: {{booking_link}}"},
+				{DelayHours: 48, Channel: "email", Optional: true,
+					Subject: "Your enquiry to {{fbo_name}}",
+					Body: "Hi {{first_name}},\n\nThis is a last note about your enquiry to {{fbo_name}}. We are still happy to help whenever it suits you, and you can book a call at a time that works for you: {{booking_link}}\n\n" +
+						"If you no longer need this, there is nothing to do; we will not follow up again."},
 			},
 		},
 		{
@@ -785,24 +848,23 @@ func seedNurtureSequences(ctx context.Context, client *ent.Client, tenantID uuid
 		if s.BusinessType == flp.BusinessType && !anchorFLP {
 			continue
 		}
-		exists, _ := client.NurtureSequence.Query().
+		steps := stepMaps(s.Steps)
+		meta := templateMeta(s.Description, s.BusinessType)
+		isDefault := s.Name == "Instant follow-up" && s.TriggerEvent == leadresponse.TriggerLeadCreated
+		if isDefault {
+			meta[leadresponse.TemplateFlag] = true
+			meta["steps_version"] = instantFollowUpVersion
+		}
+		existing, _ := client.NurtureSequence.Query().
 			Where(
 				nurturesequence.ScopeEQ("platform"),
 				nurturesequence.NameEQ(s.Name),
-			).Exist(ctx)
-		if exists {
+			).First(ctx)
+		if existing != nil {
+			if isDefault {
+				upgradeDefaultFollowUp(ctx, client, existing, steps, s.Description)
+			}
 			continue
-		}
-		steps := make([]map[string]any, 0, len(s.Steps))
-		for _, st := range s.Steps {
-			steps = append(steps, map[string]any{
-				"delay_hours": st.DelayHours,
-				"channel":     st.Channel,
-				"template":    st.Template,
-				"subject":     st.Subject,
-				"body":        st.Body,
-				"branch":      st.Branch,
-			})
 		}
 		builder := client.NurtureSequence.Create().
 			SetTenantID(tenantID).
@@ -811,7 +873,7 @@ func seedNurtureSequences(ctx context.Context, client *ent.Client, tenantID uuid
 			SetTriggerEvent(s.TriggerEvent).
 			SetSteps(steps).
 			SetActive(true).
-			SetMetadata(templateMeta(s.Description, s.BusinessType))
+			SetMetadata(meta)
 		if s.LeadTypeFilter != "" {
 			builder.SetLeadTypeFilter(s.LeadTypeFilter)
 		}
@@ -823,4 +885,58 @@ func seedNurtureSequences(ctx context.Context, client *ent.Client, tenantID uuid
 		log.Printf("  seeded sequence: %s (%d steps)", s.Name, len(s.Steps))
 	}
 	return count
+}
+
+// upgradeDefaultFollowUp brings the stored "Instant follow-up" platform template to the current
+// steps once (metadata.steps_version older than instantFollowUpVersion) and marks it as the
+// template every tenant gets a copy of. Tenant copies already made are never touched.
+func upgradeDefaultFollowUp(ctx context.Context, client *ent.Client, row *ent.NurtureSequence, steps []map[string]any, description string) {
+	v, _ := row.Metadata["steps_version"].(float64)
+	if int(v) >= instantFollowUpVersion {
+		return
+	}
+	meta := map[string]any{}
+	for k, val := range row.Metadata {
+		meta[k] = val
+	}
+	meta[leadresponse.TemplateFlag] = true
+	meta["steps_version"] = instantFollowUpVersion
+	meta["description"] = description
+	if _, err := client.NurtureSequence.UpdateOne(row).SetSteps(steps).SetActive(true).SetMetadata(meta).Save(ctx); err != nil {
+		log.Printf("  failed to upgrade %q: %v", row.Name, err)
+		return
+	}
+	log.Printf("  upgraded sequence template: %s (steps v%d)", row.Name, instantFollowUpVersion)
+}
+
+// leadResponseDefaults are the platform defaults of lead response (owner, 2026-11-24), written to
+// service_config only when missing, so a value a platform admin changed is kept.
+var leadResponseDefaults = []struct{ key, value, typ, desc string }{
+	{leadresponse.KeyFollowUp, "true", "bool", "Automatic follow-up to new leads by email and WhatsApp, for tenants that set nothing."},
+	{leadresponse.KeyReminders, "15m,2h,24h", "string", "Reminders to the tenant's admins for a lead nobody contacted, in business time after it arrived."},
+	{leadresponse.KeyBusinessDays, "1,2,3,4,5,6", "string", "Open days for lead reminders, 0 is Sunday."},
+	{leadresponse.KeyBusinessHours, "08:00-18:00", "string", "Opening hours for lead reminders, in the tenant's time zone."},
+	{leadresponse.KeyDailyList, "true", "bool", "The morning email lists every lead nobody contacted yet."},
+	{leadresponse.KeyAlertWindow, "15m", "string", "Leads after the first in a burst wait this long and go out together in one team alert."},
+}
+
+// seedLeadResponseDefaults writes the missing platform rows and records the start time.
+func seedLeadResponseDefaults(ctx context.Context, client *ent.Client) int {
+	n := 0
+	for _, d := range leadResponseDefaults {
+		exists, err := client.ServiceConfig.Query().Where(serviceconfig.ConfigKey(d.key), serviceconfig.TenantIDIsNil()).Exist(ctx)
+		if err != nil || exists {
+			continue
+		}
+		if _, err := client.ServiceConfig.Create().SetConfigKey(d.key).SetConfigValue(d.value).SetConfigType(d.typ).
+			SetDescription(d.desc).Save(ctx); err != nil {
+			log.Printf("  failed to seed %s: %v", d.key, err)
+			continue
+		}
+		n++
+	}
+	if _, err := leadresponse.EnsureStartedAt(ctx, client, time.Now()); err != nil {
+		log.Printf("  lead response start time not recorded: %v", err)
+	}
+	return n
 }

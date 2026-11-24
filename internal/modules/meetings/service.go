@@ -7,6 +7,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
+	"github.com/bengobox/marketflow-api/internal/platform/leadresponse"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -140,6 +141,13 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.ScheduledMee
 		zap.String("id", result.ID.String()),
 		zap.String("tenant_id", in.TenantID.String()),
 	)
+	// A booked meeting marks a lead that is still new contacted (owner, 2026-11-24), which also
+	// ends its automatic follow-up and reminders.
+	if in.LeadID != nil {
+		if _, err := leadresponse.MarkContacted(ctx, s.client, in.TenantID, *in.LeadID, time.Now()); err != nil {
+			s.logger.Warn("mark lead contacted", zap.String("lead", in.LeadID.String()), zap.Error(err))
+		}
+	}
 
 	// Mirror to Google Calendar when a syncer is configured and the caller
 	// hasn't opted out. Failures are logged but non-fatal: the local record

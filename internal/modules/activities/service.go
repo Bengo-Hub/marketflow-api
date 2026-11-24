@@ -8,6 +8,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/activity"
 	"github.com/bengobox/marketflow-api/internal/outbox"
+	"github.com/bengobox/marketflow-api/internal/platform/leadresponse"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -70,6 +71,13 @@ func (s *Service) Log(ctx context.Context, in CreateInput) (*ent.Activity, error
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("log activity: commit: %w", err)
+	}
+	// A call, email, message or meeting a person on the team logged on a lead that is still new
+	// marks it contacted (owner, 2026-11-24), which also ends its automatic follow-up and reminders.
+	if in.EntityType == "lead" && leadresponse.CountsAsContact(in.ActivityType, in.Direction, in.PerformedBy) {
+		if _, err := leadresponse.MarkContacted(ctx, s.client, in.TenantID, in.EntityID, result.PerformedAt); err != nil {
+			s.logger.Warn("mark lead contacted", zap.String("lead", in.EntityID.String()), zap.Error(err))
+		}
 	}
 	s.logger.Info("activity logged",
 		zap.String("entity_type", in.EntityType),

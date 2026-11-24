@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
+	"github.com/bengobox/marketflow-api/internal/platform/leadresponse"
 )
 
 // Nurture enrolment is keyed by lead and funnel (owner, 2026-11-24). One person is one lead, so a
@@ -75,9 +76,24 @@ func enrolLead(ctx context.Context, db *ent.Client, logger *zap.Logger, kick fun
 	}
 	key := funnelKey(ev)
 	chosen := pickSequence(seqs, ev.LeadType, key)
+	if chosen == nil && len(seqs) == 0 {
+		// A tenant without a follow-up of its own gets its copy of the default one now, so its
+		// first lead is answered even before the hourly provisioner ran (owner, 2026-11-24).
+		seq, err := leadresponse.ProvisionFollowUp(ctx, db, ev.TenantID)
+		if err != nil {
+			logger.Warn("default follow-up not provisioned", zap.String("tenant", ev.TenantID.String()), zap.Error(err))
+		} else if seq != nil {
+			chosen = pickSequence([]*ent.NurtureSequence{seq}, ev.LeadType, key)
+		}
+	}
 	if chosen == nil {
 		logger.Debug("no matching nurture sequence", zap.String("tenant", ev.TenantID.String()), zap.String("lead_type", ev.LeadType))
 		return nil
+	}
+	if leadresponse.IsDefaultCopy(chosen) {
+		if ok, err := defaultFollowUpApplies(ctx, db, ev.TenantID, ev.LeadID); err != nil || !ok {
+			return err
+		}
 	}
 
 	mine := db.NurtureEnrollment.Query().Where(nurtureenrollment.TenantIDEQ(ev.TenantID), nurtureenrollment.LeadIDEQ(ev.LeadID))
@@ -124,6 +140,28 @@ func enrolLead(ctx context.Context, db *ent.Client, logger *zap.Logger, kick fun
 		zap.String("sequence", chosen.ID.String()), zap.String("enrollment", enrollment.ID.String()),
 		zap.Bool("resubmitted", resubmitted))
 	return nil
+}
+
+// defaultFollowUpApplies reports whether the tenant's copy of the default follow-up may enrol
+// this lead: the tenant has the follow-up switched on (its override, else the platform default)
+// and the lead arrived after lead response went live, so existing leads are never messaged.
+func defaultFollowUpApplies(ctx context.Context, db *ent.Client, tenantID, leadID uuid.UUID) (bool, error) {
+	t, err := db.Tenant.Get(ctx, tenantID)
+	if err != nil {
+		return false, err
+	}
+	if s, _ := leadresponse.Load(ctx, db, t); !s.FollowUp {
+		return false, nil
+	}
+	started, ok := leadresponse.StartedAt(ctx, db)
+	if !ok {
+		return false, nil
+	}
+	l, err := db.Lead.Get(ctx, leadID)
+	if err != nil {
+		return false, nil
+	}
+	return !l.CreatedAt.Before(started), nil
 }
 
 // enrolledForFunnel reports whether the lead already has an enrolment for this funnel. Enrolments

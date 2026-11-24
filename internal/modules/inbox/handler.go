@@ -22,6 +22,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
+	"github.com/bengobox/marketflow-api/internal/platform/leadresponse"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -268,6 +269,11 @@ func Send(ctx context.Context, db *ent.Client, keys *encryption.KeyProvider, g *
 	}
 	if _, err := out.Save(ctx); err != nil {
 		return err
+	}
+	// A person's reply to a lead that is still new marks it contacted (owner, 2026-11-24); the
+	// automatic reply does not.
+	if by != nil && a.EntityType == "lead" {
+		_, _ = leadresponse.MarkContacted(ctx, db, tid, a.EntityID, now)
 	}
 	return MergeMetadata(ctx, db, a.ID, map[string]any{"replied_at": now.Format(time.RFC3339)})
 }
