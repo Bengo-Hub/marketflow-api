@@ -47,7 +47,7 @@ func (r *Renderer) adPhotos(ctx context.Context, v *ent.CreativeVersion) ([]stri
 		}
 		img := stored[k]
 		photos = append(photos, links[0])
-		info = append(info, photoInfo{Library: true, Logo: brandimages.LooksLikeLogo(img), Caption: img.Caption, Tags: img.Tags})
+		info = append(info, photoInfo{Library: true, Logo: brandimages.NeverFrame(img), Caption: img.Caption, Tags: img.Tags})
 	}
 	if missing > 0 {
 		r.logger.Warn("brand images not all linked; scenes are drawn without them",

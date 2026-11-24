@@ -158,6 +158,9 @@ func previousStills(meta map[string]any) []storyboardStill {
 		if l, ok := st["logo"].(map[string]any); ok {
 			p.Logo = l
 		}
+		if sc, ok := st["screen"].(map[string]any); ok {
+			p.Screen = sc
+		}
 		if p.Prompt == "" && !kept[p.SceneID] {
 			continue
 		}

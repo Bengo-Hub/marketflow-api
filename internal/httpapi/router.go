@@ -541,6 +541,8 @@ type BrandImageHandlers struct {
 	List   http.HandlerFunc
 	Upload http.HandlerFunc
 	Delete http.HandlerFunc
+	// Update marks a picture as a screenshot of the business's app, or back (optional).
+	Update http.HandlerFunc
 	// ImportSite links pictures from the tenant's own website (optional).
 	ImportSite http.HandlerFunc
 }
@@ -1203,6 +1205,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Get("/tenant/brand-images", deps.BrandImageHandlers.List)
 				r.Post("/tenant/brand-images", deps.BrandImageHandlers.Upload)
 				r.Delete("/tenant/brand-images/{id}", deps.BrandImageHandlers.Delete)
+				if deps.BrandImageHandlers.Update != nil {
+					r.Patch("/tenant/brand-images/{id}", deps.BrandImageHandlers.Update)
+				}
 				if deps.BrandImageHandlers.ImportSite != nil {
 					r.Post("/tenant/brand-images/import-site", deps.BrandImageHandlers.ImportSite)
 				}

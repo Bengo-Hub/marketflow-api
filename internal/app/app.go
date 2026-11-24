@@ -1079,6 +1079,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			List:       brandImagesHandler.List,
 			Upload:     brandImagesHandler.Upload,
 			Delete:     brandImagesHandler.Delete,
+			Update:     brandImagesHandler.Update,
 			ImportSite: brandImagesHandler.ImportSite,
 		},
 		MarketingOSHandlers: httpapi.MarketingOSHandlers{

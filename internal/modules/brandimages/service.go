@@ -67,6 +67,12 @@ type Image struct {
 	// never a video frame or a poster reference: a tenant's ads carry only its own logo, on the
 	// end card.
 	Logo bool `json:"logo,omitempty"`
+	// Kind is KindPhoto or KindScreenshot (kinds.go); Device is where a screenshot is shown, and
+	// NoCustomerDataBy and NoCustomerDataAt who said it shows no customer's data, and when.
+	Kind             string `json:"kind,omitempty"`
+	Device           string `json:"device,omitempty"`
+	NoCustomerDataBy string `json:"no_customer_data_by,omitempty"`
+	NoCustomerDataAt string `json:"no_customer_data_at,omitempty"`
 }
 
 // logoHint matches names and addresses of logo pictures and client strips.
@@ -103,6 +109,9 @@ type View struct {
 	Source string `json:"source,omitempty"`
 	// From says where on the website, for the portal: "Services page" or "Home page, hero".
 	From string `json:"from,omitempty"`
+	// Kind and Device mark a screenshot of the business's app.
+	Kind   string `json:"kind,omitempty"`
+	Device string `json:"device,omitempty"`
 }
 
 // origin is where a stored picture came from; empty for an upload.
@@ -135,17 +144,16 @@ func Read(meta map[string]any) []Image {
 	return out
 }
 
-// Keys returns the tenant's brand image keys from its metadata, at most n (n <= 0: all). Keys
-// outside the tenant's prefix are dropped, so a bad metadata value cannot point at another tenant.
+// Keys returns the tenant's brand photo keys from its metadata, at most n (n <= 0: all).
+// Screenshots are not photos. Keys outside the tenant's prefix are dropped, so a bad metadata value
+// cannot point at another tenant.
 func Keys(meta map[string]any, tenantID uuid.UUID, n int) []string {
 	var out []string
-	for _, img := range Read(meta) {
+	for _, img := range OfKind(meta, tenantID, KindPhoto) {
 		if n > 0 && len(out) >= n {
 			break
 		}
-		if Owned(img.Key, tenantID) {
-			out = append(out, img.Key)
-		}
+		out = append(out, img.Key)
 	}
 	return out
 }
@@ -197,11 +205,15 @@ func (s *Service) view(img Image) View {
 	}
 	return View{ID: img.ID, URL: link, ContentType: img.ContentType, Width: img.Width, Height: img.Height,
 		Bytes: img.Bytes, Name: img.Name, UploadedAt: img.UploadedAt, Source: img.Source,
-		From: FromLabel(img.Page, img.Section)}
+		From: FromLabel(img.Page, img.Section), Kind: img.Kind, Device: img.Device}
 }
 
 // CheckSize refuses a picture whose short side is below the minimum.
 func (s *Service) CheckSize(data []byte) (width, height int, err error) {
+	return checkSize(data, s.cfg.MinShortSide)
+}
+
+func checkSize(data []byte, minSide int) (width, height int, err error) {
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
 		return 0, 0, fmt.Errorf("%w: the image could not be read", ErrTooSmall)
@@ -210,9 +222,9 @@ func (s *Service) CheckSize(data []byte) (width, height int, err error) {
 	if cfg.Height < short {
 		short = cfg.Height
 	}
-	if short < s.cfg.MinShortSide {
+	if short < minSide {
 		return cfg.Width, cfg.Height, fmt.Errorf("%w: the picture is %dx%d px; the short side must be at least %d px",
-			ErrTooSmall, cfg.Width, cfg.Height, s.cfg.MinShortSide)
+			ErrTooSmall, cfg.Width, cfg.Height, minSide)
 	}
 	return cfg.Width, cfg.Height, nil
 }
@@ -224,13 +236,18 @@ func (s *Service) Add(ctx context.Context, tenantID uuid.UUID, up *objectstore.U
 	return s.add(ctx, tenantID, up, origin{})
 }
 
-// add stores one picture; from says where on the website a linked picture was found.
+// add stores one photo; from says where on the website a linked picture was found.
 func (s *Service) add(ctx context.Context, tenantID uuid.UUID, up *objectstore.Upload, from origin) (View, error) {
+	return s.addKind(ctx, tenantID, up, from, KindUpdate{})
+}
+
+// addKind stores one picture of a kind (kinds.go).
+func (s *Service) addKind(ctx context.Context, tenantID uuid.UUID, up *objectstore.Upload, from origin, kind KindUpdate) (View, error) {
 	source := from.Source
 	if !s.store.Enabled() {
 		return View{}, ErrUnavailable
 	}
-	w, h, err := s.CheckSize(up.Data)
+	w, h, err := checkSize(up.Data, s.cfg.minSideOf(kind.Kind))
 	if err != nil {
 		return View{}, err
 	}
@@ -238,7 +255,7 @@ func (s *Service) add(ctx context.Context, tenantID uuid.UUID, up *objectstore.U
 	if err != nil {
 		return View{}, err
 	}
-	if len(Read(t.Metadata)) >= s.cfg.Max {
+	if len(OfKind(t.Metadata, tenantID, kind.Kind)) >= s.cfg.maxOf(kind.Kind) {
 		return View{}, ErrFull
 	}
 	key, err := s.store.NewKey(objectstore.Owner{TenantID: tenantID.String()}, MediaType, up.Ext)
@@ -259,7 +276,8 @@ func (s *Service) add(ctx context.Context, tenantID uuid.UUID, up *objectstore.U
 		img.Hash = formatHash(h)
 	}
 	// A picture that is largely see-through is a logo or a cut-out mark, not a scene.
-	img.Logo = mostlyTransparent(up.Data) || logoHint.MatchString(name) || logoHint.MatchString(source)
+	img.Logo = kind.Kind == KindPhoto && (mostlyTransparent(up.Data) || logoHint.MatchString(name) || logoHint.MatchString(source))
+	kind.apply(&img, s.nowFn())
 	n, err := s.appendImage(ctx, tenantID, img)
 	if err == nil && n == 0 {
 		err = ErrFull
@@ -273,7 +291,7 @@ func (s *Service) add(ctx context.Context, tenantID uuid.UUID, up *objectstore.U
 	return s.view(img), nil
 }
 
-// appendImage adds img to the list only while the list is below the maximum.
+// appendImage adds img to the list only while its kind is below the maximum.
 func (s *Service) appendImage(ctx context.Context, tenantID uuid.UUID, img Image) (int, error) {
 	patch, err := json.Marshal([]Image{img})
 	if err != nil {
@@ -284,8 +302,9 @@ func (s *Service) appendImage(ctx context.Context, tenantID uuid.UUID, img Image
 	return s.db.Tenant.Update().
 		Where(enttenant.ID(tenantID), func(sel *sql.Selector) {
 			sel.Where(sql.P(func(b *sql.Builder) {
-				b.WriteString("jsonb_array_length(COALESCE(" + sel.C(col) + "->'" + MetadataKey + "', '[]'::jsonb)) < ")
-				b.Arg(s.cfg.Max)
+				countKind(b, sel.C(col), img.Kind)
+				b.WriteString(" < ")
+				b.Arg(s.cfg.maxOf(img.Kind))
 			}))
 		}).
 		Modify(func(u *sql.UpdateBuilder) {

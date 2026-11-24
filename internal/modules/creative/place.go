@@ -174,7 +174,7 @@ func (r *Renderer) resolvePlace(ctx context.Context, tenantID uuid.UUID, offerin
 	}
 	f.Website = website
 	for _, img := range brandimages.Read(t.Metadata) {
-		if c := strings.TrimSpace(img.Caption); c != "" && !brandimages.LooksLikeLogo(img) {
+		if c := strings.TrimSpace(img.Caption); c != "" && !brandimages.NeverFrame(img) {
 			f.Pictures = append(f.Pictures, excerpt(c, 160))
 			if len(f.Pictures) == 8 {
 				break

@@ -31,6 +31,9 @@ type Config struct {
 	MaxBytes int64
 	// MinShortSide is the smallest accepted short side in pixels.
 	MinShortSide int
+	// MaxScreens and MinScreenSide are the same limits for screenshots (kinds.go).
+	MaxScreens    int
+	MinScreenSide int
 	// ListLinkTTL is the lifetime of the links the portal shows.
 	ListLinkTTL time.Duration
 	// RenderLinkTTL is the lifetime of the links sent to marketflow-ai with a render, long enough
@@ -91,13 +94,14 @@ func DefaultSiteRules() SiteRules {
 // sweep runs daily, reads a site at most weekly and 50 tenants per run.
 func DefaultConfig() Config {
 	return Config{Min: 3, Max: 5, MaxBytes: 2 << 20, MinShortSide: 1024,
-		ListLinkTTL: 15 * time.Minute, RenderLinkTTL: time.Hour,
+		MaxScreens: 6, MinScreenSide: 600, ListLinkTTL: 15 * time.Minute, RenderLinkTTL: time.Hour,
 		SiteSweepEvery: 24 * time.Hour, SiteRetryAfter: 7 * 24 * time.Hour, SiteSweepLimit: 50,
 		Site: DefaultSiteRules()}
 }
 
 // ConfigFromEnv reads MF_BRAND_IMAGES_MIN, MF_BRAND_IMAGES_MAX, MF_BRAND_IMAGES_MAX_BYTES,
-// MF_BRAND_IMAGES_MIN_SIDE, MF_BRAND_IMAGES_LINK_TTL, MF_BRAND_IMAGES_RENDER_LINK_TTL,
+// MF_BRAND_IMAGES_MIN_SIDE, MF_BRAND_IMAGES_MAX_SCREENS, MF_BRAND_IMAGES_MIN_SCREEN_SIDE,
+// MF_BRAND_IMAGES_LINK_TTL, MF_BRAND_IMAGES_RENDER_LINK_TTL,
 // MF_BRAND_IMAGES_SITE_SWEEP_EVERY, MF_BRAND_IMAGES_SITE_RETRY_AFTER and
 // MF_BRAND_IMAGES_SITE_SWEEP_LIMIT, and for choosing website pictures MF_BRAND_IMAGES_SITE_PAGES,
 // MF_BRAND_IMAGES_SITE_EXCLUDE_WORDS, MF_BRAND_IMAGES_SITE_PREFER_WORDS and
@@ -135,6 +139,8 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		{"MF_BRAND_IMAGES_MIN", &cfg.Min},
 		{"MF_BRAND_IMAGES_MAX", &cfg.Max},
 		{"MF_BRAND_IMAGES_MIN_SIDE", &cfg.MinShortSide},
+		{"MF_BRAND_IMAGES_MAX_SCREENS", &cfg.MaxScreens},
+		{"MF_BRAND_IMAGES_MIN_SCREEN_SIDE", &cfg.MinScreenSide},
 		{"MF_BRAND_IMAGES_SITE_SWEEP_LIMIT", &cfg.SiteSweepLimit},
 		{"MF_BRAND_IMAGES_SITE_MAX_PAGES", &cfg.Site.MaxPages},
 		{"MF_BRAND_IMAGES_SITE_MIN_DISPLAY", &cfg.Site.MinSide},

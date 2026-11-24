@@ -245,6 +245,9 @@ type storyboardCall struct {
 	PreviousStills []storyboardStill `json:"previous_stills,omitempty"`
 	// Branding is the in-scene branding rules (creative.branding, logo_plate.go).
 	Branding *brandingRules `json:"branding,omitempty"`
+	// Screens and Screenshots are the real product screens (creative.screens, screens.go).
+	Screens     *screenRules `json:"screens,omitempty"`
+	Screenshots []screenshot `json:"screenshots,omitempty"`
 }
 
 // endCardWords are the end card's words, contacts, colour and logo: marketflow-ai composes them
@@ -290,6 +293,7 @@ func (r *Renderer) startStoryboard(ctx context.Context, v *ent.CreativeVersion) 
 		ActorPrompt: excerpt(firstNonEmpty(str(meta["actor_prompt"]), script.Actor), 300)}
 	call.PreviousStills = previousStills(meta)
 	call.Branding = brandingFor(ctx, r.db, v.TenantID)
+	call.Screens, call.Screenshots = r.screensFor(ctx, v.TenantID)
 	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
 		place := r.resolvePlace(ctx, v.TenantID, b.Offering, false)
 		call.Brand, call.Place = place.Brand, place.Line()

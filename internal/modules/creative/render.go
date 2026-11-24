@@ -79,7 +79,7 @@ func (r *Renderer) withBrandPhotos(ctx context.Context, tenantID uuid.UUID, phot
 		if len(photos)+len(keys) >= limit {
 			break
 		}
-		if brandimages.Owned(img.Key, tenantID) && !brandimages.LooksLikeLogo(img) {
+		if brandimages.Owned(img.Key, tenantID) && !brandimages.NeverFrame(img) {
 			keys = append(keys, img.Key)
 		}
 	}

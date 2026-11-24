@@ -28,8 +28,13 @@ func NewHandler(svc *Service, logger *zap.Logger) *Handler {
 
 // listReply is the list with the limits, so the portal shows "3 of 5" from the server's numbers.
 type listReply struct {
-	Images       []View `json:"images"`
-	Min          int    `json:"min"`
+	Images []View `json:"images"`
+	// Screenshots are the business's own app screens, with their own limits (kinds.go).
+	Screenshots        []View `json:"screenshots"`
+	MaxScreens         int    `json:"max_screens"`
+	MinScreenShortSide int    `json:"min_screen_short_side"`
+
+	Min         int    `json:"min"`
 	Max          int    `json:"max"`
 	MaxBytes     int64  `json:"max_bytes"`
 	MinShortSide int    `json:"min_short_side"`
@@ -65,8 +70,16 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cfg := h.svc.Config()
-	httpapi.JSON(w, http.StatusOK, listReply{Images: images, Min: cfg.Min, Max: cfg.Max,
-		MaxBytes: cfg.MaxBytes, MinShortSide: cfg.MinShortSide})
+	reply := listReply{Images: []View{}, Screenshots: []View{}, Min: cfg.Min, Max: cfg.Max, MaxBytes: cfg.MaxBytes,
+		MinShortSide: cfg.MinShortSide, MaxScreens: cfg.MaxScreens, MinScreenShortSide: cfg.MinScreenSide}
+	for _, v := range images {
+		if v.Kind == KindScreenshot {
+			reply.Screenshots = append(reply.Screenshots, v)
+		} else {
+			reply.Images = append(reply.Images, v)
+		}
+	}
+	httpapi.JSON(w, http.StatusOK, reply)
 }
 
 // Upload handles POST /api/v1/tenant/brand-images (multipart field "file").
@@ -76,6 +89,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param X-Tenant-ID header string true "Tenant UUID"
 // @Param file formData file true "JPEG or PNG, up to 2 MB"
+// @Param kind query string false "screenshot for a screen of the business's app"
+// @Param device query string false "laptop, tablet, pos or phone; empty goes by the picture's shape"
+// @Param no_customer_data query bool false "must be true for a screenshot: it shows no customer's data"
 // @Success 201 {object} View
 // @Failure 400 {object} httpapi.ErrorResponse
 // @Failure 409 {object} httpapi.ErrorResponse
@@ -100,7 +116,7 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusInternalServerError, "internal", "Failed to read the upload", nil)
 		return
 	}
-	v, err := h.svc.Add(r.Context(), tid, up)
+	v, err := h.svc.AddAs(r.Context(), tid, up, uploadKind(r))
 	if err != nil {
 		h.fail(w, err)
 		return
@@ -178,6 +194,10 @@ func (h *Handler) fail(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, ErrNotFound) || ent.IsNotFound(err):
 		httpapi.Error(w, http.StatusNotFound, "not_found", "brand image not found", nil)
+	case errors.Is(err, ErrCustomerData):
+		httpapi.Error(w, http.StatusUnprocessableEntity, "confirm_no_customer_data", err.Error(), nil)
+	case errors.Is(err, ErrInvalidKind):
+		httpapi.Error(w, http.StatusBadRequest, "invalid_kind", err.Error(), nil)
 	case errors.Is(err, ErrFull):
 		httpapi.Error(w, http.StatusConflict, "limit_reached", "you already have the most brand images allowed; delete one first",
 			map[string]any{"max": cfg.Max})

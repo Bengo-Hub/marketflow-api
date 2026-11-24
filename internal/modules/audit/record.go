@@ -35,6 +35,9 @@ func Tenant(ctx context.Context, db *ent.Client, log *zap.Logger, tenantID uuid.
 	}
 }
 
+// Actor is the signed-in user's email (or subject), else "system": who a record says did it.
+func Actor(ctx context.Context) string { return actorFrom(ctx) }
+
 func actorFrom(ctx context.Context) string {
 	if claims, ok := authclient.ClaimsFromContext(ctx); ok && claims != nil {
 		if claims.Email != "" {

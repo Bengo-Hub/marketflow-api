@@ -106,7 +106,7 @@ func (s *Service) ImportFromSite(ctx context.Context, tenantID uuid.UUID) (Impor
 		return res, err
 	}
 	have := Read(t.Metadata)
-	res.Total = len(have)
+	res.Total = len(OfKind(t.Metadata, tenantID, KindPhoto))
 	seen := map[string]bool{}
 	for _, img := range have {
 		if img.Source != "" {
@@ -428,7 +428,7 @@ func (s *Service) SweepSiteImports(ctx context.Context, again time.Duration, lim
 		if done >= limit || ctx.Err() != nil {
 			return
 		}
-		if len(Read(t.Metadata)) >= s.cfg.Min {
+		if len(OfKind(t.Metadata, t.ID, KindPhoto)) >= s.cfg.Min {
 			continue
 		}
 		if last := LastImport(t.Metadata); !last.IsZero() && now.Sub(last) < again {

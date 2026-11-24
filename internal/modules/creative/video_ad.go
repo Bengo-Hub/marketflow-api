@@ -769,6 +769,8 @@ type adCall struct {
 	// PlainStills are the stills without the in-scene logo, by scene id: a clip whose logo smears
 	// is made again from these (marketflow-ai media/branding.go).
 	PlainStills map[string]string `json:"plain_stills,omitempty"`
+	// StaticScenes carry the tenant's own screenshot and are shown as stills (screens.go).
+	StaticScenes []string `json:"static_scenes,omitempty"`
 }
 
 // startAd starts a claimed video ad's render job in marketflow-ai.
@@ -819,7 +821,7 @@ func (r *Renderer) adCallFor(ctx context.Context, v *ent.CreativeVersion, script
 				call.Seed = int64(f)
 			}
 		}
-		call.Stills = map[string]string{}
+		call.Stills, call.StaticScenes = map[string]string{}, staticScenes(v)
 		if stills, ok := sb["stills"].([]any); ok {
 			for _, x := range stills {
 				if st, ok := x.(map[string]any); ok && str(st["source"]) == "generated" && str(st["url"]) != "" {
