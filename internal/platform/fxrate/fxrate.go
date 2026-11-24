@@ -1,7 +1,11 @@
-// Package fxrate reads exchange rates from treasury-api, the platform's one source of rates
-// (fetched daily from the configured forex provider and kept there). marketflow-ai's
-// internal/fxrate reads the same treasury route for its credit engine; MarketFlow never keeps a
-// rate of its own and never hard-codes one.
+// Package fxrate is MarketFlow's one helper for exchange rates and conversions. Rates come from
+// treasury-api, the platform's one source (fetched daily from the configured forex provider and
+// kept there); marketflow-ai's internal/fxrate reads the same treasury route for its credit
+// engine. MarketFlow never keeps a rate table of its own and never hard-codes a rate: the only
+// fallback below the last treasury rate is the configured default (MF_MONEY_FX_DEFAULT_KES_PER).
+//
+// Read order: a fresh cached rate (shared Redis, ttl), else treasury, else the last rate treasury
+// gave (up to ttl+staleFor old), else, for reports and estimates only, the configured default.
 package fxrate
 
 import (
@@ -12,15 +16,19 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
 	sharedcache "github.com/Bengo-Hub/cache"
+	"github.com/Bengo-Hub/httpware/money"
 )
 
-// cacheFor is how long a fetched rate is reused (in the shared Redis cache, so every pod uses the
-// same rate); treasury updates its rates daily.
-const cacheFor = 6 * time.Hour
+// Defaults for the cache policy when the caller sets none (see config MF_MONEY_FX_*).
+const (
+	DefaultTTL      = 6 * time.Hour
+	DefaultStaleFor = 30 * 24 * time.Hour
+)
 
 // probeAmount is the amount converted to read a rate. Treasury rounds the result at the target
 // currency's places, so converting 1 UGX to KES would read 0.03; a million keeps the precision.
@@ -36,23 +44,75 @@ const (
 // ErrNoRate means no usable rate could be read. Callers that gate money on a rate fail safe.
 var ErrNoRate = errors.New("fxrate: no exchange rate")
 
+// Source tells where a rate came from.
+const (
+	SourceTreasury = "treasury"
+	SourceDefault  = "default"
+)
+
 // Rates reads rates from treasury-api over S2S.
 type Rates struct {
 	base, key, tenant string
 	cache             *sharedcache.Aside
 	http              *http.Client
+	ttl, staleFor     time.Duration
+	defaults          map[string]float64
 }
 
 // New reads platform-level rates of platformTenant (the platform owner's slug) from treasuryURL
 // with the internal service key. cache may be nil (no caching).
 func New(treasuryURL, serviceKey, platformTenant string, cache *sharedcache.Aside) *Rates {
 	return &Rates{base: strings.TrimRight(strings.TrimSpace(treasuryURL), "/"), key: serviceKey,
-		tenant: strings.TrimSpace(platformTenant), cache: cache, http: &http.Client{Timeout: 5 * time.Second}}
+		tenant: strings.TrimSpace(platformTenant), cache: cache, http: &http.Client{Timeout: 5 * time.Second},
+		ttl: DefaultTTL, staleFor: DefaultStaleFor}
 }
 
-// KESPer is how many KES one unit of currency is worth: 1 for KES, else the cached treasury rate,
-// else a fresh one. Any failure (treasury down, no rate for that currency, an implausible rate)
-// returns an error wrapping ErrNoRate; a failure is never cached.
+// WithCachePolicy sets how long a rate is fresh and how long after that the last rate is still
+// used while treasury cannot answer. Zero keeps the default.
+func (r *Rates) WithCachePolicy(ttl, staleFor time.Duration) *Rates {
+	if ttl > 0 {
+		r.ttl = ttl
+	}
+	if staleFor > 0 {
+		r.staleFor = staleFor
+	}
+	return r
+}
+
+// WithDefaults sets the configured KES per unit used by KESPerOrDefault when treasury has never
+// answered. Implausible values are dropped.
+func (r *Rates) WithDefaults(kesPer map[string]float64) *Rates {
+	r.defaults = map[string]float64{}
+	for cur, v := range kesPer {
+		cur = strings.ToUpper(strings.TrimSpace(cur))
+		if isCode(cur) && plausible(cur, v*probeAmount, v) == nil {
+			r.defaults[cur] = v
+		}
+	}
+	return r
+}
+
+// ParseDefaults reads "USD=129,EUR=140" into a map. Bad pairs are skipped.
+func ParseDefaults(s string) map[string]float64 {
+	out := map[string]float64{}
+	for _, pair := range strings.Split(s, ",") {
+		k, v, ok := strings.Cut(pair, "=")
+		if !ok {
+			continue
+		}
+		f, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		if err != nil || f <= 0 {
+			continue
+		}
+		out[strings.ToUpper(strings.TrimSpace(k))] = f
+	}
+	return out
+}
+
+// KESPer is how many KES one unit of currency is worth: 1 for KES, else treasury's rate (cached,
+// or the last one treasury gave while it cannot answer). It never uses the configured default,
+// so money that is charged or launched always rests on a real treasury rate. Any failure returns
+// an error wrapping ErrNoRate; a failure is never cached.
 func (r *Rates) KESPer(ctx context.Context, currency string) (float64, error) {
 	cur := strings.ToUpper(strings.TrimSpace(currency))
 	if cur == "KES" {
@@ -64,9 +124,57 @@ func (r *Rates) KESPer(ctx context.Context, currency string) (float64, error) {
 	if r == nil || r.base == "" || r.key == "" || r.tenant == "" {
 		return 0, fmt.Errorf("%w: treasury is not configured", ErrNoRate)
 	}
-	return sharedcache.GetOrSet(ctx, r.cache, sharedcache.Key("marketflow", "fx", cur, "KES"), cacheFor, func(ctx context.Context) (float64, error) {
-		return r.fetch(ctx, cur)
-	})
+	return sharedcache.GetOrSetStale(ctx, r.cache, sharedcache.Key("marketflow", "fx", cur, "KES"), r.ttl, r.staleFor,
+		func(ctx context.Context) (float64, error) { return r.fetch(ctx, cur) })
+}
+
+// KESPerOrDefault is KESPer, then the configured default for reports and estimates. source is
+// SourceTreasury or SourceDefault.
+func (r *Rates) KESPerOrDefault(ctx context.Context, currency string) (rate float64, source string, err error) {
+	rate, err = r.KESPer(ctx, currency)
+	if err == nil {
+		return rate, SourceTreasury, nil
+	}
+	if r != nil {
+		if d, ok := r.defaults[strings.ToUpper(strings.TrimSpace(currency))]; ok {
+			return d, SourceDefault, nil
+		}
+	}
+	return 0, "", err
+}
+
+// Convert converts amount from one currency to another through KES (treasury's pivot), rounded
+// at the target currency's places. Same currency returns the amount rounded. Strict like KESPer.
+func (r *Rates) Convert(ctx context.Context, amount float64, from, to string) (float64, error) {
+	return r.convert(ctx, amount, from, to, false)
+}
+
+// ConvertForDisplay is Convert that may use the configured default (reports and estimates).
+func (r *Rates) ConvertForDisplay(ctx context.Context, amount float64, from, to string) (float64, error) {
+	return r.convert(ctx, amount, from, to, true)
+}
+
+func (r *Rates) convert(ctx context.Context, amount float64, from, to string, allowDefault bool) (float64, error) {
+	from, to = strings.ToUpper(strings.TrimSpace(from)), strings.ToUpper(strings.TrimSpace(to))
+	if from == to {
+		return money.RoundFor(to, amount), nil
+	}
+	read := func(cur string) (float64, error) {
+		if allowDefault {
+			v, _, err := r.KESPerOrDefault(ctx, cur)
+			return v, err
+		}
+		return r.KESPer(ctx, cur)
+	}
+	fromKES, err := read(from)
+	if err != nil {
+		return 0, err
+	}
+	toKES, err := read(to)
+	if err != nil {
+		return 0, err
+	}
+	return money.RoundFor(to, amount*fromKES/toKES), nil
 }
 
 // isCode accepts an ISO 4217 style code: three letters A to Z.

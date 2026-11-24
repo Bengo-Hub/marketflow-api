@@ -249,11 +249,18 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	endpointHandler := &endpoints.Handler{Store: endpointStore, Logger: logger,
 		Scanner: endpoints.NewScanner(endpointStore, scanServices, cfg.EndpointScan.Key(cfg.CrossService.InternalServiceKey), logger)}
 	adminTenantsHandler := admin.NewTenantsHandler(entClient, logger)
-	// The cost report prices USD costs with treasury's platform rate (shared cache), falling back
-	// to the output registry's fx_rate when treasury has none.
-	costReportHandler := admin.NewCostReportHandler(entClient, sqlDB,
-		fxrate.New(cfg.CrossService.TreasuryURL, cfg.CrossService.InternalServiceKey, cfg.Security.PlatformTenant,
-			sharedcache.New(redisClient, logger)).KESPer, logger).
+	// The platform default currency a tenant gets with no choice and no mapped SSO country.
+	tenant.PlatformCurrency = cfg.Money.DefaultCurrency
+	// One exchange-rate helper for the whole API: treasury's platform rates over S2S in the shared
+	// Redis cache (MF_MONEY_FX_CACHE_TTL), the last treasury rate while it is down
+	// (MF_MONEY_FX_STALE_FOR), and the configured default for reports only.
+	fxRates := fxrate.New(cfg.CrossService.TreasuryURL, cfg.CrossService.InternalServiceKey, cfg.Security.PlatformTenant,
+		sharedcache.New(redisClient, logger)).
+		WithCachePolicy(cfg.Money.FXCacheTTL, cfg.Money.FXStaleFor).
+		WithDefaults(fxrate.ParseDefaults(cfg.Money.FXDefaultKESPer))
+	// The cost report prices USD costs with that rate (treasury, else its last rate, else the
+	// configured default).
+	costReportHandler := admin.NewCostReportHandler(entClient, sqlDB, fxRates.KESPerOrDefault, logger).
 		// The platform owner's own spend (no credits) is shown apart.
 		WithPlatformSlug(cfg.Security.PlatformTenant)
 	serviceConfigHandler := admin.NewServiceConfigHandler(entClient, logger)
@@ -574,10 +581,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 				cfg.Security.PlatformTenant, "marketflow-api").SendOTP,
 			Phone: adsmanager.VerifiedPhone(redisClient, cfg.Security.AuthServiceURL, cfg.CrossService.InternalServiceKey),
 		},
-		// A non-KES boost is sized in KES with treasury's platform rate (shared cache); no rate
-		// means the code is required.
-		KESPer: fxrate.New(cfg.CrossService.TreasuryURL, cfg.CrossService.InternalServiceKey, cfg.Security.PlatformTenant,
-			sharedcache.New(redisClient, logger)).KESPer,
+		// A non-KES boost is sized in KES with treasury's platform rate (shared cache, or its last
+		// rate); never the configured default. No rate means the code is required.
+		KESPer: fxRates.KESPer,
 	}
 	// Google Ads (owner 2026-11-19): the business's own account results and conversion mapping;
 	// the approving roles change the mapping.

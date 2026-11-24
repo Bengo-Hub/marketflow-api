@@ -24,6 +24,23 @@ type Config struct {
 	CrossService  CrossServiceConfig  `envPrefix:"MF_CROSS_"`
 	Autopilot     AutopilotConfig     `envPrefix:"MF_AUTOPILOT_"`
 	EndpointScan  EndpointScanConfig  `envPrefix:"MF_ENDPOINT_SCAN_"`
+	Money         MoneyConfig         `envPrefix:"MF_MONEY_"`
+}
+
+// MoneyConfig is the platform's currency default and how exchange rates are read. Rates always
+// come from treasury-api (the platform's one source); MarketFlow keeps no rates of its own.
+type MoneyConfig struct {
+	// DefaultCurrency is the platform default a tenant gets when it has neither its own choice
+	// nor a country MarketFlow can map to a currency.
+	DefaultCurrency string `env:"DEFAULT_CURRENCY" envDefault:"KES"`
+	// FXCacheTTL is how long a treasury rate is used before it is read again (shared Redis).
+	FXCacheTTL time.Duration `env:"FX_CACHE_TTL" envDefault:"6h"`
+	// FXStaleFor is how long after FXCacheTTL the last rate is still used while treasury cannot
+	// answer.
+	FXStaleFor time.Duration `env:"FX_STALE_FOR" envDefault:"720h"`
+	// FXDefaultKESPer is the configured last resort for reports and estimates when treasury has
+	// never answered, as CODE=KES per unit pairs ("USD=129"). Charges never use it.
+	FXDefaultKESPer string `env:"FX_DEFAULT_KES_PER" envDefault:"USD=129"`
 }
 
 // EndpointScanConfig is the weekly read of the other services' OpenAPI specs for Vera's service

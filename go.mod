@@ -16,6 +16,7 @@ require (
 	github.com/Bengo-Hub/shared-events v0.10.1
 	github.com/Bengo-Hub/shared-ratelimit v0.3.1
 	github.com/Bengo-Hub/shared-service-client v0.4.0
+	github.com/alicebob/miniredis/v2 v2.39.0
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/go-chi/chi/v5 v5.4.0
 	github.com/google/uuid v1.6.0
@@ -33,6 +34,8 @@ require (
 	golang.org/x/sync v0.24.0
 	google.golang.org/api v0.278.0
 )
+
+require github.com/yuin/gopher-lua v1.1.1 // indirect
 
 require (
 	cloud.google.com/go/auth v0.20.0 // indirect

@@ -6,6 +6,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
+
+	"github.com/alicebob/miniredis/v2"
+	sharedcache "github.com/Bengo-Hub/cache"
+	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 )
 
 // treasury answers convert from the rates map (KES per unit); a missing pair is a 500, as
@@ -68,5 +74,85 @@ func TestKESPerFailsSafe(t *testing.T) {
 	var nilRates *Rates
 	if _, err := nilRates.KESPer(ctx, "USD"); !errors.Is(err, ErrNoRate) {
 		t.Fatalf("nil source: %v", err)
+	}
+}
+
+func TestConvertPivotsThroughKES(t *testing.T) {
+	srv := treasury(t, map[string]string{"USD": "129000000", "UGX": "34700"})
+	r := New(srv.URL, "k", "codevertex", nil)
+	ctx := context.Background()
+	if v, err := r.Convert(ctx, 10, "USD", "KES"); err != nil || v != 1290 {
+		t.Fatalf("USD to KES: %v %v", v, err)
+	}
+	if v, err := r.Convert(ctx, 1290, "kes", "usd"); err != nil || v != 10 {
+		t.Fatalf("KES to USD: %v %v", v, err)
+	}
+	// 1 USD = 129 KES = 3717.6 UGX, rounded at UGX's 0 places.
+	if v, err := r.Convert(ctx, 1, "USD", "UGX"); err != nil || v != 3718 {
+		t.Fatalf("USD to UGX through KES: %v %v", v, err)
+	}
+	if v, err := r.Convert(ctx, 10.555, "KES", "KES"); err != nil || v != 10.56 {
+		t.Fatalf("same currency is only rounded: %v %v", v, err)
+	}
+	if _, err := r.Convert(ctx, 1, "EUR", "KES"); !errors.Is(err, ErrNoRate) {
+		t.Fatalf("no EUR rate: %v", err)
+	}
+}
+
+func TestDefaultsOnlyForDisplay(t *testing.T) {
+	down := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	down.Close()
+	r := New(down.URL, "k", "codevertex", nil).WithDefaults(ParseDefaults("USD=129, eur=140,bad,XYZ=0,GBP=x"))
+	ctx := context.Background()
+	if _, err := r.KESPer(ctx, "USD"); !errors.Is(err, ErrNoRate) {
+		t.Fatalf("a charge never uses the default: %v", err)
+	}
+	if _, err := r.Convert(ctx, 1, "USD", "KES"); !errors.Is(err, ErrNoRate) {
+		t.Fatalf("strict convert never uses the default: %v", err)
+	}
+	if v, src, err := r.KESPerOrDefault(ctx, "usd"); err != nil || v != 129 || src != SourceDefault {
+		t.Fatalf("report default: %v %q %v", v, src, err)
+	}
+	if v, err := r.ConvertForDisplay(ctx, 2, "EUR", "KES"); err != nil || v != 280 {
+		t.Fatalf("display convert with default: %v %v", v, err)
+	}
+	if _, _, err := r.KESPerOrDefault(ctx, "GBP"); !errors.Is(err, ErrNoRate) {
+		t.Fatalf("no default for GBP: %v", err)
+	}
+	if got := ParseDefaults("USD=129,bad,XYZ=0"); len(got) != 1 || got["USD"] != 129 {
+		t.Fatalf("ParseDefaults: %v", got)
+	}
+}
+
+func TestLastRateWhileTreasuryIsDown(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	cache := sharedcache.New(rdb, zap.NewNop())
+	calls, up := 0, true
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if !up {
+			http.Error(w, "down", http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = w.Write([]byte(`{"converted":"129000000"}`))
+	}))
+	t.Cleanup(srv.Close)
+	r := New(srv.URL, "k", "codevertex", cache).WithCachePolicy(time.Minute, time.Hour)
+	ctx := context.Background()
+	if v, err := r.KESPer(ctx, "USD"); err != nil || v != 129 {
+		t.Fatalf("first read: %v %v", v, err)
+	}
+	if v, err := r.KESPer(ctx, "USD"); err != nil || v != 129 || calls != 1 {
+		t.Fatalf("cached read: %v %v calls=%d", v, err, calls)
+	}
+	up = false
+	mr.FastForward(2 * time.Minute) // past the ttl, inside the stale window
+	if v, err := r.KESPer(ctx, "USD"); err != nil || v != 129 {
+		t.Fatalf("treasury down: the last rate is used: %v %v", v, err)
+	}
+	mr.FastForward(2 * time.Hour) // past ttl+staleFor: nothing left
+	if _, err := r.KESPer(ctx, "USD"); !errors.Is(err, ErrNoRate) {
+		t.Fatalf("no rate once the stale window is over: %v", err)
 	}
 }

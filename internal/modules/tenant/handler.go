@@ -115,6 +115,10 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 			httpapi.Error(w, http.StatusBadRequest, "invalid_business_address", err.Error(), nil)
 			return
 		}
+		if err := ValidateCurrencySetting(req.Metadata); err != nil {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_currency", err.Error(), nil)
+			return
+		}
 		// Owner 2026-11-14: only owners and admins change the AI label. A form that sends the
 		// stored value back unchanged is not a change.
 		if v, ok := req.Metadata[AILabelKey]; ok {
@@ -304,5 +308,11 @@ func serializeTenant(t *ent.Tenant) map[string]any {
 	if t.Metadata != nil {
 		out["metadata"] = t.Metadata
 	}
+	// The currency every amount is shown and entered in, and where it came from (the tenant's
+	// choice, its SSO country, or the platform default).
+	out["currency"], out["currency_source"] = ResolveCurrency(t.Metadata, t.Country, PlatformCurrency)
 	return out
 }
+
+// PlatformCurrency is the platform default currency (MF_MONEY_DEFAULT_CURRENCY), set at startup.
+var PlatformCurrency = "KES"

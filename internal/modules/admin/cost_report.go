@@ -327,9 +327,10 @@ func queryCostSums(ctx context.Context, db *sql.DB, start, end time.Time, page, 
 type CostReportHandler struct {
 	client *ent.Client
 	db     *sql.DB
-	// kesPer is treasury's KES per unit of a currency (fxrate.Rates.KESPer); nil or an error
-	// falls back to the registry's fx_rate.
-	kesPer func(ctx context.Context, currency string) (float64, error)
+	// kesPer is fxrate.Rates.KESPerOrDefault: treasury's KES per unit of a currency (cached, or
+	// its last rate while it is down), else the configured default, with where it came from.
+	// Only when both are missing (MF_MONEY_FX_DEFAULT_KES_PER emptied) is the registry's fx_rate used.
+	kesPer func(ctx context.Context, currency string) (float64, string, error)
 	logger *zap.Logger
 	nowFn  func() time.Time
 	// platformSlug is the platform owner's tenant, shown apart (WithPlatformSlug).
@@ -337,7 +338,7 @@ type CostReportHandler struct {
 }
 
 // NewCostReportHandler builds the report handler.
-func NewCostReportHandler(client *ent.Client, db *sql.DB, kesPer func(ctx context.Context, currency string) (float64, error), logger *zap.Logger) *CostReportHandler {
+func NewCostReportHandler(client *ent.Client, db *sql.DB, kesPer func(ctx context.Context, currency string) (float64, string, error), logger *zap.Logger) *CostReportHandler {
 	return &CostReportHandler{client: client, db: db, kesPer: kesPer, logger: logger.Named("admin.cost_report"), nowFn: time.Now}
 }
 
@@ -401,10 +402,10 @@ func (h *CostReportHandler) CostReport(w http.ResponseWriter, r *http.Request) {
 	reg := h.pricing(ctx)
 	fx, fxSource := reg.FXRate, "registry"
 	if h.kesPer != nil {
-		if rate, err := h.kesPer(ctx, "USD"); err == nil && rate > 0 {
-			fx, fxSource = rate, "treasury"
+		if rate, src, err := h.kesPer(ctx, "USD"); err == nil && rate > 0 {
+			fx, fxSource = rate, src
 		} else if err != nil {
-			h.logger.Warn("treasury rate unavailable; using the registry rate", zap.Error(err))
+			h.logger.Warn("no treasury or configured rate; using the registry rate", zap.Error(err))
 		}
 	}
 	creditKES := creditValueKES(reg.Bundles)

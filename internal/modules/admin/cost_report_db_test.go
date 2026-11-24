@@ -133,7 +133,7 @@ func TestCostReportAggregation(t *testing.T) {
 	}
 
 	// Through the handler: treasury's rate, the JSON contract and the paging.
-	h := NewCostReportHandler(db, sqlDB, func(context.Context, string) (float64, error) { return 130, nil }, zap.NewNop())
+	h := NewCostReportHandler(db, sqlDB, func(context.Context, string) (float64, string, error) { return 130, "treasury", nil }, zap.NewNop())
 	w := httptest.NewRecorder()
 	h.CostReport(w, httptest.NewRequest(http.MethodGet, "/api/v1/admin/platform/cost-report?month=2001-03&page=1&page_size=1", nil))
 	if w.Code != http.StatusOK {
@@ -170,8 +170,8 @@ func TestCostReportAggregation(t *testing.T) {
 		t.Fatalf("totals media_cost_kes = %v", got.Totals["media_cost_kes"])
 	}
 
-	// Treasury down: the registry's rate, and a bad month or page is a 400.
-	h = NewCostReportHandler(db, sqlDB, func(context.Context, string) (float64, error) { return 0, sql.ErrNoRows }, zap.NewNop())
+	// No treasury rate and no configured default: the registry's rate, and a bad month or page is a 400.
+	h = NewCostReportHandler(db, sqlDB, func(context.Context, string) (float64, string, error) { return 0, "", sql.ErrNoRows }, zap.NewNop())
 	w = httptest.NewRecorder()
 	h.CostReport(w, httptest.NewRequest(http.MethodGet, "/api/v1/admin/platform/cost-report?month=2001-03", nil))
 	if w.Code != http.StatusOK || json.Unmarshal(w.Body.Bytes(), &got) != nil || got.FXSource != "registry" || got.FX <= 0 {
