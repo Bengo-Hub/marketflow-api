@@ -3,7 +3,8 @@
 // time", the calendar's advice and the autopilot all read it here.
 //
 // Layers, each overriding the one before per platform:
-//  1. code defaults (Defaults, researched; sources in docs/guides/posting-times-and-cadence.md),
+//  1. code defaults (DefaultWindows and DefaultCadence, researched; sources in the MarketFlow
+//     docs, guides/posting-times-and-cadence.md),
 //  2. the platform's service_config rows posting.best_times and posting.cadence (JSON, editable
 //     on the platform service config page),
 //  3. the tenant's own choice in Tenant.metadata posting_times and posting_cadence.
