@@ -11,6 +11,7 @@ import (
 	ratelimit "github.com/Bengo-Hub/shared-ratelimit"
 	"github.com/google/uuid"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -24,6 +25,8 @@ import (
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/httpapi/handlers"
 	"github.com/bengobox/marketflow-api/internal/integrations/gcal"
+	"github.com/bengobox/marketflow-api/internal/integrations/google"
+	"github.com/bengobox/marketflow-api/internal/platform/publicweb"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	mfmiddleware "github.com/bengobox/marketflow-api/internal/middleware"
 	"github.com/bengobox/marketflow-api/internal/modules/accounts"
@@ -585,6 +588,29 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		// rate); never the configured default. No rate means the code is required.
 		KESPer: fxRates.KESPer,
 	}
+	// Run ads (item 64): one plan for Meta, Google Ads and TikTok after a video is approved. Meta
+	// runs through the boost above; Google Ads is created with the platform Google Ads client;
+	// TikTok is guided until a TikTokLauncher is registered.
+	adsHandler.RunAds = &adsmanager.RunAdsDeps{
+		GoogleTokens: google.NewTokensFor(entClient, keyProvider, google.ProviderGoogleAds, google.ProviderGoogleAdsName),
+		GoogleExtra: func(ctx context.Context) (map[string]string, error) {
+			_, extra, err := google.LoadClient(ctx, entClient, keyProvider, google.ProviderGoogleAds, google.ProviderGoogleAdsName)
+			return extra, err
+		},
+		GoogleHTTP:  &http.Client{Timeout: 60 * time.Second},
+		BrandImages: brandLinks.Links,
+		Fetch:       publicweb.Client(30*time.Second, 3),
+		Currency: func(ctx context.Context, tenantID uuid.UUID) string {
+			return tenant.CurrencyOf(ctx, entClient, tenantID, tenant.PlatformCurrency)
+		},
+		PublicPage: func(slug string) string {
+			base := strings.TrimSuffix(cfg.CrossService.PortalURL, "/")
+			if base == "" || slug == "" {
+				return ""
+			}
+			return base + "/p/" + url.PathEscape(slug)
+		},
+	}
 	// Google Ads (owner 2026-11-19): the business's own account results and conversion mapping;
 	// the approving roles change the mapping.
 	googleAdsHandler := googleads.New(entClient, keyProvider, logger.Named("google-ads"))
@@ -841,6 +867,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			BusinessTypes: tenantProfileHandler.ListBusinessTypes,
 			LeadFilter:    tenantProfileHandler.GetLeadFilter,
 			LeadResponse:  tenantProfileHandler.GetLeadResponse,
+			RunAds:        tenantProfileHandler.GetRunAds,
 			KESRate:       tenantProfileHandler.GetKESRate,
 		},
 		TenantMemberHandlers: httpapi.TenantMemberHandlers{
@@ -1104,6 +1131,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			GoogleAccounts: googleAdsHandler.Accounts, GoogleCampaigns: googleAdsHandler.Campaigns,
 			GoogleConversionActions: googleAdsHandler.ConversionActions, GoogleSetMapping: googleAdsHandler.SetMapping,
 			OSTurnBoostQuote: adsHandler.OSTurnBoostQuote, OSTurnBoost: adsHandler.OSTurnBoost, OSTurnBoostOTP: adsHandler.OSTurnBoostOTP,
+			Plan: adsHandler.Plan, Run: adsHandler.Run, RunOTP: adsHandler.RunOTP, RunDone: adsHandler.TikTokDone,
+			OSTurnRunPlan: adsHandler.OSTurnRunPlan, OSTurnRun: adsHandler.OSTurnRun, OSTurnRunOTP: adsHandler.OSTurnRunOTP,
 		},
 		InboxHandlers: httpapi.InboxHandlers{
 			List:    inboxHandler.List,

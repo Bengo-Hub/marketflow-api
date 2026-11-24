@@ -1,0 +1,244 @@
+package adsmanager
+
+import (
+	"bytes"
+	"context"
+	"database/sql"
+	"encoding/json"
+	"image"
+	"image/jpeg"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.uber.org/zap"
+
+	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/campaign"
+	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
+	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
+	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
+	"github.com/bengobox/marketflow-api/internal/platform/runads"
+)
+
+const runAdsTestDSN = "postgres://postgres:postgres@localhost:5432/marketflow?sslmode=disable"
+
+func runAdsDB(t *testing.T) *ent.Client {
+	t.Helper()
+	if os.Getenv("SKIP_POSTGRES_TESTS") != "" {
+		t.Skip("SKIP_POSTGRES_TESTS set")
+	}
+	sqlDB, err := sql.Open("pgx", runAdsTestDSN)
+	if err != nil || sqlDB.Ping() != nil {
+		t.Skip("local postgres unreachable")
+	}
+	db := ent.NewClient(ent.Driver(entsql.OpenDB(dialect.Postgres, sqlDB)))
+	t.Cleanup(func() { _ = db.Close() })
+	return db
+}
+
+// runAdsFixture is a new tenant with an approved video and the given run_ads settings. Cleanup
+// removes only that tenant's rows.
+func runAdsFixture(t *testing.T, db *ent.Client, settings map[string]any) (uuid.UUID, uuid.UUID) {
+	t.Helper()
+	ctx := context.Background()
+	tid := uuid.New()
+	db.Tenant.Create().SetID(tid).SetName("Run ads " + tid.String()[:8]).SetSlug("ra-" + tid.String()).
+		SetMetadata(map[string]any{runads.TenantKey: settings}).ExecX(ctx)
+	b := db.CreativeBrief.Create().SetTenantID(tid).SetTitle("Soap").SaveX(ctx)
+	v := db.CreativeVersion.Create().SetTenantID(tid).SetBriefID(b.ID).SetVersionNo(1).SetKind("video_ad").SetFormat("9:16").SetStatus("approved").
+		SetCopy(map[string]any{"headline": "Soft skin soap", "subline": "Made in Nairobi"}).SaveX(ctx)
+	db.CreativeAsset.Create().SetTenantID(tid).SetVersionID(v.ID).SetKind("video").SetStorageKey("k/" + v.ID.String()).
+		SetURL("https://media.example.com/" + v.ID.String() + ".mp4").SaveX(ctx)
+	t.Cleanup(func() {
+		_, _ = db.Campaign.Delete().Where(campaign.TenantIDEQ(tid)).Exec(ctx)
+		_, _ = db.CreativeAsset.Delete().Where(creativeasset.TenantIDEQ(tid)).Exec(ctx)
+		_, _ = db.CreativeVersion.Delete().Where(creativeversion.TenantIDEQ(tid)).Exec(ctx)
+		_, _ = db.CreativeBrief.Delete().Where(creativebrief.TenantIDEQ(tid)).Exec(ctx)
+		_ = db.Tenant.DeleteOneID(tid).Exec(ctx)
+	})
+	return tid, v.ID
+}
+
+func runAdsHandler(db *ent.Client) *Handler {
+	now := time.Date(2026, 11, 24, 9, 0, 0, 0, time.UTC)
+	return &Handler{DB: db, Logger: zap.NewNop(), RunAds: &RunAdsDeps{
+		Currency: func(context.Context, uuid.UUID) string { return "KES" },
+		Now:      func() time.Time { return now },
+	}}
+}
+
+func postJSON(h http.HandlerFunc, tid uuid.UUID, body any, id string) *httptest.ResponseRecorder {
+	b, _ := json.Marshal(body)
+	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(b))
+	r.Header.Set("X-Tenant-ID", tid.String())
+	if id != "" {
+		rc := chi.NewRouteContext()
+		rc.URLParams.Add("id", id)
+		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rc))
+	}
+	w := httptest.NewRecorder()
+	h(w, r)
+	return w
+}
+
+// A TikTok-only plan is guided: the owner's amount, the run days, steps with links, nothing spent
+// until the run; the run records one guided campaign and a second confirm replays it.
+func TestRunAdsTikTokGuidedOnce(t *testing.T) {
+	db := runAdsDB(t)
+	tid, vid := runAdsFixture(t, db, map[string]any{"platforms": []any{"tiktok"}, "days": float64(5),
+		"daily_budget": map[string]any{"tiktok": float64(4000)}})
+	h := runAdsHandler(db)
+	ctx := context.Background()
+
+	plan, _, err := h.BuildPlan(ctx, tid, vid, Choice{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tk := plan.Platforms[2]
+	if plan.Platforms[0].Enabled || plan.Platforms[1].Enabled || !tk.Enabled || tk.Mode != "guided" {
+		t.Fatalf("platforms = %+v", plan.Platforms)
+	}
+	if tk.Daily != 4000 || tk.Tier != runads.TierCustom || plan.Total != 20000 {
+		t.Fatalf("plan = %+v tiktok = %+v", plan, tk)
+	}
+	if !plan.Ready {
+		t.Fatalf("not ready: %v %v", plan.Blockers, tk.Blockers)
+	}
+	if tk.Funding.CanSpend != nil || !strings.Contains(tk.Funding.Link, "ads.tiktok.com") || len(tk.Steps) < 3 {
+		t.Fatalf("tiktok funding/steps = %+v / %+v", tk.Funding, tk.Steps)
+	}
+
+	if w := postJSON(h.Run, tid, RunInput{VersionID: vid.String(), Fingerprint: "stale"}, ""); w.Code != http.StatusConflict {
+		t.Fatalf("a stale plan ran: %d %s", w.Code, w.Body)
+	}
+	w := postJSON(h.Run, tid, RunInput{VersionID: vid.String(), Fingerprint: plan.Fingerprint}, "")
+	if w.Code != http.StatusCreated {
+		t.Fatalf("run = %d %s", w.Code, w.Body)
+	}
+	var out RunOutcome
+	_ = json.Unmarshal(w.Body.Bytes(), &out)
+	if len(out.Results) != 1 || out.Results[0].Status != "guided" || out.Results[0].CampaignID == "" {
+		t.Fatalf("results = %+v", out.Results)
+	}
+	again := postJSON(h.Run, tid, RunInput{VersionID: vid.String(), Fingerprint: plan.Fingerprint}, "")
+	if again.Code != http.StatusOK || !strings.Contains(again.Body.String(), `"replayed":true`) {
+		t.Fatalf("second confirm = %d %s", again.Code, again.Body)
+	}
+	if n := db.Campaign.Query().Where(campaign.TenantIDEQ(tid)).CountX(ctx); n != 1 {
+		t.Fatalf("%d campaign rows, want 1", n)
+	}
+	row := db.Campaign.Query().Where(campaign.TenantIDEQ(tid)).OnlyX(ctx)
+	if row.Status != "guided" || row.Platform != "tiktok" || row.BudgetTotal == nil || *row.BudgetTotal != 20000 {
+		t.Fatalf("row = %s %s %v", row.Status, row.Platform, row.BudgetTotal)
+	}
+	if w := postJSON(h.TikTokDone, tid, nil, row.ID.String()); w.Code != http.StatusOK {
+		t.Fatalf("done = %d %s", w.Code, w.Body)
+	}
+}
+
+// The tenant's cap stops a plan that totals more, and no platform means nothing to confirm.
+func TestRunAdsCapAndNothingOn(t *testing.T) {
+	db := runAdsDB(t)
+	tid, vid := runAdsFixture(t, db, map[string]any{"platforms": []any{"tiktok"}, "days": float64(10), "total_cap": float64(25000),
+		"daily_budget": map[string]any{"tiktok": float64(3000)}})
+	h := runAdsHandler(db)
+	plan, _, err := h.BuildPlan(context.Background(), tid, vid, Choice{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Ready || len(plan.Blockers) != 1 || !strings.Contains(plan.Blockers[0], "over your total cap") {
+		t.Fatalf("cap: %+v", plan.Blockers)
+	}
+	off := false
+	ch := Choice{Days: 5, Platforms: []PlatformChoice{{Platform: "tiktok", Enabled: &off}}}
+	plan, _, _ = h.BuildPlan(context.Background(), tid, vid, ch)
+	if plan.Ready || plan.Total != 0 {
+		t.Fatalf("nothing on: %+v", plan)
+	}
+	if w := postJSON(h.Run, tid, RunInput{VersionID: vid.String(), Fingerprint: plan.Fingerprint, Choice: ch}, ""); w.Code != http.StatusConflict {
+		t.Fatalf("an empty plan ran: %d", w.Code)
+	}
+}
+
+func TestRunAdsNeedsApproval(t *testing.T) {
+	db := runAdsDB(t)
+	tid, vid := runAdsFixture(t, db, nil)
+	db.CreativeVersion.UpdateOneID(vid).SetStatus("ready").ExecX(context.Background())
+	h := runAdsHandler(db)
+	if w := postJSON(h.Plan, tid, RunInput{VersionID: vid.String()}, ""); w.Code != http.StatusConflict {
+		t.Fatalf("plan for an unapproved video = %d", w.Code)
+	}
+}
+
+func TestPlanTextAndHelpers(t *testing.T) {
+	no := false
+	p := &RunPlan{Days: 7, Currency: "KES", Total: 21000, Platforms: []PlatformPlan{
+		{Platform: runads.Meta, Enabled: true, Daily: 3000, Estimates: []runads.Estimate{{Metric: "reach", Value: 12000, Per: "day", Source: runads.SourcePlatform}},
+			Funding: FundingView{CanSpend: &no, Detail: "Add KES 500 on Meta", Link: "https://business.facebook.com/x"}},
+		{Platform: runads.Google, Enabled: false},
+	}}
+	txt := PlanText(p)
+	for _, want := range []string{"total KES 21,000", "Meta: KES 3,000 a day", "About 12,000 reach a day (the platform's estimate)",
+		"Add money: https://business.facebook.com/x", "Nothing is spent until you confirm"} {
+		if !strings.Contains(txt, want) {
+			t.Errorf("plan text lacks %q:\n%s", want, txt)
+		}
+	}
+	if strings.Contains(txt, "Google") {
+		t.Error("a platform that is off is in the text")
+	}
+	if thousands(1234567) != "1,234,567" || thousands(12) != "12" {
+		t.Fatal("thousands")
+	}
+	if got := clip("Fresh bread from our Nairobi bakery every morning", 30); got != "Fresh bread from our Nairobi" {
+		t.Fatalf("clip = %q", got)
+	}
+}
+
+func TestGoogleTextsFromCopyOnly(t *testing.T) {
+	pc := &planCtx{tenant: &ent.Tenant{Name: "Mama Soap", Metadata: map[string]any{"tagline": "Handmade soap"}},
+		version: &ent.CreativeVersion{Copy: map[string]any{"headline": "Soft skin soap", "subline": "Made in Nairobi", "cta": "Order on WhatsApp"}}}
+	head, long, desc := googleTexts(pc, "https://www.mamasoap.co.ke/shop")
+	if len(head) < 3 || head[0] != "Soft skin soap" || head[len(head)-1] != "Visit mamasoap.co.ke" {
+		t.Fatalf("headlines = %v", head)
+	}
+	if len(long) != 1 || long[0] != "Soft skin soap Made in Nairobi" || len(desc) < 2 {
+		t.Fatalf("long = %v desc = %v", long, desc)
+	}
+}
+
+func TestCropJPEG(t *testing.T) {
+	b, err := cropJPEG(image.NewRGBA(image.Rect(0, 0, 2000, 1500)), 1.91, 600, 314)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := jpeg.Decode(bytes.NewReader(b))
+	if err != nil || out.Bounds().Dx() != 1200 || out.Bounds().Dy() != 628 {
+		t.Fatalf("landscape = %v %v", out.Bounds(), err)
+	}
+	if _, err := cropJPEG(image.NewRGBA(image.Rect(0, 0, 100, 100)), 1, 128, 128); err == nil {
+		t.Fatal("a 100 pixel logo was accepted")
+	}
+}
+
+func TestCompetitorDays(t *testing.T) {
+	meta := map[string]any{"competitor_scan": map[string]any{"competitors": []any{
+		map[string]any{"winners": []any{
+			map[string]any{"still_running": true, "total_days_shown": float64(40)},
+			map[string]any{"still_running": false, "total_days_shown": float64(400)},
+			map[string]any{"still_running": true, "total_days_shown": float64(12)},
+			map[string]any{"still_running": true, "total_days_shown": float64(20)},
+		}}}}}
+	if d := competitorDays(meta); d != 20 {
+		t.Fatalf("median = %d", d)
+	}
+}

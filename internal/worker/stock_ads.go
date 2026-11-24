@@ -83,7 +83,9 @@ func (h *StockOutHandler) Handle(ctx context.Context, msg jetstream.Msg) error {
 		return err
 	}
 	rows, err := h.db.Campaign.Query().
-		Where(campaign.TenantIDEQ(tid), campaign.StatusEQ("active"), campaign.CreativeVersionIDIn(versions...)).
+		// Meta boosts only: a Run ads Google or TikTok row has no Meta campaign to pause, and an
+		// error here would retry the event forever.
+		Where(campaign.TenantIDEQ(tid), campaign.PlatformEQ("meta"), campaign.StatusEQ("active"), campaign.CreativeVersionIDIn(versions...)).
 		All(ctx)
 	if err != nil {
 		return err

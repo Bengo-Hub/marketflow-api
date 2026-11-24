@@ -20,6 +20,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
 	"github.com/bengobox/marketflow-api/internal/flp"
 	"github.com/bengobox/marketflow-api/internal/platform/leadresponse"
+	"github.com/bengobox/marketflow-api/internal/platform/runads"
 	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
@@ -121,6 +122,7 @@ func main() {
 	log.Printf("Nurture: %d sequence templates seeded", sequencesSeeded)
 	if scope == "platform" {
 		log.Printf("Lead response: %d platform defaults seeded", seedLeadResponseDefaults(ctx, client))
+		log.Printf("Run ads: %d platform defaults seeded", seedConfigDefaults(ctx, client, runAdsDefaults))
 	}
 
 	// Phase 4: Default campaign templates — starter lead-gen / recruitment /
@@ -918,6 +920,50 @@ var leadResponseDefaults = []struct{ key, value, typ, desc string }{
 	{leadresponse.KeyBusinessHours, "08:00-18:00", "string", "Opening hours for lead reminders, in the tenant's time zone."},
 	{leadresponse.KeyDailyList, "true", "bool", "The morning email lists every lead nobody contacted yet."},
 	{leadresponse.KeyAlertWindow, "15m", "string", "Leads after the first in a burst wait this long and go out together in one team alert."},
+}
+
+// runAdsDefaults are the platform defaults of Run ads (owner, 2026-11-24, item 64), written only
+// when missing. The rule of thumb is labelled as such wherever it is shown; its amounts are a
+// starting point a platform admin tunes, sized from the platforms' own published floors (read
+// 2026-11-24): TikTok's USD 20 a day per ad group and USD 30 best practice, Meta's conversion
+// ads at about USD 5 a day, Google's own advice of a daily budget near three times the cost of
+// one conversion.
+var runAdsDefaults = []configDefault{
+	{runads.KeyPlatforms, "meta,google,tiktok", "string", "Platforms switched on in a new Run ads plan."},
+	{runads.KeyTier, "recommended", "string", "Budget tier a new Run ads plan picks: low, recommended or high."},
+	{runads.KeyDays, "7", "int", "Days a new Run ads plan runs."},
+	{runads.KeyTotalCapKES, "0", "int", "Default total spend cap of a Run ads plan in KES (0 for none); tenants set their own."},
+	{runads.KeyRuleOfThumbKES,
+		`{"meta":{"low":650,"recommended":1300,"high":2600},"google":{"low":1000,"recommended":2000,"high":4000},"tiktok":{"low":2600,"recommended":3900,"high":6500}}`,
+		"json", "Daily budgets in KES per platform and tier, shown as MarketFlow's rule of thumb when the platform gives no estimate."},
+	{runads.KeyTikTokMinDailyUSD, "20", "int", "TikTok's minimum daily budget per ad group in USD (TikTok Ads help, About budget, read 2026-11-24)."},
+	{runads.KeyTikTokMode, "guided", "string", "TikTok in Run ads: guided (prefilled links) until TikTok approves the Marketing API app, then api."},
+	{runads.KeyTikTokLinks, `{"home":"https://ads.tiktok.com/i18n/home?aadvid={advertiser_id}","campaign":"https://ads.tiktok.com/i18n/perf/campaign?aadvid={advertiser_id}","payment":"https://ads.tiktok.com/i18n/account/payment?aadvid={advertiser_id}","signup":"https://ads.tiktok.com/"}`,
+		"json", "TikTok Ads Manager pages for the guided steps; {advertiser_id} is filled in."},
+	{runads.KeyGoogleBillingURL, runads.DefaultGoogleBillingURL, "string", "Google Ads billing page; {customer_id} is filled in where the link holds it."},
+	{runads.KeyGoogleStatus, "ENABLED", "string", "Status a Google Ads campaign is created in after the owner confirms: ENABLED or PAUSED."},
+	{runads.KeyGoogleBudgetPeriod, "daily", "string", "Google Ads budget: daily (a daily budget) or total (a campaign total over the run)."},
+}
+
+// configDefault is one platform service_config row.
+type configDefault struct{ key, value, typ, desc string }
+
+// seedConfigDefaults writes the missing platform rows, keeping any value an admin changed.
+func seedConfigDefaults(ctx context.Context, client *ent.Client, defaults []configDefault) int {
+	n := 0
+	for _, d := range defaults {
+		exists, err := client.ServiceConfig.Query().Where(serviceconfig.ConfigKey(d.key), serviceconfig.TenantIDIsNil()).Exist(ctx)
+		if err != nil || exists {
+			continue
+		}
+		if _, err := client.ServiceConfig.Create().SetConfigKey(d.key).SetConfigValue(d.value).SetConfigType(d.typ).
+			SetDescription(d.desc).Save(ctx); err != nil {
+			log.Printf("  failed to seed %s: %v", d.key, err)
+			continue
+		}
+		n++
+	}
+	return n
 }
 
 // seedLeadResponseDefaults writes the missing platform rows and records the start time.

@@ -217,7 +217,9 @@ func (h *Handler) boostOTPThreshold(ctx context.Context, tid uuid.UUID) int64 {
 // boostConfirmed checks the confirmation code of a boost that needs one. It writes the refusal
 // and returns false when the boost may not go ahead.
 func (h *Handler) boostConfirmed(w http.ResponseWriter, r *http.Request, tid uuid.UUID, in BoostInput, assetID string, q Quote) bool {
-	if h.Codes == nil {
+	// A boost that is part of a confirmed Run ads plan was checked against the plan's code (its
+	// whole total) already; the flag is an unexported context key, so no request can set it.
+	if h.Codes == nil || runConfirmed(r.Context()) {
 		return true
 	}
 	return h.checkBoostCode(w, r, tid, h.boostOTPThreshold(r.Context(), tid), in, assetID, q)
@@ -295,6 +297,13 @@ func (h *Handler) BoostOTP(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_request", "asset_id, ad_account_connected_id, budget and days are required", nil)
 		return
 	}
+	h.sendCode(w, r, tid, boostFingerprint(in.QuoteInput, assetID.String()))
+}
+
+// sendCode sends a confirmation code bound to fingerprint to the verified WhatsApp number of the
+// person acting, and answers {otp_id, expires_at, channel, to_masked}. Run ads uses it too.
+func (h *Handler) sendCode(w http.ResponseWriter, r *http.Request, tid uuid.UUID, fingerprint string) {
+	ctx := r.Context()
 	user, ok := actorOf(ctx)
 	if !ok {
 		httpapi.Error(w, http.StatusForbidden, "acting_user_required", "acting_user_required", nil)
@@ -319,7 +328,7 @@ func (h *Handler) BoostOTP(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusTooManyRequests, "otp_rate_limited", "a code was just sent; wait a moment before asking again", nil)
 		return
 	}
-	id, err := h.Codes.issue(ctx, tid, user, boostFingerprint(in.QuoteInput, assetID.String()), phone)
+	id, err := h.Codes.issue(ctx, tid, user, fingerprint, phone)
 	if err != nil {
 		h.Logger.Warn("boost otp: code not sent", zap.String("tenant", tid.String()), zap.Error(err))
 		httpapi.Error(w, http.StatusBadGateway, "otp_not_sent", "the confirmation code could not be sent; try again shortly", nil)

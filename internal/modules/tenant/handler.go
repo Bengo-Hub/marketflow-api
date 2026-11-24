@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant/metastore"
 	"github.com/bengobox/marketflow-api/internal/platform/leadresponse"
+	"github.com/bengobox/marketflow-api/internal/platform/runads"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -132,6 +133,22 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		if err := leadresponse.Validate(req.Metadata); err != nil {
 			httpapi.Error(w, http.StatusBadRequest, "invalid_lead_response", err.Error(), nil)
 			return
+		}
+		if err := runads.Validate(req.Metadata); err != nil {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_run_ads", err.Error(), nil)
+			return
+		}
+		// Run ads defaults (owner, 2026-11-24) size real ad spend, so only owners and admins
+		// change them. A form that sends the stored value back unchanged is not a change.
+		if v, ok := req.Metadata[runads.TenantKey]; ok {
+			if runads.Changed(t.Metadata, v) {
+				if h.CanApprove != nil && !h.CanApprove(r.Context(), tenantID) {
+					httpapi.Error(w, http.StatusForbidden, "forbidden", "only the account owner or an admin can change the Run ads defaults", nil)
+					return
+				}
+			} else {
+				delete(req.Metadata, runads.TenantKey)
+			}
 		}
 		// Lead response (owner, 2026-11-24) is changed by owners and admins only. A form that
 		// sends the stored value back unchanged is not a change.

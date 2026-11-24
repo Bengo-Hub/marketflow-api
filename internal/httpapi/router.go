@@ -400,6 +400,8 @@ type TenantProfileHandlers struct {
 	LeadFilter http.HandlerFunc
 	// LeadResponse shows the tenant's lead response settings beside the platform defaults (item 62).
 	LeadResponse http.HandlerFunc
+	// RunAds shows the tenant's Run ads defaults beside the platform's (item 64).
+	RunAds http.HandlerFunc
 	// KESRate is KES per unit of the tenant's currency, for forms feeding a KES engine (item 57).
 	KESRate http.HandlerFunc
 }
@@ -623,6 +625,15 @@ type AdsHandlers struct {
 	OSTurnBoostQuote http.HandlerFunc
 	OSTurnBoost      http.HandlerFunc
 	OSTurnBoostOTP   http.HandlerFunc
+	// Run ads (item 64): POST /ads/plan, /ads/run, /ads/run/otp and /ads/run/{id}/done, and the
+	// WhatsApp S2S routes /internal/ads/os-turn/run-ads-plan, /run-ads and /run-ads-otp.
+	Plan           http.HandlerFunc
+	Run            http.HandlerFunc
+	RunOTP         http.HandlerFunc
+	RunDone        http.HandlerFunc
+	OSTurnRunPlan  http.HandlerFunc
+	OSTurnRun      http.HandlerFunc
+	OSTurnRunOTP   http.HandlerFunc
 }
 
 // InboxHandlers groups the social inbox routes (Sprint 22).
@@ -976,6 +987,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 				if deps.TenantProfileHandlers.LeadResponse != nil {
 					r.Get("/lead-response", deps.TenantProfileHandlers.LeadResponse)
 				}
+				if deps.TenantProfileHandlers.RunAds != nil {
+					r.Get("/run-ads", deps.TenantProfileHandlers.RunAds)
+				}
 				if deps.TenantProfileHandlers.KESRate != nil {
 					r.Get("/kes-rate", deps.TenantProfileHandlers.KESRate)
 				}
@@ -1280,6 +1294,12 @@ func NewRouter(deps RouterDeps) http.Handler {
 							r.Post("/boosts/{id}/ads/{ad_id}/resume", deps.AdsHandlers.ResumeAd)
 						}
 					}
+					if deps.AdsHandlers.Plan != nil {
+						r.Post("/plan", deps.AdsHandlers.Plan)
+						r.Post("/run", deps.AdsHandlers.Run)
+						r.Post("/run/otp", deps.AdsHandlers.RunOTP)
+						r.Post("/run/{id}/done", deps.AdsHandlers.RunDone)
+					}
 					if deps.AdsHandlers.GoogleAccounts != nil {
 						r.Get("/google/accounts", deps.AdsHandlers.GoogleAccounts)
 						r.Get("/google/accounts/{id}/campaigns", deps.AdsHandlers.GoogleCampaigns)
@@ -1483,6 +1503,11 @@ func NewRouter(deps RouterDeps) http.Handler {
 						r.Post("/ads/os-turn/boost-quote", deps.AdsHandlers.OSTurnBoostQuote)
 						r.Post("/ads/os-turn/boost", deps.AdsHandlers.OSTurnBoost)
 						r.Post("/ads/os-turn/boost-otp", deps.AdsHandlers.OSTurnBoostOTP)
+					}
+					if deps.AdsHandlers.OSTurnRun != nil {
+						r.Post("/ads/os-turn/run-ads-plan", deps.AdsHandlers.OSTurnRunPlan)
+						r.Post("/ads/os-turn/run-ads", deps.AdsHandlers.OSTurnRun)
+						r.Post("/ads/os-turn/run-ads-otp", deps.AdsHandlers.OSTurnRunOTP)
 					}
 					if deps.ContactHandlers.GetByEmail != nil {
 						r.Get("/contacts/by-email", deps.ContactHandlers.GetByEmail)
