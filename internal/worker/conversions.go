@@ -41,7 +41,12 @@ type ConversionEvent struct {
 	Currency   string  `json:"currency"`
 	OccurredAt string  `json:"occurred_at"` // RFC3339
 	Gclid      string  `json:"gclid,omitempty"`
-	Fbclid     string  `json:"fbclid,omitempty"`
+	// Wbraid and Gbraid are Google's click ids for iPhone clicks that carry no gclid.
+	Wbraid string `json:"wbraid,omitempty"`
+	Gbraid string `json:"gbraid,omitempty"`
+	// ConversionID is the same for every delivery of one conversion, so a platform counts it once.
+	ConversionID string `json:"conversion_id,omitempty"`
+	Fbclid       string `json:"fbclid,omitempty"`
 	// CtwaClid is the click id of a click-to-WhatsApp ad (Sprint 18); such a sale goes to Meta as
 	// a business_messaging event on the WhatsApp dataset, not a website event.
 	CtwaClid     string `json:"ctwa_clid,omitempty"`
@@ -59,6 +64,12 @@ type ConversionsHandler struct {
 	keys   *encryption.KeyProvider
 	logger *zap.Logger
 	http   *http.Client
+
+	// Google's hosts and platform settings; empty for Google's own and the provider row (tests set fakes).
+	googleOAuth     google.OAuth
+	googleAdsBase   string
+	dataManagerBase string
+	googleSettings  func(context.Context) (map[string]string, error)
 }
 
 func (*ConversionsHandler) Subject() string { return "conversion.occurred" }
@@ -191,30 +202,33 @@ func (h *ConversionsHandler) metaAccountToken(ctx context.Context, tenantID, act
 
 // ── Google Ads Conversion Upload ─────────────────────────────────────────
 
-// dispatchGoogleAdsConversion uploads an offline conversion to Google Ads via
-// the REST endpoint. Requires:
+// dispatchGoogleAdsConversion sends an offline conversion to Google through the Data Manager API,
+// or the older Google Ads API when the platform switch says so (googleads.UploadAPI). Requires a
+// connected Google Ads account, or the older rows:
 //
-//   - Platform provider row google_ads/ads { client_id, client_secret } — the app-level
+//   - Platform provider row google_ads/ads { client_id, client_secret }: the app-level
 //     credentials shared by every tenant (no developer token since 2026-09-09).
 //   - Tenant provider row google_ads/oauth { refresh_token, customer_id,
-//     login_customer_id? } — the FBO's Google Ads account OAuth grant.
-//   - Tenant provider row google_ads/conversion_actions { {EventName}: {action_resource_name} }
-//     — per-tenant mapping from logical event names ("Lead", "Purchase") to
+//     login_customer_id? }: the tenant's Google Ads account OAuth grant.
+//   - Tenant provider row google_ads/conversion_actions { {EventName}: {action_resource_name} }:
+//     per-tenant mapping from logical event names ("Lead", "Purchase") to
 //     Google Ads ConversionAction resource names
 //     (`customers/{cid}/conversionActions/{id}`).
 //
-// We call the REST API directly rather than pulling in the Google Ads Go
-// client library because (a) the client library requires gRPC + proto
-// generation, (b) the single endpoint we need has a straightforward JSON
-// shape, and (c) this keeps the marketflow-api binary ~30 MB smaller.
+// Both are called over REST rather than with Google's client libraries: no gRPC and proto code,
+// and a smaller binary.
 func (h *ConversionsHandler) dispatchGoogleAdsConversion(ctx context.Context, ev *ConversionEvent) error {
-	if ev.Gclid == "" {
-		return nil // no gclid → no attribution possible
+	if ev.Gclid == "" && ev.Wbraid == "" && ev.Gbraid == "" {
+		return nil // no Google click id, so no attribution possible
+	}
+	api := googleads.UploadAPI(ctx, h.db)
+	if api == googleads.UploadAPIGoogleAds && ev.Gclid == "" {
+		return nil // the older call is kept as it was: gclid only
 	}
 	// Since 2026-11-19 the business connects its Google Ads account in MarketFlow (one
 	// ConnectedAccount per account, event mapping in its metadata). Those accounts are used
 	// first; the older tenant provider rows below stay as a fallback for tenants set up by hand.
-	if sent, err := h.uploadToConnectedAccounts(ctx, ev); sent || err != nil {
+	if sent, err := h.uploadToConnectedAccounts(ctx, ev, api); sent || err != nil {
 		return err
 	}
 	// Tenant OAuth + customer id (per-FBO).
@@ -235,73 +249,77 @@ func (h *ConversionsHandler) dispatchGoogleAdsConversion(ctx context.Context, ev
 		return nil // tenant hasn't mapped this event yet
 	}
 
-	accessToken, err := exchangeGoogleRefreshToken(ctx, h.httpClient(), platform["client_id"], platform["client_secret"], tenant["refresh_token"])
+	oauth := h.googleOAuth
+	if oauth.HTTP == nil {
+		oauth.HTTP = h.httpClient()
+	}
+	tok, err := oauth.Refresh(ctx, google.Client{ID: platform["client_id"], Secret: platform["client_secret"]}, tenant["refresh_token"])
 	if err != nil {
 		return fmt.Errorf("google ads token exchange: %w", err)
 	}
-
-	// Google Ads REST expects ISO-like datetime with `±HH:MM` offset, e.g.
-	// "2026-04-16 09:30:00+03:00". Parse from RFC3339 and reformat.
-	convTime, err := formatGoogleAdsTime(ev.OccurredAt)
+	// Same caller as the connected-account path. These rows have no account to keep an outcome on,
+	// so it is in the log only.
+	requestID, err := h.sendToGoogle(ctx, ev, api, googleTarget{Access: tok.Access, Scopes: tok.Scopes, Settings: platform,
+		CustomerID: tenant["customer_id"], Login: firstNonEmptyConv(tenant["login_customer_id"], platform["login_customer_id"]),
+		Action: actionResource, Currency: firstNonEmptyConv(ev.Currency, "USD")})
 	if err != nil {
-		return fmt.Errorf("format time: %w", err)
-	}
-
-	// Same caller as the connected-account path (version from the row, partial failures surfaced).
-	ads := google.AdsFromSettings(h.httpClient(), platform, accessToken)
-	if login := firstNonEmptyConv(tenant["login_customer_id"], platform["login_customer_id"]); login != "" {
-		ads.LoginCustomerID = google.CustomerDigits(login)
-	}
-	if err := ads.UploadClickConversions(ctx, tenant["customer_id"], []google.ClickConversion{{GCLID: ev.Gclid,
-		ConversionAction: actionResource, DateTime: convTime, Value: ev.Value, Currency: firstNonEmptyConv(ev.Currency, "USD")}}); err != nil {
-		return err
+		plain, _ := google.PlainUploadError(err)
+		return fmt.Errorf("%s (%w)", plain, err)
 	}
 
 	h.logger.Info("google ads conversion uploaded",
 		zap.String("tenant", ev.TenantID),
 		zap.String("event", ev.EventName),
 		zap.String("action", actionResource),
+		zap.String("request", requestID),
 	)
 	return nil
 }
 
-// exchangeGoogleRefreshToken trades a long-lived refresh_token for a short-
-// lived access_token. Access tokens are valid for ~3600s; caching is out of
-// scope for MVP — one token exchange per conversion event is acceptable
-// given the expected volume.
-func exchangeGoogleRefreshToken(ctx context.Context, c *http.Client, clientID, clientSecret, refreshToken string) (string, error) {
-	form := strings.NewReader(fmt.Sprintf(
-		"client_id=%s&client_secret=%s&refresh_token=%s&grant_type=refresh_token",
-		clientID, clientSecret, refreshToken,
-	))
-	req, _ := http.NewRequestWithContext(ctx, "POST", "https://oauth2.googleapis.com/token", form)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	resp, err := c.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("oauth %d: %s", resp.StatusCode, string(body))
-	}
-	var parsed struct {
-		AccessToken string `json:"access_token"`
-	}
-	if err := json.Unmarshal(body, &parsed); err != nil || parsed.AccessToken == "" {
-		return "", fmt.Errorf("token response missing access_token")
-	}
-	return parsed.AccessToken, nil
+// googleTarget is where and how one conversion is sent.
+type googleTarget struct {
+	Access     string
+	Scopes     []string          // granted scopes, empty when unknown
+	Settings   map[string]string // the platform google_ads/ads row
+	CustomerID string
+	Login      string // manager account, "" for direct access
+	Action     string // customers/{id}/conversionActions/{id}
+	Currency   string
 }
 
-func formatGoogleAdsTime(occurredAt string) (string, error) {
+// sendToGoogle sends one conversion through the configured API. requestID is Data Manager's, whose
+// result is read later; the Google Ads API answers at once and gives none.
+func (h *ConversionsHandler) sendToGoogle(ctx context.Context, ev *ConversionEvent, api string, t googleTarget) (requestID string, err error) {
+	at := conversionTime(ev.OccurredAt)
+	if api == googleads.UploadAPIGoogleAds {
+		ads := google.AdsFromSettings(h.httpClient(), t.Settings, t.Access)
+		ads.LoginCustomerID = google.CustomerDigits(t.Login)
+		if h.googleAdsBase != "" {
+			ads.Base = h.googleAdsBase
+		}
+		return "", ads.UploadClickConversions(ctx, t.CustomerID, []google.ClickConversion{{GCLID: ev.Gclid, ConversionAction: t.Action,
+			DateTime: at.Format("2006-01-02 15:04:05-07:00"), Value: ev.Value, Currency: t.Currency}})
+	}
+	if !googleads.MaySendConversions(api, t.Scopes) {
+		return "", google.ErrReconnect
+	}
+	dm := google.DataManager{HTTP: h.httpClient(), Base: h.dataManagerBase, AccessToken: t.Access}
+	id, warnings, err := dm.SendConversion(ctx, google.OfflineConversion{ConversionAction: t.Action, LoginCustomerID: t.Login,
+		GCLID: ev.Gclid, WBRAID: ev.Wbraid, GBRAID: ev.Gbraid, TransactionID: ev.ConversionID,
+		At: at, Value: ev.Value, Currency: t.Currency})
+	if len(warnings) > 0 {
+		h.logger.Warn("google ignored parts of a conversion", zap.String("tenant", ev.TenantID), zap.String("request", id), zap.Strings("warnings", warnings))
+	}
+	return id, err
+}
+
+// conversionTime reads the event's time, now when the caller sent an invalid one.
+func conversionTime(occurredAt string) time.Time {
 	t, err := time.Parse(time.RFC3339, occurredAt)
 	if err != nil {
-		// Fall back to now if the caller sent an invalid timestamp.
-		t = time.Now()
+		return time.Now()
 	}
-	// Google Ads wants "2006-01-02 15:04:05-07:00".
-	return t.Format("2006-01-02 15:04:05-07:00"), nil
+	return t
 }
 
 func firstNonEmptyConv(vals ...string) string {
@@ -411,7 +429,9 @@ func metaCAPIRow(ev *ConversionEvent, eventTime int64, userData map[string]any, 
 // uploadToConnectedAccounts sends the conversion to every active connected Google Ads account of
 // the tenant whose mapping names this event. sent is false when no account maps it, so the caller
 // tries the older tenant provider rows. One account's failure does not stop the others.
-func (h *ConversionsHandler) uploadToConnectedAccounts(ctx context.Context, ev *ConversionEvent) (sent bool, err error) {
+// Each account keeps the outcome (metadata conversion_upload), so a missing permission or a
+// refusal shows in MarketFlow and not only in the log.
+func (h *ConversionsHandler) uploadToConnectedAccounts(ctx context.Context, ev *ConversionEvent, api string) (sent bool, err error) {
 	tid, perr := uuid.Parse(ev.TenantID)
 	if perr != nil {
 		return false, nil
@@ -422,20 +442,28 @@ func (h *ConversionsHandler) uploadToConnectedAccounts(ctx context.Context, ev *
 	if qerr != nil {
 		return false, fmt.Errorf("google ads accounts: %w", qerr)
 	}
-	convTime, terr := formatGoogleAdsTime(ev.OccurredAt)
-	if terr != nil {
-		return false, fmt.Errorf("format time: %w", terr)
-	}
 	var tokens *google.Tokens
 	var extra map[string]string
 	var errs []error
+	save := func(a *ent.ConnectedAccount, serr error) {
+		if serr != nil {
+			h.logger.Warn("save conversion outcome", zap.String("account", a.ExternalID), zap.Error(serr))
+		}
+	}
 	for _, a := range accs {
 		action := googleads.MappingOf(a)[ev.EventName]
 		if action == "" {
 			continue
 		}
 		if tokens == nil {
-			_, x, lerr := google.LoadClient(ctx, h.db, h.keys, google.ProviderGoogleAds, google.ProviderGoogleAdsName)
+			load := h.googleSettings
+			if load == nil {
+				load = func(ctx context.Context) (map[string]string, error) {
+					_, x, lerr := google.LoadClient(ctx, h.db, h.keys, google.ProviderGoogleAds, google.ProviderGoogleAdsName)
+					return x, lerr
+				}
+			}
+			x, lerr := load(ctx)
 			if lerr != nil {
 				h.logger.Warn("google ads platform client missing; skipping conversion", zap.Error(lerr))
 				return true, nil
@@ -446,20 +474,31 @@ func (h *ConversionsHandler) uploadToConnectedAccounts(ctx context.Context, ev *
 		sent = true
 		access, aerr := tokens.AccessToken(ctx, a)
 		if aerr != nil {
+			save(a, googleads.SaveUpload(ctx, h.db, a.ID, googleads.Failure(aerr, ev.EventName, time.Now())))
 			errs = append(errs, fmt.Errorf("account %s token: %w", a.ExternalID, aerr))
 			continue
 		}
-		ads := google.AdsFromSettings(h.httpClient(), extra, access)
-		ads.LoginCustomerID = ""
+		t := googleTarget{Access: access, Scopes: a.Scopes, Settings: extra, CustomerID: a.ExternalID, Action: action}
+		if api == googleads.UploadAPIDataManager {
+			t.Login = googleads.LoginCustomer(a)
+		}
 		cur, _ := a.Metadata["currency"].(string)
-		uerr := ads.UploadClickConversions(ctx, a.ExternalID, []google.ClickConversion{{GCLID: ev.Gclid, ConversionAction: action,
-			DateTime: convTime, Value: ev.Value, Currency: firstNonEmptyConv(ev.Currency, cur, "USD")}})
+		t.Currency = firstNonEmptyConv(ev.Currency, cur, "USD")
+		requestID, uerr := h.sendToGoogle(ctx, ev, api, t)
+		now := time.Now()
 		if uerr != nil {
-			errs = append(errs, fmt.Errorf("account %s upload: %w", a.ExternalID, uerr))
+			fail := googleads.Failure(uerr, ev.EventName, now)
+			save(a, googleads.SaveUpload(ctx, h.db, a.ID, fail))
+			errs = append(errs, fmt.Errorf("account %s upload: %s (%w)", a.ExternalID, fail.Reason, uerr))
 			continue
 		}
+		done := googleads.Upload{Status: googleads.UploadAccepted, Event: ev.EventName, At: now.UTC()}
+		if requestID != "" {
+			done.Status = googleads.UploadSent // Google says later whether it counted
+		}
+		save(a, googleads.Track(ctx, h.db, a, requestID, firstCheck(now, ev.EventName), done))
 		h.logger.Info("google ads conversion uploaded", zap.String("tenant", ev.TenantID), zap.String("event", ev.EventName),
-			zap.String("account", a.ExternalID))
+			zap.String("account", a.ExternalID), zap.String("request", requestID))
 	}
 	return sent, errors.Join(errs...)
 }

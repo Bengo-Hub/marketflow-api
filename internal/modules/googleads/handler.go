@@ -70,11 +70,14 @@ type AccountView struct {
 	Status            string            `json:"status"`
 	Test              bool              `json:"test_account,omitempty"`
 	ConversionActions map[string]string `json:"conversion_actions"`
+	// ConversionsBlocked: the connection lacks the permission to send conversions.
+	ConversionsBlocked bool    `json:"conversions_blocked,omitempty"`
+	LastUpload         *Upload `json:"last_upload,omitempty"`
 }
 
 func viewOf(a *ent.ConnectedAccount) AccountView {
 	v := AccountView{ConnectedID: a.ID.String(), CustomerID: a.ExternalID, Name: a.DisplayName, Status: a.Status,
-		ConversionActions: MappingOf(a)}
+		ConversionActions: MappingOf(a), LastUpload: LastUpload(a)}
 	v.Currency, _ = a.Metadata["currency"].(string)
 	v.Test, _ = a.Metadata["test_account"].(bool)
 	return v
@@ -113,8 +116,11 @@ func (h *Handler) Accounts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := make([]AccountView, 0, len(rows))
+	api := UploadAPI(r.Context(), h.DB)
 	for _, a := range rows {
-		out = append(out, viewOf(a))
+		v := viewOf(a)
+		v.ConversionsBlocked = !MaySendConversions(api, a.Scopes)
+		out = append(out, v)
 	}
 	httpapi.JSON(w, http.StatusOK, map[string]any{"data": out})
 }
@@ -273,17 +279,19 @@ func (h *Handler) SetMapping(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_request", bad, nil)
 		return
 	}
+	if err := PatchMetadata(ctx, h.DB, a.ID, map[string]any{MetaConversionActions: mapping}); err != nil {
+		httpapi.Error(w, http.StatusInternalServerError, "save_failed", "could not save the mapping", nil)
+		return
+	}
 	md := map[string]any{}
 	for k, v := range a.Metadata {
 		md[k] = v
 	}
 	md[MetaConversionActions] = mapping
-	if err := h.DB.ConnectedAccount.UpdateOneID(a.ID).SetMetadata(md).Exec(ctx); err != nil {
-		httpapi.Error(w, http.StatusInternalServerError, "save_failed", "could not save the mapping", nil)
-		return
-	}
 	a.Metadata = md
-	httpapi.JSON(w, http.StatusOK, viewOf(a))
+	v := viewOf(a)
+	v.ConversionsBlocked = !MaySendConversions(UploadAPI(ctx, h.DB), a.Scopes)
+	httpapi.JSON(w, http.StatusOK, v)
 }
 
 // CleanMapping keeps known events whose value is a conversion action of this same account.

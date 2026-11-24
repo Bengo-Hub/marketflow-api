@@ -16,6 +16,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/integrations/google"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/integrations/tiktok"
+	"github.com/bengobox/marketflow-api/internal/modules/googleads"
 )
 
 // fake records writes and answers reads by the first matching key.
@@ -191,8 +192,35 @@ func TestGoogleRefusedReads(t *testing.T) {
 	want(t, googleChecklist(context.Background(), googleIn(f.server(t))), map[string]string{
 		"google.manager": StatusUnknown, "google.account": StatusWarning, "google.auto_tagging": StatusAction})
 	delete(f.reads, "customer")
-	if items := googleChecklist(context.Background(), googleIn(f.server(t))); len(items) != 1 || items[0].Status != StatusUnknown {
-		t.Errorf("an unreadable account gives one item: %+v", items)
+	if items := googleChecklist(context.Background(), googleIn(f.server(t))); len(items) != 2 || items[0].Status != StatusUnknown || items[1].Key != "google.permission" {
+		t.Errorf("an unreadable account gives its own item and the permission: %+v", items)
+	}
+}
+
+// The conversions permission and the last upload come from MarketFlow's own records.
+func TestGooglePermission(t *testing.T) {
+	failed := &googleads.Upload{Status: googleads.UploadFailed, Reason: "The sale is older than Google accepts."}
+	for _, c := range []struct {
+		name    string
+		maySend bool
+		last    *googleads.Upload
+		status  string
+		text    string
+		link    bool
+	}{
+		{"connected before the permission", false, failed, StatusAction, "Connect it again", true},
+		{"Google refused the token", true, &googleads.Upload{Status: googleads.UploadReconnect, Reason: google.ReconnectMessage}, StatusAction, "Reconnect Google Ads", true},
+		{"refused conversion", true, failed, StatusWarning, "older than Google accepts", false},
+		{"accepted", true, &googleads.Upload{Status: googleads.UploadAccepted}, StatusOK, "accepted", false},
+		{"nothing sent", true, nil, StatusOK, "No conversion has been sent yet", false},
+	} {
+		it := googleInput{MaySend: c.maySend, LastUpload: c.last, ReconnectURL: "/shop/settings/integrations"}.permissionItem()
+		if it.Status != c.status || !strings.Contains(it.Detail, c.text) || (it.Link != nil) != c.link {
+			t.Errorf("%s: %+v", c.name, it)
+		}
+		if c.link && it.Link.URL != "/shop/settings/integrations" {
+			t.Errorf("%s: link %+v", c.name, it.Link)
+		}
 	}
 }
 

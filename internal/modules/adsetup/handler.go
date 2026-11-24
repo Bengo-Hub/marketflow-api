@@ -322,9 +322,10 @@ func (h *Handler) google(ctx context.Context, t *ent.Tenant, a *ent.ConnectedAcc
 	ads := google.AdsFromSettings(h.HTTP, extra, tok)
 	manager := ads.LoginCustomerID
 	// As in Run ads: called as itself, through a manager only when the connection says so.
-	login, _ := a.Metadata["login_customer_id"].(string)
-	ads.LoginCustomerID = google.CustomerDigits(login)
+	ads.LoginCustomerID = googleads.LoginCustomer(a)
 	return googleChecklist(ctx, googleInput{
+		MaySend: googleads.MaySendConversions(googleads.UploadAPI(ctx, h.DB), a.Scopes), LastUpload: googleads.LastUpload(a),
+		ReconnectURL: "/" + t.Slug + "/settings/integrations",
 		Ads: ads, CustomerID: a.ExternalID, ManagerID: manager, Mapping: googleads.MappingOf(a),
 		SaveMapping: func(ctx context.Context, m map[string]string) error { return h.saveMapping(ctx, a, m) },
 		BillingURL:  runads.Platform(ctx, h.DB).GoogleBillingLink(a.ExternalID),
@@ -347,12 +348,7 @@ func (h *Handler) saveMapping(ctx context.Context, a *ent.ConnectedAccount, m ma
 	if bad != "" {
 		return badInput("%s", bad)
 	}
-	md := map[string]any{}
-	for k, v := range a.Metadata {
-		md[k] = v
-	}
-	md[googleads.MetaConversionActions] = clean
-	return h.DB.ConnectedAccount.UpdateOneID(a.ID).SetMetadata(md).Exec(ctx)
+	return googleads.PatchMetadata(ctx, h.DB, a.ID, map[string]any{googleads.MetaConversionActions: clean})
 }
 
 // consented counts contacts with an email, the email opt-in and a recorded source for it.

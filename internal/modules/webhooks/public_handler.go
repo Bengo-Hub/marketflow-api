@@ -376,6 +376,8 @@ func renderDefaultFunnel(f *ent.Funnel, tenantSlug string) string {
       utm_term: new URLSearchParams(location.search).get('utm_term') || '',
       fbclid: new URLSearchParams(location.search).get('fbclid') || '',
       gclid: new URLSearchParams(location.search).get('gclid') || '',
+      wbraid: new URLSearchParams(location.search).get('wbraid') || '',
+      gbraid: new URLSearchParams(location.search).get('gbraid') || '',
       ttclid: new URLSearchParams(location.search).get('ttclid') || ''
     };
     fetch('/api/v1/public/leads/' + encodeURIComponent(tenantSlug), {
@@ -427,7 +429,9 @@ type publicLeadInput struct {
 	UTMTerm    string `json:"utm_term"`
 	FBCLID     string `json:"fbclid"`
 	GCLID      string `json:"gclid"`
-	TTCLID     string `json:"ttclid"`
+	WBRAID     string `json:"wbraid"` // Google's click ids for iPhone clicks without a gclid
+	GBRAID     string `json:"gbraid"`
+	TTCLID    string `json:"ttclid"`
 	FunnelSlug string `json:"funnel_slug"`
 	// FunnelVariant is the A/B version ("a" or "b") the visitor saw (Sprint 7 #53).
 	FunnelVariant string         `json:"funnel_variant"`
@@ -588,7 +592,7 @@ func consentAt(given bool) any {
 func attributionMetadata(in publicLeadInput) map[string]any {
 	out := map[string]any{}
 	for k, v := range map[string]string{
-		"fbclid": in.FBCLID, "gclid": in.GCLID, "ttclid": in.TTCLID,
+		"fbclid": in.FBCLID, "gclid": in.GCLID, "wbraid": in.WBRAID, "gbraid": in.GBRAID, "ttclid": in.TTCLID,
 		"utm_content": in.UTMContent, "utm_term": in.UTMTerm,
 	} {
 		v = strings.TrimSpace(v)

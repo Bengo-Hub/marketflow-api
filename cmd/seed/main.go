@@ -22,6 +22,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/platform/leadresponse"
 	"github.com/bengobox/marketflow-api/internal/platform/runads"
 	"github.com/bengobox/marketflow-api/internal/modules/adsetup"
+	"github.com/bengobox/marketflow-api/internal/modules/googleads"
 	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
@@ -960,6 +961,7 @@ var adsSetupDefaults = []configDefault{
 	{adsetup.KeyPixelQuiet, "168h", "string", "A Meta pixel with no event for this long counts as quiet."},
 	{adsetup.KeyFormQuestions, "FULL_NAME,PHONE,EMAIL", "string", "Questions on the Meta lead form the setup assistant creates."},
 	{adsetup.KeyCache, "5m", "string", "How long a setup checklist is kept before the ad account is read again."},
+	{googleads.KeyUploadAPI, googleads.UploadAPIDataManager, "string", "API that sends conversions to Google: data_manager, or google_ads (the older call, closed to new accounts since 2026-06-15)."},
 }
 
 // configDefault is one platform service_config row.

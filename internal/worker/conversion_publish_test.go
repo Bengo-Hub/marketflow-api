@@ -71,7 +71,7 @@ func TestEnqueueAdConversionOncePerOrder(t *testing.T) {
 	})
 
 	adLead, _ := db.Lead.Create().SetTenantID(tid).SetSource("meta_ad").SetLeadType("customer").
-		SetMetadata(map[string]any{"fbclid": "fb.1.123"}).Save(ctx)
+		SetMetadata(map[string]any{"fbclid": "fb.1.123", "wbraid": "w1", "gbraid": "b1"}).Save(ctx)
 	email := "buyer@example.com"
 	adContact, err := db.Contact.Create().SetTenantID(tid).SetContactType("customer").SetLeadID(adLead.ID).SetEmail(email).Save(ctx)
 	if err != nil {
@@ -98,7 +98,10 @@ func TestEnqueueAdConversionOncePerOrder(t *testing.T) {
 	if err := json.Unmarshal(eventBody(row.Payload), &body); err != nil {
 		t.Fatal(err)
 	}
-	if body.EventName != "Purchase" || body.Value != 2500 || body.Fbclid != "fb.1.123" || body.Email != email || body.ClientUserID != adLead.ID.String() || body.TenantID != tid.String() {
+	if body.Wbraid != "w1" || body.Gbraid != "b1" || body.ConversionID != row.ID.String() {
+		t.Errorf("google ids %+v", body)
+	}
+	if body.EventName != "Purchase" ||body.Value != 2500 || body.Fbclid != "fb.1.123" || body.Email != email || body.ClientUserID != adLead.ID.String() || body.TenantID != tid.String() {
 		t.Fatalf("unexpected conversion body %+v", body)
 	}
 

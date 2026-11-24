@@ -341,6 +341,9 @@ func main() {
 			WithOptimiser(boostOps.OptimiserNotice)
 		go insights.Run(ctx)
 
+		// How Google processed the conversions sent through the Data Manager API (plan item 67).
+		go worker.NewConversionDiagnostics(entClient, keys, logger).Run(ctx)
+
 		// CRM background agents: ProactiveFollowUpAgent (hourly) + DealStaleDetector (daily).
 		cronAgents := worker.NewCronAgentRunner(worker.CronAgentRunnerConfig{
 			DB:         entClient,

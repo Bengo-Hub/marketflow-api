@@ -26,7 +26,7 @@ func adAttributed(l *ent.Lead) bool {
 	if adLeadSources[l.Source] {
 		return true
 	}
-	for _, k := range []string{"fbclid", "gclid", "ctwa_clid", "ttclid"} {
+	for _, k := range []string{"fbclid", "gclid", "wbraid", "gbraid", "ctwa_clid", "ttclid"} {
 		if v, _ := l.Metadata[k].(string); v != "" {
 			return true
 		}
@@ -77,6 +77,9 @@ func enqueueAdConversion(ctx context.Context, db *ent.Client, tenantID, contactI
 		Currency:     currency,
 		OccurredAt:   time.Now().UTC().Format(time.RFC3339),
 		Gclid:        str(l.Metadata, "gclid"),
+		Wbraid:       str(l.Metadata, "wbraid"),
+		Gbraid:       str(l.Metadata, "gbraid"),
+		ConversionID: conversionOutboxID(tenantID, orderRef).String(),
 		Fbclid:       str(l.Metadata, "fbclid"),
 		CtwaClid:     str(l.Metadata, "ctwa_clid"),
 		ClientUserID: l.ID.String(),

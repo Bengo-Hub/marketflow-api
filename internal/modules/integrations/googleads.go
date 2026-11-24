@@ -8,15 +8,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/integrations/google"
+	"github.com/bengobox/marketflow-api/internal/modules/googleads"
 )
 
 // Google Ads account connection (owner 2026-11-19, replaces "coming soon"). The business signs in
-// with the Google identity that can reach its Google Ads account; MarketFlow asks only for the
-// adwords scope, lists the accounts that identity reaches, and keeps one ConnectedAccount row per
+// with the Google identity that can reach its Google Ads account; MarketFlow asks for
+// the adwords scope and, to send conversions, the datamanager scope (optional: a person may untick
+// it and keep the results), lists the accounts that identity reaches, and keeps one ConnectedAccount row per
 // account with the refresh token as ciphertext (the same store and refresh path as YouTube:
 // google.NewTokensFor). What it is used for: the account's campaign results in MarketFlow, and
 // offline conversions (a lead that booked or bought) sent back to the business's own conversion
@@ -80,7 +84,7 @@ func (h *Handler) GoogleAdsAuthorize(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpapi.JSON(w, http.StatusOK, map[string]string{"url": google.AuthCodeURL(c, []string{google.ScopeAdWords}, state)})
+	httpapi.JSON(w, http.StatusOK, map[string]string{"url": google.AuthCodeURL(c, google.GoogleAdsConnectScopes, state)})
 }
 
 // GoogleAdsCallback exchanges the code, lists the reachable accounts and stores them.
@@ -143,12 +147,43 @@ func (h *Handler) GoogleAdsCallback(w http.ResponseWriter, r *http.Request) {
 		h.failConnect(w, r, "google_ads", tenantID, "no_account", "this Google identity reaches no Google Ads account that runs ads")
 		return
 	}
+	if err := h.keepGoogleAdsSettings(ctx, tenantID, accs); err != nil {
+		h.failConnect(w, r, "google_ads", tenantID, "persist_failed", err.Error())
+		return
+	}
 	if err := h.saveAccounts(ctx, tenantID, userID, accs); err != nil {
 		h.failConnect(w, r, "google_ads", tenantID, "persist_failed", err.Error())
 		return
 	}
-	target := h.integrationsURL(ctx, tenantID, "google_ads=connected&account="+url.QueryEscape(accs[0].DisplayName))
+	q := "google_ads=connected&account=" + url.QueryEscape(accs[0].DisplayName)
+	if !googleads.MaySendConversions(googleads.UploadAPI(ctx, h.db), tok.Scopes) {
+		q += "&conversions=off" // the page says what was left unticked
+	}
+	target := h.integrationsURL(ctx, tenantID, q)
 	http.Redirect(w, r, target, http.StatusFound)
+}
+
+// keepGoogleAdsSettings carries each account's conversion mapping over a reconnect: saveAccounts
+// replaces the metadata, and losing the mapping would stop the conversions without a word.
+func (h *Handler) keepGoogleAdsSettings(ctx context.Context, tenantID string, accs []account) error {
+	tid, err := uuid.Parse(tenantID)
+	if err != nil {
+		return err
+	}
+	rows, err := h.db.ConnectedAccount.Query().
+		Where(connectedaccount.TenantID(tid), connectedaccount.AccountType(AccountGoogleAdsCustomer),
+			connectedaccount.ExternalIDIn(externalIDsOf(accs, AccountGoogleAdsCustomer)...)).All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		for _, a := range accs {
+			if a.ExternalID == row.ExternalID {
+				googleads.KeepOnReconnect(row.Metadata, a.Metadata)
+			}
+		}
+	}
+	return nil
 }
 
 // googleAdsCustomers lists the accounts the token reaches with their names. The direct list call

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/bengobox/marketflow-api/internal/integrations/google"
+	"github.com/bengobox/marketflow-api/internal/modules/googleads"
 )
 
 // Google Ads text limits (Google Ads help, sitelink and callout assets).
@@ -35,10 +36,15 @@ type googleInput struct {
 	Mapping    map[string]string
 	// SaveMapping stores the MarketFlow event to conversion action mapping.
 	SaveMapping func(ctx context.Context, mapping map[string]string) error
-	BillingURL  string
-	Consented   func(ctx context.Context) (int, error)
-	Profile     func(ctx context.Context) Profile
-	Cfg         Config
+	// MaySend: the connection has the permission to send conversions. ReconnectURL is the
+	// MarketFlow page to connect again on.
+	MaySend      bool
+	LastUpload   *googleads.Upload
+	ReconnectURL string
+	BillingURL   string
+	Consented    func(ctx context.Context) (int, error)
+	Profile      func(ctx context.Context) Profile
+	Cfg          Config
 }
 
 func dashed(id string) string {
@@ -68,7 +74,7 @@ func googleChecklist(ctx context.Context, in googleInput) []Item {
 	a, id, cfg := in.Ads, in.CustomerID, in.Cfg
 	acc, eAcc = a.SetupAccount(ctx, id)
 	if eAcc != nil {
-		return seal([]Item{unread("google.account", "Account enabled and billing set", "Google", eAcc, cfg.link("google_account", "Open Google Ads", id))})
+		return seal([]Item{unread("google.account", "Account enabled and billing set", "Google", eAcc, cfg.link("google_account", "Open Google Ads", id)), in.permissionItem()})
 	}
 	together(
 		func() { spend, eSpend = a.SpendStatus(ctx, id) },
@@ -95,6 +101,7 @@ func googleChecklist(ctx context.Context, in googleInput) []Item {
 	}
 	items := []Item{
 		in.accountItem(acc, spend, eSpend),
+		in.permissionItem(),
 		in.trackingItem(actions, eAct, acc.Currency),
 		in.mappingItem(actions, eAct),
 		in.goalItem(actions, camps, accGoals, campGoals, own, firstErr(eAct, eCamp, eGoal)),
@@ -135,6 +142,34 @@ func (in googleInput) accountItem(acc google.SetupAccount, spend google.SpendSta
 		it.Status, it.Link, it.Detail = StatusWarning, billing, "Google does not show a billing setup for this account. If you have not added a card or other payment method, add one: ads cannot run without it. In Google Ads pick account "+dashed(in.CustomerID)+" first."
 	default:
 		it.Status, it.Link, it.Detail = StatusAction, billing, "The billing setup is "+strings.ToLower(words(spend.Billing))+", so ads cannot run. Set up payment for account "+dashed(in.CustomerID)+"."
+	}
+	return it
+}
+
+// permissionItem says whether the connection may send conversions, and how the last one went. It
+// reads MarketFlow's own records only.
+func (in googleInput) permissionItem() Item {
+	it := Item{Key: "google.permission", Title: "MarketFlow may send your conversions to Google"}
+	reconnect := &Link{Label: "Reconnect Google Ads", URL: in.ReconnectURL}
+	u := in.LastUpload
+	switch {
+	case !in.MaySend:
+		it.Status, it.Link = StatusAction, reconnect
+		it.Detail = "This account was connected without the permission to send conversions, so your results show here but Google is not told which clicks became sales. Connect it again (Add or change accounts on the Google Ads card) and leave every permission ticked. Your settings stay."
+	case u != nil && u.Status == googleads.UploadReconnect:
+		it.Status, it.Link = StatusAction, reconnect
+		it.Detail = u.Reason
+	case u != nil && u.Status == googleads.UploadFailed:
+		it.Status = StatusWarning
+		it.Detail = "Google did not count the last conversion MarketFlow sent (" + u.At.Format("2 Jan 2006") + "). " + u.Reason
+	case u != nil && u.Status == googleads.UploadSent:
+		it.Status, it.Detail = StatusOK, "The permission is in place. Google is checking the last conversion, which can take up to a day."
+	case u != nil && u.Status == googleads.UploadAccepted:
+		it.Status, it.Detail = StatusOK, "The permission is in place and Google accepted the last conversion ("+u.At.Format("2 Jan 2006")+")."
+	case u != nil && u.Status == googleads.UploadUnknown:
+		it.Status, it.Detail = StatusInfo, u.Reason
+	default:
+		it.Status, it.Detail = StatusOK, "The permission is in place. No conversion has been sent yet."
 	}
 	return it
 }
@@ -338,24 +373,24 @@ func (in googleInput) taggingItem(acc google.SetupAccount) Item {
 
 // googleReasons explains campaign.primary_status_reasons; any other reason is shown in words.
 var googleReasons = map[string]string{
-	"BUDGET_CONSTRAINED":                  "the daily budget runs out, so some people never see the ad",
-	"HAS_ADS_LIMITED_BY_POLICY":           "some ads are limited by a Google policy",
-	"HAS_ADS_DISAPPROVED":                 "some ads were disapproved",
-	"MOST_ADS_UNDER_REVIEW":               "Google is still reviewing most ads",
-	"BIDDING_STRATEGY_LEARNING":           "Google is learning who responds; leave it alone for about a week",
-	"BIDDING_STRATEGY_LIMITED":            "the bidding target is too tight",
-	"BIDDING_STRATEGY_MISCONFIGURED":      "the bidding setup has a problem, often missing conversions",
-	"BIDDING_STRATEGY_CONSTRAINED":        "the bidding target is too tight",
-	"HAS_ASSET_GROUPS_LIMITED_BY_POLICY":  "some ad material is limited by a Google policy",
-	"HAS_ASSET_GROUPS_DISAPPROVED":        "some ad material was disapproved",
-	"MOST_ASSET_GROUPS_UNDER_REVIEW":      "Google is still reviewing most of the ad material",
-	"ASSET_GROUPS_LIMITED_BY_POLICY":      "some ad material is limited by a Google policy",
-	"MISSING_LEAD_FORM_EXTENSION":         "the lead form is missing",
-	"NO_AD_GROUPS":                        "the campaign has no ad group",
-	"NO_ASSET_GROUPS":                     "the campaign has no ad material",
-	"ASSET_GROUPS_PAUSED":                 "all ad material is paused",
-	"AD_GROUPS_PAUSED":                    "all ad groups are paused",
-	"CALL_EXTENSION_DISAPPROVED":          "the phone number was disapproved",
+	"BUDGET_CONSTRAINED":                 "the daily budget runs out, so some people never see the ad",
+	"HAS_ADS_LIMITED_BY_POLICY":          "some ads are limited by a Google policy",
+	"HAS_ADS_DISAPPROVED":                "some ads were disapproved",
+	"MOST_ADS_UNDER_REVIEW":              "Google is still reviewing most ads",
+	"BIDDING_STRATEGY_LEARNING":          "Google is learning who responds; leave it alone for about a week",
+	"BIDDING_STRATEGY_LIMITED":           "the bidding target is too tight",
+	"BIDDING_STRATEGY_MISCONFIGURED":     "the bidding setup has a problem, often missing conversions",
+	"BIDDING_STRATEGY_CONSTRAINED":       "the bidding target is too tight",
+	"HAS_ASSET_GROUPS_LIMITED_BY_POLICY": "some ad material is limited by a Google policy",
+	"HAS_ASSET_GROUPS_DISAPPROVED":       "some ad material was disapproved",
+	"MOST_ASSET_GROUPS_UNDER_REVIEW":     "Google is still reviewing most of the ad material",
+	"ASSET_GROUPS_LIMITED_BY_POLICY":     "some ad material is limited by a Google policy",
+	"MISSING_LEAD_FORM_EXTENSION":        "the lead form is missing",
+	"NO_AD_GROUPS":                       "the campaign has no ad group",
+	"NO_ASSET_GROUPS":                    "the campaign has no ad material",
+	"ASSET_GROUPS_PAUSED":                "all ad material is paused",
+	"AD_GROUPS_PAUSED":                   "all ad groups are paused",
+	"CALL_EXTENSION_DISAPPROVED":         "the phone number was disapproved",
 }
 
 func (in googleInput) statusItem(camps []google.SetupCampaign, ads []google.LimitedAd, err error) Item {
