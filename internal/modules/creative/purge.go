@@ -44,6 +44,14 @@ type Purger struct {
 	store  *objectstore.Store
 	logger *zap.Logger
 	nowFn  func() time.Time
+	// sweepFaces ends expired brand face consents and repeats their purge (brandimages SweepFaces).
+	sweepFaces func(ctx context.Context) (int, error)
+}
+
+// WithFaceSweep runs the brand face sweep with each purge.
+func (p *Purger) WithFaceSweep(sweep func(ctx context.Context) (int, error)) *Purger {
+	p.sweepFaces = sweep
+	return p
 }
 
 // NewPurger builds a Purger. A nil or unconfigured store turns it off.
@@ -64,6 +72,13 @@ func (p *Purger) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
+			if p.sweepFaces != nil {
+				if n, err := p.sweepFaces(ctx); err != nil {
+					p.logger.Warn("brand face sweep incomplete", zap.Error(err))
+				} else if n > 0 {
+					p.logger.Info("brand face consents ended", zap.Int("faces", n))
+				}
+			}
 			if n, err := p.Purge(ctx); err != nil {
 				p.logger.Warn("creative draft purge failed", zap.Error(err))
 			} else if n > 0 {

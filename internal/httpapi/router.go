@@ -545,6 +545,8 @@ type BrandImageHandlers struct {
 	Update http.HandlerFunc
 	// ImportSite links pictures from the tenant's own website (optional).
 	ImportSite http.HandlerFunc
+	// Brand face consents (optional); the write gate lets only an admin change them.
+	ListFaces, SwitchFaces, AddFace, RemoveFace http.HandlerFunc
 }
 
 // OnboardingHandlers groups the setup checklist and the brand context draft.
@@ -1208,6 +1210,12 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Delete("/tenant/brand-images/{id}", deps.BrandImageHandlers.Delete)
 				if deps.BrandImageHandlers.Update != nil {
 					r.Patch("/tenant/brand-images/{id}", deps.BrandImageHandlers.Update)
+				}
+				if deps.BrandImageHandlers.ListFaces != nil {
+					r.Get("/tenant/brand-faces", deps.BrandImageHandlers.ListFaces)
+					r.Put("/tenant/brand-faces", deps.BrandImageHandlers.SwitchFaces)
+					r.Post("/tenant/brand-faces", deps.BrandImageHandlers.AddFace)
+					r.Delete("/tenant/brand-faces/{id}", deps.BrandImageHandlers.RemoveFace)
 				}
 				if deps.BrandImageHandlers.ImportSite != nil {
 					r.Post("/tenant/brand-images/import-site", deps.BrandImageHandlers.ImportSite)

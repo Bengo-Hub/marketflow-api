@@ -101,8 +101,10 @@ type VideoAdInput struct {
 	Kind string `json:"kind"`
 	// ActorPrompt describes the presenter for a new actor (presenter types); the brief's
 	// actor is kept once it exists.
-	ActorPrompt string   `json:"actor_prompt"`
-	PhotoURLs   []string `json:"photo_urls"`   // default: the offering's photos
+	ActorPrompt string `json:"actor_prompt"`
+	// FaceID is one of the tenant's live brand faces, the presenter's look (faces.go).
+	FaceID      string   `json:"face_id"`
+	PhotoURLs  []string `json:"photo_urls"`   // default: the offering's photos
 	FootageURLs []string `json:"footage_urls"` // the owner's clips
 	// The end card's words; empty fields come from the offering.
 	Headline string `json:"headline"`
@@ -239,6 +241,9 @@ func (s *Service) CreateVideoAd(ctx context.Context, tenantID, briefID uuid.UUID
 	if err := in.validate(brief); err != nil {
 		return nil, err
 	}
+	if err := s.checkFaceChoice(ctx, tenantID, in.Kind, in.FaceID); err != nil {
+		return nil, err
+	}
 	// Refused before the script is written: a plan without this kind of video cannot render it.
 	if err := s.CheckVideoFeature(ctx, tenantID, VideoFeature(KindVideoAd, in.Kind)); err != nil {
 		return nil, err
@@ -256,7 +261,7 @@ func (s *Service) CreateVideoAd(ctx context.Context, tenantID, briefID uuid.UUID
 		"photo_urls": in.PhotoURLs, "footage_urls": in.FootageURLs, "video_kind": in.Kind}
 	for k, v := range map[string]string{"voice": in.Voice, "delivery": in.Delivery, "voice_gender": in.VoiceGender,
 		"voice_accent": in.VoiceAccent, "actor_prompt": strings.TrimSpace(in.ActorPrompt), "music_url": in.MusicURL,
-		"approach": in.Approach} {
+		"approach": in.Approach, metaFaceID: in.FaceID} {
 		if v != "" {
 			meta[k] = v
 		}
@@ -493,6 +498,9 @@ func (s *Service) RenderVideoAd(ctx context.Context, tenantID, id uuid.UUID) (*e
 	}
 	if isPresenter(videoKind(v)) && !storyboardApproved(v) {
 		return nil, fmt.Errorf("%w: approve the storyboard before rendering a presenter ad", ErrConflict)
+	}
+	if err := checkFace(ctx, s.db, v, s.nowFn); err != nil {
+		return nil, err
 	}
 	// The owner approves the exact prompts and first frames before anything is paid for.
 	if err := checkPlanForRender(v); err != nil {
@@ -779,6 +787,11 @@ func (r *Renderer) startAd(ctx context.Context, v *ent.CreativeVersion) {
 	var script VideoScript
 	if b, err := json.Marshal(v.Copy["script"]); err != nil || json.Unmarshal(b, &script) != nil || len(script.Scenes) == 0 {
 		r.failJob(ctx, v.ID, &aiError{msg: "this video ad has no script; write it again"})
+		return
+	}
+	// Checked again at the last moment: the consent may have ended while the render was queued.
+	if err := checkFace(ctx, r.db, v, r.nowFn); err != nil {
+		r.failJob(ctx, v.ID, &aiError{msg: err.Error()})
 		return
 	}
 	call := r.adCallFor(ctx, v, script, true)

@@ -34,9 +34,9 @@ func (r *Renderer) adPhotos(ctx context.Context, v *ent.CreativeVersion) ([]stri
 	if len(keys) == 0 || r.brandLinks == nil {
 		return photos, info
 	}
-	stored := map[string]brandimages.Image{}
+	stored, faces := map[string]brandimages.Image{}, map[string]bool{}
 	if t, err := r.db.Tenant.Get(ctx, v.TenantID); err == nil {
-		stored = brandimages.ByKey(t.Metadata, v.TenantID)
+		stored, faces = brandimages.ByKey(t.Metadata, v.TenantID), brandimages.FaceImages(t.Metadata)
 	}
 	missing := 0
 	for _, k := range keys {
@@ -46,8 +46,11 @@ func (r *Renderer) adPhotos(ctx context.Context, v *ent.CreativeVersion) ([]stri
 			continue
 		}
 		img := stored[k]
+		// A picture recorded as a person's consent is for the presenter only (faces.go): it keeps its
+		// place in the list, so the script's photo numbers hold, but is never a frame, like a logo.
+		never := brandimages.NeverFrame(img) || faces[img.ID]
 		photos = append(photos, links[0])
-		info = append(info, photoInfo{Library: true, Logo: brandimages.NeverFrame(img), Caption: img.Caption, Tags: img.Tags})
+		info = append(info, photoInfo{Library: true, Logo: never,Caption: img.Caption, Tags: img.Tags})
 	}
 	if missing > 0 {
 		r.logger.Warn("brand images not all linked; scenes are drawn without them",

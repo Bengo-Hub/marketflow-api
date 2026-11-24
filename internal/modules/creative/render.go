@@ -74,12 +74,14 @@ func (r *Renderer) withBrandPhotos(ctx context.Context, tenantID uuid.UUID, phot
 	}
 	// A logo is never a poster reference: the image model would paint it in, and a tenant's
 	// library can hold other businesses' logos (a software house shows its clients').
+	// A picture recorded as a person's consent is for the presenter only (faces.go).
+	faces := brandimages.FaceImages(t.Metadata)
 	var keys []string
 	for _, img := range brandimages.Read(t.Metadata) {
 		if len(photos)+len(keys) >= limit {
 			break
 		}
-		if brandimages.Owned(img.Key, tenantID) && !brandimages.NeverFrame(img) {
+		if brandimages.Owned(img.Key, tenantID) && !brandimages.NeverFrame(img) && !faces[img.ID] {
 			keys = append(keys, img.Key)
 		}
 	}

@@ -47,6 +47,9 @@ var ReservedMetadataKeys = []string{
 	// The website import's last run and the files whose delete is being retried.
 	brandimages.ImportMarkerKey,
 	brandimages.OrphanKey,
+	// Brand face consents and the opt-in, written only by /tenant/brand-faces (admins).
+	brandimages.FacesKey,
+	brandimages.FacesOnKey,
 	// A pharmacy's PPB advert approval references, written only by PUT /creative/ppb-approvals
 	// (creative.PPBApprovalsMetadataKey; owner, 2026-11-14).
 	PPBApprovalsMetadataKey,

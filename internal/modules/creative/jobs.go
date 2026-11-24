@@ -91,6 +91,8 @@ type storyboardActor struct {
 	Route  string `json:"route,omitempty"`
 	// Gender is the actor's look ("male", "female" or ""); later scripts follow it.
 	Gender string `json:"gender,omitempty"`
+	// FaceID is the consented person the actor was drawn from ("" for a synthetic one; faces.go).
+	FaceID string `json:"face_id,omitempty"`
 	// Logo, PlainURL and PlainKey: the actor drawn with the real logo on a banner behind them, and
 	// the still without it (marketflow-ai media/branding.go).
 	Logo     map[string]any `json:"logo,omitempty"`

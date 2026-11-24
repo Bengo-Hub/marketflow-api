@@ -614,6 +614,13 @@ func (s *Service) decideVia(ctx context.Context, tenantID, id uuid.UUID, status 
 	if status == StatusRejected {
 		from = append(from, StatusFailed, StatusScriptReady)
 	}
+	if status == StatusApproved {
+		if v, err := s.version(ctx, tenantID, id); err != nil {
+			return nil, err
+		} else if err := checkFace(ctx, s.db, v, s.nowFn); err != nil {
+			return nil, err
+		}
+	}
 	// A pharmacy's medicine ad stays a draft until its PPB approval reference is entered (ppb_approval.go).
 	ppb, err := s.ppbHold(ctx, tenantID, id, status)
 	if err != nil {

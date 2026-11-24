@@ -45,6 +45,9 @@ type StoryboardOptions struct {
 	// KeepUnchanged reuses the stills of scenes that did not change (settings_reset.go), so only
 	// the changed scenes are drawn and paid for.
 	KeepUnchanged bool `json:"keep_unchanged"`
+	// FaceID picks the presenter's look from the tenant's live brand faces (faces.go); nil keeps the
+	// video's choice and "" goes back to a presenter not modelled on anyone.
+	FaceID *string `json:"face_id"`
 }
 
 // MakeStoryboard queues the storyboard of a script waiting for review.
@@ -75,7 +78,18 @@ func (s *Service) MakeStoryboardWith(ctx context.Context, tenantID, id uuid.UUID
 	if opt.RedrawActor && !isPresenter(videoKind(v)) {
 		return nil, invalid("only a presenter video has an actor to redraw")
 	}
+	if opt.FaceID != nil {
+		if err := s.checkFaceChoice(ctx, tenantID, videoKind(v), *opt.FaceID); err != nil {
+			return nil, err
+		}
+	}
 	meta := copyMap(v.Metadata)
+	if opt.FaceID != nil {
+		delete(meta, metaFaceID)
+		if *opt.FaceID != "" {
+			meta[metaFaceID] = *opt.FaceID
+		}
+	}
 	meta["stage"] = StageStoryboard
 	delete(meta, "attempts")
 	delete(meta, "job_started_at")
@@ -248,6 +262,8 @@ type storyboardCall struct {
 	// Screens and Screenshots are the real product screens (creative.screens, screens.go).
 	Screens     *screenRules `json:"screens,omitempty"`
 	Screenshots []screenshot `json:"screenshots,omitempty"`
+	// Face is the person the new actor takes its look from, with a live consent (faces.go).
+	Face *faceRef `json:"face,omitempty"`
 }
 
 // endCardWords are the end card's words, contacts, colour and logo: marketflow-ai composes them
@@ -309,6 +325,7 @@ func (r *Renderer) startStoryboard(ctx context.Context, v *ent.CreativeVersion) 
 			}
 		}
 	}
+	r.chooseFace(ctx, v, meta, &call)
 	r.startJob(ctx, v, meta, "/api/v1/internal/creative/storyboard", call)
 }
 
@@ -404,7 +421,13 @@ func (r *Renderer) settleStoryboard(ctx context.Context, v *ent.CreativeVersion,
 		if err != nil {
 			return err
 		}
-		if sb.Actor != nil && sb.Actor.URL != "" {
+		// A consent that ended while the storyboard was drawn: the actor is not kept for other
+		// videos, the gates refuse this one, and the hourly sweep deletes the files (faces.go).
+		agreed := sb.Actor == nil || sb.Actor.FaceID == ""
+		if !agreed {
+			_, agreed = liveFace(ctx, r.db, v.TenantID, sb.Actor.FaceID, r.nowFn)
+		}
+		if sb.Actor != nil && sb.Actor.URL != "" && agreed {
 			r.keepActor(ctx, v.BriefID, sb.Actor, redraw)
 		}
 		if settled {

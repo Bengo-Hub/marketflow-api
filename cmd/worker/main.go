@@ -411,7 +411,9 @@ func main() {
 					notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
 					cfg.PlatformTenant, "marketflow-worker").WithRich(rdb, waRichCfg).WithTemplates(waTplCfg, logger), logger)).
 			WithAutopilot(autopilotPipeline).Run(ctx)
-		go creative.NewPurger(entClient, mediaStore, logger).Run(ctx)
+		purger := creative.NewPurger(entClient, mediaStore, logger)
+		faces := brandimages.NewService(entClient, mediaStore, brandImagesCfg, logger).WithFaceEnded(purger.EndFace)
+		go purger.WithFaceSweep(faces.SweepFaces).Run(ctx)
 		// Archived funnels past their tenant's window are deleted for good; the check interval is
 		// the platform service-config funnels.purge_interval (hourly when unset).
 		go funnels.NewService(entClient, logger).RunPurge(ctx,

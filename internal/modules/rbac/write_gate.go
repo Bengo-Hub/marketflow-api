@@ -25,6 +25,8 @@ var adminWritePrefixes = []string{
 	"/integrations", "/agents/team", "/custom-fields/defs",
 	// The Autopilot terms and the veto-window hold categories are autopilot settings.
 	"/agents/autopilot/auto-publish",
+	// Recording that a person agreed to be a brand face (owner approved 2026-11-24).
+	"/tenant/brand-faces",
 }
 
 var (

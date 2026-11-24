@@ -168,6 +168,8 @@ type Service struct {
 	// Website imports (siteimport.go): the tenant's own sites and the public-only client.
 	siteLookup SiteLookup
 	web        *http.Client
+	// faceEnded purges what was made from a face whose consent ended (faces.go).
+	faceEnded func(ctx context.Context, tenantID uuid.UUID, faceID string) error
 }
 
 // NewService builds the service and registers the media type with the configured size limit. A nil
@@ -352,6 +354,7 @@ func (s *Service) Delete(ctx context.Context, tenantID uuid.UUID, id string) err
 	if err != nil {
 		return fmt.Errorf("remove brand image: %w", err)
 	}
+	s.endFacesAfter(ctx, tenantID, id)
 	// Hard delete (owner, 2026-11-14): the stored file goes too. A failed delete is recorded and
 	// retried by the daily sweep, so the file never stays in storage.
 	if s.store.Enabled() {

@@ -145,6 +145,9 @@ func (s *Service) SetKind(ctx context.Context, tenantID uuid.UUID, id string, u 
 		if n == 0 {
 			return View{}, ErrFull
 		}
+		if img.Kind != KindPhoto {
+			s.endFacesAfter(ctx, tenantID, img.ID)
+		}
 		return s.view(img), nil
 	}
 	return View{}, ErrNotFound

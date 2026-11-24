@@ -462,7 +462,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	if err != nil {
 		logger.Warn("object storage unavailable; brand image uploads off", zap.Error(err))
 	}
-	brandImagesSvc := brandimages.NewService(entClient, mediaStore, brandImagesCfg, logger)
+	brandImagesSvc := brandimages.NewService(entClient, mediaStore, brandImagesCfg, logger).
+		WithFaceEnded(creative.NewPurger(entClient, mediaStore, logger).EndFace)
 	// Website pictures first (owner, 2026-11-14): a business that already shows itself on its own
 	// site (auth-api website and storefront) gets those pictures linked; it uploads only the rest.
 	if tenantSyncer != nil {
@@ -1081,6 +1082,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Delete:     brandImagesHandler.Delete,
 			Update:     brandImagesHandler.Update,
 			ImportSite: brandImagesHandler.ImportSite,
+
+			ListFaces: brandImagesHandler.ListFaces, SwitchFaces: brandImagesHandler.SwitchFaces,
+			AddFace: brandImagesHandler.AddFace, RemoveFace: brandImagesHandler.RemoveFace,
 		},
 		MarketingOSHandlers: httpapi.MarketingOSHandlers{
 			GetBrandContext:   marketingOSHandler.GetBrandContext,
