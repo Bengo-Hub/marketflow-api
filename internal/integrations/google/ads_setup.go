@@ -210,7 +210,7 @@ type AssetCount struct {
 // AssetCounts counts the sitelinks, calls and callouts on the account and on each campaign.
 func (a Ads) AssetCounts(ctx context.Context, customerID string) (AssetCount, error) {
 	out := AssetCount{Account: map[string]int{}, Campaigns: map[string]map[string]int{}}
-	rows, err := a.search(ctx, customerID, "SELECT customer_asset.field_type FROM customer_asset "+
+	rows, err := a.search(ctx, customerID, "SELECT customer_asset.field_type, customer_asset.status FROM customer_asset "+
 		"WHERE customer_asset.status = 'ENABLED' AND customer_asset.field_type IN ('SITELINK','CALL','CALLOUT')")
 	if err != nil {
 		return out, err
@@ -218,7 +218,7 @@ func (a Ads) AssetCounts(ctx context.Context, customerID string) (AssetCount, er
 	for _, r := range rows {
 		out.Account[text(obj(r, "customerAsset"), "fieldType")]++
 	}
-	rows, err = a.search(ctx, customerID, "SELECT campaign.id, campaign_asset.field_type FROM campaign_asset "+
+	rows, err = a.search(ctx, customerID, "SELECT campaign.id, campaign.status, campaign_asset.field_type, campaign_asset.status FROM campaign_asset "+
 		"WHERE campaign.status = 'ENABLED' AND campaign_asset.status = 'ENABLED' AND campaign_asset.field_type IN ('SITELINK','CALL','CALLOUT')")
 	if err != nil {
 		return out, err
