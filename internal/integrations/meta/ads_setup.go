@@ -70,7 +70,25 @@ func (c *Client) DatasetQuality(ctx context.Context, token, datasetID string) ([
 	return out, nil
 }
 
-// PromotePages lists the ids of the Pages this ad account may advertise.
+// PageTasks returns what the connected login may do on each Page it granted, by Page id
+// (ADVERTISE, MANAGE, CREATE_CONTENT and so on).
+func (c *Client) PageTasks(ctx context.Context, token string) (map[string][]string, error) {
+	rows, err := listOf[struct {
+		ID    string   `json:"id"`
+		Tasks []string `json:"tasks"`
+	}](ctx, c, token, "/me/accounts", "id,tasks")
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string][]string, len(rows))
+	for _, r := range rows {
+		out[r.ID] = r.Tasks
+	}
+	return out, nil
+}
+
+// PromotePages lists the ids of the Pages this ad account may advertise. A Page missing from it
+// is not proof it cannot be advertised (seen live 2026-11-25 with full Page access).
 func (c *Client) PromotePages(ctx context.Context, token, actID string) ([]string, error) {
 	rows, err := listOf[struct {
 		ID string `json:"id"`

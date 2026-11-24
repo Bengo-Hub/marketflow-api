@@ -64,12 +64,15 @@ func metaChecklist(ctx context.Context, in metaInput) []Item {
 		ads                                        []meta.ProblemAd
 		quality                                    []meta.MatchQuality
 		eAcc, ePix, ePromote, eDom, eAds, eQuality error
+		tasks                                      map[string][]string
+		eTasks                                     error
 	)
 	c, cfg := in.Client, in.Cfg
 	together(
 		func() { acc, eAcc = c.AdAccountHealth(ctx, in.Token, in.ActID) },
 		func() { pixels, ePix = c.Pixels(ctx, in.Token, in.ActID) },
 		func() { promote, ePromote = c.PromotePages(ctx, in.Token, in.ActID) },
+		func() { tasks, eTasks = c.PageTasks(ctx, in.Token) },
 		func() { bizID, domains, eDom = c.BusinessDomains(ctx, in.Token, in.ActID) },
 		func() { ads, eAds = c.ProblemAds(ctx, in.Token, in.ActID) },
 		func() {
@@ -85,7 +88,7 @@ func metaChecklist(ctx context.Context, in metaInput) []Item {
 		items = append(items, in.accountItem(acc), in.fundingItem(acc), in.capItem(acc))
 	}
 	items = append(items, in.pixelItem(pixels, ePix), in.capiItem(pixels, ePix, quality, eQuality))
-	items = append(items, in.pageLinkItem(promote, ePromote))
+	items = append(items, in.pageLinkItem(promote, ePromote, tasks, eTasks))
 	pageItems := make([][]Item, len(in.Pages))
 	reads := make([]func(), len(in.Pages))
 	for i, p := range in.Pages {
@@ -260,7 +263,7 @@ func (in metaInput) capiItem(pixels []meta.Pixel, ePix error, quality []meta.Mat
 	return it
 }
 
-func (in metaInput) pageLinkItem(promote []string, err error) Item {
+func (in metaInput) pageLinkItem(promote []string, err error, tasks map[string][]string, tasksErr error) Item {
 	it := Item{Key: "meta.page", Title: "Facebook Page linked"}
 	l := in.Cfg.link("meta_pages", "Open Page settings", in.ActID)
 	if len(in.Pages) == 0 {
@@ -280,8 +283,30 @@ func (in metaInput) pageLinkItem(promote []string, err error) Item {
 			return it
 		}
 	}
-	it.Status, it.Link = StatusAction, l
-	it.Detail = "This ad account cannot advertise your connected Page. In Meta Business settings give the same person access to both the Page and the ad account."
+	// Meta's list for the ad account leaves out Pages it can in fact advertise, so a missing Page is
+	// judged by what the connected login may do on it.
+	it.Link = l
+	if tasksErr != nil {
+		it.Status = StatusUnknown
+		it.Detail = "Meta's list for this ad account does not name your Page, and Meta did not say what your login may do on it. A small test ad shows whether it works."
+		return it
+	}
+	for _, p := range in.Pages {
+		for _, task := range tasks[p.ID] {
+			if task == "ADVERTISE" {
+				it.Status = StatusInfo
+				it.Detail = "Your Facebook login may advertise \"" + p.Name + "\". Meta's own list for this ad account does not name the Page yet; a small test ad confirms it works."
+				return it
+			}
+		}
+	}
+	it.Status = StatusAction
+	it.Detail = "The Facebook login connected to MarketFlow may not advertise your Page."
+	it.Points = []string{
+		"Meta Business settings, Accounts, Pages: choose your Page, Assign people, pick the person who connected MarketFlow and turn on Ads.",
+		"Accounts, Ad accounts: choose this ad account, Assign people, and give the same person Manage campaigns.",
+		"In MarketFlow, Settings, Integrations: connect Meta again and tick this Page and this ad account.",
+	}
 	return it
 }
 
