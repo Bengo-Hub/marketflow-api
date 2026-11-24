@@ -262,6 +262,11 @@ func (h *Handler) BuildPlan(ctx context.Context, tid, vid uuid.UUID, ch Choice) 
 		case runads.TikTok:
 			h.planTikTok(ctx, tid, pc, &pp, &in, own, cur)
 		}
+		// A platform still to be set up is left out unless the owner switches it on, so a business
+		// with one connected platform can confirm its plan; its to-dos stay in the plan.
+		if len(pp.Setup) > 0 && c.Enabled == nil {
+			pp.Enabled = false
+		}
 		if pp.Daily <= 0 && pp.Enabled {
 			pp.Blockers = append(pp.Blockers, "choose a daily budget")
 		}
@@ -294,14 +299,15 @@ func (h *Handler) BuildPlan(ctx context.Context, tid, vid uuid.UUID, ch Choice) 
 	if h.Codes != nil {
 		plan.OTPRequired = h.otpNeeded(ctx, h.boostOTPThreshold(ctx, tid), plan.Total, cur)
 	}
-	plan.Fingerprint = planFingerprint(plan)
+	plan.Fingerprint = planFingerprint(plan, endedRuns(v.Metadata, h.RunAds.now()))
 	return plan, pc, nil
 }
 
 // planFingerprint binds a confirmation to what the owner saw: the video, the days, the cap and,
-// for every platform on, its account, amounts and mode.
-func planFingerprint(p *RunPlan) string {
-	parts := []string{p.VersionID, strconv.Itoa(p.Days), strconv.FormatInt(p.TotalCap, 10), p.Currency}
+// for every platform on, its account, amounts and mode. ended counts the video's runs that are
+// over, so the same plan can be confirmed again later as a new run.
+func planFingerprint(p *RunPlan, ended int) string {
+	parts := []string{p.VersionID, strconv.Itoa(ended), strconv.Itoa(p.Days), strconv.FormatInt(p.TotalCap, 10), p.Currency}
 	for _, pp := range p.Platforms {
 		if !pp.Enabled {
 			continue
@@ -314,6 +320,18 @@ func planFingerprint(p *RunPlan) string {
 	}
 	sum := sha256.Sum256([]byte(strings.Join(parts, "|")))
 	return hex.EncodeToString(sum[:])[:32]
+}
+
+// endedRuns counts the runs in metadata.ad_runs whose end has passed.
+func endedRuns(meta map[string]any, now time.Time) int {
+	n := 0
+	for fp := range nested(meta, "ad_runs") {
+		end, err := time.Parse(time.RFC3339, str(nested(nested(meta, "ad_runs"), fp)["ends_at"]))
+		if err == nil && end.Before(now) {
+			n++
+		}
+	}
+	return n
 }
 
 // --- currency ---
@@ -446,7 +464,7 @@ var metaGoals = map[string]struct{ goal, metric string }{
 func (h *Handler) planMeta(ctx context.Context, tid uuid.UUID, pc *planCtx, pp *PlatformPlan, in *runads.TierInput, own int64) {
 	pp.Mode = "automatic"
 	if h.Enabled != nil && !h.Enabled(ctx) {
-		pp.Blockers = append(pp.Blockers, "paid Meta ads are not switched on for MarketFlow yet")
+		pp.Setup = append(pp.Setup, PlanStep{Label: "Paid Meta ads are not switched on for MarketFlow yet"})
 	}
 	d := h.waBoostDefaults(ctx, tid)
 	accs, _ := h.DB.ConnectedAccount.Query().
@@ -593,8 +611,8 @@ func (h *Handler) planTikTok(ctx context.Context, tid uuid.UUID, pc *planCtx, pp
 	}
 	pp.Steps = append(pp.Steps,
 		PlanStep{Label: "Download the approved video", Path: "/studio"},
-		PlanStep{Label: fmt.Sprintf("Create a campaign with a daily budget of %s %d, scheduled %s to %s, and upload the video",
-			accCur, pp.AccountDaily, start.Format("2 Jan"), end.Format("2 Jan 2006")), URL: s.TikTokLink("campaign", adv)},
+		PlanStep{Label: fmt.Sprintf("Create a campaign; in the ad group set a lifetime budget of %s %d (not a daily one, so the total holds), scheduled %s to %s, and upload the video",
+			accCur, pp.AccountTotal, start.Format("2 Jan"), end.Format("2 Jan 2006")), URL: s.TikTokLink("campaign", adv)},
 		PlanStep{Label: fmt.Sprintf("Add at least %s %d on TikTok's payment page", accCur, pp.AccountTotal), URL: s.TikTokLink("payment", adv)},
 	)
 }

@@ -135,7 +135,7 @@ func (h *Handler) planGoogle(ctx context.Context, tid uuid.UUID, pc *planCtx, pp
 		ads, err := h.googleCaller(ctx, acc)
 		switch {
 		case errors.Is(err, errGoogleOff):
-			pp.Blockers = append(pp.Blockers, "Google Ads is not configured on MarketFlow yet")
+			pp.Setup = append(pp.Setup, PlanStep{Label: "Google Ads is not configured on MarketFlow yet"})
 		case err != nil:
 			pp.Blockers = append(pp.Blockers, "Google ended this connection or did not renew it; connect Google Ads again")
 		default:
@@ -180,9 +180,9 @@ func (h *Handler) planGoogle(ctx context.Context, tid uuid.UUID, pc *planCtx, pp
 		pp.AccountDaily, pp.AccountTotal = d, d*int64(pp.Days)
 	}
 	if pc.settings.GoogleTotal {
-		pp.Notes = append(pp.Notes, "Google spends this as a campaign total over the run.")
+		pp.Notes = append(pp.Notes, "Google gets the total for the whole run as its budget and paces it over the days.")
 	} else {
-		pp.Notes = append(pp.Notes, "Google may spend up to twice the daily budget on a busy day and less on others; it never charges more than the daily budget times the days the campaign runs in a month.")
+		pp.Notes = append(pp.Notes, "Google may spend up to twice the daily budget on any day, so a short run can cost more than the total shown.")
 	}
 }
 
@@ -366,7 +366,12 @@ func (h *Handler) launchGoogle(ctx context.Context, tid uuid.UUID, pc *planCtx, 
 		res.Status, res.Message = "failed", msg
 		return res
 	}
-	if rn, err := gt.ads.FindCampaign(ctx, gt.customer, name); err == nil && rn != "" {
+	rn, err := gt.ads.FindCampaign(ctx, gt.customer, name)
+	if err != nil {
+		// Without this answer a create could be a second campaign.
+		return fail("Google Ads did not answer; try again shortly")
+	}
+	if rn != "" {
 		h.saveRunRow(ctx, row.ID, CampaignActive, map[string]any{"campaign_resource": rn, "customer_id": gt.customer, "name": name})
 		res.Status, res.External, res.Message = "created", rn, "The Google Ads campaign was already created for this plan."
 		return res
@@ -407,7 +412,7 @@ func (h *Handler) launchGoogle(ctx context.Context, tid uuid.UUID, pc *planCtx, 
 	if miss := spec.Check(); len(miss) > 0 {
 		return fail("Google needs " + strings.Join(miss, ", "))
 	}
-	rn, err := gt.ads.CreatePMax(ctx, gt.customer, spec)
+	rn, err = gt.ads.CreatePMax(ctx, gt.customer, spec)
 	if err != nil {
 		var ae *google.AdsError
 		if errors.As(err, &ae) {

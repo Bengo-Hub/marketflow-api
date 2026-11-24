@@ -180,12 +180,15 @@ func onCurve(curve []CurvePoint, spend float64) (reach, actions float64, ok bool
 		return 0, 0, false
 	}
 	sort.Slice(pts, func(i, j int) bool { return pts[i].Spend < pts[j].Spend })
-	if spend > pts[len(pts)-1].Spend {
+	if spend < pts[0].Spend || spend > pts[len(pts)-1].Spend {
 		return 0, 0, false
 	}
-	prev := CurvePoint{}
-	for _, p := range pts {
-		if spend <= p.Spend {
+	if spend == pts[0].Spend {
+		return pts[0].Reach, pts[0].Actions, true
+	}
+	prev := pts[0]
+	for _, p := range pts[1:] {
+		if spend <= p.Spend && p.Spend > prev.Spend {
 			f := (spend - prev.Spend) / (p.Spend - prev.Spend)
 			return prev.Reach + f*(p.Reach-prev.Reach), prev.Actions + f*(p.Actions-prev.Actions), true
 		}

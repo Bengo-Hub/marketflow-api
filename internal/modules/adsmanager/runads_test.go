@@ -26,6 +26,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
 	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
+	"github.com/bengobox/marketflow-api/internal/integrations/google"
 	"github.com/bengobox/marketflow-api/internal/platform/runads"
 )
 
@@ -213,6 +214,123 @@ func TestGoogleTextsFromCopyOnly(t *testing.T) {
 	}
 	if len(long) != 1 || long[0] != "Soft skin soap Made in Nairobi" || len(desc) < 2 {
 		t.Fatalf("long = %v desc = %v", long, desc)
+	}
+}
+
+// A platform still to be set up is left out of the default plan, so one ready platform can run.
+func TestRunAdsLeavesOutWhatIsNotSetUp(t *testing.T) {
+	db := runAdsDB(t)
+	tid, vid := runAdsFixture(t, db, map[string]any{"daily_budget": map[string]any{"meta": float64(1000), "google": float64(1000), "tiktok": float64(4000)}})
+	h := runAdsHandler(db)
+	plan, _, err := h.BuildPlan(context.Background(), tid, vid, Choice{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !plan.Ready || plan.Platforms[0].Enabled || plan.Platforms[1].Enabled || plan.Total != 4000*int64(plan.Days) {
+		t.Fatalf("plan = %+v", plan)
+	}
+	if !strings.Contains(PlanText(plan), "Not included yet, Google Ads") {
+		t.Fatalf("text: %s", PlanText(plan))
+	}
+	on := true
+	plan, _, _ = h.BuildPlan(context.Background(), tid, vid, Choice{Platforms: []PlatformChoice{{Platform: "google", Enabled: &on}}})
+	if plan.Ready {
+		t.Fatal("a platform the owner switched on but did not set up must block")
+	}
+}
+
+// A safe failure can be confirmed again by one caller; finished platforms are kept, and an ended
+// run gives the same plan a new fingerprint.
+func TestRunAdsPartialClaim(t *testing.T) {
+	db := runAdsDB(t)
+	tid, vid := runAdsFixture(t, db, nil)
+	h := runAdsHandler(db)
+	ctx := context.Background()
+	if ok, err := h.claimRun(ctx, tid, vid, "fp", ""); err != nil || !ok {
+		t.Fatalf("first claim %v %v", ok, err)
+	}
+	if ok, _ := h.claimRun(ctx, tid, vid, "fp", ""); ok {
+		t.Fatal("a running plan was claimed twice")
+	}
+	h.saveRun(ctx, tid, vid, "fp", map[string]any{"status": runPartial, "at": "t1", "ends_at": "2026-11-20T00:00:00Z",
+		"results": []PlatformResult{{Platform: "meta", Status: "created"}, {Platform: "google", Status: "failed"}}})
+	if _, ok := h.storedRun(ctx, tid, vid, "fp"); ok {
+		t.Fatal("a partial run must not replay as finished")
+	}
+	res, at := h.partialRun(ctx, tid, vid, "fp")
+	if at != "t1" || len(res) != 2 || res[0].retryable() || !res[1].retryable() {
+		t.Fatalf("partial = %+v %q", res, at)
+	}
+	if ok, err := h.claimRun(ctx, tid, vid, "fp", at); err != nil || !ok {
+		t.Fatalf("continue %v %v", ok, err)
+	}
+	if ok, _ := h.claimRun(ctx, tid, vid, "fp", at); ok {
+		t.Fatal("a continuation was claimed twice")
+	}
+	h.saveRun(ctx, tid, vid, "fp", map[string]any{"status": runDone, "ends_at": "2026-11-20T00:00:00Z"})
+	v := db.CreativeVersion.GetX(ctx, vid)
+	if n := endedRuns(v.Metadata, h.RunAds.now()); n != 1 {
+		t.Fatalf("ended = %d", n)
+	}
+	p := &RunPlan{VersionID: vid.String()}
+	if planFingerprint(p, 0) == planFingerprint(p, 1) {
+		t.Fatal("an ended run must allow a new one")
+	}
+}
+
+// Google end to end on fakes: a lookup that fails creates nothing; then one campaign total is
+// created; a second launch makes no second campaign.
+func TestLaunchGoogleOnce(t *testing.T) {
+	db := runAdsDB(t)
+	tid, vid := runAdsFixture(t, db, nil)
+	h := runAdsHandler(db)
+	ctx := context.Background()
+	var png bytes.Buffer
+	_ = jpeg.Encode(&png, image.NewRGBA(image.Rect(0, 0, 1300, 800)), nil)
+	creates, searchFails := 0, true
+	var sent string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, ".jpg"):
+			_, _ = w.Write(png.Bytes())
+		case strings.HasSuffix(r.URL.Path, "googleAds:search"):
+			if searchFails {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			_, _ = w.Write([]byte(`{"results":[]}`))
+		case strings.HasSuffix(r.URL.Path, "googleAds:mutate"):
+			creates++
+			b := new(bytes.Buffer)
+			_, _ = b.ReadFrom(r.Body)
+			sent = b.String()
+			_, _ = w.Write([]byte(`{"mutateOperationResponses":[{"campaignResult":{"resourceName":"customers/1/campaigns/7"}}]}`))
+		}
+	}))
+	defer srv.Close()
+	h.RunAds.Fetch = srv.Client()
+	pc := &planCtx{tenant: db.Tenant.GetX(ctx, tid), version: db.CreativeVersion.GetX(ctx, vid), settings: runads.Fallback(), cur: "KES"}
+	pc.google = &googleTarget{acc: &ent.ConnectedAccount{ID: uuid.New()}, customer: "1", timeZone: "Africa/Nairobi", youtubeIDs: []string{"yt1"},
+		finalURL: "https://soap.test", logoURL: srv.URL + "/logo.jpg", pictures: []string{srv.URL + "/p.jpg"},
+		ads: google.Ads{HTTP: srv.Client(), Base: srv.URL, Version: "v26", AccessToken: "t"}}
+	pp := PlatformPlan{Platform: runads.Google, Enabled: true, Daily: 1000, Days: 7, Total: 7000, AccountDaily: 1000, AccountTotal: 7000}
+	key := strings.Repeat("a", 32)
+	if res := h.launchGoogle(ctx, tid, pc, pp, key); res.Status != "failed" || creates != 0 {
+		t.Fatalf("lookup failure: %+v creates %d", res, creates)
+	}
+	searchFails = false
+	res := h.launchGoogle(ctx, tid, pc, pp, key)
+	if res.Status != "created" || res.External != "customers/1/campaigns/7" || creates != 1 {
+		t.Fatalf("create: %+v creates %d", res, creates)
+	}
+	if !strings.Contains(sent, `"totalAmountMicros":"7000000000"`) || !strings.Contains(sent, "CUSTOM_PERIOD") || strings.Contains(sent, `"amountMicros"`) {
+		t.Fatal("the budget must be the confirmed total")
+	}
+	if res := h.launchGoogle(ctx, tid, pc, pp, key); res.Status != "created" || creates != 1 {
+		t.Fatalf("second launch: %+v creates %d", res, creates)
+	}
+	if n := db.Campaign.Query().Where(campaign.TenantIDEQ(tid)).CountX(ctx); n != 1 {
+		t.Fatalf("%d rows", n)
 	}
 }
 

@@ -924,10 +924,9 @@ var leadResponseDefaults = []struct{ key, value, typ, desc string }{
 
 // runAdsDefaults are the platform defaults of Run ads (owner, 2026-11-24, item 64), written only
 // when missing. The rule of thumb is labelled as such wherever it is shown; its amounts are a
-// starting point a platform admin tunes, sized from the platforms' own published floors (read
-// 2026-11-24): TikTok's USD 20 a day per ad group and USD 30 best practice, Meta's conversion
-// ads at about USD 5 a day, Google's own advice of a daily budget near three times the cost of
-// one conversion.
+// starting point a platform admin tunes. TikTok's follow its published USD 20 a day per ad group
+// and USD 30 best practice (read 2026-11-24); Meta's low tier follows a third-party figure of
+// about USD 5 a day (not confirmed by Meta); Google's have no published basis.
 var runAdsDefaults = []configDefault{
 	{runads.KeyPlatforms, "meta,google,tiktok", "string", "Platforms switched on in a new Run ads plan."},
 	{runads.KeyTier, "recommended", "string", "Budget tier a new Run ads plan picks: low, recommended or high."},
@@ -942,7 +941,7 @@ var runAdsDefaults = []configDefault{
 		"json", "TikTok Ads Manager pages for the guided steps; {advertiser_id} is filled in."},
 	{runads.KeyGoogleBillingURL, runads.DefaultGoogleBillingURL, "string", "Google Ads billing page; {customer_id} is filled in where the link holds it."},
 	{runads.KeyGoogleStatus, "ENABLED", "string", "Status a Google Ads campaign is created in after the owner confirms: ENABLED or PAUSED."},
-	{runads.KeyGoogleBudgetPeriod, "daily", "string", "Google Ads budget: daily (a daily budget) or total (a campaign total over the run)."},
+	{runads.KeyGoogleBudgetMode, "total", "string", "Google Ads budget: total (a campaign total over the run, keeps the confirmed total) or daily (Google may spend twice it on any day)."},
 }
 
 // configDefault is one platform service_config row.

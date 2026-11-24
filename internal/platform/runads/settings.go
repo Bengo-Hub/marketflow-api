@@ -79,9 +79,9 @@ const (
 	KeyGoogleBillingURL = "run_ads.google_billing_url"
 	// KeyGoogleStatus: the status a new Google campaign is created in, "ENABLED" or "PAUSED".
 	KeyGoogleStatus = "run_ads.google_campaign_status"
-	// KeyGoogleBudgetPeriod: "daily" (CampaignBudget period DAILY, amount = daily budget) or
-	// "total" (CUSTOM_PERIOD with total_amount_micros = the platform total).
-	KeyGoogleBudgetPeriod = "run_ads.google_budget_period"
+	// KeyGoogleBudgetMode: "total" (CUSTOM_PERIOD with total_amount_micros = the platform total,
+	// which keeps the confirmed total) or "daily" (Google may spend twice it on any day).
+	KeyGoogleBudgetMode = "run_ads.google_budget_mode"
 )
 
 // Limits on a plan.
@@ -123,7 +123,7 @@ type Settings struct {
 // Fallback is what applies when a platform row is missing or unreadable: every platform on, the
 // recommended tier, 7 days (the default duration of Meta's boost flow), no cap, no rule of thumb
 // (the plan then asks for an amount instead of inventing one), TikTok guided, and a Google
-// campaign created ENABLED on a daily budget (the owner has confirmed the spend by then). cmd/seed
+// campaign created ENABLED on a campaign total (the owner has confirmed the spend by then). cmd/seed
 // writes the same values, plus the rule of thumb, so an admin can change them.
 func Fallback() Settings {
 	return Settings{
@@ -136,6 +136,7 @@ func Fallback() Settings {
 		TikTokLinks:    DefaultTikTokLinks(),
 		GoogleBilling:  DefaultGoogleBillingURL,
 		GoogleStatus:   "ENABLED",
+		GoogleTotal:    true,
 	}
 }
 
@@ -196,7 +197,7 @@ func Platform(ctx context.Context, db *ent.Client) Settings {
 	if v := strings.ToUpper(val(KeyGoogleStatus)); v == "ENABLED" || v == "PAUSED" {
 		s.GoogleStatus = v
 	}
-	s.GoogleTotal = strings.EqualFold(val(KeyGoogleBudgetPeriod), "total")
+	s.GoogleTotal = !strings.EqualFold(val(KeyGoogleBudgetMode), "daily")
 	return s
 }
 

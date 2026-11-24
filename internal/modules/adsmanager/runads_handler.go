@@ -200,14 +200,22 @@ func (h *Handler) run(w http.ResponseWriter, r *http.Request, tid, vid uuid.UUID
 		httpapi.Error(w, http.StatusConflict, "not_ready", strings.Join(planProblems(plan), "; "), map[string]any{"plan": plan})
 		return RunOutcome{}, 0, false
 	}
-	// The agent ceiling for what Meta's boost does not check itself (it checks its own budget).
-	var rest int64
-	for _, pp := range plan.Platforms {
-		if pp.Enabled && pp.Platform != runads.Meta {
-			rest += pp.Total
+	// What an earlier try of this plan already did is kept; only what is left counts and runs.
+	prevResults, prevAt := h.partialRun(ctx, tid, vid, plan.Fingerprint)
+	done := map[string]PlatformResult{}
+	for _, x := range prevResults {
+		if !x.retryable() {
+			done[x.Platform] = x
 		}
 	}
-	if rest > 0 && !h.withinAgentCeiling(w, r, tid, vid, rest) {
+	var left int64
+	for _, pp := range plan.Platforms {
+		if _, ok := done[pp.Platform]; pp.Enabled && !ok {
+			left += pp.Total
+		}
+	}
+	// The agent ceiling on everything about to run together; Meta's boost checks its own again.
+	if left > 0 && !h.withinAgentCeiling(w, r, tid, vid, left) {
 		return RunOutcome{}, 0, false
 	}
 	if plan.OTPRequired {
@@ -230,7 +238,7 @@ func (h *Handler) run(w http.ResponseWriter, r *http.Request, tid, vid uuid.UUID
 			return RunOutcome{}, 0, false
 		}
 	}
-	claimed, err := h.claimRun(ctx, tid, vid, plan.Fingerprint)
+	claimed, err := h.claimRun(ctx, tid, vid, plan.Fingerprint, prevAt)
 	if err != nil {
 		h.fail(w, err)
 		return RunOutcome{}, 0, false
@@ -243,10 +251,17 @@ func (h *Handler) run(w http.ResponseWriter, r *http.Request, tid, vid uuid.UUID
 		httpapi.Error(w, http.StatusConflict, "run_in_progress", "this plan is already being run; check the campaigns in a minute", nil)
 		return RunOutcome{}, 0, false
 	}
+	// The confirmed run finishes and is recorded even when the browser goes away.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Minute)
+	defer cancel()
 	ctx = context.WithValue(ctx, runConfirmedKey{}, true)
 	out := RunOutcome{Plan: plan, Results: []PlatformResult{}}
 	for _, pp := range plan.Platforms {
 		if !pp.Enabled {
+			continue
+		}
+		if x, ok := done[pp.Platform]; ok {
+			out.Results = append(out.Results, x)
 			continue
 		}
 		switch pp.Platform {
@@ -259,8 +274,15 @@ func (h *Handler) run(w http.ResponseWriter, r *http.Request, tid, vid uuid.UUID
 		}
 	}
 	out.Text = ResultText(out.Results)
-	h.saveRun(ctx, tid, vid, plan.Fingerprint, map[string]any{"status": "done", "at": h.RunAds.now().UTC().Format(time.RFC3339),
-		"results": out.Results})
+	status := runDone
+	for _, x := range out.Results {
+		if x.retryable() {
+			status = runPartial
+		}
+	}
+	now := h.RunAds.now().UTC()
+	h.saveRun(ctx, tid, vid, plan.Fingerprint, map[string]any{"status": status, "at": now.Format(time.RFC3339Nano),
+		"ends_at": now.AddDate(0, 0, plan.Days).Format(time.RFC3339), "results": out.Results})
 	return out, http.StatusCreated, true
 }
 
@@ -321,6 +343,12 @@ func (h *Handler) runMeta(ctx context.Context, r *http.Request, tid uuid.UUID, p
 	}
 	res.Status = "failed"
 	res.Message = firstNonEmpty(str(reply["error"]), "Meta did not take the boost")
+	// Boost refuses (4xx, 503) before anything is created. Any other answer may have left a boost
+	// behind, so it is never tried again by itself.
+	if rec.code >= http.StatusInternalServerError && rec.code != http.StatusServiceUnavailable {
+		res.Status = "unknown"
+		res.Message = "The Meta boost may or may not have been created; check Campaigns before boosting again."
+	}
 	return res
 }
 
@@ -396,15 +424,47 @@ func adRunsPatch(fp string, v map[string]any) entsql.Querier {
 	})
 }
 
-// claimRun marks the plan as running on the video unless it already is (one run per plan).
-func (h *Handler) claimRun(ctx context.Context, tid, vid uuid.UUID, fp string) (bool, error) {
-	value := adRunsPatch(fp, map[string]any{"status": "running", "at": h.RunAds.now().UTC().Format(time.RFC3339)})
+// Run record statuses. A partial run had a platform that failed safely; confirming the plan again
+// runs only that platform.
+const (
+	runDone    = "done"
+	runPartial = "partial"
+)
+
+// retryable says a platform failed in a way that spent and created nothing.
+func (r PlatformResult) retryable() bool { return r.Status == "failed" }
+
+// partialRun is an earlier try of the plan that can be continued: its results and its time stamp.
+func (h *Handler) partialRun(ctx context.Context, tid, vid uuid.UUID, fp string) ([]PlatformResult, string) {
+	v, err := h.DB.CreativeVersion.Query().Where(creativeversion.IDEQ(vid), creativeversion.TenantIDEQ(tid)).Only(ctx)
+	if err != nil {
+		return nil, ""
+	}
+	rec := nested(nested(v.Metadata, "ad_runs"), fp)
+	if str(rec["status"]) != runPartial {
+		return nil, ""
+	}
+	b, _ := json.Marshal(rec["results"])
+	var out []PlatformResult
+	_ = json.Unmarshal(b, &out)
+	return out, str(rec["at"])
+}
+
+// claimRun marks the plan as running on the video: the first confirm, or the continuation of the
+// partial run stamped prevAt. Only one caller wins.
+func (h *Handler) claimRun(ctx context.Context, tid, vid uuid.UUID, fp, prevAt string) (bool, error) {
+	value := adRunsPatch(fp, map[string]any{"status": "running", "at": h.RunAds.now().UTC().Format(time.RFC3339Nano)})
 	n, err := h.DB.CreativeVersion.Update().
 		Where(creativeversion.IDEQ(vid), creativeversion.TenantIDEQ(tid), func(s *entsql.Selector) {
 			s.Where(entsql.P(func(b *entsql.Builder) {
-				b.WriteString("NOT jsonb_exists(COALESCE(" + s.C(creativeversion.FieldMetadata) + "->'ad_runs', '{}'::jsonb), ")
-				b.Arg(fp)
-				b.WriteString(")")
+				col := s.C(creativeversion.FieldMetadata)
+				if prevAt == "" {
+					b.WriteString("NOT jsonb_exists(COALESCE(" + col + "->'ad_runs', '{}'::jsonb), ").Arg(fp).WriteString(")")
+					return
+				}
+				b.WriteString("COALESCE(" + col + "->'ad_runs', '{}'::jsonb) @> ")
+				want, _ := json.Marshal(map[string]any{fp: map[string]any{"status": runPartial, "at": prevAt}})
+				b.Arg(string(want)).WriteString("::jsonb")
 			}))
 		}).
 		Modify(func(u *entsql.UpdateBuilder) { u.Set(creativeversion.FieldMetadata, value) }).Save(ctx)
@@ -571,6 +631,11 @@ func PlanText(p *RunPlan) string {
 		}
 		for _, x := range pp.Blockers {
 			b.WriteString("\n  Cannot run yet: " + x)
+		}
+	}
+	for _, pp := range p.Platforms {
+		if !pp.Enabled && len(pp.Setup) > 0 {
+			fmt.Fprintf(&b, "\n\nNot included yet, %s: %s", platformName(pp.Platform), pp.Setup[0].Label)
 		}
 	}
 	for _, x := range p.Blockers {
