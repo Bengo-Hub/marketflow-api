@@ -12,12 +12,14 @@ func TestApplySceneSettingsChangesOnlyMovedScenes(t *testing.T) {
 		{ID: "s3", Shot: "owner_footage"},
 		{ID: "s4", Shot: "end_card", Setting: "a family home"},
 	}
-	changed, keep := applySceneSettings(scenes, map[string]string{
-		"s1": "a bright learning room, Kisumu CBD", "s2": "Oginga-Odinga Road with matatus passing", "s3": "anywhere"})
+	changed, keep := applySceneSettings(scenes, map[string]placed{
+		"s1": {Setting: "a bright learning room, Kisumu CBD", Visual: "should not apply"},
+		"s2": {Setting: "Oginga-Odinga Road with matatus passing", Visual: "A mother and son walk past matatus."},
+		"s3": {Setting: "anywhere"}})
 	if changed != 1 || !reflect.DeepEqual(keep, []string{"s1", "s3", "s4"}) {
 		t.Fatalf("changed %d keep %v", changed, keep)
 	}
-	if scenes[1].Setting != "Oginga-Odinga Road with matatus passing" || scenes[0].Voiceover != "Hi" || scenes[2].Setting != "" {
+	if scenes[1].Setting != "Oginga-Odinga Road with matatus passing" || scenes[1].Visual != "A mother and son walk past matatus." || scenes[0].Visual != "" || scenes[0].Voiceover != "Hi" || scenes[2].Setting != "" {
 		t.Fatalf("scenes %+v", scenes)
 	}
 }

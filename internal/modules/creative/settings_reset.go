@@ -78,15 +78,16 @@ func (r *Renderer) ResetSettings(ctx context.Context, v *ent.CreativeVersion) (*
 		Scenes []struct {
 			ID      string `json:"id"`
 			Setting string `json:"setting"`
+			Visual  string `json:"visual"`
 		} `json:"scenes"`
 		SettingBrief map[string]any `json:"setting_brief"`
 	}
 	if json.Unmarshal(data, &reply) != nil {
 		return nil, 0, errors.New("marketflow-ai sent unreadable settings")
 	}
-	settings := map[string]string{}
+	settings := map[string]placed{}
 	for _, s := range reply.Scenes {
-		settings[s.ID] = s.Setting
+		settings[s.ID] = placed{Setting: s.Setting, Visual: s.Visual}
 	}
 	changed, keep := applySceneSettings(script.Scenes, settings)
 	copyFields := copyMap(v.Copy)
@@ -109,17 +110,25 @@ func (r *Renderer) ResetSettings(ctx context.Context, v *ent.CreativeVersion) (*
 	return out, changed, err
 }
 
-// applySceneSettings sets each scene's new setting (owner footage keeps none) and returns how many
-// changed and the ids of those that did not.
-func applySceneSettings(scenes []ScriptScene, settings map[string]string) (changed int, keep []string) {
+// placed is a scene's new setting and, when it moved, the visual marketflow-ai rewrote for it.
+type placed struct{ Setting, Visual string }
+
+// applySceneSettings sets each scene's new setting (owner footage keeps none) and, for a scene that
+// moved, its rewritten visual; the voiceover and caption never change. It returns how many changed
+// and the ids of those that did not.
+func applySceneSettings(scenes []ScriptScene, settings map[string]placed) (changed int, keep []string) {
 	for i := range scenes {
 		s := &scenes[i]
-		next, ok := settings[s.ID]
-		if !ok || s.Shot == "owner_footage" || strings.TrimSpace(next) == strings.TrimSpace(s.Setting) {
+		p, ok := settings[s.ID]
+		next := strings.TrimSpace(p.Setting)
+		if !ok || s.Shot == "owner_footage" || next == strings.TrimSpace(s.Setting) {
 			keep = append(keep, s.ID)
 			continue
 		}
-		s.Setting = strings.TrimSpace(next)
+		s.Setting = next
+		if v := strings.TrimSpace(p.Visual); v != "" {
+			s.Visual = v
+		}
 		changed++
 	}
 	return changed, keep
