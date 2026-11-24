@@ -702,6 +702,11 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	tenantProfileHandler.CanApprove = func(ctx context.Context, tenantID uuid.UUID) bool {
 		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
 	}
+	// Forms that feed a KES engine (the Creative Plan quote) read treasury's rate for the
+	// tenant's currency; never the configured default.
+	tenantProfileHandler.KESPer = fxRates.KESPer
+	// The settings page shows the platform's lead filter words read only (MF_LEAD_FILTER_*).
+	tenantProfileHandler.PlatformLeadFilter = func() map[string][]string { return leads.PlatformLeadFilter().ByKind() }
 	tenantMembersHandler := tenant.NewMembersHandler(rbacService, entClient, cfg.Security.AuthServiceURL, cfg.CrossService.InternalServiceKey, logger)
 	// Register MarketFlow's own SSO roles (marketflow_admin, marketflow_member) so invites can
 	// grant them; in the background, a failure only means the next start tries again.
@@ -834,6 +839,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Update: tenantProfileHandler.UpdateProfile,
 			// The business types an owner can pick, with descriptions (Sprint 7 #32).
 			BusinessTypes: tenantProfileHandler.ListBusinessTypes,
+			LeadFilter:    tenantProfileHandler.GetLeadFilter,
+			KESRate:       tenantProfileHandler.GetKESRate,
 		},
 		TenantMemberHandlers: httpapi.TenantMemberHandlers{
 			List:       tenantMembersHandler.ListMembers,

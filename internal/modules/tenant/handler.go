@@ -27,6 +27,11 @@ type Handler struct {
 	// ProfileCache holds the public profile responses (Sprint 7 #58); a save drops the tenant's
 	// entries. Nil when Redis is not configured.
 	ProfileCache *sharedcache.Aside
+	// KESPer is fxrate.Rates.KESPer (treasury's rate, cached or its last one), for GetKESRate.
+	KESPer func(ctx context.Context, currency string) (float64, error)
+	// PlatformLeadFilter is the platform's lead filter lists by kind (leads.PlatformLeadFilter,
+	// MF_LEAD_FILTER_*), shown read only beside the tenant's own words.
+	PlatformLeadFilter func() map[string][]string
 }
 
 func NewHandler(db *ent.Client, logger *zap.Logger) *Handler {
@@ -118,6 +123,22 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		if err := ValidateCurrencySetting(req.Metadata); err != nil {
 			httpapi.Error(w, http.StatusBadRequest, "invalid_currency", err.Error(), nil)
 			return
+		}
+		if err := ValidateLeadFilterSetting(req.Metadata); err != nil {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_lead_filter", err.Error(), nil)
+			return
+		}
+		// The lead filter decides which submissions are dropped, so only owners and admins
+		// change it. A form that sends the stored words back unchanged is not a change.
+		if v, ok := req.Metadata[LeadFilterKey]; ok {
+			if LeadFilterChanged(t.Metadata, v) {
+				if h.CanApprove != nil && !h.CanApprove(r.Context(), tenantID) {
+					httpapi.Error(w, http.StatusForbidden, "forbidden", "only the account owner or an admin can change the lead filter", nil)
+					return
+				}
+			} else {
+				delete(req.Metadata, LeadFilterKey)
+			}
 		}
 		// Owner 2026-11-14: only owners and admins change the AI label. A form that sends the
 		// stored value back unchanged is not a change.

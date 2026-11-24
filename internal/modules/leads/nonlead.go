@@ -52,6 +52,15 @@ func PlatformLeadFilter() LeadFilter {
 	return f
 }
 
+// ByKind is the lists keyed by non-lead kind, as metadata.lead_filter keys them (copies).
+func (f LeadFilter) ByKind() map[string][]string {
+	return map[string][]string{
+		NonLeadAttachment:   append([]string{}, f.Attachment...),
+		NonLeadJob:          append([]string{}, f.Job...),
+		NonLeadServiceOffer: append([]string{}, f.ServiceOffer...),
+	}
+}
+
 func splitWords(s string) []string {
 	var out []string
 	for _, w := range strings.Split(s, ",") {

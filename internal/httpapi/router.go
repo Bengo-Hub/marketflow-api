@@ -396,6 +396,10 @@ type TenantProfileHandlers struct {
 	Update http.HandlerFunc
 	// BusinessTypes lists the business types an owner can pick (Sprint 7 #32).
 	BusinessTypes http.HandlerFunc
+	// LeadFilter shows the platform's lead filter words and the tenant's own (item 61).
+	LeadFilter http.HandlerFunc
+	// KESRate is KES per unit of the tenant's currency, for forms feeding a KES engine (item 57).
+	KESRate http.HandlerFunc
 }
 
 // TenantMemberHandlers groups team member management endpoints.
@@ -963,6 +967,12 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Patch("/", deps.TenantProfileHandlers.Update)
 				if deps.TenantProfileHandlers.BusinessTypes != nil {
 					r.Get("/business-types", deps.TenantProfileHandlers.BusinessTypes)
+				}
+				if deps.TenantProfileHandlers.LeadFilter != nil {
+					r.Get("/lead-filter", deps.TenantProfileHandlers.LeadFilter)
+				}
+				if deps.TenantProfileHandlers.KESRate != nil {
+					r.Get("/kes-rate", deps.TenantProfileHandlers.KESRate)
 				}
 			})
 
