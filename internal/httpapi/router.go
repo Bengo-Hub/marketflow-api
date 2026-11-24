@@ -564,6 +564,7 @@ type CreativeHandlers struct {
 	ReviseVideoAd     http.HandlerFunc
 	QuoteVideoAd      http.HandlerFunc
 	RecomposeEndCard  http.HandlerFunc
+	ResetSettings     http.HandlerFunc
 	JobCallback       http.HandlerFunc // S2S: POST /internal/creative/jobs/{id} from marketflow-ai
 	// OSTurnEvent is S2S POST /internal/creative/os-turn/events: marketflow-ai's background
 	// make-media for a WhatsApp turn failed, and the requester is told.
@@ -1211,6 +1212,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Post("/versions/{id}/revision", deps.CreativeHandlers.ReviseVideoAd)
 					r.Get("/versions/{id}/quote", deps.CreativeHandlers.QuoteVideoAd)
 					r.Post("/versions/{id}/end-card-preview", deps.CreativeHandlers.RecomposeEndCard)
+					r.Post("/versions/{id}/settings", deps.CreativeHandlers.ResetSettings)
 					r.Post("/versions/{id}/review-link", deps.CreativeHandlers.CreateReviewLink)
 					r.Delete("/versions/{id}/review-link", deps.CreativeHandlers.RevokeReviewLinks)
 					if deps.CreativeHandlers.ListPPBApprovals != nil {

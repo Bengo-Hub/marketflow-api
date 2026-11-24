@@ -101,6 +101,10 @@ type storyboardStill struct {
 	Source  string  `json:"source"`
 	Route   string  `json:"route,omitempty"`
 	CostUSD float64 `json:"cost_usd,omitempty"`
+	// Prompt is the exact prompt a generated still was drawn from; Reused marks one kept from the
+	// previous storyboard (settings_reset.go).
+	Prompt string `json:"prompt,omitempty"`
+	Reused bool   `json:"reused,omitempty"`
 }
 
 // jobKinds are the version kinds made by media jobs.

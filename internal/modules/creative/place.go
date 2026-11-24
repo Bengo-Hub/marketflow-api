@@ -58,6 +58,12 @@ type placeFacts struct {
 	Pages         []placePage `json:"pages,omitempty"`
 	Pictures      []string    `json:"pictures,omitempty"`
 	Research      string      `json:"research,omitempty"`
+	// BusinessType is the tenant's business type, for interiors that fit what it really does.
+	BusinessType string `json:"business_type,omitempty"`
+	// Area is the landmark registry's entry for the address (landmarks.go); LookupNearby lets
+	// marketflow-ai look up the landmarks near the address on the web (cached per tenant).
+	Area         *placeArea `json:"area,omitempty"`
+	LookupNearby bool       `json:"lookup_nearby"`
 }
 
 type placePage struct {
@@ -180,6 +186,10 @@ func (r *Renderer) resolvePlace(ctx context.Context, tenantID uuid.UUID, offerin
 	}
 	if pages {
 		f.Pages = r.readPages(ctx, tenantID, website, str(offering["url"]), facts.SiteText)
+		// Only the script writes settings, so only it reads the landmarks.
+		f.BusinessType = strings.TrimSpace(t.BusinessType)
+		f.Area = areaFor(svcconfig.Value(ctx, r.db, tenantID, LandmarksKey), f.Address, f.City)
+		f.LookupNearby = f.Address != "" && svcconfigOr(ctx, r.db, tenantID, LandmarkLookupKey, "true") != "false"
 	}
 	out.Contacts = contactsFor(svcconfigOr(ctx, r.db, tenantID, CTAContactsKey, DefaultCTAContacts), t, facts, str(offering["url"]), website)
 	return out

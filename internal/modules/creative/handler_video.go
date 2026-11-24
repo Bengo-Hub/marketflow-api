@@ -247,3 +247,56 @@ func (h *Handler) RecomposeEndCardPreview(w http.ResponseWriter, r *http.Request
 	}
 	httpapi.JSON(w, http.StatusOK, v)
 }
+
+// ResetSettings handles POST /api/v1/creative/versions/{id}/settings: the script's scenes placed
+// again from a fresh setting brief (current address, landmarks and pictures) without rewriting
+// the script. When any setting changed and the version had a storyboard, a new storyboard is
+// queued that keeps the stills of unchanged scenes, so only the moved scenes are drawn. The plan
+// then waits for the owner's approval again.
+// @Summary Place a video ad's scenes again
+// @Tags Creative
+// @Produce json
+// @Param X-Tenant-ID header string true "Tenant UUID"
+// @Param id path string true "Video ad version UUID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 409 {object} httpapi.ErrorResponse
+// @Failure 503 {object} httpapi.ErrorResponse
+// @Security bearerAuth
+// @Router /creative/versions/{id}/settings [post]
+func (h *Handler) ResetSettings(w http.ResponseWriter, r *http.Request) {
+	tid, ok := tenantOf(w, r)
+	if !ok {
+		return
+	}
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	if h.jobs == nil {
+		httpapi.Error(w, http.StatusServiceUnavailable, "unavailable", "video is not available right now", nil)
+		return
+	}
+	v, err := h.svc.version(r.Context(), tid, id)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	_, hadBoard := v.Metadata["storyboard"].(map[string]any)
+	v, changed, err := h.jobs.ResetSettings(r.Context(), v)
+	if err != nil {
+		if errors.Is(err, ErrConflict) {
+			h.fail(w, err)
+			return
+		}
+		h.logger.Warn("settings not placed again", zap.String("version_id", id.String()), zap.Error(err))
+		httpapi.Error(w, http.StatusServiceUnavailable, "settings_unavailable", "the scenes could not be placed again right now", nil)
+		return
+	}
+	if changed > 0 && hadBoard {
+		if v, err = h.svc.MakeStoryboardWith(r.Context(), tid, id, StoryboardOptions{KeepUnchanged: true}); err != nil {
+			h.fail(w, err)
+			return
+		}
+	}
+	httpapi.JSON(w, http.StatusOK, map[string]any{"version": v, "changed": changed})
+}

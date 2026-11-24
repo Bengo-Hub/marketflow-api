@@ -42,6 +42,9 @@ type StoryboardOptions struct {
 	// describes the new actor; empty keeps the existing description.
 	RedrawActor bool   `json:"redraw_actor"`
 	ActorPrompt string `json:"actor_prompt"`
+	// KeepUnchanged reuses the stills of scenes that did not change (settings_reset.go), so only
+	// the changed scenes are drawn and paid for.
+	KeepUnchanged bool `json:"keep_unchanged"`
 }
 
 // MakeStoryboard queues the storyboard of a script waiting for review.
@@ -80,6 +83,10 @@ func (s *Service) MakeStoryboardWith(ctx context.Context, tenantID, id uuid.UUID
 	// A new storyboard is a new plan to approve.
 	delete(meta, metaGenerationPlan)
 	delete(meta, metaRedrawActor)
+	delete(meta, metaKeepUnchanged)
+	if opt.KeepUnchanged {
+		meta[metaKeepUnchanged] = true
+	}
 	if opt.RedrawActor {
 		meta[metaRedrawActor] = true
 		if opt.ActorPrompt != "" {
@@ -234,6 +241,8 @@ type storyboardCall struct {
 	Brand string `json:"brand,omitempty"`
 	Place string `json:"place,omitempty"`
 	endCardWords
+	// PreviousStills are the stills a keep_unchanged storyboard may reuse (settings_reset.go).
+	PreviousStills []storyboardStill `json:"previous_stills,omitempty"`
 }
 
 // endCardWords are the end card's words, contacts, colour and logo: marketflow-ai composes them
@@ -277,6 +286,7 @@ func (r *Renderer) startStoryboard(ctx context.Context, v *ent.CreativeVersion) 
 		Scenes: script.Scenes, PhotoURLs: photos, PhotoInfo: info, Charge: true, Delivery: str(meta["delivery"]),
 		// The owner's description wins; the script writer's one-line actor is the fallback.
 		ActorPrompt: excerpt(firstNonEmpty(str(meta["actor_prompt"]), script.Actor), 300)}
+	call.PreviousStills = previousStills(meta)
 	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
 		place := r.resolvePlace(ctx, v.TenantID, b.Offering, false)
 		call.Brand, call.Place = place.Brand, place.Line()
@@ -339,6 +349,8 @@ func (r *Renderer) settleStoryboard(ctx context.Context, v *ent.CreativeVersion,
 		delete(meta, metaGenerationPlan)
 		redraw, _ := meta[metaRedrawActor].(bool)
 		delete(meta, metaRedrawActor)
+		delete(meta, metaKeepUnchanged)
+		delete(meta, metaKeepScenes)
 		// The storyboard job is over: its start time and attempts must not carry into the render.
 		delete(meta, "job_started_at")
 		delete(meta, "attempts")
@@ -353,7 +365,8 @@ func (r *Renderer) settleStoryboard(ctx context.Context, v *ent.CreativeVersion,
 			}
 			settled = true
 			for _, st := range sb.Stills {
-				if st.Key == "" || st.Source != "generated" {
+				// A reused still was recorded with the storyboard that drew it.
+				if st.Key == "" || st.Source != "generated" || st.Reused {
 					continue
 				}
 				if err := r.recordAsset(ctx, tx, v, AssetKeyframe, st.Key, st.URL, map[string]any{"scene_id": st.SceneID}); err != nil {
