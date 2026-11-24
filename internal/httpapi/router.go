@@ -138,6 +138,7 @@ type RouterDeps struct {
 	PublishingHandlers  PublishingHandlers
 	InboxHandlers       InboxHandlers
 	AdsHandlers         AdsHandlers
+	AdsSetupHandlers    AdsSetupHandlers
 	SuggestionHandlers  SuggestionHandlers
 	SegmentHandlers     SegmentHandlers
 
@@ -599,6 +600,13 @@ type CreativeHandlers struct {
 	ListPPBApprovals http.HandlerFunc // GET /creative/ppb-approvals
 	SetPPBApproval   http.HandlerFunc // PUT /creative/ppb-approvals (owner or admin)
 	BriefPPBApproval http.HandlerFunc // GET /creative/briefs/{id}/ppb-approval
+}
+
+// AdsSetupHandlers groups the ads account setup assistant's routes (plan item 65).
+type AdsSetupHandlers struct {
+	List http.HandlerFunc
+	Get  http.HandlerFunc
+	Fix  http.HandlerFunc
 }
 
 // AdsHandlers groups the paid ads routes (Sprint 18).
@@ -1306,6 +1314,15 @@ func NewRouter(deps RouterDeps) http.Handler {
 						r.Get("/google/accounts/{id}/conversion-actions", deps.AdsHandlers.GoogleConversionActions)
 						r.Put("/google/accounts/{id}/conversion-actions", deps.AdsHandlers.GoogleSetMapping)
 					}
+				})
+			}
+
+			// Ads account setup: a checklist per connected ad account and its owner-tapped fixes.
+			if deps.AdsSetupHandlers.List != nil {
+				r.Route("/ads-setup", func(r chi.Router) {
+					r.Get("/", deps.AdsSetupHandlers.List)
+					r.Get("/{id}", deps.AdsSetupHandlers.Get)
+					r.Post("/{id}/fix", deps.AdsSetupHandlers.Fix)
 				})
 			}
 

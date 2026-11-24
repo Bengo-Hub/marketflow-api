@@ -21,6 +21,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/flp"
 	"github.com/bengobox/marketflow-api/internal/platform/leadresponse"
 	"github.com/bengobox/marketflow-api/internal/platform/runads"
+	"github.com/bengobox/marketflow-api/internal/modules/adsetup"
 	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
@@ -123,6 +124,7 @@ func main() {
 	if scope == "platform" {
 		log.Printf("Lead response: %d platform defaults seeded", seedLeadResponseDefaults(ctx, client))
 		log.Printf("Run ads: %d platform defaults seeded", seedConfigDefaults(ctx, client, runAdsDefaults))
+		log.Printf("Ads setup: %d platform defaults seeded", seedConfigDefaults(ctx, client, adsSetupDefaults))
 	}
 
 	// Phase 4: Default campaign templates — starter lead-gen / recruitment /
@@ -942,6 +944,22 @@ var runAdsDefaults = []configDefault{
 	{runads.KeyGoogleBillingURL, runads.DefaultGoogleBillingURL, "string", "Google Ads billing page; {customer_id} is filled in where the link holds it."},
 	{runads.KeyGoogleStatus, "ENABLED", "string", "Status a Google Ads campaign is created in after the owner confirms: ENABLED or PAUSED."},
 	{runads.KeyGoogleBudgetMode, "total", "string", "Google Ads budget: total (a campaign total over the run, keeps the confirmed total) or daily (Google may spend twice it on any day)."},
+}
+
+// adsSetupDefaults are the platform defaults of the ads setup assistant (item 65), written only
+// when missing. The provider links stay in code until an admin adds ads_setup.links.
+var adsSetupDefaults = []configDefault{
+	{adsetup.KeyActionName, "Qualified lead (MarketFlow)", "string", "Name of the Google Ads conversion the setup assistant creates and looks for."},
+	{adsetup.KeyActionCategory, "QUALIFIED_LEAD", "string", "Google Ads category of that conversion."},
+	{adsetup.KeyActionValue, "1", "float", "Value of a lead that has none of its own, in the ad account's currency."},
+	{adsetup.KeyActionWindow, "90", "int", "Days after the click a lead still counts (1 to 90)."},
+	{adsetup.KeyMinSitelinks, "4", "int", "Sitelinks every running Google campaign should have."},
+	{adsetup.KeyMinCallouts, "2", "int", "Callouts every running Google campaign should have."},
+	{adsetup.KeyListMin, "1000", "int", "Active members a Google customer list needs for customer lifecycle goals (Google Ads help 14007601, read 2026-11-24)."},
+	{adsetup.KeyMatchMin, "6", "float", "Meta Event Match Quality to aim for (0 to 10)."},
+	{adsetup.KeyPixelQuiet, "168h", "string", "A Meta pixel with no event for this long counts as quiet."},
+	{adsetup.KeyFormQuestions, "FULL_NAME,PHONE,EMAIL", "string", "Questions on the Meta lead form the setup assistant creates."},
+	{adsetup.KeyCache, "5m", "string", "How long a setup checklist is kept before the ad account is read again."},
 }
 
 // configDefault is one platform service_config row.

@@ -21,6 +21,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/bengobox/marketflow-api/internal/integrations/google"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
+	"github.com/bengobox/marketflow-api/internal/modules/adsetup"
 	"github.com/bengobox/marketflow-api/internal/modules/googleads"
 	"github.com/nats-io/nats.go/jetstream"
 	"go.uber.org/zap"
@@ -103,6 +104,11 @@ func (h *ConversionsHandler) dispatchMetaCAPI(ctx context.Context, ev *Conversio
 	}
 	pixelID := settings["pixel_id"]
 	token := settings["access_token"]
+	if token == "" {
+		// The ads setup assistant saves the pixel and the ad account, not a token: the connection's
+		// own token is used, so a reconnect renews it.
+		token = h.metaAccountToken(ctx, ev.TenantID, settings[adsetup.CAPIAccountKey])
+	}
 	// A click-to-WhatsApp sale is matched by ctwa_clid on the WhatsApp dataset
 	// (POST /{dataset_id}/events, action_source business_messaging); a website event would not
 	// match the ad. Without the dataset it is skipped rather than sent wrongly.
@@ -160,6 +166,27 @@ func (h *ConversionsHandler) dispatchMetaCAPI(ctx context.Context, ev *Conversio
 		zap.String("event", ev.EventName),
 	)
 	return nil
+}
+
+// metaAccountToken is the token of the tenant's active Meta ad account ("" when it cannot be read).
+func (h *ConversionsHandler) metaAccountToken(ctx context.Context, tenantID, actID string) string {
+	tid, err := uuid.Parse(tenantID)
+	if err != nil || actID == "" || h.keys == nil {
+		return ""
+	}
+	a, err := h.db.ConnectedAccount.Query().
+		Where(connectedaccount.TenantIDEQ(tid), connectedaccount.AccountTypeEQ("meta_ad_account"),
+			connectedaccount.ExternalIDEQ(actID), connectedaccount.StatusEQ("active")).Only(ctx)
+	if err != nil || a.TokenCiphertext == "" {
+		h.logger.Warn("meta capi: the ad account needs connecting again", zap.String("tenant", tenantID), zap.Error(err))
+		return ""
+	}
+	tok, err := h.keys.Decrypt(ctx, a.TokenCiphertext)
+	if err != nil {
+		h.logger.Warn("meta capi: ad account token unreadable", zap.String("tenant", tenantID), zap.Error(err))
+		return ""
+	}
+	return tok
 }
 
 // ── Google Ads Conversion Upload ─────────────────────────────────────────

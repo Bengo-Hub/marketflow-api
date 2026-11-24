@@ -28,10 +28,12 @@ import (
 	"github.com/bengobox/marketflow-api/internal/integrations/google"
 	"github.com/bengobox/marketflow-api/internal/platform/publicweb"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
+	"github.com/bengobox/marketflow-api/internal/integrations/tiktok"
 	mfmiddleware "github.com/bengobox/marketflow-api/internal/middleware"
 	"github.com/bengobox/marketflow-api/internal/modules/accounts"
 	"github.com/bengobox/marketflow-api/internal/modules/activities"
 	"github.com/bengobox/marketflow-api/internal/modules/admin"
+	"github.com/bengobox/marketflow-api/internal/modules/adsetup"
 	"github.com/bengobox/marketflow-api/internal/modules/adsmanager"
 	"github.com/bengobox/marketflow-api/internal/modules/googleads"
 	"github.com/bengobox/marketflow-api/internal/modules/analytics"
@@ -617,6 +619,17 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	googleAdsHandler.CanManage = func(ctx context.Context, tenantID uuid.UUID) bool {
 		return rbacService.CallerHasAnyRole(ctx, tenantID, reviewActionRoles...)
 	}
+	// Ads account setup assistant (item 65): the fixes are for the approving roles only.
+	adsSetupHandler := &adsetup.Handler{DB: entClient, Keys: keyProvider,
+		Tokens: google.NewTokensFor(entClient, keyProvider, google.ProviderGoogleAds, google.ProviderGoogleAdsName),
+		HTTP:   &http.Client{Timeout: 30 * time.Second},
+		Meta:   meta.NewClient("").WithSecret(meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret)),
+		TikTok: tiktok.NewClient(), Web: publicweb.Client(8*time.Second, 3),
+		Facts: marketingOSService.BusinessFacts, Logger: logger.Named("ads-setup"),
+		CanManage: func(ctx context.Context, tenantID uuid.UUID) bool {
+			return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
+		},
+	}
 	// Social inbox (Sprint 22): the approving roles may reply for the business.
 	inboxHandler := inbox.NewHandler(entClient, keyProvider, leadService, inbox.NewGraph(meta.GraphURL).WithProof(meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret)), logger)
 	inboxHandler.CanReply = func(ctx context.Context, tenantID uuid.UUID) bool {
@@ -1134,6 +1147,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Plan: adsHandler.Plan, Run: adsHandler.Run, RunOTP: adsHandler.RunOTP, RunDone: adsHandler.TikTokDone,
 			OSTurnRunPlan: adsHandler.OSTurnRunPlan, OSTurnRun: adsHandler.OSTurnRun, OSTurnRunOTP: adsHandler.OSTurnRunOTP,
 		},
+		AdsSetupHandlers: httpapi.AdsSetupHandlers{List: adsSetupHandler.List, Get: adsSetupHandler.Get, Fix: adsSetupHandler.Fix},
 		InboxHandlers: httpapi.InboxHandlers{
 			List:    inboxHandler.List,
 			Reply:   inboxHandler.Reply,
