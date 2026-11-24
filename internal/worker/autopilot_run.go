@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/modules/funnels"
+	"github.com/bengobox/marketflow-api/internal/modules/publishing/postingplan"
 	"github.com/bengobox/marketflow-api/internal/notifications"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -92,6 +93,10 @@ var errAutopilotNoFunds = fmt.Errorf("%w: the ad account cannot fund the next ad
 // ad ceiling on top of this month's real spend.
 var errAutopilotAdCeiling = fmt.Errorf("%w: the next ad would pass the monthly ad ceiling", ErrAutopilotSkipped)
 
+// errAutopilotCadenceMet is a run of an agent that follows the posting cadence when every one of
+// its platforms already has its posts for the week or month.
+var errAutopilotCadenceMet = fmt.Errorf("%w: every platform already has its posts for this week or month", ErrAutopilotSkipped)
+
 // errAutopilotEnded is a run after the agent's end date.
 var errAutopilotEnded = fmt.Errorf("%w: the agent has ended", ErrAutopilotSkipped)
 
@@ -157,6 +162,16 @@ func (r *AutopilotRunner) run(ctx context.Context, a *ent.CustomAgent, only map[
 		// The end date was its last day: nothing more is made. The agent stays as it is, so a
 		// later end date in its settings carries on from there.
 		return AutopilotResult{}, fmt.Errorf("%w: its end date of %s has passed", errAutopilotEnded, cfg.EndDate)
+	}
+	if cfg.FollowCadence && only == nil {
+		// The posting plan comes before any spend: a run whose platforms all have their posts
+		// for the week (or month) makes nothing and costs nothing.
+		s := postingplan.Load(ctx, r.db, a.TenantID)
+		now := r.now()
+		booked, err := postingplan.Booked(ctx, r.db, a.TenantID, cfg.Platforms, postingplan.BookedSince(now, s.Loc))
+		if err == nil && len(s.DuePlatforms(cfg.Platforms, booked, now)) == 0 {
+			return AutopilotResult{}, errAutopilotCadenceMet
+		}
 	}
 	used, err := r.creditsThisMonth(ctx, a)
 	if err != nil {

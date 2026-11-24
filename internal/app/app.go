@@ -1092,6 +1092,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			OSTurnPublish:      publishingHandler.OSTurnPublish,
 			TikTokCreatorInfo:  publishingHandler.TikTokCreatorInfo,
 			TikTokWebhook:      publishingHandler.TikTokWebhook,
+			BestTimes:          publishingHandler.BestTimes,
+			SaveBestTimes:      publishingHandler.SaveBestTimes,
 		},
 		SegmentHandlers: httpapi.SegmentHandlers{
 			Create:   segmentHandler.Create,

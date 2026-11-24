@@ -275,6 +275,17 @@ func (p *Pipeline) schedule(ctx context.Context, v *ent.CreativeVersion, st *Sta
 	}
 	hours := cfg.VetoHours
 	at := p.now().UTC().Add(time.Duration(hours) * time.Hour).Truncate(time.Second)
+	platforms, platformAt := cfg.Platforms, map[string]time.Time(nil)
+	if cfg.FollowCadence {
+		// The posting plan: only the platforms still short of their cadence, each at its next
+		// best-time window after the veto window. The window then ends at the first of them.
+		var why string
+		platforms, platformAt, why = p.cadencePlan(ctx, v.TenantID, cfg.Platforms, at)
+		if why != "" {
+			return p.hold(ctx, v, st, brief, agent, why)
+		}
+		at = earliest(platformAt, at)
+	}
 	// Claim first: the claim moves updated_at, so a second replica stops here.
 	if !p.claim(ctx, v, st, "post_scheduling", agentActor(st.AgentID), nil) {
 		return nil
@@ -286,7 +297,7 @@ func (p *Pipeline) schedule(ctx context.Context, v *ent.CreativeVersion, st *Sta
 	st = readState(v)
 	out, err := p.Publish.ScheduleForVeto(ctx, publishing.VetoRequest{
 		TenantID: v.TenantID, AssetID: asset.ID, VersionID: v.ID, AgentID: agent.ID,
-		AccountIDs: cfg.AccountIDs, Platforms: cfg.Platforms, Caption: Caption(v, brief), At: at,
+		AccountIDs: cfg.AccountIDs, Platforms: platforms, PlatformAt: platformAt, Caption: Caption(v, brief), At: at,
 		// The owner's AI label choice (owner 2026-11-14): off leaves out the platforms' AI flag.
 		NoAILabel: !creative.TenantAILabel(ctx, p.DB, v.TenantID),
 	})
@@ -310,7 +321,7 @@ func (p *Pipeline) schedule(ctx context.Context, v *ent.CreativeVersion, st *Sta
 		return ignoreConflict(creative.SetAutopilotState(ctx, p.DB, v, map[string]any{"state": StateVetoed, "decision": briefVeto(b)}))
 	}
 	// The draft's files stay at least until the post, and a draft's lifetime after it.
-	if err := p.Studio.KeepForVeto(ctx, v.TenantID, v.ID, at.Add(creative.DraftTTL)); err != nil {
+	if err := p.Studio.KeepForVeto(ctx, v.TenantID, v.ID, latest(platformAt, at).Add(creative.DraftTTL)); err != nil {
 		p.logger.Warn("autopilot video expiry not extended", zap.String("version_id", v.ID.String()), zap.Error(err))
 	}
 	ids := make([]any, 0, len(out.Jobs))

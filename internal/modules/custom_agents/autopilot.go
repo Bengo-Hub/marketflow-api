@@ -53,6 +53,12 @@ type AutopilotConfig struct {
 	// TestimonialDrafts opts in to one extra draft a day when a testimonial is published (rated 4
 	// or 5, or unrated): the agent's next offering, with the new review among the script's proof.
 	TestimonialDrafts bool `json:"testimonial_drafts,omitempty"`
+	// FollowCadence makes the agent follow the tenant's posting plan (publishing/postingplan,
+	// the one source of posting windows and cadence): a run starts only while one of its
+	// platforms still needs a post this week or month, and each platform's post goes out at its
+	// next best-time window after the veto window, spaced from its other posts. Off keeps the
+	// old behaviour: every run posts to every platform when the veto window ends.
+	FollowCadence bool `json:"follow_cadence,omitempty"`
 }
 
 var (

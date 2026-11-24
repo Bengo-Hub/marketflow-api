@@ -17,7 +17,7 @@ func TestBillingURL(t *testing.T) {
 		{"FAL", "", "https://fal.ai/dashboard/billing"},
 		{"openai", "", "https://platform.openai.com/settings/organization/billing/overview"},
 		{"fal", "https://fal.ai/dashboard/usage-billing/credits", "https://fal.ai/dashboard/usage-billing/credits"},
-		{"fal", "http://fal.ai/billing", "https://fal.ai/dashboard/billing"},       // not https: default
+		{"fal", "http://fal.ai/billing", "https://fal.ai/dashboard/billing"},        // not https: default
 		{"fal", "javascript:alert(1)", "https://fal.ai/dashboard/billing"},          // never a script link
 		{"fal", "https://user:pw@evil.example", "https://fal.ai/dashboard/billing"}, // no credentials in a link
 		{"creatomate", "https://creatomate.com/billing", "https://creatomate.com/billing"},

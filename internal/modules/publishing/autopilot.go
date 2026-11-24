@@ -29,6 +29,9 @@ type VetoRequest struct {
 	Platforms []string
 	Caption   string
 	At        time.Time
+	// PlatformAt gives a platform its own post time (the posting plan's best-time slot); a
+	// platform not in it posts at At.
+	PlatformAt map[string]time.Time
 	// NoAILabel leaves out each platform's AI flag, when the owner turned the AI label off
 	// (creative.AILabelKey, owner 2026-11-14). The zero value keeps the label.
 	NoAILabel bool
@@ -91,6 +94,10 @@ func (s *EntStore) ScheduleForVeto(ctx context.Context, req VetoRequest) (VetoSc
 			continue
 		}
 		key := asset.ID.String() + ":" + acc.ID.String()
+		at := at
+		if t, ok := req.PlatformAt[platform]; ok && !t.IsZero() {
+			at = t.UTC().Truncate(time.Second)
+		}
 		row, err := s.DB.PublishJob.Create().
 			SetTenantID(req.TenantID).
 			SetAssetID(asset.ID).

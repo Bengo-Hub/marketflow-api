@@ -10,6 +10,8 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
+	"github.com/bengobox/marketflow-api/internal/modules/publishing/postingplan"
+	"github.com/bengobox/marketflow-api/internal/modules/tenant/metastore"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -166,5 +168,42 @@ func TestAutopilotRunVetoWindow(t *testing.T) {
 	}
 	if b := db.CreativeBrief.GetX(ctx, uuid.MustParse(res.BriefID)); b.Metadata["approval_mode"] != custom_agents.ApproveEach || b.Metadata["veto_fallback"] == "" {
 		t.Fatalf("the brief records the fallback: %v", b.Metadata)
+	}
+}
+
+// An agent that follows the posting cadence makes nothing once every platform has its posts
+// (here a cadence of none); with posts still due it runs as usual.
+func TestAutopilotRunFollowsCadence(t *testing.T) {
+	db := openWorkerTestDB(t)
+	ctx := context.Background()
+	tid := seedTenant(t, db, "autopilot-cadence")
+	t.Cleanup(func() {
+		ids, _ := db.CreativeBrief.Query().Where(creativebrief.TenantID(tid)).IDs(ctx)
+		_, _ = db.CreativeVersion.Delete().Where(creativeversion.BriefIDIn(ids...)).Exec(ctx)
+		_, _ = db.CreativeBrief.Delete().Where(creativebrief.TenantID(tid)).Exec(ctx)
+		_, _ = db.CustomAgent.Delete().Where(customagent.TenantID(tid)).Exec(ctx)
+	})
+	r := NewAutopilotRunner(db, nil, "https://mf.example", zap.NewNop())
+	a := seedAutopilot(t, db, tid, 100)
+	a.Metadata["autopilot"].(map[string]any)["follow_cadence"] = true
+	a = db.CustomAgent.UpdateOne(a).SetMetadata(a.Metadata).SaveX(ctx)
+
+	setCadence := func(n int) {
+		if err := metastore.SetKeys(ctx, db, tid, map[string]any{
+			postingplan.TenantCadenceKey: map[string]any{"facebook": map[string]any{"count": n, "per": "week"}},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	setCadence(0)
+	if _, err := r.Run(ctx, a); !errors.Is(err, errAutopilotCadenceMet) || !errors.Is(err, ErrAutopilotSkipped) {
+		t.Fatalf("no post due must skip: %v", err)
+	}
+	if n := db.CreativeBrief.Query().Where(creativebrief.TenantID(tid)).CountX(ctx); n != 0 {
+		t.Fatalf("a skipped run made %d briefs", n)
+	}
+	setCadence(3)
+	if res, err := r.Run(ctx, a); err != nil || res.Offering != "Blender" {
+		t.Fatalf("a due platform runs: %+v %v", res, err)
 	}
 }

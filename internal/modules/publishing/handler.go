@@ -19,6 +19,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/ent/publishjob"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/modules/publishing/postingplan"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -71,7 +72,10 @@ type ScheduleInput struct {
 	AccountIDs  []string  `json:"connected_account_ids"`
 	Caption     string    `json:"caption"`
 	ScheduledAt time.Time `json:"scheduled_at"` // zero means now
-	MadeForKids bool      `json:"made_for_kids"`
+	// BestTime moves each platform's post to its next best-time window at or after ScheduledAt
+	// (or now), in the tenant's time zone (postingplan).
+	BestTime    bool `json:"best_time,omitempty"`
+	MadeForKids bool `json:"made_for_kids"`
 	// TikTok is required when a TikTok account is picked: the privacy level (no default, as
 	// TikTok's posting guidelines require), the interactions and the commercial content
 	// disclosure the person chose.
@@ -234,13 +238,26 @@ func (h *Handler) Schedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var plan *postingplan.Settings
+	if in.BestTime {
+		s := postingplan.Load(ctx, h.Store.DB, tid)
+		plan = &s
+	}
 	out := make([]JobView, 0, len(targets))
 	for _, t := range targets {
 		key := asset.ID.String() + ":" + t.acc.ID.String()
+		at := when
+		if plan != nil {
+			// "Post at best time": the platform's next window at or after the chosen time.
+			at = plan.BestTime(t.platform, when).UTC().Truncate(time.Second)
+		}
 		md := map[string]any{
 			"ai_generated":  post.AIGenerated,
 			"made_for_kids": post.MadeForKids,
-			"planned_at":    when.Format(time.RFC3339),
+			"planned_at":    at.Format(time.RFC3339),
+		}
+		if plan != nil {
+			md["best_time"] = true
 		}
 		if t.platform == TikTok && in.TikTok != nil {
 			md["tiktok"] = in.TikTok
@@ -252,7 +269,7 @@ func (h *Handler) Schedule(w http.ResponseWriter, r *http.Request) {
 			SetConnectedAccountID(t.acc.ID).
 			SetPlatform(t.platform).
 			SetCaption(post.Caption).
-			SetScheduledAt(when).
+			SetScheduledAt(at).
 			SetDedupeKey(key).
 			SetMetadata(md)
 		if u := userOf(r); u != nil {

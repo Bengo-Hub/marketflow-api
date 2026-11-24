@@ -634,6 +634,10 @@ type PublishingHandlers struct {
 	TikTokCreatorInfo http.HandlerFunc
 	// TikTokWebhook is the TikTok developer app webhook (public, signature verified).
 	TikTokWebhook http.HandlerFunc
+	// BestTimes and SaveBestTimes are the tenant's posting windows and cadence (GET and PUT
+	// /publishing/best-times).
+	BestTimes     http.HandlerFunc
+	SaveBestTimes http.HandlerFunc
 }
 
 // CustomAgentHandlers groups custom agent HTTP handlers.
@@ -1281,6 +1285,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Post("/jobs/{id}/cancel", deps.PublishingHandlers.Cancel)
 					r.Post("/jobs/{id}/retry", deps.PublishingHandlers.Retry)
 					r.Post("/jobs/{id}/move", deps.PublishingHandlers.Move)
+					if deps.PublishingHandlers.BestTimes != nil {
+						r.Get("/best-times", deps.PublishingHandlers.BestTimes)
+						r.Put("/best-times", deps.PublishingHandlers.SaveBestTimes)
+					}
 					if deps.PublishingHandlers.DeleteFromPlatform != nil {
 						r.Post("/jobs/{id}/delete-from-platform", deps.PublishingHandlers.DeleteFromPlatform)
 					}
