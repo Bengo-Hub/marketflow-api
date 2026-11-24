@@ -74,6 +74,8 @@ type ListInput struct {
 	// or every lead but those).
 	Sources        []string
 	ExcludeSources []string
+	// Statuses filters on several statuses at once (every open lead: all but lost).
+	Statuses []string
 	LeadType       *string
 	// Search matches name, email, phone or interest (case-insensitive substring), at most 100
 	// characters.
@@ -188,6 +190,9 @@ func (s *Service) filtered(in ListInput) *ent.LeadQuery {
 	}
 	if in.Source != nil {
 		query = query.Where(lead.SourceEQ(*in.Source))
+	}
+	if len(in.Statuses) > 0 {
+		query = query.Where(lead.StatusIn(in.Statuses...))
 	}
 	if len(in.Sources) > 0 {
 		query = query.Where(lead.SourceIn(in.Sources...))

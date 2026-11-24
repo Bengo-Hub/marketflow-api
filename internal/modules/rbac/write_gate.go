@@ -35,6 +35,9 @@ var (
 	// connectPath starts an integration's OAuth connection. It is a GET, yet it connects or
 	// replaces the business's account, so owner 2026-11-12 made it admin only.
 	connectPath = regexp.MustCompile(`^/(integrations/[^/]+|meta)/authorize$`)
+	// testimonialReview approves or rejects a customer's or website testimonial before anything
+	// is published: a tenant admin's call (owner 2026-11-24); platform owners pass the gate.
+	testimonialReview = regexp.MustCompile(`^/testimonials/[^/]+/(approve|reject)$`)
 )
 
 // spendPaths are the writes that spend the business's money or post in its name: launching or
@@ -97,7 +100,7 @@ func requiredRoles(method, path string) []string {
 			return adminOnly
 		}
 	}
-	if autopilotPath.MatchString(p) {
+	if autopilotPath.MatchString(p) || testimonialReview.MatchString(p) {
 		return adminOnly
 	}
 	if method == http.MethodDelete && recordDelete.MatchString(p) {

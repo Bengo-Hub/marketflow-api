@@ -57,9 +57,7 @@ func (h *Handler) tenantOr400(w http.ResponseWriter, r *http.Request) (uuid.UUID
 func listInput(r *http.Request, tid uuid.UUID) ListInput {
 	q := r.URL.Query()
 	in := ListInput{TenantID: tid, Search: q.Get("q")}
-	if v := q.Get("status"); v != "" {
-		in.Status = &v
-	}
+	in.Statuses = splitList(q.Get("status"))
 	if v := q.Get("lead_type"); v != "" {
 		in.LeadType = &v
 	}

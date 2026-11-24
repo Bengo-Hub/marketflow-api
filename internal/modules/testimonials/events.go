@@ -20,7 +20,7 @@ const (
 func publishedEvent(t *ent.Testimonial) *eventslib.Event {
 	return eventslib.NewEvent(TestimonialPublishedEvent, TestimonialAggregate, t.ID, t.TenantID, map[string]any{
 		"testimonial_id": t.ID.String(),
-		"rating":         t.Rating,
+		"rating":         ratingOf(t),
 	})
 }
 

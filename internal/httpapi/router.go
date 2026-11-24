@@ -412,6 +412,11 @@ type TestimonialHandlers struct {
 	Create http.HandlerFunc
 	Update http.HandlerFunc
 	Delete http.HandlerFunc
+	// Review of customers' and website testimonials (tenant admin or platform admin).
+	Approve http.HandlerFunc
+	Reject  http.HandlerFunc
+	// Submit is the public link: POST /public/testimonials/{slug}.
+	Submit http.HandlerFunc
 }
 
 // ShortLinkHandlers groups short link HTTP handlers.
@@ -976,6 +981,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 				r.Post("/", deps.TestimonialHandlers.Create)
 				r.Patch("/{id}", deps.TestimonialHandlers.Update)
 				r.Delete("/{id}", deps.TestimonialHandlers.Delete)
+				if deps.TestimonialHandlers.Approve != nil {
+					r.Post("/{id}/approve", deps.TestimonialHandlers.Approve)
+					r.Post("/{id}/reject", deps.TestimonialHandlers.Reject)
+				}
 			})
 
 			// Dashboard aggregates for the tenant dashboard UI.
@@ -1546,6 +1555,11 @@ func NewRouter(deps RouterDeps) http.Handler {
 			r.With(readLimit).Get("/profile/{slug}/testimonials", deps.PublicHandlers.ListTestimonials)
 			r.With(readLimit).Get("/funnels/{slug}", deps.PublicHandlers.GetFunnel)
 			r.With(leadLimit, deps.TrackLeadCreated).Post("/leads/{slug}", deps.PublicHandlers.CreateLead)
+			// A customer's testimonial (multipart, optional photo or video): the booking limit per IP,
+			// plus the handler's honeypot, fill time and daily caps.
+			if deps.TestimonialHandlers.Submit != nil {
+				r.With(bookLimit).Post("/testimonials/{slug}", deps.TestimonialHandlers.Submit)
+			}
 			r.With(eventLimit).Post("/profile-events", deps.PublicHandlers.RecordProfileEvent)
 			r.With(eventLimit).Post("/funnels/{slug}/step-view", deps.PublicHandlers.FunnelStepView)
 			r.With(readLimit).Get("/availability/{slug}", deps.PublicHandlers.GetAvailability)

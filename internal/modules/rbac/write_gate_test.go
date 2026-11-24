@@ -44,6 +44,10 @@ func TestRequiredRoles(t *testing.T) {
 		{"POST", "/api/v1/agents/autopilot/posts/9/veto", member},
 		{"POST", "/api/v1/custom-fields/defs", admin},
 		{"POST", "/api/v1/short-links", member},
+		// Owner 2026-11-24: approving or rejecting a customer's testimonial is an admin's call.
+		{"POST", "/api/v1/testimonials/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/approve", admin},
+		{"POST", "/api/v1/testimonials/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/reject", admin},
+		{"PATCH", "/api/v1/testimonials/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b", member},
 		// Publishing writes pass the gate as members' work; the handler then keeps delete from
 		// platform to the approving roles and the app reviewer (owner 2026-11-14).
 		{"POST", "/api/v1/publishing/jobs/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/cancel", member},

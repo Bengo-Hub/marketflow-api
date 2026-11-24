@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/Bengo-Hub/httpware/objectstore"
 	"github.com/Bengo-Hub/pagination"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/testimonial"
@@ -26,6 +27,16 @@ import (
 type Handler struct {
 	db     *ent.Client
 	logger *zap.Logger
+	// store holds customers' photos and videos (private; shown by signed link). Nil: no media.
+	store *objectstore.Store
+	// guard caps public submissions; nil means only the router's per-IP limit.
+	guard *SubmitGuard
+}
+
+// WithStore sets the media store for customers' photos and videos.
+func (h *Handler) WithStore(s *objectstore.Store) *Handler {
+	h.store = s
+	return h
 }
 
 // saveAndAnnounce runs save in a transaction and, when the testimonial has just become published,
@@ -135,6 +146,13 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	q := h.db.Testimonial.Query().
 		Where(testimonial.TenantIDEQ(tenantID)).
 		Order(ent.Asc(testimonial.FieldDisplayOrder), ent.Desc(testimonial.FieldCreatedAt))
+	// Review queue: ?status=pending (or approved, rejected) and ?source=form (or website, manual).
+	if v := r.URL.Query().Get("status"); v != "" {
+		q = q.Where(testimonial.StatusEQ(v))
+	}
+	if v := r.URL.Query().Get("source"); v != "" {
+		q = q.Where(testimonial.SourceEQ(v))
+	}
 	total, _ := q.Clone().Count(r.Context())
 	rows, err := q.Limit(p.Limit).Offset(p.Offset).All(r.Context())
 	if err != nil {
@@ -144,7 +162,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]map[string]any, len(rows))
 	for i, t := range rows {
-		out[i] = serializeTestimonial(t)
+		out[i] = h.adminView(t)
 	}
 	httpapi.JSON(w, http.StatusOK, pagination.NewResponse(out, total, p))
 }
@@ -182,7 +200,11 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		builder := tx.Testimonial.Create().
 			SetTenantID(tenantID).
 			SetAuthorName(*req.AuthorName).
-			SetBody(*req.Body)
+			SetBody(*req.Body).
+			SetStatus(StatusApproved).
+			SetSource(SourceManual).
+			SetFingerprint(Fingerprint(*req.AuthorName, *req.Body)).
+			SetMetadata(map[string]any{"body_fingerprint": BodyFingerprint(*req.Body)})
 		if req.Rating != nil {
 			builder = builder.SetRating(*req.Rating)
 		}
@@ -201,12 +223,16 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return builder.Save(r.Context())
 	})
 	if err != nil {
+		if ent.IsConstraintError(err) {
+			httpapi.Error(w, http.StatusConflict, "duplicate", "this testimonial is already saved", nil)
+			return
+		}
 		h.logger.Error("create testimonial", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "save_failed", "could not save the testimonial", nil)
 		return
 	}
 	audit.Tenant(r.Context(), h.db, h.logger, tenantID, "testimonial.created", "testimonial", &t.ID, map[string]any{"is_published": t.IsPublished})
-	httpapi.JSON(w, http.StatusCreated, serializeTestimonial(t))
+	httpapi.JSON(w, http.StatusCreated, h.adminView(t))
 }
 
 // Update handles PATCH /api/v1/testimonials/{id}. Fields left out keep their values.
@@ -251,6 +277,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusNotFound, "not_found", "testimonial not found", nil)
 		return
 	}
+	if code, msg := editAllowed(existing, req); code != "" {
+		httpapi.Error(w, http.StatusBadRequest, code, msg, nil)
+		return
+	}
 	t, err := h.saveAndAnnounce(r.Context(), existing.IsPublished, func(tx *ent.Tx) (*ent.Testimonial, error) {
 		builder := tx.Testimonial.UpdateOne(existing)
 		if req.AuthorName != nil {
@@ -258,6 +288,21 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 		if req.Body != nil {
 			builder = builder.SetBody(*req.Body)
+		}
+		if req.AuthorName != nil || req.Body != nil {
+			name, body := existing.AuthorName, existing.Body
+			if req.AuthorName != nil {
+				name = *req.AuthorName
+			}
+			if req.Body != nil {
+				body = *req.Body
+			}
+			meta := map[string]any{}
+			for k, v := range existing.Metadata {
+				meta[k] = v
+			}
+			meta["body_fingerprint"] = BodyFingerprint(body)
+			builder = builder.SetFingerprint(Fingerprint(name, body)).SetMetadata(meta)
 		}
 		if req.AuthorRole != nil {
 			if *req.AuthorRole == "" {
@@ -290,7 +335,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	audit.Tenant(r.Context(), h.db, h.logger, tenantID, "testimonial.updated", "testimonial", &t.ID, map[string]any{"is_published": t.IsPublished})
-	httpapi.JSON(w, http.StatusOK, serializeTestimonial(t))
+	httpapi.JSON(w, http.StatusOK, h.adminView(t))
 }
 
 // Delete handles DELETE /api/v1/testimonials/{id}.
@@ -338,6 +383,7 @@ func (h *Handler) PublicListForTenant(ctx context.Context, tenantID uuid.UUID, l
 		Where(
 			testimonial.TenantIDEQ(tenantID),
 			testimonial.IsPublishedEQ(true),
+			testimonial.StatusEQ(StatusApproved),
 		).
 		Order(ent.Asc(testimonial.FieldDisplayOrder), ent.Desc(testimonial.FieldCreatedAt)).
 		Limit(limit).
@@ -347,7 +393,7 @@ func (h *Handler) PublicListForTenant(ctx context.Context, tenantID uuid.UUID, l
 	}
 	out := make([]map[string]any, len(rows))
 	for i, t := range rows {
-		out[i] = serializeTestimonial(t)
+		out[i] = h.publicView(t)
 	}
 	return out, nil
 }
@@ -359,7 +405,7 @@ func serializeTestimonial(t *ent.Testimonial) map[string]any {
 		"author_role":   t.AuthorRole,
 		"body":          t.Body,
 		"avatar_url":    t.AvatarURL,
-		"rating":        t.Rating,
+		"rating":        ratingOf(t),
 		"display_order": t.DisplayOrder,
 		"is_published":  t.IsPublished,
 		"created_at":    t.CreatedAt,

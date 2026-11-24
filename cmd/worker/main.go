@@ -214,6 +214,10 @@ func main() {
 			WithAdFunds(worker.AdFunds(entClient, keys))
 		reg.Add(worker.NewNewItemAdsHandler(entClient, ruleRunner, logger))
 		reg.Add(worker.NewTestimonialAdsHandler(entClient, ruleRunner, logger))
+		// A customer's testimonial waits for review: email the admins, WhatsApp the business.
+		reg.Add(worker.NewTestimonialReceivedHandler(entClient,
+			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
+			cfg.PlatformTenant, cfg.API.PortalURL, logger))
 		// Knowledge base sync (Sprint 25): item events keep synced entries current.
 		reg.Add(worker.NewKBItemHandlers(entClient, knowledge.NewSync(entClient, rawDB), logger)...)
 		// Erasure in maskani (privacy.party_anonymised): delete the CRM contact only when no other
@@ -294,6 +298,11 @@ func main() {
 		// Contact enricher daily sweep: from 02:00 tenant time, contacts never enriched and
 		// profiles older than a week, once per tenant per day.
 		go worker.NewContactEnricherSweep(entClient, logger).Run(ctx)
+
+		// Testimonials the tenant's website shows, read once a week and stored pending review.
+		go worker.NewWebsiteTestimonialSweep(entClient,
+			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
+			cfg.API.PortalURL, logger).Run(ctx)
 
 		// Ad-insights polling cron (Meta campaigns only today). Resolver
 		// pulls the tenant's Meta page token from ProviderSetting at query

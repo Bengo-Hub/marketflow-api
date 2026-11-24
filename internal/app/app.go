@@ -683,7 +683,11 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	}, logger)
 
 	// Testimonial CRUD + public reader for /p/{slug}
-	testimonialHandler := testimonials.NewHandler(entClient, logger)
+	// Customers send testimonials through the public link; photos and videos go to the private
+	// media store, and the daily caps sit beside the booking guard's.
+	testimonialHandler := testimonials.NewHandler(entClient, logger).
+		WithStore(mediaStore).
+		WithGuard(testimonials.NewSubmitGuard(ratelimit.NewQuota(redisClient), testimonials.DefaultSubmitCaps))
 	tenantProfileHandler := tenant.NewHandler(entClient, logger)
 	// One cache for the public profile reads and the profile saves that drop them (Sprint 7 #58).
 	publicProfileCache := sharedcache.New(redisClient, logger)
@@ -836,6 +840,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Create: testimonialHandler.Create,
 			Update: testimonialHandler.Update,
 			Delete: testimonialHandler.Delete,
+			Approve: testimonialHandler.Approve,
+			Reject:  testimonialHandler.Reject,
+			Submit:  testimonialHandler.PublicSubmit,
 		},
 		ShortLinkHandlers: httpapi.ShortLinkHandlers{
 			Create:   shortLinkHandler.Create,

@@ -100,6 +100,9 @@ func resolveNurtureVariables(
 		// Every tenant can be booked at /book/{slug}, the standalone booking page (Sprint 23's
 		// instant follow-up links its booking button here).
 		putIfEmpty(vars, "booking_link", "https://marketflow.codevertexafrica.com/book/"+tn.Slug)
+		// "Share your experience": the tenant's public testimonial link (/t/{slug}); what a
+		// customer sends there waits for the tenant's review (owner, 2026-11-24).
+		putIfEmpty(vars, "testimonial_link", "https://marketflow.codevertexafrica.com/t/"+tn.Slug)
 		if tn.WhatsappNumber != nil && *tn.WhatsappNumber != "" {
 			waNumber := onlyDigits(*tn.WhatsappNumber)
 			putIfEmpty(vars, "whatsapp_number", waNumber)
