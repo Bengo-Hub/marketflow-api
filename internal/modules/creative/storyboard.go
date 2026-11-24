@@ -243,6 +243,8 @@ type storyboardCall struct {
 	endCardWords
 	// PreviousStills are the stills a keep_unchanged storyboard may reuse (settings_reset.go).
 	PreviousStills []storyboardStill `json:"previous_stills,omitempty"`
+	// Branding is the in-scene branding rules (creative.branding, logo_plate.go).
+	Branding *brandingRules `json:"branding,omitempty"`
 }
 
 // endCardWords are the end card's words, contacts, colour and logo: marketflow-ai composes them
@@ -287,6 +289,7 @@ func (r *Renderer) startStoryboard(ctx context.Context, v *ent.CreativeVersion) 
 		// The owner's description wins; the script writer's one-line actor is the fallback.
 		ActorPrompt: excerpt(firstNonEmpty(str(meta["actor_prompt"]), script.Actor), 300)}
 	call.PreviousStills = previousStills(meta)
+	call.Branding = brandingFor(ctx, r.db, v.TenantID)
 	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
 		place := r.resolvePlace(ctx, v.TenantID, b.Offering, false)
 		call.Brand, call.Place = place.Brand, place.Line()
@@ -372,9 +375,20 @@ func (r *Renderer) settleStoryboard(ctx context.Context, v *ent.CreativeVersion,
 				if err := r.recordAsset(ctx, tx, v, AssetKeyframe, st.Key, st.URL, map[string]any{"scene_id": st.SceneID}); err != nil {
 					return err
 				}
+				// The still without the placed logo is purged with the draft too.
+				if st.PlainKey != "" {
+					if err := r.recordAsset(ctx, tx, v, AssetKeyframe, st.PlainKey, st.PlainURL, map[string]any{"scene_id": st.SceneID, "plain": true}); err != nil {
+						return err
+					}
+				}
 			}
 			if p := sb.EndCardPreview; p != nil && p.Key != "" {
 				if err := r.recordAsset(ctx, tx, v, AssetKeyframe, p.Key, p.URL, map[string]any{"end_card_preview": true}); err != nil {
+					return err
+				}
+			}
+			if sb.Actor != nil && sb.Actor.PlainKey != "" {
+				if err := r.recordAsset(ctx, tx, v, AssetKeyframe, sb.Actor.PlainKey, sb.Actor.PlainURL, map[string]any{"actor": true, "plain": true}); err != nil {
 					return err
 				}
 			}

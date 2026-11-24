@@ -91,6 +91,11 @@ type storyboardActor struct {
 	Route  string `json:"route,omitempty"`
 	// Gender is the actor's look ("male", "female" or ""); later scripts follow it.
 	Gender string `json:"gender,omitempty"`
+	// Logo, PlainURL and PlainKey: the actor drawn with the real logo on a banner behind them, and
+	// the still without it (marketflow-ai media/branding.go).
+	Logo     map[string]any `json:"logo,omitempty"`
+	PlainURL string         `json:"plain_url,omitempty"`
+	PlainKey string         `json:"plain_key,omitempty"`
 }
 
 // storyboardStill is one scene's storyboard frame.
@@ -105,6 +110,11 @@ type storyboardStill struct {
 	// previous storyboard (settings_reset.go).
 	Prompt string `json:"prompt,omitempty"`
 	Reused bool   `json:"reused,omitempty"`
+	// Logo is the real logo placed on a surface in the still; PlainURL and PlainKey are the still
+	// without it, the clip's fallback (marketflow-ai media/branding.go).
+	Logo     map[string]any `json:"logo,omitempty"`
+	PlainURL string         `json:"plain_url,omitempty"`
+	PlainKey string         `json:"plain_key,omitempty"`
 }
 
 // jobKinds are the version kinds made by media jobs.

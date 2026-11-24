@@ -42,7 +42,9 @@ type settingsCall struct {
 }
 
 // ResetSettings places the script's scenes again and returns the version and how many scenes
-// changed setting. Nothing is charged and nothing is drawn here.
+// changed setting. Nothing is charged and nothing is drawn here. The unchanged scenes are recorded
+// even when none changed, so a later keep_unchanged storyboard (for example one adding in-scene
+// branding) can keep their stills.
 func (r *Renderer) ResetSettings(ctx context.Context, v *ent.CreativeVersion) (*ent.CreativeVersion, int, error) {
 	var script VideoScript
 	if v.Kind != KindVideoAd || v.Status != StatusScriptReady {
@@ -87,9 +89,6 @@ func (r *Renderer) ResetSettings(ctx context.Context, v *ent.CreativeVersion) (*
 		settings[s.ID] = s.Setting
 	}
 	changed, keep := applySceneSettings(script.Scenes, settings)
-	if changed == 0 {
-		return v, 0, nil
-	}
 	copyFields := copyMap(v.Copy)
 	copyFields["script"] = toMap(script)
 	meta := copyMap(v.Metadata)
@@ -146,7 +145,10 @@ func previousStills(meta map[string]any) []storyboardStill {
 			continue
 		}
 		p := storyboardStill{SceneID: str(st["scene_id"]), URL: str(st["url"]), Key: str(st["key"]), Source: "generated",
-			Route: str(st["route"]), Prompt: str(st["prompt"])}
+			Route: str(st["route"]), Prompt: str(st["prompt"]), PlainURL: str(st["plain_url"]), PlainKey: str(st["plain_key"])}
+		if l, ok := st["logo"].(map[string]any); ok {
+			p.Logo = l
+		}
 		if p.Prompt == "" && !kept[p.SceneID] {
 			continue
 		}

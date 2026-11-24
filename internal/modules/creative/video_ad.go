@@ -764,6 +764,9 @@ type adCall struct {
 	// (logo_plate.go). Always sent; marketflow-ai treats a missing value as on.
 	LogoPlate      logoPlate `json:"logo_plate"`
 	LogoEveryScene bool      `json:"logo_every_scene"`
+	// PlainStills are the stills without the in-scene logo, by scene id: a clip whose logo smears
+	// is made again from these (marketflow-ai media/branding.go).
+	PlainStills map[string]string `json:"plain_stills,omitempty"`
 }
 
 // startAd starts a claimed video ad's render job in marketflow-ai.
@@ -819,6 +822,13 @@ func (r *Renderer) adCallFor(ctx context.Context, v *ent.CreativeVersion, script
 			for _, x := range stills {
 				if st, ok := x.(map[string]any); ok && str(st["source"]) == "generated" && str(st["url"]) != "" {
 					call.Stills[str(st["scene_id"])] = str(st["url"])
+					// A still carrying the real logo sends its plain twin, the clip's fallback.
+					if plain := str(st["plain_url"]); plain != "" {
+						if call.PlainStills == nil {
+							call.PlainStills = map[string]string{}
+						}
+						call.PlainStills[str(st["scene_id"])] = plain
+					}
 				}
 			}
 		}

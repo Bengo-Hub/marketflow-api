@@ -2,6 +2,7 @@ package creative
 
 import (
 	"context"
+	"encoding/json"
 	"regexp"
 	"strconv"
 	"strings"
@@ -90,4 +91,30 @@ func logoEveryScene(ctx context.Context, db *ent.Client, tenantID uuid.UUID) boo
 		return b
 	}
 	return DefaultLogoEveryScene
+}
+
+// BrandingKey is the in-scene branding rules (owner, 2026-11-24): the tenant's real logo placed on
+// a blank surface (a banner, a wall panel) in a few key scenes, composited by marketflow-ai and
+// checked by its self-review (media/branding.go). JSON, tenant over platform.
+const BrandingKey = "creative.branding"
+
+// DefaultBranding is the fallback while the platform sets none: about three key scenes (the
+// opening establishing shot, the presenter, the end card), never product close-ups, the logo at
+// most 18% of the frame's width.
+const DefaultBranding = `{"enabled":true,"max_scenes":3,"kinds":["establishing","presenter","end_card"],"max_width":0.18}`
+
+// brandingRules are the rules sent with a storyboard; an unreadable setting falls back to the default.
+type brandingRules struct {
+	Enabled   bool     `json:"enabled"`
+	MaxScenes int      `json:"max_scenes,omitempty"`
+	Kinds     []string `json:"kinds,omitempty"`
+	MaxWidth  float64  `json:"max_width,omitempty"`
+}
+
+func brandingFor(ctx context.Context, db *ent.Client, tenantID uuid.UUID) *brandingRules {
+	var b brandingRules
+	if json.Unmarshal([]byte(svcconfig.Value(ctx, db, tenantID, BrandingKey)), &b) != nil {
+		_ = json.Unmarshal([]byte(DefaultBranding), &b)
+	}
+	return &b
 }

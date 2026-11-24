@@ -49,3 +49,16 @@ func TestEndCardWordsAreFlatInTheCalls(t *testing.T) {
 		t.Fatalf("ad call %s", b)
 	}
 }
+
+func TestBrandingRulesFallBack(t *testing.T) {
+	var b brandingRules
+	if err := json.Unmarshal([]byte(DefaultBranding), &b); err != nil || !b.Enabled || b.MaxScenes != 3 || len(b.Kinds) != 3 || b.MaxWidth != 0.18 {
+		t.Fatalf("default %+v %v", b, err)
+	}
+	body, _ := json.Marshal(storyboardCall{Branding: &b, PreviousStills: []storyboardStill{{SceneID: "s2", PlainURL: "https://x/plain.jpg"}}})
+	for _, want := range []string{`"branding":{"enabled":true`, `"plain_url":"https://x/plain.jpg"`} {
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("%s missing in %s", want, body)
+		}
+	}
+}
