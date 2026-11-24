@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	entsql "entgo.io/ent/dialect/sql"
 	sharedcache "github.com/Bengo-Hub/cache"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -30,12 +29,21 @@ type WebsiteTestimonialSweep struct {
 	hc     *http.Client
 	logger *zap.Logger
 	claim  func(ctx context.Context, key string, ttl time.Duration) bool
+	// ssoWebsite reads the website on the tenant's SSO account (auth-api); nil skips it.
+	ssoWebsite func(ctx context.Context, slug string) string
 	now    func() time.Time
 }
 
 func NewWebsiteTestimonialSweep(db *ent.Client, notif *notifications.Client, appURL string, logger *zap.Logger) *WebsiteTestimonialSweep {
 	return &WebsiteTestimonialSweep{db: db, notif: notif, appURL: strings.TrimRight(appURL, "/"), hc: publicweb.Client(10*time.Second, 3),
 		logger: logger.Named("website-testimonials"), claim: sharedcache.ClaimOnce, now: time.Now}
+}
+
+// WithSSOWebsite also reads the website on each tenant's SSO account, besides the one saved in
+// MarketFlow (owner, 2026-11-24: many tenants set it only in the SSO).
+func (s *WebsiteTestimonialSweep) WithSSOWebsite(fn func(ctx context.Context, slug string) string) *WebsiteTestimonialSweep {
+	s.ssoWebsite = fn
+	return s
 }
 
 // websiteSweepEvery is how often one tenant's site is read: testimonials on a site change slowly.
@@ -60,9 +68,7 @@ func (s *WebsiteTestimonialSweep) tick(ctx context.Context) {
 	var after uuid.UUID
 	for ctx.Err() == nil {
 		q := s.db.Tenant.Query().
-			Where(tenant.StatusEQ("active"), func(sel *entsql.Selector) {
-				sel.Where(entsql.ExprP("COALESCE(" + sel.C(tenant.FieldMetadata) + "->'socials'->>'website', '') <> ''"))
-			}).
+			Where(tenant.StatusEQ("active")).
 			Order(ent.Asc(tenant.FieldID)).Limit(200)
 		if after != uuid.Nil {
 			q = q.Where(tenant.IDGT(after))
@@ -86,20 +92,32 @@ func (s *WebsiteTestimonialSweep) tick(ctx context.Context) {
 
 func (s *WebsiteTestimonialSweep) read(ctx context.Context, t *ent.Tenant) {
 	socials, _ := t.Metadata["socials"].(map[string]any)
-	site, _ := socials["website"].(string)
-	rctx, cancel := context.WithTimeout(ctx, 60*time.Second)
-	res, err := testimonials.ImportFromWebsite(rctx, s.db, s.hc, t.ID, site)
-	cancel()
-	if err != nil {
-		s.logger.Info("website not read", zap.String("tenant", t.ID.String()), zap.Error(err))
+	saved, _ := socials["website"].(string)
+	sso := ""
+	if s.ssoWebsite != nil {
+		pctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		sso = s.ssoWebsite(pctx, t.Slug)
+		cancel()
+	}
+	sites := sweepSites(saved, sso)
+	stored := 0
+	for _, site := range sites {
+		rctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+		res, err := testimonials.ImportFromWebsite(rctx, s.db, s.hc, t.ID, site)
+		cancel()
+		if err != nil {
+			s.logger.Info("website not read", zap.String("tenant", t.ID.String()), zap.String("site", site), zap.Error(err))
+			continue
+		}
+		stored += res.Stored
+	}
+	if stored == 0 || s.notif == nil {
 		return
 	}
-	if res.Stored == 0 || s.notif == nil {
-		return
-	}
+	site := strings.Join(sites, " and ")
 	emails, _ := rbac.TenantAdminEmails(ctx, s.db, t.ID, rbac.NoticeRoles)
 	link := s.appURL + "/" + t.Slug + "/settings/testimonials?status=pending"
-	subject, body := websiteTestimonialsEmail(res.Stored, site, link)
+	subject, body := websiteTestimonialsEmail(stored, site, link)
 	for _, e := range emails {
 		if err := s.notif.Send(ctx, t.ID.String(), notifications.Message{
 			Channel: "email", Recipient: e, Subject: subject, Body: body,

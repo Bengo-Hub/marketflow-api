@@ -299,10 +299,20 @@ func main() {
 		// profiles older than a week, once per tenant per day.
 		go worker.NewContactEnricherSweep(entClient, logger).Run(ctx)
 
+		// The SSO account's business profile (auth-api owns it; cached reads).
+		ssoProfiles := tenant.NewSyncer(entClient, logger)
+
 		// Testimonials the tenant's website shows, read once a week and stored pending review.
 		go worker.NewWebsiteTestimonialSweep(entClient,
 			notifications.New(notifications.Config{BaseURL: cfg.Notifications.URL, APIKey: cfg.Notifications.APIKey, AuthToken: cfg.Notifications.Token}),
-			cfg.API.PortalURL, logger).Run(ctx)
+			cfg.API.PortalURL, logger).
+			WithSSOWebsite(func(ctx context.Context, slug string) string {
+				p, err := ssoProfiles.AuthProfile(ctx, slug)
+				if err != nil {
+					return ""
+				}
+				return p.Website
+			}).Run(ctx)
 
 		// Ad-insights polling cron (Meta campaigns only today). Resolver
 		// pulls the tenant's Meta page token from ProviderSetting at query
