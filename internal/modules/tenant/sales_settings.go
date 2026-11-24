@@ -17,12 +17,17 @@ const (
 // through creative.TenantAILabel.
 const AILabelKey = "ai_label"
 
+// AILabelTextKey is the on-screen "AI-generated" note, "on" or "off" (creative.AILabelTextKey).
+const AILabelTextKey = "ai_label_text"
+
 // ValidateAILabel checks the AI label key of a profile metadata update. A null value clears it,
 // which means on.
 func ValidateAILabel(meta map[string]any) error {
-	if v, ok := meta[AILabelKey]; ok && v != nil {
-		if s, isStr := v.(string); !isStr || (s != "on" && s != "off") {
-			return errors.New(`ai_label must be "on" or "off"`)
+	for _, k := range []string{AILabelKey, AILabelTextKey} {
+		if v, ok := meta[k]; ok && v != nil {
+			if s, isStr := v.(string); !isStr || (s != "on" && s != "off") {
+				return errors.New(k + ` must be "on" or "off"`)
+			}
 		}
 	}
 	return nil

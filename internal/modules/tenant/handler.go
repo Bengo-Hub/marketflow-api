@@ -186,6 +186,12 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 				delete(req.Metadata, AILabelKey)
 			}
 		}
+		if v, ok := req.Metadata[AILabelTextKey]; ok && v != t.Metadata[AILabelTextKey] {
+			if h.CanApprove != nil && !h.CanApprove(r.Context(), tenantID) {
+				httpapi.Error(w, http.StatusForbidden, "forbidden", "only the account owner or an admin can change the AI label", nil)
+				return
+			}
+		}
 	}
 
 	if req.Name != nil {

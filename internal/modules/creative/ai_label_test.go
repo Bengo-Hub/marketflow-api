@@ -44,10 +44,15 @@ func TestAdCallCarriesTheAILabel(t *testing.T) {
 		SetFormat("1080x1920").SetStatus(StatusReady).SaveX(ctx)
 	r := NewRenderer(db, "", "", zap.NewNop())
 
-	if call := r.adCallFor(ctx, v, VideoScript{}, false); !call.AILabel {
-		t.Fatal("unset means the label stays on")
+	if call := r.adCallFor(ctx, v, VideoScript{}, false); call.AILabel {
+		t.Fatal("unset means no on-screen note")
 	}
-	db.Tenant.UpdateOneID(tid).SetMetadata(map[string]any{AILabelKey: "off"}).ExecX(ctx)
+	db.Tenant.UpdateOneID(tid).SetMetadata(map[string]any{AILabelKey: "off", AILabelTextKey: "on"}).ExecX(ctx)
+	db.Tenant.UpdateOneID(tid).SetMetadata(map[string]any{AILabelTextKey: "on"}).ExecX(ctx)
+	if call := r.adCallFor(ctx, v, VideoScript{}, false); !call.AILabel {
+		t.Fatal("the business turned the note on")
+	}
+	db.Tenant.UpdateOneID(tid).SetMetadata(map[string]any{AILabelKey: "off", AILabelTextKey: "on"}).ExecX(ctx)
 	call := r.adCallFor(ctx, v, VideoScript{}, true)
 	if call.AILabel {
 		t.Fatal("the owner turned the label off")

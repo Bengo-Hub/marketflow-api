@@ -794,7 +794,7 @@ func (r *Renderer) adCallFor(ctx context.Context, v *ent.CreativeVersion, script
 		PhotoURLs: photos, PhotoInfo: info, FootageURLs: strs(meta["footage_urls"]),
 		Headline: str(card["headline"]), Subline: str(card["subline"]), Price: str(card["price"]), CTA: str(card["cta"]),
 		Charge: charge, Kind: videoKind(v), MusicURL: str(meta["music_url"]), Mood: script.Mood,
-		AILabel: TenantAILabel(ctx, r.db, v.TenantID)}
+		AILabel: TenantAILabelText(ctx, r.db, v.TenantID)}
 	b, berr := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx)
 	if berr == nil {
 		brand, _ := b.Metadata["brand"].(map[string]any)

@@ -250,5 +250,13 @@ func whatsAppCaption(v *ent.CreativeVersion) string {
 			return strings.TrimSpace(s)
 		}
 	}
-	return ""
+	// A video ad keeps its words on the end card.
+	card, _ := v.Copy["end_card"].(map[string]any)
+	var lines []string
+	for _, k := range []string{"headline", "subline", "cta"} {
+		if s, _ := card[k].(string); strings.TrimSpace(s) != "" {
+			lines = append(lines, strings.TrimSpace(s))
+		}
+	}
+	return strings.Join(lines, "\n")
 }
