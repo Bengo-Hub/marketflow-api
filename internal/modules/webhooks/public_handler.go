@@ -546,6 +546,15 @@ func (h *PublicHandler) PublicCreateLead(w http.ResponseWriter, r *http.Request)
 		input.UTMCampaign = &in.UTMCampaign
 	}
 
+	// Someone asking for attachment, an internship or a job, or pitching their own services, is not
+	// a lead (owner, 2026-11-24): nothing is stored, nurtured or counted, and the answer looks the
+	// same, so a bot learns nothing.
+	if kind := leads.PlatformLeadFilter().WithTenant(t.Metadata).NonLeadKind(input); kind != "" {
+		h.logger.Info("public submission is not a lead", zap.String("tenant", t.ID.String()), zap.String("kind", kind), zap.String("source", source))
+		httpapi.JSON(w, http.StatusCreated, map[string]any{"status": "received"})
+		return
+	}
+
 	res, err := h.leadService.Capture(r.Context(), input)
 	if err != nil {
 		h.logger.Error("public lead create failed",

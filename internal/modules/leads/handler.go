@@ -458,7 +458,7 @@ func (h *Handler) IngestFromService(w http.ResponseWriter, r *http.Request) {
 	}
 	meta["service_origin"] = req.ServiceOrigin
 
-	res, err := h.service.Capture(r.Context(), CreateInput{
+	in := CreateInput{
 		TenantID:    tenantID,
 		Email:       trimPtr(req.Email),
 		Phone:       trimPtr(req.Phone),
@@ -471,7 +471,17 @@ func (h *Handler) IngestFromService(w http.ResponseWriter, r *http.Request) {
 		LeadType:    orDefault(req.LeadType, "customer"),
 		Interest:    trimPtr(req.Interest),
 		Metadata:    meta,
-	})
+	}
+	// Attachment, job and service-pitch enquiries are not leads (owner, 2026-11-24).
+	filter := PlatformLeadFilter()
+	if t, err := h.service.client.Tenant.Get(r.Context(), tenantID); err == nil {
+		filter = filter.WithTenant(t.Metadata)
+	}
+	if kind := filter.NonLeadKind(in); kind != "" {
+		httpapi.JSON(w, http.StatusOK, map[string]any{"lead": nil, "created": false, "not_a_lead": kind})
+		return
+	}
+	res, err := h.service.Capture(r.Context(), in)
 	if err != nil {
 		h.logger.Error("failed to ingest service lead", zap.Error(err))
 		httpapi.Error(w, http.StatusInternalServerError, "ingest_failed", "failed to create lead", nil)

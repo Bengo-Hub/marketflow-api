@@ -253,3 +253,31 @@ func TestStatsAndSourceFilters(t *testing.T) {
 		t.Fatalf("excluded list = %d %v", n, err)
 	}
 }
+
+// Attachment, job and service-pitch submissions are not leads; customers are (owner, 2026-11-24).
+func TestNonLeadKind(t *testing.T) {
+	f := PlatformLeadFilter()
+	cases := map[string]struct {
+		in   CreateInput
+		want string
+	}{
+		"vera enrollment for attachment": {CreateInput{Interest: strp("Attachment Application")}, NonLeadAttachment},
+		"industrial attachment message":  {CreateInput{Metadata: map[string]any{"message": "inquiring for an opportunity for industrial attachment"}}, NonLeadAttachment},
+		"job seeker":                     {CreateInput{Metadata: map[string]any{"message": "I am interested in joining Codevertex Africa as a Software Engineer"}}, NonLeadJob},
+		"agency pitch":                   {CreateInput{Metadata: map[string]any{"message": "Hi Agency Owner, We’re a web development company from India"}}, NonLeadServiceOffer},
+		"customer":                       {CreateInput{Interest: strp("POS for my mitumba business")}, ""},
+		"customer with an attachment":    {CreateInput{Metadata: map[string]any{"message": "I sent the attachment with our requirements"}}, ""},
+	}
+	for name, c := range cases {
+		if got := f.NonLeadKind(c.in); got != c.want {
+			t.Errorf("%s: %q, want %q", name, got, c.want)
+		}
+	}
+	tenant := f.WithTenant(map[string]any{"lead_filter": map[string]any{"job": []any{"careers page"}}})
+	if tenant.NonLeadKind(CreateInput{Interest: strp("Saw your careers page")}) != NonLeadJob {
+		t.Fatal("a tenant's own words count")
+	}
+	if f.NonLeadKind(CreateInput{Interest: strp("Saw your careers page")}) != "" {
+		t.Fatal("another tenant's words do not")
+	}
+}
