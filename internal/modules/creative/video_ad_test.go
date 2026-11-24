@@ -167,6 +167,16 @@ func TestVideoAdFailures(t *testing.T) {
 	if got.Status != StatusFailed || !strings.Contains(got.Error, "AI presenter") {
 		t.Fatalf("refused render: %s %q", got.Status, got.Error)
 	}
+	// A failed render is tried again as it is (2026-11-24: a failed card had no retry).
+	ai.startStatus, ai.startBody = 0, ""
+	again, err := s.RenderVideoAd(ctx, tid, v.ID)
+	if err != nil || again.Status != StatusQueued || again.Error != "" {
+		t.Fatalf("retry of a failed render: %v %+v", err, again)
+	}
+	// A failed script is not a render and cannot be rendered.
+	if _, err := s.RenderVideoAd(ctx, tid, blocked.ID); !errors.Is(err, ErrConflict) {
+		t.Fatalf("a failed script rendered: %v", err)
+	}
 
 	third, err := s.CreateVideoAd(ctx, tid, b.ID, VideoAdInput{})
 	if err != nil {

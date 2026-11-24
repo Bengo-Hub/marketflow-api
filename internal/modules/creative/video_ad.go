@@ -478,8 +478,11 @@ func (s *Service) RenderVideoAd(ctx context.Context, tenantID, id uuid.UUID) (*e
 	if err != nil {
 		return nil, err
 	}
-	if v.Kind != KindVideoAd || v.Status != StatusScriptReady {
-		return nil, fmt.Errorf("%w: only a video ad script waiting for review can be rendered", ErrConflict)
+	// A render that failed (a lost job, a provider outage) can be tried again as it is: its script,
+	// storyboard and plan approvals are unchanged (owner, 2026-11-24: a failed card had no retry).
+	retry := v.Status == StatusFailed && stage(v) == StageRender
+	if v.Kind != KindVideoAd || (v.Status != StatusScriptReady && !retry) {
+		return nil, fmt.Errorf("%w: only a video ad script waiting for review, or a failed render, can be rendered", ErrConflict)
 	}
 	if _, ok := v.Copy["script"]; !ok {
 		return nil, fmt.Errorf("%w: this video ad has no script", ErrConflict)
@@ -511,8 +514,9 @@ func (s *Service) RenderVideoAd(ctx context.Context, tenantID, id uuid.UUID) (*e
 	// before 2026-11-19, so a render queued more than jobDeadline after its storyboard failed as
 	// "took too long" within minutes, although every clip finished and its webhook arrived.
 	delete(meta, "job_started_at")
+	delete(meta, "polled_at")
 	upd := s.db.CreativeVersion.Update().
-		Where(creativeversion.ID(id), creativeversion.TenantID(tenantID), creativeversion.StatusEQ(StatusScriptReady)).
+		Where(creativeversion.ID(id), creativeversion.TenantID(tenantID), creativeversion.StatusEQ(v.Status)).
 		SetStatus(StatusQueued).SetMetadata(meta).ClearError()
 	if ppbCopy != nil {
 		upd.SetCopy(ppbCopy)
