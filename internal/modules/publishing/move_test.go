@@ -6,8 +6,28 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bengobox/marketflow-api/internal/modules/publishing/postingplan"
 	"github.com/google/uuid"
 )
+
+// "Move to the best time" lands on the platform's next window at or after the asked time, and a
+// past or empty time counts from now, never earlier than now.
+func TestBestMoveTime(t *testing.T) {
+	plan := postingplan.Load(context.Background(), openTestDB(t), uuid.New()) // defaults, EAT
+	now := time.Date(2026, 11, 24, 6, 0, 0, 0, time.UTC)                         // 09:00 EAT, a Tuesday
+	asked := time.Date(2026, 11, 24, 13, 0, 0, 0, time.UTC)                      // 16:00 EAT
+	got := bestMoveTime(plan, "facebook", asked, now)
+	if want := plan.BestTime("facebook", asked).UTC().Truncate(time.Second); !got.Equal(want) || got.Before(asked) {
+		t.Fatalf("asked %v: got %v, want %v", asked, got, want)
+	}
+	past := bestMoveTime(plan, "facebook", now.Add(-time.Hour), now)
+	if !past.After(now) {
+		t.Fatalf("a past time must move after now: %v", past)
+	}
+	if bestMoveTime(plan, "tiktok", asked, now).Equal(got) && plan.BestTime("tiktok", asked).Equal(plan.BestTime("facebook", asked)) == false {
+		t.Fatal("each platform must follow its own windows")
+	}
+}
 
 // A waiting post moves and the worker then finds it at the new time. A post the worker has taken
 // cannot move, even though it still reads as pending, and neither can another tenant's.

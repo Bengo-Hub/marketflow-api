@@ -11,9 +11,21 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/publishjob"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/modules/publishing/postingplan"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
+
+// bestMoveTime is where "move to the best time" lands: the platform's next best-time window at or
+// after the requested time, or after now when none (or a past one) is given. Same rule a new post
+// uses (Schedule with best_time), from the one posting plan.
+func bestMoveTime(plan postingplan.Settings, platform string, requested, now time.Time) time.Time {
+	from := requested
+	if !from.After(now) {
+		from = now.Add(time.Minute)
+	}
+	return plan.BestTime(platform, from).UTC().Truncate(time.Second)
+}
 
 // errNotMovable is a post the worker has taken, or one whose time has come.
 var errNotMovable = errors.New("this post is already on its way and can no longer be moved")
@@ -80,12 +92,23 @@ func (h *Handler) Move(w http.ResponseWriter, r *http.Request) {
 	}
 	var in struct {
 		ScheduledAt time.Time `json:"scheduled_at"`
+		// BestTime moves the post to its platform's next best-time window at or after
+		// ScheduledAt (or now when it is empty), the same rule a new post uses.
+		BestTime bool `json:"best_time,omitempty"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&in); err != nil {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
 		return
 	}
 	now := time.Now().UTC()
+	if in.BestTime {
+		job, err := h.Store.DB.PublishJob.Query().Where(publishjob.IDEQ(id), publishjob.TenantIDEQ(tid)).Only(r.Context())
+		if err != nil {
+			h.fail(w, err)
+			return
+		}
+		in.ScheduledAt = bestMoveTime(postingplan.Load(r.Context(), h.Store.DB, tid), job.Platform, in.ScheduledAt, now)
+	}
 	if !in.ScheduledAt.After(now) || in.ScheduledAt.After(now.AddDate(0, 6, 0)) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_request", "choose a time in the future, up to 6 months ahead", nil)
 		return
