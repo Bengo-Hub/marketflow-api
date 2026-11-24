@@ -1127,6 +1127,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			ApproveStoryboard: creativeHandler.ApproveStoryboard,
 			ReviseVideoAd:     creativeHandler.ReviseVideoAd,
 			QuoteVideoAd:      creativeHandler.QuoteVideoAd,
+			CaptionContacts:   creativeHandler.CaptionContacts,
 			RecomposeEndCard:  creativeHandler.RecomposeEndCardPreview,
 			ResetSettings:     creativeHandler.ResetSettings,
 			JobCallback:       creativeHandler.JobCallback,

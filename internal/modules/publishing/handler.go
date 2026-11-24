@@ -76,6 +76,9 @@ type ScheduleInput struct {
 	// (or now), in the tenant's time zone (postingplan).
 	BestTime    bool `json:"best_time,omitempty"`
 	MadeForKids bool `json:"made_for_kids"`
+	// AIGenerated is the person's tick for this post (each platform's own AI label); unset follows
+	// the business's setting (owner, 2026-11-25).
+	AIGenerated *bool `json:"ai_generated,omitempty"`
 	// TikTok is required when a TikTok account is picked: the privacy level (no default, as
 	// TikTok's posting guidelines require), the interactions and the commercial content
 	// disclosure the person chose.
@@ -192,6 +195,9 @@ func (h *Handler) Schedule(w http.ResponseWriter, r *http.Request) {
 	video := Video{URL: asset.URL, Bytes: asset.Bytes, DurationMS: asset.DurationMs, Width: asset.Width, Height: asset.Height, FPS: fps}
 	// The owner's AI label choice covers posts scheduled by hand too (owner 2026-11-14).
 	post := Post{Caption: strings.TrimSpace(in.Caption), AIGenerated: aiLabelOn(ctx, h.Store.DB, tid), MadeForKids: in.MadeForKids}
+	if in.AIGenerated != nil {
+		post.AIGenerated = *in.AIGenerated
+	}
 
 	type target struct {
 		acc      *ent.ConnectedAccount

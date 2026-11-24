@@ -589,6 +589,7 @@ type CreativeHandlers struct {
 	ApproveStoryboard http.HandlerFunc
 	ReviseVideoAd     http.HandlerFunc
 	QuoteVideoAd      http.HandlerFunc
+	CaptionContacts   http.HandlerFunc
 	RecomposeEndCard  http.HandlerFunc
 	ResetSettings     http.HandlerFunc
 	JobCallback       http.HandlerFunc // S2S: POST /internal/creative/jobs/{id} from marketflow-ai
@@ -1276,6 +1277,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Post("/versions/{id}/storyboard/approve", deps.CreativeHandlers.ApproveStoryboard)
 					r.Post("/versions/{id}/revision", deps.CreativeHandlers.ReviseVideoAd)
 					r.Get("/versions/{id}/quote", deps.CreativeHandlers.QuoteVideoAd)
+					r.Get("/versions/{id}/caption-contacts", deps.CreativeHandlers.CaptionContacts)
 					r.Post("/versions/{id}/end-card-preview", deps.CreativeHandlers.RecomposeEndCard)
 					r.Post("/versions/{id}/settings", deps.CreativeHandlers.ResetSettings)
 					r.Post("/versions/{id}/review-link", deps.CreativeHandlers.CreateReviewLink)
