@@ -107,6 +107,9 @@ type Settings struct {
 	// Merge sets TotalCap only from the tenant; the plan converts TotalCapKES when TotalCap is 0.
 	TotalCap    int64
 	TotalCapKES int64
+	// TotalCapSet is true when the tenant set total_cap itself; its 0 then means no cap even when
+	// the platform has one.
+	TotalCapSet bool
 	// RuleOfThumbKES is per platform; a platform missing here has no rule of thumb.
 	RuleOfThumbKES map[string]Tiers
 	TikTokMinUSD   int64
@@ -255,7 +258,7 @@ func Merge(platform Settings, tenantMeta map[string]any) Settings {
 		s.Days = int(d)
 	}
 	if c, ok := wholeNumber(o["total_cap"]); ok && c >= 0 && c <= maxAmount {
-		s.TotalCap = c
+		s.TotalCap, s.TotalCapSet = c, true
 	}
 	return s
 }

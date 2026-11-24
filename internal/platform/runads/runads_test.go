@@ -14,6 +14,9 @@ func TestMergeTenantOverrides(t *testing.T) {
 	if len(s.Platforms) != 2 || s.Platforms[0] != Meta || s.Platforms[1] != Google {
 		t.Fatalf("platforms = %v, want [meta google] in plan order", s.Platforms)
 	}
+	if zero := Merge(p, map[string]any{TenantKey: map[string]any{"total_cap": float64(0)}}); !zero.TotalCapSet || zero.TotalCap != 0 {
+		t.Fatal("a tenant cap of 0 must read as set (no cap)")
+	}
 	if s.Tier != TierHigh || s.Days != 14 || s.TotalCap != 30000 {
 		t.Fatalf("tier/days/cap = %s/%d/%d", s.Tier, s.Days, s.TotalCap)
 	}

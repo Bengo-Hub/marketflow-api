@@ -221,7 +221,7 @@ func (h *Handler) BuildPlan(ctx context.Context, tid, vid uuid.UUID, ch Choice) 
 	switch {
 	case ch.TotalCap != nil && *ch.TotalCap >= 0:
 		plan.TotalCap = *ch.TotalCap
-	case settings.TotalCap > 0:
+	case settings.TotalCapSet:
 		plan.TotalCap = settings.TotalCap
 	case settings.TotalCapKES > 0:
 		if n, ok := h.fromKES(ctx, settings.TotalCapKES, cur); ok {
