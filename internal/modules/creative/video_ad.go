@@ -574,23 +574,21 @@ const maxScriptReviews = 5
 func (r *Renderer) publishedReviews(ctx context.Context, tenantID uuid.UUID) []string {
 	rows, err := r.db.Testimonial.Query().
 		Where(testimonial.TenantID(tenantID), testimonial.IsPublished(true)).
-		Order(ent.Desc(testimonial.FieldRating), ent.Asc(testimonial.FieldDisplayOrder)).
-		Limit(maxScriptReviews).All(ctx)
+		Order(ent.Asc(testimonial.FieldDisplayOrder)).
+		Limit(50).All(ctx)
 	if err != nil {
 		r.logger.Warn("published reviews not read for the script", zap.String("tenant", tenantID.String()), zap.Error(err))
 		return nil
 	}
-	out := make([]string, 0, len(rows))
+	rankReviews(rows)
+	out := make([]string, 0, maxScriptReviews)
 	for _, t := range rows {
-		body := strings.Join(strings.Fields(t.Body), " ")
-		if body == "" {
-			continue
+		if line := reviewLine(t); line != "" {
+			out = append(out, line)
 		}
-		who := strings.TrimSpace(t.AuthorName)
-		if role := strings.TrimSpace(t.AuthorRole); role != "" {
-			who += ", " + role
+		if len(out) == maxScriptReviews {
+			break
 		}
-		out = append(out, excerpt(body, 400)+" | "+excerpt(who, 120))
 	}
 	return out
 }
