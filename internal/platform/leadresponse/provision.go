@@ -104,6 +104,7 @@ func ProvisionFollowUp(ctx context.Context, db *ent.Client, tenantID uuid.UUID) 
 	delete(meta, TemplateFlag)
 	delete(meta, "platform_template")
 	meta[CopyFlag] = true
+	meta[InheritFlag] = true
 	meta["copied_from"] = tpl.ID.String()
 	b := tx.NurtureSequence.Create().
 		SetTenantID(tenantID).

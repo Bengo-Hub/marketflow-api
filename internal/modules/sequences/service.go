@@ -8,6 +8,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/nurtureenrollment"
 	"github.com/bengobox/marketflow-api/internal/ent/nurturesequence"
 	"github.com/bengobox/marketflow-api/internal/flp"
+	"github.com/bengobox/marketflow-api/internal/platform/leadresponse"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -101,6 +102,7 @@ func (s *Service) Get(ctx context.Context, tenantID, sequenceID uuid.UUID) (*ent
 	if err != nil {
 		return nil, fmt.Errorf("get sequence: %w", err)
 	}
+	leadresponse.Inherit(ctx, s.client, result)
 	return result, nil
 }
 
@@ -142,6 +144,7 @@ func (s *Service) List(ctx context.Context, in ListInput) ([]*ent.NurtureSequenc
 		return nil, 0, fmt.Errorf("list sequences: %w", err)
 	}
 
+	leadresponse.Inherit(ctx, s.client, results...)
 	return results, total, nil
 }
 
@@ -172,11 +175,19 @@ func (s *Service) Update(ctx context.Context, tenantID, sequenceID uuid.UUID, in
 	if in.Metadata != nil {
 		builder.SetMetadata(in.Metadata)
 	}
+	if in.Steps != nil && leadresponse.IsDefaultCopy(existing) {
+		meta := existing.Metadata
+		if in.Metadata != nil {
+			meta = in.Metadata
+		}
+		builder.SetMetadata(leadresponse.InheritMeta(ctx, s.client, meta, in.Steps))
+	}
 
 	result, err := builder.Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("update sequence: %w", err)
 	}
+	leadresponse.Inherit(ctx, s.client, result)
 
 	return result, nil
 }

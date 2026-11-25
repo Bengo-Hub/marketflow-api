@@ -337,6 +337,7 @@ func (h *NurtureStepHandler) Handle(ctx context.Context, msg jetstream.Msg) erro
 	if err != nil {
 		return fmt.Errorf("load sequence: %w", err)
 	}
+	leadresponse.Inherit(ctx, h.db, seq)
 	if enrollment.CurrentStep >= len(seq.Steps) {
 		return h.completeEnrollment(ctx, enrollment, "completed")
 	}
