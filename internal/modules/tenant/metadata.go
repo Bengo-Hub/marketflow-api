@@ -7,6 +7,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
+	"github.com/bengobox/marketflow-api/internal/platform/adaccounts"
 )
 
 // Business types. "flp" switches on the Forever Living sections, links and compliance rules.
@@ -53,6 +54,8 @@ var ReservedMetadataKeys = []string{
 	// A pharmacy's PPB advert approval references, written only by PUT /creative/ppb-approvals
 	// (creative.PPBApprovalsMetadataKey; owner, 2026-11-14).
 	PPBApprovalsMetadataKey,
+	// Which ad account ads run on, written only by PUT /ads/ad-accounts/{id}.
+	adaccounts.TenantKey,
 	// The contact enricher switches and the clear they queue, written only by PUT
 	// /tenant/os-settings, so switching off always queues the removal of the stored profiles.
 	marketingos.ContactEnrichmentKey,

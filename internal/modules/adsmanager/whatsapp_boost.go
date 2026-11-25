@@ -16,6 +16,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/platform/adaccounts"
 )
 
 // Boost from WhatsApp (Sprint 17 step 6, owner 2026-11-19). After an ad is approved and posted
@@ -128,22 +129,14 @@ func accountCurrency(a *ent.ConnectedAccount) string {
 	return strings.ToUpper(strings.TrimSpace(s))
 }
 
-// pickAccount chooses among active accounts (sorted by name): the tenant's chosen one, else, for
-// ad accounts, the first in KES (Meta's M-Pesa funding works there), else the first.
-func pickAccount(accounts []*ent.ConnectedAccount, preferred string, preferKES bool) *ent.ConnectedAccount {
+// pickPage chooses among active Pages (sorted by name): the tenant's chosen one, else the first.
+func pickPage(accounts []*ent.ConnectedAccount, preferred string) *ent.ConnectedAccount {
 	if len(accounts) == 0 {
 		return nil
 	}
 	for _, a := range accounts {
 		if preferred != "" && a.ID.String() == preferred {
 			return a
-		}
-	}
-	if preferKES {
-		for _, a := range accounts {
-			if accountCurrency(a) == "KES" {
-				return a
-			}
 		}
 	}
 	return accounts[0]
@@ -189,11 +182,10 @@ func (h *Handler) waPlan(ctx context.Context, tid, vid uuid.UUID, budget int64, 
 			Order(ent.Asc(connectedaccount.FieldDisplayName)).Limit(50).All(ctx)
 	}
 	d := h.waBoostDefaults(ctx, tid)
-	accs, err := active("meta_ad_account")
+	acc, err := h.adPick(ctx, tid, adaccounts.Meta, d.AdAccountConnID)
 	if err != nil {
 		return nil, err
 	}
-	acc := pickAccount(accs, d.AdAccountConnID, true)
 	if acc == nil {
 		return nil, errNoAdAccount
 	}
@@ -201,7 +193,7 @@ func (h *Handler) waPlan(ctx context.Context, tid, vid uuid.UUID, budget int64, 
 	if err != nil {
 		return nil, err
 	}
-	page := pickAccount(pages, d.PageConnID, false)
+	page := pickPage(pages, d.PageConnID)
 	if page == nil {
 		return nil, errNoPage
 	}

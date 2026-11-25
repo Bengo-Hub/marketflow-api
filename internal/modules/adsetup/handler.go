@@ -28,6 +28,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
 	"github.com/bengobox/marketflow-api/internal/modules/googleads"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
+	"github.com/bengobox/marketflow-api/internal/platform/adaccounts"
 	"github.com/bengobox/marketflow-api/internal/platform/runads"
 )
 
@@ -127,8 +128,16 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, err)
 		return
 	}
+	// Accounts the business hid are left out (owner 2026-11-25, GET /ads/ad-accounts).
+	var prefs adaccounts.Prefs
+	if t, err := h.DB.Tenant.Get(r.Context(), tid); err == nil {
+		prefs = adaccounts.Read(t.Metadata)
+	}
 	out := make([]Account, 0, len(rows))
 	for _, a := range rows {
+		if prefs.Hidden(adaccounts.PlatformOf(a.AccountType), a.ExternalID) {
+			continue
+		}
 		out = append(out, viewOf(a))
 	}
 	httpapi.JSON(w, http.StatusOK, map[string]any{"data": out})

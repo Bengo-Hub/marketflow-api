@@ -32,22 +32,18 @@ func TestMergeWABoost(t *testing.T) {
 	}
 }
 
-// The tenant's chosen ad account wins; otherwise a KES account (M-Pesa funding), otherwise the
-// first. This is what keeps a USD account (sorted first by name) from getting a KES default.
-func TestPickAccount(t *testing.T) {
-	usd := &ent.ConnectedAccount{ID: uuid.New(), DisplayName: "A USD", Metadata: map[string]any{"currency": "USD"}}
-	kes := &ent.ConnectedAccount{ID: uuid.New(), DisplayName: "B KES", Metadata: map[string]any{"currency": "kes"}}
-	list := []*ent.ConnectedAccount{usd, kes}
-	if got := pickAccount(list, "", true); got != kes {
-		t.Fatalf("prefer KES: %s", got.DisplayName)
-	}
-	if got := pickAccount(list, usd.ID.String(), true); got != usd {
+// The tenant's chosen Page wins, otherwise the first by name (ad accounts: platform/adaccounts).
+func TestPickPage(t *testing.T) {
+	a := &ent.ConnectedAccount{ID: uuid.New(), DisplayName: "A"}
+	b := &ent.ConnectedAccount{ID: uuid.New(), DisplayName: "B"}
+	list := []*ent.ConnectedAccount{a, b}
+	if got := pickPage(list, b.ID.String()); got != b {
 		t.Fatalf("tenant choice: %s", got.DisplayName)
 	}
-	if got := pickAccount(list, "", false); got != usd {
+	if got := pickPage(list, ""); got != a {
 		t.Fatalf("pages take the first: %s", got.DisplayName)
 	}
-	if pickAccount(nil, "", true) != nil {
+	if pickPage(nil, "") != nil {
 		t.Fatal("none")
 	}
 }

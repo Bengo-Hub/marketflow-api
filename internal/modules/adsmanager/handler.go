@@ -20,6 +20,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
+	"github.com/bengobox/marketflow-api/internal/platform/adaccounts"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -66,10 +67,12 @@ type AccountView struct {
 	Active      bool    `json:"active"`
 	Problem     string  `json:"problem,omitempty"`
 	Funding     Funding `json:"funding,omitempty"`
+	// Owner is portfolio, personal or unknown.
+	Owner string `json:"owner,omitempty"`
 }
 
 // Accounts handles GET /api/v1/ads/accounts: the tenant's connected Meta ad accounts with live
-// health (at most 10 checked, in name order).
+// health (at most 10 checked), the one ads run on first; hidden accounts are left out.
 // @Summary Connected ad accounts with health
 // @Tags Ads
 // @Produce json
@@ -82,16 +85,17 @@ func (h *Handler) Accounts(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	rows, err := h.DB.ConnectedAccount.Query().
-		Where(connectedaccount.TenantIDEQ(tid), connectedaccount.AccountTypeEQ("meta_ad_account"), connectedaccount.StatusEQ("active")).
-		Order(ent.Asc(connectedaccount.FieldDisplayName)).Limit(10).All(r.Context())
+	rows, err := h.adUsable(r.Context(), tid, adaccounts.Meta, h.waBoostDefaults(r.Context(), tid).AdAccountConnID)
 	if err != nil {
 		h.fail(w, err)
 		return
 	}
+	if len(rows) > 10 {
+		rows = rows[:10]
+	}
 	out := make([]AccountView, 0, len(rows))
 	for _, a := range rows {
-		v := AccountView{ConnectedID: a.ID.String(), ID: a.ExternalID, Name: a.DisplayName}
+		v := AccountView{ConnectedID: a.ID.String(), ID: a.ExternalID, Name: a.DisplayName, Owner: adaccounts.Owner(a)}
 		tok, err := h.token(r.Context(), a)
 		if err != nil {
 			v.Problem = "reconnect this ad account"
@@ -235,6 +239,9 @@ func (h *Handler) quote(ctx context.Context, tid uuid.UUID, in QuoteInput) (Quot
 	acc, err := h.account(ctx, tid, in.AdAccountConnID, "meta_ad_account")
 	if err != nil {
 		return Quote{}, nil, "", fmt.Errorf("choose a connected ad account")
+	}
+	if h.adPrefs(ctx, tid).Hidden(adaccounts.Meta, acc.ExternalID) {
+		return Quote{}, nil, "", fmt.Errorf("this ad account is hidden; show it again in Settings, Ads setup, or choose another")
 	}
 	tok, err := h.token(ctx, acc)
 	if err != nil {

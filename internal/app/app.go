@@ -1144,6 +1144,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			BriefPPBApproval:  creativeHandler.BriefPPBApproval,
 		},
 		AdsHandlers: httpapi.AdsHandlers{
+			AdAccounts: adsHandler.AdAccounts, SetAdAccount: adsHandler.SetAdAccount,
 			Accounts: adsHandler.Accounts, CreateKES: adsHandler.CreateKESAccount, Quote: adsHandler.Quote, Boost: adsHandler.Boost,
 			Get: adsHandler.Get, ConfirmPaid: adsHandler.ConfirmPaid, Pause: adsHandler.Pause, Resume: adsHandler.Resume, ResumeAd: adsHandler.ResumeAd,
 			BoostOTP:         adsHandler.BoostOTP,

@@ -451,11 +451,7 @@ func (h *Handler) MetaCallback(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	// Ad accounts need ads_management or ads_read; without them the list is simply empty.
-	adAccounts, err := graphList[metaAdAccount](r.Context(), "/me/adaccounts", url.Values{
-		"access_token": {userToken},
-		"fields":       {"id,name,currency,account_status"},
-		"limit":        {"100"},
-	}, 5)
+	adAccounts, err := metaAdAccounts(r.Context(), userToken)
 	adListed := err == nil
 	if err != nil {
 		h.logger.Info("meta connect: ad accounts not listed", zap.String("tenant", tenantID), zap.Error(err))

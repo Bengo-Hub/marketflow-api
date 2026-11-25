@@ -11,6 +11,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
+	"github.com/bengobox/marketflow-api/internal/platform/adaccounts"
 	"github.com/google/uuid"
 )
 
@@ -29,8 +30,8 @@ var (
 	ErrAdAccountToken = errors.New("the Meta ad account needs to be connected again")
 )
 
-// CheckFunds quotes budget (whole units) over days on the first active Meta ad account among
-// connIDs, with a live read of its status and balance on Meta. A Meta error is returned as is.
+// CheckFunds quotes budget (whole units) over days on the account ads run on among connIDs
+// (platform/adaccounts), with a live read of its status and balance on Meta. A Meta error is returned as is.
 func CheckFunds(ctx context.Context, db *ent.Client, keys *encryption.KeyProvider, m *meta.Client,
 	tenantID uuid.UUID, connIDs []string, budget int64, days int) (AccountFunds, error) {
 	ids := make([]uuid.UUID, 0, len(connIDs))
@@ -42,15 +43,20 @@ func CheckFunds(ctx context.Context, db *ent.Client, keys *encryption.KeyProvide
 	if len(ids) == 0 {
 		return AccountFunds{}, ErrNoAdAccount
 	}
-	acc, err := db.ConnectedAccount.Query().
+	rows, err := db.ConnectedAccount.Query().
 		Where(connectedaccount.IDIn(ids...), connectedaccount.TenantIDEQ(tenantID),
 			connectedaccount.AccountTypeEQ("meta_ad_account"), connectedaccount.StatusEQ("active")).
-		Order(ent.Asc(connectedaccount.FieldCreatedAt)).First(ctx)
-	if ent.IsNotFound(err) {
-		return AccountFunds{}, ErrNoAdAccount
-	}
+		Order(ent.Asc(connectedaccount.FieldCreatedAt)).All(ctx)
 	if err != nil {
 		return AccountFunds{}, err
+	}
+	var prefs adaccounts.Prefs
+	if t, err := db.Tenant.Get(ctx, tenantID); err == nil {
+		prefs = adaccounts.Read(t.Metadata)
+	}
+	acc := prefs.Pick(adaccounts.Meta, rows, "")
+	if acc == nil {
+		return AccountFunds{}, ErrNoAdAccount
 	}
 	out := AccountFunds{ConnectedID: acc.ID.String()}
 	if keys == nil || acc.TokenCiphertext == "" {

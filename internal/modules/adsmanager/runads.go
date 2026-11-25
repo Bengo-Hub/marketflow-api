@@ -21,6 +21,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/integrations/google"
+	"github.com/bengobox/marketflow-api/internal/platform/adaccounts"
 	"github.com/bengobox/marketflow-api/internal/platform/runads"
 )
 
@@ -467,14 +468,11 @@ func (h *Handler) planMeta(ctx context.Context, tid uuid.UUID, pc *planCtx, pp *
 		pp.Setup = append(pp.Setup, PlanStep{Label: "Paid Meta ads are not switched on for MarketFlow yet"})
 	}
 	d := h.waBoostDefaults(ctx, tid)
-	accs, _ := h.DB.ConnectedAccount.Query().
-		Where(connectedaccount.TenantIDEQ(tid), connectedaccount.AccountTypeEQ("meta_ad_account"), connectedaccount.StatusEQ("active")).
-		Order(ent.Asc(connectedaccount.FieldDisplayName)).Limit(50).All(ctx)
-	acc := pickAccount(accs, d.AdAccountConnID, true)
+	acc, _ := h.adPick(ctx, tid, adaccounts.Meta, d.AdAccountConnID)
 	pages, _ := h.DB.ConnectedAccount.Query().
 		Where(connectedaccount.TenantIDEQ(tid), connectedaccount.AccountTypeEQ("facebook_page"), connectedaccount.StatusEQ("active")).
 		Order(ent.Asc(connectedaccount.FieldDisplayName)).Limit(50).All(ctx)
-	page := pickAccount(pages, d.PageConnID, false)
+	page := pickPage(pages, d.PageConnID)
 	if acc == nil {
 		pp.Setup = append(pp.Setup, PlanStep{Label: "Connect your Meta ad account", Path: "/settings/integrations"})
 	}
@@ -575,9 +573,7 @@ func (h *Handler) planTikTok(ctx context.Context, tid uuid.UUID, pc *planCtx, pp
 			pp.Notes = append(pp.Notes, "TikTok automation is switched on but not available yet, so TikTok stays guided.")
 		}
 	}
-	acc, _ := h.DB.ConnectedAccount.Query().
-		Where(connectedaccount.TenantIDEQ(tid), connectedaccount.AccountTypeEQ("tiktok_advertiser"), connectedaccount.StatusEQ("active")).
-		Order(ent.Asc(connectedaccount.FieldDisplayName)).First(ctx)
+	acc, _ := h.adPick(ctx, tid, adaccounts.TikTok, "")
 	adv := ""
 	if acc != nil {
 		pc.tiktok = acc

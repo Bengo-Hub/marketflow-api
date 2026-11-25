@@ -30,6 +30,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/integrations/google"
 	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/googleads"
+	"github.com/bengobox/marketflow-api/internal/platform/adaccounts"
 	"github.com/bengobox/marketflow-api/internal/platform/runads"
 )
 
@@ -91,9 +92,7 @@ func str(v any) string {
 func (h *Handler) planGoogle(ctx context.Context, tid uuid.UUID, pc *planCtx, pp *PlatformPlan, in *runads.TierInput, own int64, cur string) {
 	pp.Mode = "api"
 	gt := &googleTarget{}
-	acc, _ := h.DB.ConnectedAccount.Query().
-		Where(connectedaccount.TenantIDEQ(tid), connectedaccount.AccountTypeEQ(googleads.AccountType), connectedaccount.StatusEQ("active")).
-		Order(ent.Asc(connectedaccount.FieldDisplayName)).First(ctx)
+	acc, _ := h.adPick(ctx, tid, adaccounts.Google, "")
 	if acc == nil {
 		pp.Setup = append(pp.Setup, PlanStep{Label: "Connect your Google Ads account", Path: "/settings/integrations"})
 	} else {

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"time"
 
 	authclient "github.com/Bengo-Hub/shared-auth-client"
@@ -14,6 +15,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/bengobox/marketflow-api/internal/ent/marketflowuser"
+	"github.com/bengobox/marketflow-api/internal/platform/adaccounts"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -249,6 +251,21 @@ type metaAdAccount struct {
 	Name          string `json:"name"`
 	Currency      string `json:"currency"`
 	AccountStatus int    `json:"account_status"`
+	// Business is the portfolio that owns the account; nil for a personal account, or for a login
+	// without business_management.
+	Business *meta.Business `json:"business"`
+}
+
+// metaAdAccounts lists the login's ad accounts with their portfolio. Without permission to read
+// portfolios the list is read again without it, so a connect never loses its accounts.
+func metaAdAccounts(ctx context.Context, userToken string) ([]metaAdAccount, error) {
+	q := url.Values{"access_token": {userToken}, "fields": {"id,name,currency,account_status,business{id,name}"}, "limit": {"100"}}
+	list, err := graphList[metaAdAccount](ctx, "/me/adaccounts", q, 5)
+	if err != nil {
+		q.Set("fields", "id,name,currency,account_status")
+		list, err = graphList[metaAdAccount](ctx, "/me/adaccounts", q, 5)
+	}
+	return list, err
 }
 
 // graphList follows a Graph list endpoint's paging up to maxPages pages.
@@ -362,10 +379,16 @@ func metaAccounts(pages []metaPage, adAccounts []metaAdAccount, userToken string
 		if a.ID == "" || metaAdAccountClosed(a.AccountStatus) {
 			continue
 		}
+		md := meta(map[string]any{"currency": a.Currency, "account_status": a.AccountStatus})
+		switch {
+		case a.Business != nil && a.Business.ID != "":
+			md[adaccounts.BusinessID], md[adaccounts.BusinessName] = a.Business.ID, a.Business.Name
+		case slices.Contains(scopes, "business_management"):
+			md[adaccounts.BusinessID] = "" // the login may read portfolios and Meta named none
+		}
 		out = append(out, account{
 			Platform: PlatformMeta, Type: AccountMetaAdAccount, ExternalID: a.ID, DisplayName: a.Name,
-			Token: userToken, Scopes: scopes,
-			Metadata: meta(map[string]any{"currency": a.Currency, "account_status": a.AccountStatus}),
+			Token: userToken, Scopes: scopes, Metadata: md,
 		})
 	}
 	return out

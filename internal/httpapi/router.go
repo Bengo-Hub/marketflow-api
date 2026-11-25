@@ -616,6 +616,9 @@ type AdsSetupHandlers struct {
 
 // AdsHandlers groups the paid ads routes (Sprint 18).
 type AdsHandlers struct {
+	// AdAccounts and SetAdAccount: which ad account each platform's ads run on (item 70).
+	AdAccounts   http.HandlerFunc
+	SetAdAccount http.HandlerFunc
 	Accounts    http.HandlerFunc
 	CreateKES   http.HandlerFunc
 	Quote       http.HandlerFunc
@@ -1302,6 +1305,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 			if deps.AdsHandlers.Quote != nil {
 				r.Route("/ads", func(r chi.Router) {
 					r.Get("/accounts", deps.AdsHandlers.Accounts)
+					if deps.AdsHandlers.AdAccounts != nil {
+						r.Get("/ad-accounts", deps.AdsHandlers.AdAccounts)
+						r.Put("/ad-accounts/{id}", deps.AdsHandlers.SetAdAccount)
+					}
 					r.Post("/accounts/kes", deps.AdsHandlers.CreateKES)
 					r.Post("/quote", deps.AdsHandlers.Quote)
 					r.Post("/boosts", deps.AdsHandlers.Boost)

@@ -73,6 +73,19 @@ func (c *Client) AdAccountHealth(ctx context.Context, token, actID string) (*AdA
 	return &a, nil
 }
 
+// AdAccountBusiness reads the business portfolio an ad account belongs to. An empty id means Meta
+// named none: a personal account, or a login without business_management.
+func (c *Client) AdAccountBusiness(ctx context.Context, token, actID string) (Business, error) {
+	q := url.Values{"fields": {"business{id,name}"}, "access_token": {token}}
+	var out struct {
+		Business Business `json:"business"`
+	}
+	if err := c.getJSON(ctx, "/"+url.PathEscape(actPrefix(actID))+"?"+q.Encode(), &out); err != nil {
+		return Business{}, fmt.Errorf("meta ad account business: %w", err)
+	}
+	return out.Business, nil
+}
+
 // CreateKESAdAccount makes a KES ad account in the client's own business portfolio
 // (POST /{business_id}/adaccount), Nairobi time, with the client's Page as end advertiser.
 func (c *Client) CreateKESAdAccount(ctx context.Context, token, businessID, name, pageID string) (string, error) {
