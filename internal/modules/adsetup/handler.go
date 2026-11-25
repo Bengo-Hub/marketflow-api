@@ -144,6 +144,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 // @Security bearerAuth
 // @Router /ads-setup/{id} [get]
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(75 * time.Second))
 	tid, a, ok := h.load(w, r)
 	if !ok {
 		return
@@ -203,6 +204,9 @@ func (h *Handler) Fix(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// A fix reads the account before and after it, longer than the server's write deadline allows; the
+	// owner saw "did not finish" for a fix whose answer was cut off (2026-11-25).
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(150 * time.Second))
 	// One fix at a time per account, so a double tap cannot create the same thing twice: the second
 	// one reads the account after the first has finished and finds nothing to fix.
 	l, _ := h.locks.LoadOrStore(a.ID, &sync.Mutex{})

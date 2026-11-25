@@ -8,6 +8,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/lead"
+	"github.com/bengobox/marketflow-api/internal/platform/adconversions"
 	"github.com/bengobox/marketflow-api/internal/platform/search"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -76,7 +77,7 @@ type ListInput struct {
 	ExcludeSources []string
 	// Statuses filters on several statuses at once (every open lead: all but lost).
 	Statuses []string
-	LeadType       *string
+	LeadType *string
 	// Search matches name, email, phone or interest (case-insensitive substring), at most 100
 	// characters.
 	Search string
@@ -274,6 +275,13 @@ func (s *Service) Update(ctx context.Context, tenantID, leadID uuid.UUID, in Upd
 	result, err := builder.Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("update lead: %w", err)
+	}
+	// A lead that came from an ad and is now qualified or converted is reported to the tenant's own
+	// ad accounts, once (owner, 2026-11-25). The save stands even when this cannot be queued.
+	if in.Status != nil && *in.Status != existing.Status && (*in.Status == "qualified" || *in.Status == "converted") {
+		if _, err := adconversions.QualifiedLead(ctx, s.client, result); err != nil {
+			s.logger.Warn("lead conversion not queued", zap.String("lead", result.ID.String()), zap.Error(err))
+		}
 	}
 
 	return result, nil

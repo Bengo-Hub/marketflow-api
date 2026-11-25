@@ -1,6 +1,10 @@
 package worker
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/bengobox/marketflow-api/internal/ent"
+)
 
 func TestMetaCAPIRowCTWA(t *testing.T) {
 	web := metaCAPIRow(&ConversionEvent{EventName: "Purchase", Value: 1500, Currency: "KES"}, 1, map[string]any{"em": []string{"h"}}, "")
@@ -18,7 +22,7 @@ func TestMetaCAPIRowCTWA(t *testing.T) {
 }
 
 func TestCTWALeadIsAdAttributed(t *testing.T) {
-	if !adLeadSources["ctwa"] {
+	if !adAttributed(&ent.Lead{Source: "ctwa"}) {
 		t.Fatal("a ctwa lead's sale must reach CAPI")
 	}
 }

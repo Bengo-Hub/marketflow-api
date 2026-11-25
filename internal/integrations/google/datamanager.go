@@ -241,7 +241,11 @@ func (d DataManager) SendConversion(ctx context.Context, c OfflineConversion) (r
 	// personalisation choices Google means, and a value must never be made up.
 	ev := map[string]any{
 		"eventTimestamp": c.At.Format(time.RFC3339), "eventSource": dmEventSource, "adIdentifiers": ids,
-		"conversionValue": c.Value, "currency": strings.ToUpper(c.Currency),
+	}
+	// A lead or a booking has no value of its own: leaving it out lets the conversion's default value
+	// in Google Ads apply, where an explicit 0 would not.
+	if c.Value > 0 {
+		ev["conversionValue"], ev["currency"] = c.Value, strings.ToUpper(c.Currency)
 	}
 	if c.TransactionID != "" {
 		ev["transactionId"] = c.TransactionID

@@ -25,36 +25,13 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/googleads"
 	"github.com/nats-io/nats.go/jetstream"
 	"go.uber.org/zap"
+
+	"github.com/bengobox/marketflow-api/internal/platform/adconversions"
 )
 
-// ConversionEvent is the NATS payload published by marketflow-api when a
-// tenant-defined goal is achieved (lead_submit, meeting_booked,
-// purchase_completed, etc.). The worker fans it out to every connected ad
-// platform using that tenant's stored OAuth tokens.
-//
-// Publishers: marketflow-api when it observes a matching Lead / Meeting /
-// Order event. Subject: `conversion.occurred`.
-type ConversionEvent struct {
-	TenantID   string  `json:"tenant_id"`
-	EventName  string  `json:"event_name"` // Lead | CompleteRegistration | Purchase | etc.
-	Value      float64 `json:"value"`
-	Currency   string  `json:"currency"`
-	OccurredAt string  `json:"occurred_at"` // RFC3339
-	Gclid      string  `json:"gclid,omitempty"`
-	// Wbraid and Gbraid are Google's click ids for iPhone clicks that carry no gclid.
-	Wbraid string `json:"wbraid,omitempty"`
-	Gbraid string `json:"gbraid,omitempty"`
-	// ConversionID is the same for every delivery of one conversion, so a platform counts it once.
-	ConversionID string `json:"conversion_id,omitempty"`
-	Fbclid       string `json:"fbclid,omitempty"`
-	// CtwaClid is the click id of a click-to-WhatsApp ad (Sprint 18); such a sale goes to Meta as
-	// a business_messaging event on the WhatsApp dataset, not a website event.
-	CtwaClid     string `json:"ctwa_clid,omitempty"`
-	ClientUserID string `json:"client_user_id,omitempty"` // Lead UUID for dedup
-	Email        string `json:"email,omitempty"`          // Raw — hashed before outbound
-	Phone        string `json:"phone,omitempty"`          // Raw — hashed before outbound
-	Source       string `json:"source,omitempty"`         // lead | meeting | order
-}
+// ConversionEvent is the conversion.occurred payload. The worker sends it to every connected ad
+// platform of the tenant.
+type ConversionEvent = adconversions.Event
 
 // ConversionsHandler is the NATS consumer. Dispatches to Meta CAPI + Google
 // Ads in parallel; failures are logged but don't block each other.
@@ -403,15 +380,23 @@ func truncate(s string, n int) string {
 	return s[:n] + "…"
 }
 
+// metaEventName is Meta's standard event for a MarketFlow conversion.
+func metaEventName(name string) string {
+	if name == adconversions.Booking {
+		return "Schedule"
+	}
+	return name
+}
+
 // metaCAPIRow builds one Conversions API event. A click-to-WhatsApp sale is a business_messaging
 // event matched by ctwa_clid and the WhatsApp Business Account; anything else is a website event
 // matched by hashed contact data and fbclid.
 func metaCAPIRow(ev *ConversionEvent, eventTime int64, userData map[string]any, wabaID string) map[string]any {
 	row := map[string]any{
-		"event_name":    ev.EventName,
+		"event_name":    metaEventName(ev.EventName),
 		"event_time":    eventTime,
 		"action_source": "website",
-		"event_id":      ev.ClientUserID, // Meta dedups against pixel browser events
+		"event_id":      firstNonEmpty(ev.ConversionID, ev.ClientUserID), // one id per conversion, so a second sale of a lead counts
 		"user_data":     userData,
 		"custom_data": map[string]any{
 			"currency": firstNonEmpty(ev.Currency, "USD"),

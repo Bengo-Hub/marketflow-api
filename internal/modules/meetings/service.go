@@ -7,6 +7,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/scheduledmeeting"
+	"github.com/bengobox/marketflow-api/internal/platform/adconversions"
 	"github.com/bengobox/marketflow-api/internal/platform/leadresponse"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -146,6 +147,9 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.ScheduledMee
 	if in.LeadID != nil {
 		if _, err := leadresponse.MarkContacted(ctx, s.client, in.TenantID, *in.LeadID, time.Now()); err != nil {
 			s.logger.Warn("mark lead contacted", zap.String("lead", in.LeadID.String()), zap.Error(err))
+		}
+		if _, err := adconversions.BookedMeeting(ctx, s.client, in.TenantID, *in.LeadID); err != nil {
+			s.logger.Warn("booking conversion not queued", zap.String("lead", in.LeadID.String()), zap.Error(err))
 		}
 	}
 

@@ -264,21 +264,30 @@ func (in googleInput) mappingItem(actions []google.SetupAction, err error) Item 
 	}
 	mapped, named := in.leadAction(actions)
 	if mapped != nil {
-		it.Status, it.Detail = StatusOK, "Leads that came from a Google ad are sent to \""+mapped.Name+"\"."
-		return it
+		if in.Mapping["Booking"] != "" {
+			it.Status, it.Detail = StatusOK, "Qualified leads and booked meetings from a Google ad are sent to Google; leads go to \""+mapped.Name+"\"."
+			return it
+		}
+		named = mapped
 	}
 	if named == nil {
 		it.Status, it.Detail = StatusAction, "First let Google count your leads (the check above). Then MarketFlow can send them."
 		return it
 	}
 	it.Status, it.Detail = StatusAction, "The conversion is ready in Google Ads, but MarketFlow is not sending leads to it yet."
+	if mapped != nil {
+		it.Status, it.Detail = StatusWarning, "Qualified leads from a Google ad are sent to \""+mapped.Name+"\". Booked meetings are not sent yet."
+	}
 	next := map[string]string{}
 	for k, v := range in.Mapping {
 		next[k] = v
 	}
 	next["Lead"] = named.ResourceName
+	if next["Booking"] == "" {
+		next["Booking"] = named.ResourceName
+	}
 	it.Fix = &Fix{Label: "Send leads to Google", Changes: []string{
-		"Send each MarketFlow lead that came from a Google ad click to \"" + named.Name + "\". MarketFlow sends the click id, time and value.",
+		"Send a lead from a Google ad click to \"" + named.Name + "\" when you mark it qualified or converted, or when it books a meeting. Google counts one per click. MarketFlow sends the click id, time and value.",
 		"Only MarketFlow's own setting changes. Nothing changes in Google Ads.",
 	}, run: func(ctx context.Context, _ map[string]string) error { return in.SaveMapping(ctx, next) }}
 	return it
