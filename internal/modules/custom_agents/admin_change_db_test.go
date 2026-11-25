@@ -18,6 +18,8 @@ func TestAutopilotAgentChangesAreAdminOnly(t *testing.T) {
 	db := openPlanTestDB(t)
 	ctx := context.Background()
 	tid := uuid.New()
+	db.Tenant.Create().SetID(tid).SetName("A " + tid.String()).SetSlug("a-" + tid.String()).SaveX(ctx)
+	t.Cleanup(func() { _ = db.Tenant.DeleteOneID(tid).Exec(ctx) })
 	mk := func(meta map[string]any) uuid.UUID {
 		a := db.CustomAgent.Create().SetTenantID(tid).SetName("A").SetTriggerType("manual").SetIsActive(false).SetMetadata(meta).SaveX(ctx)
 		t.Cleanup(func() { _ = db.CustomAgent.DeleteOneID(a.ID).Exec(ctx) })
