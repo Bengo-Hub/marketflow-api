@@ -119,6 +119,8 @@ type storyboardStill struct {
 	PlainKey string         `json:"plain_key,omitempty"`
 	// Screen is the tenant's own screenshot placed on a device in the still (screens.go).
 	Screen map[string]any `json:"screen,omitempty"`
+	// Cue is the short writing the still carries (cues.go).
+	Cue string `json:"cue,omitempty"`
 }
 
 // jobKinds are the version kinds made by media jobs.

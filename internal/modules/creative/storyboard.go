@@ -264,6 +264,8 @@ type storyboardCall struct {
 	Screenshots []screenshot `json:"screenshots,omitempty"`
 	// Face is the person the new actor takes its look from, with a live consent (faces.go).
 	Face *faceRef `json:"face,omitempty"`
+	// LocalCues are the local cue rules (creative.local_cues, cues.go).
+	LocalCues *localCues `json:"local_cues,omitempty"`
 }
 
 // endCardWords are the end card's words, contacts, colour and logo: marketflow-ai composes them
@@ -310,6 +312,7 @@ func (r *Renderer) startStoryboard(ctx context.Context, v *ent.CreativeVersion) 
 	call.PreviousStills = previousStills(meta)
 	call.Branding = brandingFor(ctx, r.db, v.TenantID)
 	call.Screens, call.Screenshots = r.screensFor(ctx, v.TenantID)
+	call.LocalCues = localCuesFor(ctx, r.db, v.TenantID)
 	if b, err := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx); err == nil {
 		place := r.resolvePlace(ctx, v.TenantID, b.Offering, false)
 		call.Brand, call.Place = place.Brand, place.Line()

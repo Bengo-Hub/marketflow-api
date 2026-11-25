@@ -779,6 +779,9 @@ type adCall struct {
 	PlainStills map[string]string `json:"plain_stills,omitempty"`
 	// StaticScenes carry the tenant's own screenshot and are shown as stills (screens.go).
 	StaticScenes []string `json:"static_scenes,omitempty"`
+	// CueWords is the short writing a still carries, by scene, and LocalCues the rules (cues.go).
+	CueWords  map[string]string `json:"cue_words,omitempty"`
+	LocalCues *localCues        `json:"local_cues,omitempty"`
 }
 
 // startAd starts a claimed video ad's render job in marketflow-ai.
@@ -810,6 +813,7 @@ func (r *Renderer) adCallFor(ctx context.Context, v *ent.CreativeVersion, script
 		Headline: str(card["headline"]), Subline: str(card["subline"]), Price: str(card["price"]), CTA: str(card["cta"]),
 		Charge: charge, Kind: videoKind(v), MusicURL: str(meta["music_url"]), Mood: script.Mood,
 		AILabel: TenantAILabelText(ctx, r.db, v.TenantID)}
+	call.CueWords, call.LocalCues = cueWords(v), localCuesFor(ctx, r.db, v.TenantID)
 	b, berr := r.db.CreativeBrief.Query().Where(creativebrief.ID(v.BriefID)).Only(ctx)
 	if berr == nil {
 		brand, _ := b.Metadata["brand"].(map[string]any)

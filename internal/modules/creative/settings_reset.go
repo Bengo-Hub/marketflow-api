@@ -154,7 +154,7 @@ func previousStills(meta map[string]any) []storyboardStill {
 			continue
 		}
 		p := storyboardStill{SceneID: str(st["scene_id"]), URL: str(st["url"]), Key: str(st["key"]), Source: "generated",
-			Route: str(st["route"]), Prompt: str(st["prompt"]), PlainURL: str(st["plain_url"]), PlainKey: str(st["plain_key"])}
+			Route: str(st["route"]), Prompt: str(st["prompt"]), Cue: str(st["cue"]), PlainURL: str(st["plain_url"]), PlainKey: str(st["plain_key"])}
 		if l, ok := st["logo"].(map[string]any); ok {
 			p.Logo = l
 		}
