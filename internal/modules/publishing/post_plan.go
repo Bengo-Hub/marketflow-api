@@ -28,8 +28,8 @@ import (
 // settings. The Studio's Post dialog starts with it, and the WhatsApp message shows it and posts
 // exactly it (its fingerprint), so the web and WhatsApp follow one rule.
 
-// Best time default: the platform's service_config row, the tenant's metadata over it. "on" unless
-// either says off.
+// Best time default: the platform's service_config row, the tenant's metadata over it. Off (a post
+// goes now) unless either says on (owner, 2026-11-25).
 const (
 	BestTimeConfigKey = "publishing.post_at_best_time"
 	BestTimeTenantKey = "post_at_best_time"
@@ -39,10 +39,10 @@ const (
 func bestTimeOn(ctx context.Context, db *ent.Client, t *ent.Tenant) bool {
 	if t != nil {
 		if s, _ := t.Metadata[BestTimeTenantKey].(string); s != "" {
-			return !strings.EqualFold(strings.TrimSpace(s), "off")
+			return strings.EqualFold(strings.TrimSpace(s), "on")
 		}
 	}
-	return !strings.EqualFold(svcconfig.Value(ctx, db, uuid.Nil, BestTimeConfigKey), "off")
+	return strings.EqualFold(svcconfig.Value(ctx, db, uuid.Nil, BestTimeConfigKey), "on")
 }
 
 // PlannedPost is one account a post goes to and when. At is zero for "now".

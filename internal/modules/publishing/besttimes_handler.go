@@ -55,7 +55,9 @@ func (h *Handler) BestTimes(w http.ResponseWriter, r *http.Request) {
 	httpapi.JSON(w, http.StatusOK, map[string]any{
 		"timezone":  s.Timezone,
 		"platforms": out,
-		"defaults":  map[string]any{"windows": postingplan.DefaultWindows(), "cadence": postingplan.DefaultCadence()},
+		// What a business that set nothing gets, so the tick shows what really happens.
+		"best_time_default": bestTimeOn(ctx, h.Store.DB, nil),
+		"defaults":          map[string]any{"windows": postingplan.DefaultWindows(), "cadence": postingplan.DefaultCadence()},
 	})
 }
 

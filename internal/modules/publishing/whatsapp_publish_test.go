@@ -17,6 +17,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/publishjob"
+	"github.com/bengobox/marketflow-api/internal/ent/serviceconfig"
 )
 
 var fbScopesOK = []string{"pages_show_list", "pages_read_engagement", "pages_manage_posts"}
@@ -140,13 +141,34 @@ func TestOSTurnPublishDB(t *testing.T) {
 	}
 }
 
+// A post goes now unless the business or the platform turned best time on.
+func TestBestTimeIsOffByDefault(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	q := db.ServiceConfig.Query().Where(serviceconfig.ConfigKey(BestTimeConfigKey), serviceconfig.TenantIDIsNil())
+	if q.ExistX(ctx) {
+		t.Skip("the local database has its own platform row")
+	}
+	for value, want := range map[string]bool{"": false, "off": false, "maybe": false, "on": true} {
+		if got := bestTimeOn(ctx, db, &ent.Tenant{Metadata: map[string]any{BestTimeTenantKey: value}}); got != want {
+			t.Errorf("%q: %v", value, got)
+		}
+	}
+	tenant, version := seedVideo(t, db)
+	db.Tenant.UpdateOneID(tenant).SetMetadata(map[string]any{}).ExecX(ctx)
+	p, err := (&Handler{Store: &EntStore{DB: db}, Logger: zap.NewNop()}).BuildPostPlan(ctx, tenant, version, time.Date(2026, 11, 22, 22, 0, 0, 0, time.UTC))
+	if err != nil || p.BestTime || p.Posts[0].At != nil || !strings.Contains(PostPlanText(p), "Boi Page (Facebook), now") {
+		t.Fatalf("plan %+v %v", p, err)
+	}
+}
+
 // The approval covers exactly the plan its message showed: the caption with the contacts and the
 // link, the accounts and their best times. A plan that changed is shown again and posts nothing.
 func TestPostPlanIsWhatIsPosted(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
 	tenant, version := seedVideo(t, db)
-	db.Tenant.UpdateOneID(tenant).SetMetadata(map[string]any{"ai_label": "off"}).ExecX(ctx)
+	db.Tenant.UpdateOneID(tenant).SetMetadata(map[string]any{"ai_label": "off", BestTimeTenantKey: "on"}).ExecX(ctx)
 	caption := "Shea butter\n\nWhatsApp: +254700000001\n\nhttps://app.example/f/shea"
 	h := &Handler{Store: &EntStore{DB: db}, Logger: zap.NewNop(),
 		Caption: func(context.Context, uuid.UUID, uuid.UUID) (string, error) { return caption, nil },
