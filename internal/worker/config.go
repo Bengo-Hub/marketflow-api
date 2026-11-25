@@ -29,6 +29,8 @@ type Config struct {
 	AuthServiceURL string `env:"MF_SECURITY_AUTH_SERVICE_URL" envDefault:"https://sso.codevertexafrica.com"`
 	// CrossServiceKey is the S2S key the API pods use for auth-api and the other services.
 	CrossServiceKey string `env:"MF_CROSS_INTERNAL_SERVICE_KEY"`
+	// TreasuryURL is treasury-api, for the platform's exchange rates (the API's own setting).
+	TreasuryURL string `env:"MF_CROSS_TREASURY_URL" envDefault:"http://treasury-api.treasury.svc.cluster.local:4000"`
 	// PlatformTenant is the platform owner's tenant slug (it sends platform-number replies).
 	PlatformTenant string `env:"MF_SECURITY_PLATFORM_TENANT" envDefault:"codevertex"`
 	// Autopilot is the ad autopilot's veto-window mode, the same MF_AUTOPILOT_* env as the API.

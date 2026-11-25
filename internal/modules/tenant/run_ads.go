@@ -8,8 +8,9 @@ import (
 )
 
 // GetRunAds handles GET /api/v1/tenant/profile/run-ads: the tenant's Run ads defaults (platforms,
-// budget tier or own daily amounts, days, total cap) beside the platform defaults they override,
-// in the tenant's currency. Saved through the profile PATCH as metadata.run_ads by the approving
+// budget tier or own daily amounts, days, total cap) beside the platform defaults they override.
+// effective.currency is the ads currency; saved amounts are in effective.amounts_currency, or in
+// the tenant's currency when it is empty. Saved through the profile PATCH as metadata.run_ads by the approving
 // roles.
 // @Summary Run ads defaults
 // @Tags Tenant
@@ -39,6 +40,8 @@ func (h *Handler) GetRunAds(w http.ResponseWriter, r *http.Request) {
 		"effective": effective.ToView(),
 		"tenant":    override,
 		"currency":  CurrencyOf(ctx, h.db, tenantID, PlatformCurrency),
-		"can_edit":  h.CanApprove == nil || h.CanApprove(ctx, tenantID),
+		// The currencies the ads currency can be chosen from.
+		"currencies": SupportedCurrencies,
+		"can_edit": h.CanApprove == nil || h.CanApprove(ctx, tenantID),
 	})
 }

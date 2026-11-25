@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
+	"time"
 )
 
 // Google Ads API calls MarketFlow makes for a business's own Google Ads account (owner
@@ -250,12 +252,61 @@ func (a Ads) CampaignResults(ctx context.Context, customerID, period string) ([]
 	if !periods[period] {
 		period = "LAST_30_DAYS"
 	}
-	rows, err := a.search(ctx, customerID, "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, "+
-		"metrics.impressions, metrics.clicks, metrics.conversions, metrics.cost_micros FROM campaign "+
+	rows, err := a.search(ctx, customerID, campaignResultsQuery+
 		"WHERE campaign.status != 'REMOVED' AND segments.date DURING "+period+" ORDER BY metrics.cost_micros DESC LIMIT 200")
 	if err != nil {
 		return nil, err
 	}
+	return campaignResults(rows), nil
+}
+
+// CampaignResultsBetween reads every campaign's results from one day to another, removed
+// campaigns included (what they cost was spent).
+func (a Ads) CampaignResultsBetween(ctx context.Context, customerID string, from, to time.Time) ([]CampaignResult, error) {
+	rows, err := a.search(ctx, customerID, campaignResultsQuery+
+		"WHERE segments.date BETWEEN '"+from.Format(time.DateOnly)+"' AND '"+to.Format(time.DateOnly)+"' ORDER BY metrics.cost_micros DESC LIMIT 200")
+	if err != nil {
+		return nil, err
+	}
+	return campaignResults(rows), nil
+}
+
+// CampaignDay is one campaign's results on one day (the account's time zone).
+type CampaignDay struct {
+	Date time.Time
+	CampaignResult
+}
+
+// CampaignDays reads one campaign's results per day. resource is customers/{id}/campaigns/{id}.
+func (a Ads) CampaignDays(ctx context.Context, customerID, resource string, from, to time.Time) ([]CampaignDay, error) {
+	if !campaignResource.MatchString(resource) {
+		return nil, fmt.Errorf("google ads: %q is not a campaign", resource)
+	}
+	rows, err := a.search(ctx, customerID, strings.Replace(campaignResultsQuery, "SELECT ", "SELECT segments.date, ", 1)+
+		"WHERE campaign.resource_name = '"+resource+"' AND segments.date BETWEEN '"+from.Format(time.DateOnly)+"' AND '"+to.Format(time.DateOnly)+"' ORDER BY segments.date LIMIT 400")
+	if err != nil {
+		return nil, err
+	}
+	res := campaignResults(rows)
+	out := make([]CampaignDay, 0, len(rows))
+	for i, r := range rows {
+		seg, _ := r["segments"].(map[string]any)
+		s, _ := seg["date"].(string)
+		d, err := time.Parse(time.DateOnly, s)
+		if err != nil {
+			continue
+		}
+		out = append(out, CampaignDay{Date: d, CampaignResult: res[i]})
+	}
+	return out, nil
+}
+
+var campaignResource = regexp.MustCompile(`^customers/\d+/campaigns/\d+$`)
+
+const campaignResultsQuery = "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, " +
+	"metrics.impressions, metrics.clicks, metrics.conversions, metrics.cost_micros FROM campaign "
+
+func campaignResults(rows []map[string]any) []CampaignResult {
 	out := make([]CampaignResult, 0, len(rows))
 	for _, r := range rows {
 		c, _ := r["campaign"].(map[string]any)
@@ -271,7 +322,7 @@ func (a Ads) CampaignResults(ctx context.Context, customerID, period string) ([]
 		res.Cost = float64(int64Of(m["costMicros"])) / 1e6
 		out = append(out, res)
 	}
-	return out, nil
+	return out
 }
 
 // ConversionAction is one of the account's conversion actions a MarketFlow event can map to.

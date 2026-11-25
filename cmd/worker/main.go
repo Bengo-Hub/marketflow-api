@@ -343,6 +343,8 @@ func main() {
 
 		// How Google processed the conversions sent through the Data Manager API (plan item 67).
 		go worker.NewConversionDiagnostics(entClient, keys, logger).Run(ctx)
+		// The daily results of Run ads' Google campaigns, beside Meta's (plan item 69).
+		go worker.NewGoogleAdMetrics(entClient, keys, logger).Run(ctx)
 
 		// CRM background agents: ProactiveFollowUpAgent (hourly) + DealStaleDetector (daily).
 		cronAgents := worker.NewCronAgentRunner(worker.CronAgentRunnerConfig{

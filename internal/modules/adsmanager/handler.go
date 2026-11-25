@@ -369,7 +369,7 @@ func (h *Handler) Boost(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusConflict, "not_approved", "approve the video before boosting it", nil)
 		return
 	}
-	if !h.withinAgentCeiling(w, r, tid, asset.VersionID, q.Budget) {
+	if !h.withinAgentCeiling(w, r, tid, asset.VersionID, q.Budget, q.Currency) {
 		return
 	}
 	if len(in.ExtraAssetIDs) > maxExtraCreatives {
@@ -462,7 +462,8 @@ func (h *Handler) Boost(w http.ResponseWriter, r *http.Request) {
 // agent is checked: a boost's spend is counted against the agent of its main video. A video no
 // agent made, or one made by an organic agent, has no ceiling. It writes the refusal and returns
 // false; a read that fails refuses too, because a money cap is never passed on a guess.
-func (h *Handler) withinAgentCeiling(w http.ResponseWriter, r *http.Request, tid, versionID uuid.UUID, budget int64) bool {
+// budget is in currency.
+func (h *Handler) withinAgentCeiling(w http.ResponseWriter, r *http.Request, tid, versionID uuid.UUID, budget int64, currency string) bool {
 	ctx := r.Context()
 	ag, err := custom_agents.AgentOfVersion(ctx, h.DB, tid, versionID)
 	if err != nil {
@@ -478,7 +479,22 @@ func (h *Handler) withinAgentCeiling(w http.ResponseWriter, r *http.Request, tid
 		httpapi.Error(w, http.StatusConflict, "ad_ceiling", fmt.Sprintf("the settings of the agent \"%s\" that made this video could not be read; open its settings and save them again", ag.Name), nil)
 		return false
 	}
-	ok, why, spent, err := custom_agents.AdCeilingCheck(ctx, h.DB, ag, cfg, budget, time.Now())
+	// The ceiling is in the agent's own ad account currency; the budget is counted in it too.
+	capCur := firstNonEmpty(custom_agents.CapCurrency(ctx, h.DB, tid, cfg), h.tenantCurrency(ctx, tid))
+	conv := func(ctx context.Context, amount float64, from, to string) (float64, error) {
+		a, ok1 := h.kesPer(ctx, from)
+		b, ok2 := h.kesPer(ctx, to)
+		if !ok1 || !ok2 {
+			return 0, errNoRate
+		}
+		return amount * a / b, nil
+	}
+	inCap, ok := h.convert(ctx, budget, firstNonEmpty(currency, capCur), capCur)
+	if !ok && cfg.Paid {
+		httpapi.Error(w, http.StatusServiceUnavailable, "ceiling_unavailable", "the exchange rate for the agent's monthly ad ceiling could not be read; try again shortly", nil)
+		return false
+	}
+	ok, why, spent, err := custom_agents.AdCeilingCheck(ctx, h.DB, ag, cfg, inCap, time.Now(), capCur, conv)
 	if err != nil {
 		h.Logger.Warn("boost: agent ad spend unreadable", zap.String("agent", ag.ID.String()), zap.Error(err))
 		httpapi.Error(w, http.StatusServiceUnavailable, "ceiling_unavailable", "this month's ad spend could not be checked; try again shortly", nil)
@@ -487,7 +503,7 @@ func (h *Handler) withinAgentCeiling(w http.ResponseWriter, r *http.Request, tid
 	if !ok {
 		httpapi.Error(w, http.StatusConflict, "ad_ceiling",
 			fmt.Sprintf("this video was made by your agent \"%s\", and %s; lower the budget or raise the agent's monthly ad ceiling", ag.Name, why),
-			map[string]any{"agent_id": ag.ID.String(), "spent_this_month": spent, "monthly_ad_ceiling": cfg.MonthlyAdCap, "budget": budget})
+			map[string]any{"agent_id": ag.ID.String(), "spent_this_month": spent, "monthly_ad_ceiling": cfg.MonthlyAdCap, "budget": inCap, "currency": capCur})
 		return false
 	}
 	return true

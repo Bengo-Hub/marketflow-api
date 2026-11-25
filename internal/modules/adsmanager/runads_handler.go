@@ -54,6 +54,17 @@ func readRunInput(w http.ResponseWriter, r *http.Request) (RunInput, uuid.UUID, 
 	return in, vid, true
 }
 
+// Reading a plan asks Meta and Google several times, and running one creates campaigns: both pass
+// the server's write deadline (10 s), so these handlers set their own.
+const (
+	planDeadline = 55 * time.Second
+	runDeadline  = 5*time.Minute + 10*time.Second
+)
+
+func extendDeadline(w http.ResponseWriter, d time.Duration) {
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(d))
+}
+
 func (h *Handler) planFailed(w http.ResponseWriter, err error) {
 	if status, code, msg := planError(err); status != 0 {
 		httpapi.Error(w, status, code, msg, nil)
@@ -83,6 +94,7 @@ func (h *Handler) Plan(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	extendDeadline(w, planDeadline)
 	plan, _, err := h.BuildPlan(r.Context(), tid, vid, in.Choice)
 	if err != nil {
 		h.planFailed(w, err)
@@ -114,6 +126,7 @@ func (h *Handler) RunOTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) runOTP(w http.ResponseWriter, r *http.Request, tid, vid uuid.UUID, in RunInput) {
+	extendDeadline(w, planDeadline)
 	if h.CanLaunch != nil && !h.CanLaunch(r.Context(), tid) {
 		httpapi.Error(w, http.StatusForbidden, "forbidden", "only the account owner or an admin can run ads", nil)
 		return
@@ -174,6 +187,7 @@ type RunOutcome struct {
 
 // run checks and runs a confirmed plan. It writes any refusal itself (ok false).
 func (h *Handler) run(w http.ResponseWriter, r *http.Request, tid, vid uuid.UUID, in RunInput) (RunOutcome, int, bool) {
+	extendDeadline(w, runDeadline)
 	ctx := r.Context()
 	if h.CanLaunch != nil && !h.CanLaunch(ctx, tid) {
 		httpapi.Error(w, http.StatusForbidden, "forbidden", "only the account owner or an admin can run ads", nil)
@@ -215,7 +229,7 @@ func (h *Handler) run(w http.ResponseWriter, r *http.Request, tid, vid uuid.UUID
 		}
 	}
 	// The agent ceiling on everything about to run together; Meta's boost checks its own again.
-	if left > 0 && !h.withinAgentCeiling(w, r, tid, vid, left) {
+	if left > 0 && !h.withinAgentCeiling(w, r, tid, vid, left, plan.Currency) {
 		return RunOutcome{}, 0, false
 	}
 	if plan.OTPRequired {
@@ -562,6 +576,7 @@ func (h *Handler) OSTurnRunPlan(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	extendDeadline(w, planDeadline)
 	plan, _, err := h.BuildPlan(r2.Context(), tid, vid, Choice{})
 	if err != nil {
 		h.planFailed(w, err)
@@ -597,6 +612,9 @@ func (h *Handler) OSTurnRunOTP(w http.ResponseWriter, r *http.Request) {
 func PlanText(p *RunPlan) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Ad plan for %d days, total %s %s", p.Days, p.Currency, thousands(p.Total))
+	if p.LocalCurrency != "" {
+		fmt.Fprintf(&b, " (about %s %s)", p.LocalCurrency, thousands(p.LocalTotal))
+	}
 	if p.TotalCap > 0 {
 		fmt.Fprintf(&b, " (your cap %s %s)", p.Currency, thousands(p.TotalCap))
 	}
@@ -606,6 +624,9 @@ func PlanText(p *RunPlan) string {
 			continue
 		}
 		fmt.Fprintf(&b, "\n\n%s: %s %s a day", platformName(pp.Platform), p.Currency, thousands(pp.Daily))
+		if p.LocalCurrency != "" && pp.LocalDaily > 0 {
+			fmt.Fprintf(&b, " (about %s %s)", p.LocalCurrency, thousands(pp.LocalDaily))
+		}
 		switch pp.Platform {
 		case runads.Meta:
 			b.WriteString(", boosted automatically")

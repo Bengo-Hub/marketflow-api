@@ -8,6 +8,7 @@ import (
 	"image"
 	"image/jpeg"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -140,6 +141,7 @@ func (h *Handler) planGoogle(ctx context.Context, tid uuid.UUID, pc *planCtx, pp
 		default:
 			gt.ads = ads
 			h.googleFunding(ctx, pc, pp)
+			h.googleResults(ctx, gt, pp, in, cur)
 			if gt.finalURL != "" {
 				head, _, desc := googleTexts(pc, gt.finalURL)
 				opts, err := ads.BudgetOptions(ctx, gt.customer, google.RecommendationInput{FinalURL: gt.finalURL, Headlines: head,
@@ -183,6 +185,48 @@ func (h *Handler) planGoogle(ctx context.Context, tid uuid.UUID, pc *planCtx, pp
 	} else {
 		pp.Notes = append(pp.Notes, "Google may spend up to twice the daily budget on any day, so a short run can cost more than the total shown.")
 	}
+}
+
+// googleResults reads the account's own campaign results from Google (every campaign on it, not
+// only MarketFlow's) for the estimates and this month's spend. A read that fails says so and
+// keeps what is stored.
+func (h *Handler) googleResults(ctx context.Context, gt *googleTarget, pp *PlatformPlan, in *runads.TierInput, cur string) {
+	from := firstNonEmpty(gt.currency, cur)
+	a, ok1 := h.kesPer(ctx, from)
+	b, ok2 := h.kesPer(ctx, cur)
+	if !ok1 || !ok2 {
+		return
+	}
+	sum := func(rows []google.CampaignResult) *runads.Past {
+		p := &runads.Past{}
+		for _, r := range rows {
+			p.Spend += r.Cost * a / b
+			p.Impressions += r.Impressions
+			p.Clicks += r.Clicks
+			p.Leads += int64(r.Conversions)
+		}
+		if p.Spend <= 0 {
+			return nil
+		}
+		return p
+	}
+	now := h.RunAds.now()
+	rows, err := gt.ads.CampaignResultsBetween(ctx, gt.customer, now.AddDate(0, 0, -pastDays), now)
+	if err != nil {
+		h.Logger.Debug("google campaign results", zap.Error(err))
+		pp.ResultsNote = "Google did not answer about past results just now."
+		return
+	}
+	in.Past = sum(rows)
+	rows, err = gt.ads.CampaignResults(ctx, gt.customer, "THIS_MONTH")
+	if err != nil {
+		return
+	}
+	var spent int64
+	if p := sum(rows); p != nil {
+		spent = int64(math.Ceil(p.Spend))
+	}
+	pp.MonthSpend = &spent
 }
 
 // googleFunding reads whether the account can spend.

@@ -4,8 +4,9 @@
 //
 // Every value has a platform default in service_config (tenant_id NULL, written by cmd/seed when
 // missing) and a tenant override in Tenant.metadata.run_ads, set by an owner or admin on the
-// Settings page. Amounts in service_config are in KES and are converted to the tenant's currency
-// with treasury's rate; amounts a tenant sets are in the tenant's own currency.
+// Settings page. A plan's amounts are in the ads currency (owner, 2026-11-25: USD unless the
+// platform or the tenant says otherwise). Amounts in service_config are in KES, and amounts a
+// tenant saved are in amounts_currency; both are converted with treasury's rate, never relabelled.
 package runads
 
 import (
@@ -44,12 +45,17 @@ const (
 // TenantKey is the tenant metadata object holding the tenant's overrides:
 //
 //	{"platforms": ["meta", "google"], "tier": "recommended", "daily_budget": {"meta": 1000},
-//	 "days": 7, "total_cap": 20000}
+//	 "days": 7, "total_cap": 20000, "currency": "USD", "amounts_currency": "KES"}
 //
-// Every key is optional. daily_budget and total_cap are whole units of the tenant's currency;
-// a daily_budget for a platform replaces the tier for that platform; total_cap 0 means no cap
-// beyond the plan's own total.
+// Every key is optional. currency is the currency plans are shown in. daily_budget and total_cap
+// are whole units of amounts_currency (the tenant's own currency when it is not set, as for
+// amounts saved before plans were in USD); a daily_budget for a platform replaces the tier for
+// that platform; total_cap 0 means no cap beyond the plan's own total.
 const TenantKey = "run_ads"
+
+// DefaultCurrency is the ads currency when neither the platform nor the tenant set one: most ad
+// accounts bill in USD.
+const DefaultCurrency = "USD"
 
 // Platform defaults in service_config (tenant_id NULL).
 const (
@@ -59,6 +65,9 @@ const (
 	KeyTier = "run_ads.tier"
 	// KeyDays: how many days a new plan runs ("7").
 	KeyDays = "run_ads.days"
+	// KeyCurrency: the currency plans are shown in ("USD"); each platform is still sent its ad
+	// account's own currency.
+	KeyCurrency = "run_ads.currency"
 	// KeyTotalCapKES: the platform's default total spend cap in KES ("0" for none).
 	KeyTotalCapKES = "run_ads.total_cap_kes"
 	// KeyRuleOfThumbKES: the daily budgets per platform and tier in KES, used when a platform gives
@@ -99,11 +108,14 @@ type Tiers map[string]int64
 type Settings struct {
 	Platforms []string
 	Tier      string
-	// DailyBudget is the tenant's own daily amount per platform, tenant currency (none in
-	// platform config).
+	// Currency is the ads currency; AmountsCurrency is what DailyBudget and TotalCap are in ("" for
+	// the tenant's own currency).
+	Currency        string
+	AmountsCurrency string
+	// DailyBudget is the tenant's own daily amount per platform (none in platform config).
 	DailyBudget map[string]int64
 	Days        int
-	// TotalCap is the tenant's cap in tenant currency; TotalCapKES is the platform's in KES.
+	// TotalCap is the tenant's cap; TotalCapKES is the platform's in KES.
 	// Merge sets TotalCap only from the tenant; the plan converts TotalCapKES when TotalCap is 0.
 	TotalCap    int64
 	TotalCapKES int64
@@ -129,6 +141,7 @@ func Fallback() Settings {
 	return Settings{
 		Platforms:      append([]string(nil), AllPlatforms...),
 		Tier:           TierRecommended,
+		Currency:       DefaultCurrency,
 		DailyBudget:    map[string]int64{},
 		Days:           7,
 		RuleOfThumbKES: map[string]Tiers{},
@@ -168,6 +181,9 @@ func Platform(ctx context.Context, db *ent.Client) Settings {
 	}
 	if d, err := strconv.Atoi(val(KeyDays)); err == nil && d >= MinDays && d <= MaxDays {
 		s.Days = d
+	}
+	if c, ok := currencyCode(val(KeyCurrency)); ok {
+		s.Currency = c
 	}
 	if c, err := strconv.ParseInt(val(KeyTotalCapKES), 10, 64); err == nil && c >= 0 && c <= maxAmount {
 		s.TotalCapKES = c
@@ -257,6 +273,12 @@ func Merge(platform Settings, tenantMeta map[string]any) Settings {
 	}
 	if d, ok := wholeNumber(o["days"]); ok && d >= MinDays && d <= MaxDays {
 		s.Days = int(d)
+	}
+	if c, ok := currencyCode(o["currency"]); ok {
+		s.Currency = c
+	}
+	if c, ok := currencyCode(o["amounts_currency"]); ok {
+		s.AmountsCurrency = c
 	}
 	if c, ok := wholeNumber(o["total_cap"]); ok && c >= 0 && c <= maxAmount {
 		s.TotalCap, s.TotalCapSet = c, true
@@ -350,6 +372,12 @@ func Validate(meta map[string]any) error {
 				return fmt.Errorf("run_ads.total_cap must be a whole amount, 0 for none")
 			}
 			out[k] = n
+		case "currency", "amounts_currency":
+			c, ok := currencyCode(val)
+			if !ok {
+				return fmt.Errorf("run_ads.%s must be a currency code such as USD", k)
+			}
+			out[k] = c
 		default:
 			return fmt.Errorf("run_ads.%s is not a setting", k)
 		}
@@ -375,7 +403,12 @@ type View struct {
 	DailyBudget map[string]int64 `json:"daily_budget"`
 	Days        int              `json:"days"`
 	TotalCap    int64            `json:"total_cap"`
-	TotalCapKES int64            `json:"total_cap_kes,omitempty"`
+	// TotalCapSet is true when the tenant set total_cap (0 is then no cap).
+	TotalCapSet bool   `json:"total_cap_set"`
+	Currency    string `json:"currency"`
+	// AmountsCurrency is what daily_budget and total_cap are in; "" is the tenant's currency.
+	AmountsCurrency string `json:"amounts_currency"`
+	TotalCapKES     int64  `json:"total_cap_kes,omitempty"`
 	// RuleOfThumbKES is the platform's rule of thumb, shown read only.
 	RuleOfThumbKES map[string]Tiers `json:"rule_of_thumb_kes"`
 	TikTokMode     string           `json:"tiktok_mode"`
@@ -384,7 +417,7 @@ type View struct {
 // ToView renders the settings for the API.
 func (s Settings) ToView() View {
 	v := View{Platforms: append([]string{}, s.Platforms...), Tier: s.Tier, DailyBudget: map[string]int64{}, Days: s.Days,
-		TotalCap: s.TotalCap, TotalCapKES: s.TotalCapKES, RuleOfThumbKES: map[string]Tiers{}, TikTokMode: s.TikTokMode}
+		TotalCap: s.TotalCap, TotalCapSet: s.TotalCapSet, Currency: s.Currency, AmountsCurrency: s.AmountsCurrency, TotalCapKES: s.TotalCapKES, RuleOfThumbKES: map[string]Tiers{}, TikTokMode: s.TikTokMode}
 	for k, n := range s.DailyBudget {
 		v.DailyBudget[k] = n
 	}
@@ -392,6 +425,16 @@ func (s Settings) ToView() View {
 		v.RuleOfThumbKES[k] = t
 	}
 	return v
+}
+
+// currencyCode reads a three letter currency code (any case).
+func currencyCode(v any) (string, bool) {
+	s, _ := v.(string)
+	s = strings.ToUpper(strings.TrimSpace(s))
+	if len(s) != 3 || strings.Trim(s, "ABCDEFGHIJKLMNOPQRSTUVWXYZ") != "" {
+		return "", false
+	}
+	return s, true
 }
 
 func validPlatform(p string) bool { return p == Meta || p == Google || p == TikTok }

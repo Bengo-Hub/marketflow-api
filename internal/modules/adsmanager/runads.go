@@ -94,27 +94,34 @@ type PlanAccount struct {
 	Currency    string `json:"currency"`
 }
 
-// PlatformPlan is one platform in the plan. Amounts are whole units of the tenant's currency;
-// AccountDaily and AccountTotal are what is sent to the platform in the account's currency.
+// PlatformPlan is one platform in the plan. Amounts are whole units of the plan's currency;
+// AccountDaily and AccountTotal are what is sent to the platform in the account's currency, and
+// LocalDaily and LocalTotal are the same in the tenant's currency, shown beside.
 type PlatformPlan struct {
 	Platform string `json:"platform"`
 	Enabled  bool   `json:"enabled"`
 	// Mode is automatic (Meta boost), api (Google Ads API, or TikTok once approved) or guided.
-	Mode         string            `json:"mode"`
-	Account      *PlanAccount      `json:"account,omitempty"`
-	Tier         string            `json:"tier"`
-	Daily        int64             `json:"daily"`
-	Days         int               `json:"days"`
-	Total        int64             `json:"total"`
-	AccountDaily int64             `json:"account_daily,omitempty"`
-	AccountTotal int64             `json:"account_total,omitempty"`
-	Tiers        []runads.Tier     `json:"tiers"`
-	Estimates    []runads.Estimate `json:"estimates"`
-	Funding      FundingView       `json:"funding"`
-	Setup        []PlanStep        `json:"setup"`
-	Steps        []PlanStep        `json:"steps"`
-	Blockers     []string          `json:"blockers"`
-	Notes        []string          `json:"notes"`
+	Mode         string       `json:"mode"`
+	Account      *PlanAccount `json:"account,omitempty"`
+	Tier         string       `json:"tier"`
+	Daily        int64        `json:"daily"`
+	Days         int          `json:"days"`
+	Total        int64        `json:"total"`
+	AccountDaily int64        `json:"account_daily,omitempty"`
+	AccountTotal int64        `json:"account_total,omitempty"`
+	LocalDaily   int64        `json:"local_daily,omitempty"`
+	LocalTotal   int64        `json:"local_total,omitempty"`
+	// MonthSpend is what ads on the platform have spent this month; nil when there is no data.
+	MonthSpend *int64 `json:"month_spend"`
+	// ResultsNote says plainly where results come from, or that there are none yet.
+	ResultsNote string            `json:"results_note,omitempty"`
+	Tiers       []runads.Tier     `json:"tiers"`
+	Estimates   []runads.Estimate `json:"estimates"`
+	Funding     FundingView       `json:"funding"`
+	Setup       []PlanStep        `json:"setup"`
+	Steps       []PlanStep        `json:"steps"`
+	Blockers    []string          `json:"blockers"`
+	Notes       []string          `json:"notes"`
 	// LaunchCredits is MarketFlow's charge for a Meta launch (0 on a plan that includes it).
 	LaunchCredits int `json:"launch_credits,omitempty"`
 }
@@ -133,17 +140,22 @@ type DaysHint struct {
 
 // RunPlan is the whole plan the owner confirms.
 type RunPlan struct {
-	VersionID   string         `json:"version_id"`
-	Currency    string         `json:"currency"`
-	Days        int            `json:"days"`
-	TotalCap    int64          `json:"total_cap"`
-	Total       int64          `json:"total"`
-	Platforms   []PlatformPlan `json:"platforms"`
-	DaysHint    *DaysHint      `json:"days_hint,omitempty"`
-	Blockers    []string       `json:"blockers"`
-	Ready       bool           `json:"ready"`
-	OTPRequired bool           `json:"otp_required"`
-	Fingerprint string         `json:"fingerprint"`
+	VersionID string `json:"version_id"`
+	Currency  string `json:"currency"`
+	// LocalCurrency and LocalTotal are the tenant's own currency, shown beside ("" when the plan is
+	// already in it or no rate can be read).
+	LocalCurrency string         `json:"local_currency,omitempty"`
+	LocalTotal    int64          `json:"local_total,omitempty"`
+	Notes         []string       `json:"notes"`
+	Days          int            `json:"days"`
+	TotalCap      int64          `json:"total_cap"`
+	Total         int64          `json:"total"`
+	Platforms     []PlatformPlan `json:"platforms"`
+	DaysHint      *DaysHint      `json:"days_hint,omitempty"`
+	Blockers      []string       `json:"blockers"`
+	Ready         bool           `json:"ready"`
+	OTPRequired   bool           `json:"otp_required"`
+	Fingerprint   string         `json:"fingerprint"`
 }
 
 // PlatformChoice is the owner's change to one platform; zero values keep the default.
@@ -156,6 +168,9 @@ type PlatformChoice struct {
 
 // Choice is the owner's changes to the default plan.
 type Choice struct {
+	// Currency is what the amounts below were typed in ("" for the plan's). A plan now in another
+	// currency converts them, so an amount is never relabelled.
+	Currency  string           `json:"currency,omitempty"`
 	Days      int              `json:"days,omitempty"`
 	TotalCap  *int64           `json:"total_cap,omitempty"`
 	Platforms []PlatformChoice `json:"platforms,omitempty"`
@@ -176,7 +191,8 @@ type planCtx struct {
 	version  *ent.CreativeVersion
 	asset    *ent.CreativeAsset
 	settings runads.Settings
-	cur      string // the tenant's currency, the plan's
+	cur      string // the plan's currency
+	local    string // the tenant's currency
 	meta     *waBoostPlan
 	google   *googleTarget
 	tiktok   *ent.ConnectedAccount
@@ -189,6 +205,16 @@ var (
 
 // BuildPlan builds the plan for an approved version with the owner's choices over the defaults.
 func (h *Handler) BuildPlan(ctx context.Context, tid, vid uuid.UUID, ch Choice) (*RunPlan, *planCtx, error) {
+	return h.buildPlan(ctx, tid, vid, ch, false)
+}
+
+// BuildDraftPlan is BuildPlan for a finished video that still waits for approval, so one message
+// can show what approving it would run. Running it needs the approval (BuildPlan).
+func (h *Handler) BuildDraftPlan(ctx context.Context, tid, vid uuid.UUID, ch Choice) (*RunPlan, *planCtx, error) {
+	return h.buildPlan(ctx, tid, vid, ch, true)
+}
+
+func (h *Handler) buildPlan(ctx context.Context, tid, vid uuid.UUID, ch Choice, draft bool) (*RunPlan, *planCtx, error) {
 	if h.RunAds == nil {
 		return nil, nil, errRunAdsOff
 	}
@@ -196,7 +222,7 @@ func (h *Handler) BuildPlan(ctx context.Context, tid, vid uuid.UUID, ch Choice) 
 	if err != nil {
 		return nil, nil, err
 	}
-	if v.Status != "approved" {
+	if v.Status != "approved" && !(draft && v.Status == "ready") {
 		return nil, nil, errNotApproved
 	}
 	asset, err := h.DB.CreativeAsset.Query().
@@ -210,24 +236,41 @@ func (h *Handler) BuildPlan(ctx context.Context, tid, vid uuid.UUID, ch Choice) 
 		return nil, nil, err
 	}
 	settings, _ := runads.Load(ctx, h.DB, t)
-	cur := "KES"
-	if h.RunAds.Currency != nil {
-		cur = h.RunAds.Currency(ctx, tid)
+	local := h.tenantCurrency(ctx, tid)
+	// Plans are in the ads currency. Without its rate they fall back to the tenant's own.
+	cur, notes := firstNonEmpty(settings.Currency, runads.DefaultCurrency), []string{}
+	if cur != local {
+		if _, ok := h.convert(ctx, 1, local, cur); !ok {
+			notes = append(notes, "The exchange rate for "+cur+" could not be read, so this plan is in "+local+".")
+			cur = local
+		}
 	}
-	pc := &planCtx{tenant: t, version: v, asset: asset, settings: settings, cur: cur}
-	plan := &RunPlan{VersionID: vid.String(), Currency: cur, Days: settings.Days, Blockers: []string{}}
+	amounts := firstNonEmpty(settings.AmountsCurrency, local)
+	pc := &planCtx{tenant: t, version: v, asset: asset, settings: settings, cur: cur, local: local}
+	plan := &RunPlan{VersionID: vid.String(), Currency: cur, Days: settings.Days, Blockers: []string{}, Notes: notes}
+	// typed turns an amount the owner typed into the plan's currency.
+	typed := func(n int64) (int64, bool) { return h.convertDown(ctx, n, firstNonEmpty(ch.Currency, cur), cur) }
+	noRate := func(from string) string {
+		return "the exchange rate from " + from + " to " + cur + " could not be read; try again shortly"
+	}
 	if ch.Days >= runads.MinDays && ch.Days <= runads.MaxDays {
 		plan.Days = ch.Days
 	}
+	// A cap that cannot be read in the plan's currency stops the plan; it is never dropped.
+	capOK, capFrom := true, cur
 	switch {
 	case ch.TotalCap != nil && *ch.TotalCap >= 0:
-		plan.TotalCap = *ch.TotalCap
+		plan.TotalCap, capOK = typed(*ch.TotalCap)
+		capFrom = ch.Currency
 	case settings.TotalCapSet:
-		plan.TotalCap = settings.TotalCap
+		plan.TotalCap, capOK = h.convertDown(ctx, settings.TotalCap, amounts, cur)
+		capFrom = amounts
 	case settings.TotalCapKES > 0:
-		if n, ok := h.fromKES(ctx, settings.TotalCapKES, cur); ok {
-			plan.TotalCap = n
-		}
+		plan.TotalCap, capOK = h.convertDown(ctx, settings.TotalCapKES, "KES", cur)
+		capFrom = "KES"
+	}
+	if !capOK {
+		plan.Blockers = append(plan.Blockers, "total cap: "+noRate(capFrom))
 	}
 	if d := competitorDays(t.Metadata); d > 0 {
 		plan.DaysHint = &DaysHint{Days: d, Source: runads.SourceCompetitors,
@@ -243,11 +286,18 @@ func (h *Handler) BuildPlan(ctx context.Context, tid, vid uuid.UUID, ch Choice) 
 		if c.Tier != "" {
 			pp.Tier = c.Tier
 		}
-		own := settings.DailyBudget[p]
+		own, ownOK, ownFrom := int64(0), true, amounts
 		if c.Daily > 0 {
-			own = c.Daily
+			own, ownOK = typed(c.Daily)
+			ownFrom = ch.Currency
+		} else if settings.DailyBudget[p] > 0 {
+			own, ownOK = h.convertDown(ctx, settings.DailyBudget[p], amounts, cur)
+		}
+		if !ownOK {
+			pp.Blockers = append(pp.Blockers, noRate(ownFrom))
 		}
 		in := runads.TierInput{Days: plan.Days, Past: h.pastResults(ctx, tid, p, cur)}
+		pp.MonthSpend = h.monthSpend(ctx, tid, p, cur)
 		if kes, ok := settings.RuleOfThumbKES[p]; ok {
 			if conv, ok := h.tiersFromKES(ctx, kes, cur); ok {
 				in.RuleOfThumb = conv
@@ -272,10 +322,19 @@ func (h *Handler) BuildPlan(ctx context.Context, tid, vid uuid.UUID, ch Choice) 
 			pp.Blockers = append(pp.Blockers, "choose a daily budget")
 		}
 		pp.Total = pp.Daily * int64(pp.Days)
+		if pp.ResultsNote == "" {
+			pp.ResultsNote = resultsNote(p, in.Past)
+		}
+		if n, ok := h.convert(ctx, pp.Daily, cur, local); ok && cur != local {
+			pp.LocalDaily, pp.LocalTotal = n, n*int64(pp.Days)
+		}
 		if pp.Enabled {
 			plan.Total += pp.Total
 		}
 		plan.Platforms = append(plan.Platforms, pp)
+	}
+	if n, ok := h.convert(ctx, plan.Total, cur, local); ok && cur != local {
+		plan.LocalCurrency, plan.LocalTotal = local, n
 	}
 	if plan.TotalCap > 0 && plan.Total > plan.TotalCap {
 		plan.Blockers = append(plan.Blockers, fmt.Sprintf("the plan totals %s %d, over your total cap of %s %d; lower a budget or the days",
@@ -367,6 +426,41 @@ func (h *Handler) convert(ctx context.Context, amount int64, from, to string) (i
 	return int64(math.Ceil(float64(amount) * a / b)), true
 }
 
+// convertDown is convert rounded down (at least 1), for an amount that is a limit the owner set:
+// a converted cap or budget never allows more than they said, apart from amounts under one unit.
+func (h *Handler) convertDown(ctx context.Context, amount int64, from, to string) (int64, bool) {
+	if strings.EqualFold(strings.TrimSpace(from), strings.TrimSpace(to)) || amount == 0 {
+		return amount, true
+	}
+	a, ok1 := h.kesPer(ctx, from)
+	b, ok2 := h.kesPer(ctx, to)
+	if !ok1 || !ok2 {
+		return 0, false
+	}
+	return max(1, int64(math.Floor(float64(amount)*a/b+1e-9))), true
+}
+
+// tenantCurrency is the tenant's own currency.
+func (h *Handler) tenantCurrency(ctx context.Context, tid uuid.UUID) string {
+	if h.RunAds != nil && h.RunAds.Currency != nil {
+		if c := strings.ToUpper(strings.TrimSpace(h.RunAds.Currency(ctx, tid))); c != "" {
+			return c
+		}
+	}
+	return "KES"
+}
+
+// resultsNote says plainly where a platform's past results come from, or that there are none.
+func resultsNote(platform string, past *runads.Past) string {
+	switch {
+	case platform == runads.TikTok && past == nil:
+		return "TikTok results are not read yet, so there is no data for TikTok."
+	case past == nil:
+		return "No results from " + platformName(platform) + " yet, so there is no data for it."
+	}
+	return ""
+}
+
 func (h *Handler) fromKES(ctx context.Context, kes int64, to string) (int64, bool) {
 	return h.convert(ctx, kes, "KES", to)
 }
@@ -383,10 +477,28 @@ func (h *Handler) tiersFromKES(ctx context.Context, kes runads.Tiers, to string)
 	return out, true
 }
 
-// pastResults sums the tenant's stored ad metrics on a platform over the last 180 days, in the
-// tenant's currency (rows in another currency are converted, or left out without a rate).
+// pastDays is how far back a plan reads past results.
+const pastDays = 180
+
+// pastResults sums the tenant's stored ad metrics on a platform over the last 180 days, in cur.
 func (h *Handler) pastResults(ctx context.Context, tid uuid.UUID, platform, cur string) *runads.Past {
-	since := h.RunAds.now().AddDate(0, 0, -180)
+	return h.storedResults(ctx, tid, platform, cur, h.RunAds.now().AddDate(0, 0, -pastDays))
+}
+
+// monthSpend is the stored ad spend on a platform since the 1st (UTC), nil with no data.
+func (h *Handler) monthSpend(ctx context.Context, tid uuid.UUID, platform, cur string) *int64 {
+	now := h.RunAds.now().UTC()
+	p := h.storedResults(ctx, tid, platform, cur, time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC))
+	if p == nil {
+		return nil
+	}
+	n := int64(math.Ceil(p.Spend))
+	return &n
+}
+
+// storedResults sums the stored ad metrics since a day in cur (rows in another currency are
+// converted, or left out without a rate). nil means nothing was spent or stored.
+func (h *Handler) storedResults(ctx context.Context, tid uuid.UUID, platform, cur string, since time.Time) *runads.Past {
 	rows, err := h.DB.AdMetrics.Query().
 		Where(admetrics.TenantID(tid), admetrics.PlatformEQ(platform), admetrics.DateGTE(since)).
 		Limit(5000).All(ctx)
@@ -579,8 +691,9 @@ func (h *Handler) planTikTok(ctx context.Context, tid uuid.UUID, pc *planCtx, pp
 		pc.tiktok = acc
 		adv = acc.ExternalID
 		pp.Account = &PlanAccount{ConnectedID: acc.ID.String(), ExternalID: acc.ExternalID, Name: acc.DisplayName, Currency: accountCurrency(acc)}
-	} else if pp.Mode == "api" {
-		pp.Setup = append(pp.Setup, PlanStep{Label: "Connect TikTok for Business", Path: "/settings/integrations"})
+	} else {
+		// No advertiser account: left out of the plan and its total (owner, 2026-11-25).
+		pp.Setup = append(pp.Setup, PlanStep{Label: "Connect a TikTok for Business account (create one on TikTok first if you have none)", Path: "/settings/integrations"})
 	}
 	pickDaily(pp, *in, own)
 	if s.TikTokMinUSD > 0 {

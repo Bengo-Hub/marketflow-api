@@ -43,6 +43,15 @@ type AutopilotRunner struct {
 	// adFunds reads the agent's Meta ad account before a paid run; nil skips every paid run,
 	// because a paid run is never started without knowing the ad can be funded.
 	adFunds AdFundsCheck
+	// convert counts spend in another currency (Google's, say) against the agent's ceiling; nil
+	// skips a paid run that has such spend, because a money cap is never checked on a guess.
+	convert custom_agents.Convert
+}
+
+// WithConvert sets the currency conversion of the monthly ad ceiling (treasury's rates).
+func (r *AutopilotRunner) WithConvert(f custom_agents.Convert) *AutopilotRunner {
+	r.convert = f
+	return r
 }
 
 // AdFundsCheck quotes one ad's budget over its period on the agent's Meta ad account.
@@ -391,7 +400,8 @@ func (r *AutopilotRunner) tellNoFunds(ctx context.Context, a *ent.CustomAgent, w
 // cannot be read skips the run quietly, because a money cap is never passed on a guess; it tries
 // again on its next schedule.
 func (r *AutopilotRunner) checkAdCeiling(ctx context.Context, a *ent.CustomAgent, cfg custom_agents.AutopilotConfig) (int64, error) {
-	ok, why, spent, err := custom_agents.AdCeilingCheck(ctx, r.db, a, cfg, cfg.PerAdBudget, r.now())
+	ok, why, spent, err := custom_agents.AdCeilingCheck(ctx, r.db, a, cfg, cfg.PerAdBudget, r.now(),
+		custom_agents.CapCurrency(ctx, r.db, a.TenantID, cfg), r.convert)
 	if err != nil {
 		r.logger.Warn("autopilot ad spend unreadable", zap.String("agent", a.ID.String()), zap.Error(err))
 		return 0, fmt.Errorf("%w: this month's ad spend could not be read; it tries again on its next schedule", errAutopilotAdCeiling)

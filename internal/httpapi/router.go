@@ -619,14 +619,14 @@ type AdsHandlers struct {
 	// AdAccounts and SetAdAccount: which ad account each platform's ads run on (item 70).
 	AdAccounts   http.HandlerFunc
 	SetAdAccount http.HandlerFunc
-	Accounts    http.HandlerFunc
-	CreateKES   http.HandlerFunc
-	Quote       http.HandlerFunc
-	Boost       http.HandlerFunc
-	Get         http.HandlerFunc
-	ConfirmPaid http.HandlerFunc
-	Pause       http.HandlerFunc
-	Resume      http.HandlerFunc
+	Accounts     http.HandlerFunc
+	CreateKES    http.HandlerFunc
+	Quote        http.HandlerFunc
+	Boost        http.HandlerFunc
+	Get          http.HandlerFunc
+	ConfirmPaid  http.HandlerFunc
+	Pause        http.HandlerFunc
+	Resume       http.HandlerFunc
 	// ResumeAd switches back on one ad the budget optimiser paused.
 	ResumeAd http.HandlerFunc
 	// BoostOTP sends the WhatsApp confirmation code a large boost needs.
@@ -643,13 +643,13 @@ type AdsHandlers struct {
 	OSTurnBoostOTP   http.HandlerFunc
 	// Run ads (item 64): POST /ads/plan, /ads/run, /ads/run/otp and /ads/run/{id}/done, and the
 	// WhatsApp S2S routes /internal/ads/os-turn/run-ads-plan, /run-ads and /run-ads-otp.
-	Plan           http.HandlerFunc
-	Run            http.HandlerFunc
-	RunOTP         http.HandlerFunc
-	RunDone        http.HandlerFunc
-	OSTurnRunPlan  http.HandlerFunc
-	OSTurnRun      http.HandlerFunc
-	OSTurnRunOTP   http.HandlerFunc
+	Plan          http.HandlerFunc
+	Run           http.HandlerFunc
+	RunOTP        http.HandlerFunc
+	RunDone       http.HandlerFunc
+	OSTurnRunPlan http.HandlerFunc
+	OSTurnRun     http.HandlerFunc
+	OSTurnRunOTP  http.HandlerFunc
 }
 
 // InboxHandlers groups the social inbox routes (Sprint 22).

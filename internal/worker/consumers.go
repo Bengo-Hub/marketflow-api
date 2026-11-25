@@ -21,6 +21,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/notifications"
+	"github.com/bengobox/marketflow-api/internal/platform/fxrate"
 	"github.com/bengobox/marketflow-api/internal/platform/leadresponse"
 	"github.com/bengobox/marketflow-api/internal/platform/reqid"
 	"github.com/google/uuid"
@@ -164,6 +165,7 @@ func NewRegistry(cfg *Config, db *ent.Client, rawDB *sql.DB, keys *encryption.Ke
 				hc:         agentHTTP,
 				autopilot: NewAutopilotRunner(db, notif, cfg.API.PortalURL, logger).WithForecast(custom_agents.NewCreditForecaster(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey)).
 					WithAutoPublishGate(AutopilotGate(cfg, db)).WithLapsedHook(lapsed).WithAdFunds(AdFunds(db, keys)).
+					WithConvert(fxrate.New(cfg.TreasuryURL, cfg.CrossServiceKey, cfg.PlatformTenant, nil).Convert).
 					WithVideoFeatures(VideoFeatures(cfg)),
 			},
 		},

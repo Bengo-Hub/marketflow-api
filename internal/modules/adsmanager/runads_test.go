@@ -91,12 +91,82 @@ func postJSON(h http.HandlerFunc, tid uuid.UUID, body any, id string) *httptest.
 	return w
 }
 
+// withAdvertiser connects a TikTok advertiser to the fixture's tenant.
+func withAdvertiser(t *testing.T, db *ent.Client, tid uuid.UUID, currency string) {
+	t.Helper()
+	ctx := context.Background()
+	a := db.ConnectedAccount.Create().SetTenantID(tid).SetPlatform("tiktok").SetAccountType("tiktok_advertiser").SetExternalID("7123").
+		SetDisplayName("Shop").SetStatus("active").SetMetadata(map[string]any{"currency": currency}).SaveX(ctx)
+	t.Cleanup(func() { _ = db.ConnectedAccount.DeleteOneID(a.ID).Exec(ctx) })
+}
+
+// Without an advertiser TikTok is left out of the default plan and its total (owner, 2026-11-25).
+func TestRunAdsTikTokWithoutAdvertiserLeftOut(t *testing.T) {
+	db := runAdsDB(t)
+	tid, vid := runAdsFixture(t, db, map[string]any{"platforms": []any{"tiktok"}, "daily_budget": map[string]any{"tiktok": float64(4000)}})
+	plan, _, err := runAdsHandler(db).BuildPlan(context.Background(), tid, vid, Choice{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Platforms[2].Enabled || plan.Total != 0 || len(plan.Platforms[2].Setup) == 0 {
+		t.Fatalf("plan = %+v", plan.Platforms[2])
+	}
+}
+
+// Plans are in USD: amounts saved in KES are converted (never relabelled), the tenant currency is
+// shown beside, the account gets its own currency, and an amount typed in another currency is
+// converted too. Without the rate the plan stays in the tenant's currency and says so.
+func TestRunAdsInUSD(t *testing.T) {
+	db := runAdsDB(t)
+	tid, vid := runAdsFixture(t, db, map[string]any{"platforms": []any{"tiktok"}, "days": float64(5), "total_cap": float64(26000),
+		"daily_budget": map[string]any{"tiktok": float64(5000)}})
+	withAdvertiser(t, db, tid, "KES")
+	h := runAdsHandler(db)
+	ctx := context.Background()
+	h.KESPer = func(_ context.Context, c string) (float64, error) {
+		if c == "USD" {
+			return 130, nil
+		}
+		return 0, errNoRate
+	}
+	plan, _, err := h.BuildPlan(ctx, tid, vid, Choice{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tk := plan.Platforms[2]
+	if plan.Currency != "USD" || tk.Daily != 38 || plan.TotalCap != 200 || plan.Total != 190 {
+		t.Fatalf("plan = %s daily %d cap %d total %d", plan.Currency, tk.Daily, plan.TotalCap, plan.Total)
+	}
+	if plan.LocalCurrency != "KES" || plan.LocalTotal != 24700 || tk.LocalDaily != 4940 || tk.AccountDaily != 4940 {
+		t.Fatalf("local %s %d, daily %d, account %d", plan.LocalCurrency, plan.LocalTotal, tk.LocalDaily, tk.AccountDaily)
+	}
+	if !strings.Contains(PlanText(plan), "USD 190 (about KES 24,700)") {
+		t.Fatalf("text: %s", PlanText(plan))
+	}
+	zero := int64(0)
+	plan, _, _ = h.BuildPlan(ctx, tid, vid, Choice{Currency: "KES", TotalCap: &zero, Platforms: []PlatformChoice{{Platform: "tiktok", Daily: 13000}}})
+	if plan.Platforms[2].Daily != 100 || plan.TotalCap != 0 {
+		t.Fatalf("typed in KES: daily %d cap %d", plan.Platforms[2].Daily, plan.TotalCap)
+	}
+	h.KESPer = nil
+	plan, _, _ = h.BuildPlan(ctx, tid, vid, Choice{})
+	if plan.Currency != "KES" || plan.Platforms[2].Daily != 5000 || len(plan.Notes) != 1 {
+		t.Fatalf("without a rate: %s %d %v", plan.Currency, plan.Platforms[2].Daily, plan.Notes)
+	}
+	// An amount typed in USD is not read as KES when the rate is gone.
+	plan, _, _ = h.BuildPlan(ctx, tid, vid, Choice{Currency: "USD", Platforms: []PlatformChoice{{Platform: "tiktok", Daily: 40}}})
+	if plan.Ready || plan.Platforms[2].Daily == 40 {
+		t.Fatalf("USD read as KES: %+v", plan.Platforms[2])
+	}
+}
+
 // A TikTok-only plan is guided: the owner's amount, the run days, steps with links, nothing spent
 // until the run; the run records one guided campaign and a second confirm replays it.
 func TestRunAdsTikTokGuidedOnce(t *testing.T) {
 	db := runAdsDB(t)
 	tid, vid := runAdsFixture(t, db, map[string]any{"platforms": []any{"tiktok"}, "days": float64(5),
 		"daily_budget": map[string]any{"tiktok": float64(4000)}})
+	withAdvertiser(t, db, tid, "KES")
 	h := runAdsHandler(db)
 	ctx := context.Background()
 
@@ -151,6 +221,7 @@ func TestRunAdsCapAndNothingOn(t *testing.T) {
 	db := runAdsDB(t)
 	tid, vid := runAdsFixture(t, db, map[string]any{"platforms": []any{"tiktok"}, "days": float64(10), "total_cap": float64(25000),
 		"daily_budget": map[string]any{"tiktok": float64(3000)}})
+	withAdvertiser(t, db, tid, "KES")
 	h := runAdsHandler(db)
 	plan, _, err := h.BuildPlan(context.Background(), tid, vid, Choice{})
 	if err != nil {
@@ -221,6 +292,7 @@ func TestGoogleTextsFromCopyOnly(t *testing.T) {
 func TestRunAdsLeavesOutWhatIsNotSetUp(t *testing.T) {
 	db := runAdsDB(t)
 	tid, vid := runAdsFixture(t, db, map[string]any{"daily_budget": map[string]any{"meta": float64(1000), "google": float64(1000), "tiktok": float64(4000)}})
+	withAdvertiser(t, db, tid, "KES")
 	h := runAdsHandler(db)
 	plan, _, err := h.BuildPlan(context.Background(), tid, vid, Choice{})
 	if err != nil {

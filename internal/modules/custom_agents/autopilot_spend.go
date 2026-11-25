@@ -3,16 +3,19 @@ package custom_agents
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/admetrics"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
+	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/bengobox/marketflow-api/internal/ent/predicate"
+	"github.com/bengobox/marketflow-api/internal/platform/adaccounts"
 	"github.com/google/uuid"
 )
 
@@ -39,8 +42,10 @@ func monthStart(now time.Time) time.Time {
 // AdSpendThisMonth sums the real ad spend since the 1st (UTC) of every boost that runs a video
 // the agent made. A video made last month and boosted this month counts, so the briefs are read
 // without a date bound; only the metrics rows are bounded to the month. Every query is scoped to
-// the tenant.
-func AdSpendThisMonth(ctx context.Context, db *ent.Client, tenantID, agentID uuid.UUID, now time.Time) (float64, error) {
+// the tenant. The sum is in cur: a row in another currency is converted with conv, and one that
+// cannot be converted is an error, because a money cap is never checked against a guess. An empty
+// cur sums the rows as they are.
+func AdSpendThisMonth(ctx context.Context, db *ent.Client, tenantID, agentID uuid.UUID, now time.Time, cur string, conv Convert) (float64, error) {
 	briefs, err := db.CreativeBrief.Query().Where(creativebrief.TenantID(tenantID), briefOfAgent(agentID)).IDs(ctx)
 	if err != nil || len(briefs) == 0 {
 		return 0, err
@@ -55,27 +60,71 @@ func AdSpendThisMonth(ctx context.Context, db *ent.Client, tenantID, agentID uui
 	if err != nil || len(boosts) == 0 {
 		return 0, err
 	}
-	spends, err := db.AdMetrics.Query().
+	rows, err := db.AdMetrics.Query().
 		Where(admetrics.TenantID(tenantID), admetrics.CampaignIDIn(boosts...), admetrics.DateGTE(monthStart(now))).
-		Select(admetrics.FieldSpend).Float64s(ctx)
+		Select(admetrics.FieldSpend, admetrics.FieldCurrency).All(ctx)
 	if err != nil {
 		return 0, err
 	}
 	var total float64
-	for _, s := range spends {
-		total += s
+	for _, r := range rows {
+		spend := r.Spend
+		if from := strings.ToUpper(strings.TrimSpace(r.Currency)); cur != "" && from != "" && from != cur && spend != 0 {
+			if conv == nil {
+				return 0, fmt.Errorf("ad spend in %s cannot be counted in %s", from, cur)
+			}
+			if spend, err = conv(ctx, spend, from, cur); err != nil {
+				return 0, err
+			}
+		}
+		total += spend
 	}
 	return total, nil
 }
 
+// Convert moves an amount between currencies (treasury's rates).
+type Convert func(ctx context.Context, amount float64, from, to string) (float64, error)
+
+// CapCurrency is the currency a paid agent's amounts (per_ad_budget and monthly_ad_ceiling) are
+// in: its Meta ad account's. "" when the account is not connected or its currency is not known.
+func CapCurrency(ctx context.Context, db *ent.Client, tenantID uuid.UUID, cfg AutopilotConfig) string {
+	ids := make([]uuid.UUID, 0, len(cfg.AccountIDs))
+	for _, s := range cfg.AccountIDs {
+		if id, err := uuid.Parse(s); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return ""
+	}
+	rows, err := db.ConnectedAccount.Query().
+		Where(connectedaccount.IDIn(ids...), connectedaccount.TenantIDEQ(tenantID),
+			connectedaccount.AccountTypeEQ(adaccounts.TypeOf[adaccounts.Meta]), connectedaccount.StatusEQ("active")).
+		Order(ent.Asc(connectedaccount.FieldCreatedAt)).All(ctx)
+	if err != nil {
+		return ""
+	}
+	var prefs adaccounts.Prefs
+	if t, err := db.Tenant.Get(ctx, tenantID); err == nil {
+		prefs = adaccounts.Read(t.Metadata)
+	}
+	acc := prefs.Pick(adaccounts.Meta, rows, "")
+	if acc == nil {
+		return ""
+	}
+	s, _ := acc.Metadata["currency"].(string)
+	return strings.ToUpper(strings.TrimSpace(s))
+}
+
 // AdCeilingCheck says whether an ad of budget (whole units) fits the agent's monthly ad ceiling on
 // top of this month's real spend, and if not, why in plain words. An agent that is not paid
-// always fits and nothing is read. spent is the month's spend in whole units, rounded up.
-func AdCeilingCheck(ctx context.Context, db *ent.Client, a *ent.CustomAgent, cfg AutopilotConfig, budget int64, now time.Time) (ok bool, why string, spent int64, err error) {
+// always fits and nothing is read. spent is the month's spend in whole units, rounded up. budget
+// and the ceiling are in cur (CapCurrency).
+func AdCeilingCheck(ctx context.Context, db *ent.Client, a *ent.CustomAgent, cfg AutopilotConfig, budget int64, now time.Time, cur string, conv Convert) (ok bool, why string, spent int64, err error) {
 	if !cfg.Paid {
 		return true, "", 0, nil
 	}
-	total, err := AdSpendThisMonth(ctx, db, a.TenantID, a.ID, now)
+	total, err := AdSpendThisMonth(ctx, db, a.TenantID, a.ID, now, cur, conv)
 	if err != nil {
 		return false, "", 0, err
 	}

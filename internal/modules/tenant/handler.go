@@ -138,6 +138,14 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 			httpapi.Error(w, http.StatusBadRequest, "invalid_run_ads", err.Error(), nil)
 			return
 		}
+		if o, ok := req.Metadata[runads.TenantKey].(map[string]any); ok {
+			for _, k := range []string{"currency", "amounts_currency"} {
+				if c, ok := o[k].(string); ok && !IsSupportedCurrency(c) {
+					httpapi.Error(w, http.StatusBadRequest, "invalid_run_ads", "the ads currency must be one of: "+strings.Join(SupportedCurrencies, ", "), nil)
+					return
+				}
+			}
+		}
 		// Run ads defaults (owner, 2026-11-24) size real ad spend, so only owners and admins
 		// change them. A form that sends the stored value back unchanged is not a change.
 		if v, ok := req.Metadata[runads.TenantKey]; ok {
