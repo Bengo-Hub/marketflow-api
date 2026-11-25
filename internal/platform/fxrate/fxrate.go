@@ -124,8 +124,56 @@ func (r *Rates) KESPer(ctx context.Context, currency string) (float64, error) {
 	if r == nil || r.base == "" || r.key == "" || r.tenant == "" {
 		return 0, fmt.Errorf("%w: treasury is not configured", ErrNoRate)
 	}
-	return sharedcache.GetOrSetStale(ctx, r.cache, sharedcache.Key("marketflow", "fx", cur, "KES"), r.ttl, r.staleFor,
-		func(ctx context.Context) (float64, error) { return r.fetch(ctx, cur) })
+	return sharedcache.GetOrSetStale(ctx, r.cache, rateKey(cur), r.ttl, r.staleFor,
+		func(ctx context.Context) (float64, error) { return r.read(ctx, cur) })
+}
+
+func rateKey(cur string) string   { return sharedcache.Key("marketflow", "fx", cur, "KES") }
+func readAtKey(cur string) string { return sharedcache.Key("marketflow", "fxat", cur, "KES") }
+
+// read fetches the rate and notes when, for ReadAt.
+func (r *Rates) read(ctx context.Context, cur string) (float64, error) {
+	v, err := r.fetch(ctx, cur)
+	if err == nil && r.cache != nil && r.cache.Client() != nil {
+		_ = r.cache.Client().Set(ctx, readAtKey(cur), time.Now().UTC().Format(time.RFC3339), r.ttl+r.staleFor).Err()
+	}
+	return v, err
+}
+
+// ReadAt is when the rate in use for currency was last read from treasury; false when unknown.
+func (r *Rates) ReadAt(ctx context.Context, currency string) (time.Time, bool) {
+	if r == nil || r.cache == nil || r.cache.Client() == nil {
+		return time.Time{}, false
+	}
+	v, err := r.cache.Client().Get(ctx, readAtKey(strings.ToUpper(strings.TrimSpace(currency)))).Result()
+	if err != nil {
+		return time.Time{}, false
+	}
+	t, err := time.Parse(time.RFC3339, v)
+	return t, err == nil
+}
+
+// Refresh reads the rate from treasury now and replaces the shared cached one. The last rate stays
+// in use when treasury cannot answer.
+func (r *Rates) Refresh(ctx context.Context, currency string) error {
+	cur := strings.ToUpper(strings.TrimSpace(currency))
+	if cur == "KES" {
+		return nil
+	}
+	if !isCode(cur) || r == nil || r.base == "" || r.key == "" || r.tenant == "" {
+		return fmt.Errorf("%w: %s", ErrNoRate, cur)
+	}
+	v, err := r.read(ctx, cur)
+	if err != nil {
+		return err
+	}
+	if r.cache == nil {
+		return nil
+	}
+	r.cache.Invalidate(ctx, rateKey(cur))
+	_, err = sharedcache.GetOrSetStale(ctx, r.cache, rateKey(cur), r.ttl, r.staleFor,
+		func(context.Context) (float64, error) { return v, nil })
+	return err
 }
 
 // KESPerOrDefault is KESPer, then the configured default for reports and estimates. source is

@@ -67,6 +67,10 @@ func (c *TenantConsumer) handleTenantEvent(msg *nats.Msg) {
 	}
 
 	_, err := c.syncer.SyncTenant(context.Background(), slug)
+	if err == nil {
+		// SyncTenant leaves a tenant it already has as it is.
+		err = c.syncer.Refresh(context.Background(), slug)
+	}
 	if err != nil {
 		c.logger.Warn("tenant sync from event failed",
 			zap.String("slug", slug),

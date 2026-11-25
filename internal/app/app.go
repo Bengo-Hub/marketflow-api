@@ -615,10 +615,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		},
 	}
 	// Google Ads (owner 2026-11-19): the business's own account results and conversion mapping;
-	// the approving roles change the mapping.
+	// an admin changes the mapping (the role gate too).
 	googleAdsHandler := googleads.New(entClient, keyProvider, logger.Named("google-ads"))
 	googleAdsHandler.CanManage = func(ctx context.Context, tenantID uuid.UUID) bool {
-		return rbacService.CallerHasAnyRole(ctx, tenantID, reviewActionRoles...)
+		return rbacService.CallerHasAnyRole(ctx, tenantID, rbac.RoleTenantAdmin)
 	}
 	// Ads account setup assistant (item 65): the fixes are for the approving roles only.
 	adsSetupHandler := &adsetup.Handler{DB: entClient, Keys: keyProvider,
@@ -745,6 +745,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	// Forms that feed a KES engine (the Creative Plan quote) read treasury's rate for the
 	// tenant's currency; never the configured default.
 	tenantProfileHandler.KESPer = fxRates.KESPer
+	// The settings other services own, with their last sync and Sync now.
+	tenantProfileHandler.Sources = settingSources(entClient, fxRates, tenantSyncer, subsClient,
+		notifications.New(notifications.Config{BaseURL: cfg.CrossService.NotificationsURL, APIKey: cfg.CrossService.InternalServiceKey}),
+		creative.DefaultWhatsAppTemplateConfig().StatusTTL)
 	// The settings page shows the platform's lead filter words read only (MF_LEAD_FILTER_*).
 	tenantProfileHandler.PlatformLeadFilter = func() map[string][]string { return leads.PlatformLeadFilter().ByKind() }
 	tenantMembersHandler := tenant.NewMembersHandler(rbacService, entClient, cfg.Security.AuthServiceURL, cfg.CrossService.InternalServiceKey, logger)
@@ -883,6 +887,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			LeadResponse:  tenantProfileHandler.GetLeadResponse,
 			RunAds:        tenantProfileHandler.GetRunAds,
 			KESRate:       tenantProfileHandler.GetKESRate,
+			Sources:       tenantProfileHandler.ListSources,
+			SyncSource:    tenantProfileHandler.SyncSource,
 		},
 		TenantMemberHandlers: httpapi.TenantMemberHandlers{
 			List:       tenantMembersHandler.ListMembers,

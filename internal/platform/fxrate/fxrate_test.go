@@ -156,3 +156,47 @@ func TestLastRateWhileTreasuryIsDown(t *testing.T) {
 		t.Fatalf("no rate once the stale window is over: %v", err)
 	}
 }
+
+// Sync now (plan item 75): a manual refresh replaces the fresh cached rate and its read time, and
+// a treasury that cannot answer leaves the last rate in use.
+func TestRefresh(t *testing.T) {
+	mr := miniredis.RunT(t)
+	cache := sharedcache.New(redis.NewClient(&redis.Options{Addr: mr.Addr()}), zap.NewNop())
+	converted, up := "129000000", true
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if !up {
+			http.Error(w, "down", http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = w.Write([]byte(`{"converted":"` + converted + `"}`))
+	}))
+	t.Cleanup(srv.Close)
+	r := New(srv.URL, "k", "codevertex", cache)
+	ctx := context.Background()
+	if _, ok := r.ReadAt(ctx, "USD"); ok {
+		t.Fatal("a rate nobody read has no read time")
+	}
+	if v, err := r.KESPer(ctx, "USD"); err != nil || v != 129 {
+		t.Fatalf("first read: %v %v", v, err)
+	}
+	if at, ok := r.ReadAt(ctx, "usd"); !ok || time.Since(at) > time.Minute {
+		t.Fatalf("read time: %v %v", at, ok)
+	}
+	converted = "131000000"
+	if v, _ := r.KESPer(ctx, "USD"); v != 129 {
+		t.Fatalf("still the cached rate: %v", v)
+	}
+	if err := r.Refresh(ctx, "USD"); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := r.KESPer(ctx, "USD"); v != 131 {
+		t.Fatalf("after Sync now: %v", v)
+	}
+	up = false
+	if err := r.Refresh(ctx, "USD"); err == nil {
+		t.Fatal("treasury is down")
+	}
+	if v, _ := r.KESPer(ctx, "USD"); v != 131 {
+		t.Fatalf("the last rate stays: %v", v)
+	}
+}

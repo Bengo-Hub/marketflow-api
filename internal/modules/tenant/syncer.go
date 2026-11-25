@@ -457,6 +457,36 @@ func (s *Syncer) AuthProfile(ctx context.Context, slug string) (*AuthProfile, er
 	return &cp, nil
 }
 
+// ProfileReadAt is when this process last read the tenant's account details; false when it has not.
+func (s *Syncer) ProfileReadAt(slug string) (time.Time, bool) {
+	if v, ok := s.profiles.Load(slug); ok {
+		return v.(cachedProfile).at, true
+	}
+	return time.Time{}, false
+}
+
+// Refresh reads a tenant auth-api already gave us again: its status (auth-api owns it) is brought
+// in line and the cached account details (branding, contacts, address) are dropped. The name,
+// country and WhatsApp number are left alone, because a business edits its own in MarketFlow.
+func (s *Syncer) Refresh(ctx context.Context, slug string) error {
+	remote, err := s.fetchFromAuth(slug)
+	if err != nil {
+		return err
+	}
+	id, err := uuid.Parse(remote.ID)
+	if err != nil {
+		return fmt.Errorf("invalid tenant UUID %q: %w", remote.ID, err)
+	}
+	s.profiles.Delete(slug)
+	if remote.Status == "" {
+		return nil
+	}
+	_, err = s.client.Tenant.Update().
+		Where(enttenant.ID(id), enttenant.SlugEQ(slug), enttenant.StatusNEQ(remote.Status)).
+		SetStatus(remote.Status).Save(ctx)
+	return err
+}
+
 func (s *Syncer) fetchAuthProfile(ctx context.Context, slug string) (*AuthProfile, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/v1/tenants/by-slug/%s", s.authAPIURL, url.PathEscape(slug)), nil)
 	if err != nil {

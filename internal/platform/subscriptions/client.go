@@ -130,6 +130,27 @@ func (c *Client) PlanStatus(ctx context.Context, tenantID string) (status string
 	return e.Status, true
 }
 
+// Snapshot is the tenant's cached entitlements and when they were read; fresh reads them again.
+// Nil when subscriptions-api cannot answer (the cached copy stays).
+func (c *Client) Snapshot(ctx context.Context, tenantID string, fresh bool) (*Entitlements, time.Time) {
+	if fresh {
+		if e := c.GetEntitlements(ctx, tenantID); e != nil {
+			entCacheMu.Lock()
+			entCache[tenantID] = cachedEntitlements{ent: e, fetched: time.Now()}
+			entCacheMu.Unlock()
+			return e, time.Now()
+		}
+		return nil, time.Time{}
+	}
+	e := c.cachedEntitlements(ctx, tenantID)
+	if e == nil {
+		return nil, time.Time{}
+	}
+	entCacheMu.Lock()
+	defer entCacheMu.Unlock()
+	return e, entCache[tenantID].fetched
+}
+
 func (c *Client) cachedEntitlements(ctx context.Context, tenantID string) *Entitlements {
 	entCacheMu.Lock()
 	if hit, ok := entCache[tenantID]; ok && time.Since(hit.fetched) < entitlementCacheTTL {

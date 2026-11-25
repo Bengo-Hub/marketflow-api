@@ -34,6 +34,8 @@ type Handler struct {
 	// PlatformLeadFilter is the platform's lead filter lists by kind (leads.PlatformLeadFilter,
 	// MF_LEAD_FILTER_*), shown read only beside the tenant's own words.
 	PlatformLeadFilter func() map[string][]string
+	// Sources are the settings other services own (ListSources, SyncSource).
+	Sources []SettingSource
 }
 
 func NewHandler(db *ent.Client, logger *zap.Logger) *Handler {

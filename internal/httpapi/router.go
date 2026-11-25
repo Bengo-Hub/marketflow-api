@@ -405,6 +405,9 @@ type TenantProfileHandlers struct {
 	RunAds http.HandlerFunc
 	// KESRate is KES per unit of the tenant's currency, for forms feeding a KES engine (item 57).
 	KESRate http.HandlerFunc
+	// Sources lists the settings other services own; SyncSource reads one again now (item 75).
+	Sources    http.HandlerFunc
+	SyncSource http.HandlerFunc
 }
 
 // TenantMemberHandlers groups team member management endpoints.
@@ -1008,6 +1011,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 				}
 				if deps.TenantProfileHandlers.KESRate != nil {
 					r.Get("/kes-rate", deps.TenantProfileHandlers.KESRate)
+				}
+				if deps.TenantProfileHandlers.Sources != nil {
+					r.Get("/sources", deps.TenantProfileHandlers.Sources)
+					r.Post("/sources/{key}/sync", deps.TenantProfileHandlers.SyncSource)
 				}
 			})
 
