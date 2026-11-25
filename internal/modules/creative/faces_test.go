@@ -110,10 +110,20 @@ func TestBrandFaceInVideoAd(t *testing.T) {
 	if err := checkFace(ctx, db, draft, time.Now); err != nil {
 		t.Fatalf("live face refused: %v", err)
 	}
+	if err := brandimages.CheckUse(ctx, db, tid, done.ID); err != nil {
+		t.Fatalf("a live face's approved ad may be posted: %v", err)
+	}
 
 	setFace("2026-11-25T10:00:00Z")
 	if _, err := s.Approve(ctx, tid, draft.ID, nil); !errors.Is(err, ErrFaceEnded) {
 		t.Fatalf("approved after the consent ended: %v", err)
+	}
+	// The approved ad stays, but a new post or ad of it is refused (owner, 2026-11-25).
+	if err := brandimages.CheckUse(ctx, db, tid, done.ID); !errors.Is(err, brandimages.ErrFaceUse) {
+		t.Fatalf("posted after the consent ended: %v", err)
+	}
+	if err := brandimages.CheckUse(ctx, db, tid, v.ID); err != nil {
+		t.Fatalf("a video without the face: %v", err)
 	}
 	p := NewPurger(db, store, zap.NewNop())
 	if err := p.EndFace(ctx, other, faceID); err != nil {

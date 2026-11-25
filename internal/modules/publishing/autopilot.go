@@ -10,6 +10,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/publishjob"
+	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/google/uuid"
 )
 
@@ -57,6 +58,9 @@ func (s *EntStore) ScheduleForVeto(ctx context.Context, req VetoRequest) (VetoSc
 	}
 	if asset.TenantID != req.TenantID || asset.PurgedAt != nil {
 		return out, fmt.Errorf("the video for this post is not available")
+	}
+	if err := brandimages.CheckUse(ctx, s.DB, req.TenantID, asset.VersionID); err != nil {
+		return out, err
 	}
 	fps, _ := asset.Metadata["fps"].(float64)
 	video := Video{URL: asset.URL, Bytes: asset.Bytes, DurationMS: asset.DurationMs, Width: asset.Width, Height: asset.Height, FPS: fps}

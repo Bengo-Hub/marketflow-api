@@ -16,6 +16,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/platform/adaccounts"
 	"github.com/bengobox/marketflow-api/internal/platform/postcaption"
 )
@@ -171,6 +172,9 @@ func (h *Handler) waPlan(ctx context.Context, tid, vid uuid.UUID, budget int64, 
 	if err != nil {
 		return nil, err
 	}
+	if err := brandimages.CheckUse(ctx, h.DB, tid, vid); err != nil {
+		return nil, err
+	}
 	asset, err := h.DB.CreativeAsset.Query().
 		Where(creativeasset.VersionIDEQ(vid), creativeasset.TenantIDEQ(tid), creativeasset.KindEQ("video"), creativeasset.PurgedAtIsNil()).
 		First(ctx)
@@ -251,6 +255,8 @@ func (h *Handler) readOSBoost(w http.ResponseWriter, r *http.Request) (osBoostIn
 
 func (h *Handler) waPlanFailed(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, brandimages.ErrFaceUse):
+		httpapi.Error(w, http.StatusConflict, "consent_ended", err.Error(), nil)
 	case errors.Is(err, errNoAdAccount):
 		httpapi.Error(w, http.StatusConflict, "no_ad_account", "connect a Meta ad account in MarketFlow first", nil)
 	case errors.Is(err, errNoPage):

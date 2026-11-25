@@ -21,6 +21,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/integrations/google"
+	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/platform/adaccounts"
 	"github.com/bengobox/marketflow-api/internal/platform/runads"
 )
@@ -227,6 +228,9 @@ func (h *Handler) buildPlan(ctx context.Context, tid, vid uuid.UUID, ch Choice, 
 	}
 	if v.Status != "approved" && !(draft && v.Status == "ready") {
 		return nil, nil, errNotApproved
+	}
+	if err := brandimages.CheckUse(ctx, h.DB, tid, vid); err != nil {
+		return nil, nil, err
 	}
 	asset, err := h.DB.CreativeAsset.Query().
 		Where(creativeasset.VersionIDEQ(vid), creativeasset.TenantIDEQ(tid), creativeasset.KindEQ("video"), creativeasset.PurgedAtIsNil()).
@@ -740,6 +744,8 @@ func planError(err error) (int, string, string) {
 	switch {
 	case errors.Is(err, errRunAdsOff):
 		return http.StatusServiceUnavailable, "run_ads_off", "Run ads is not available on this server"
+	case errors.Is(err, brandimages.ErrFaceUse):
+		return http.StatusConflict, "consent_ended", err.Error()
 	case errors.Is(err, errNotApproved):
 		return http.StatusConflict, "not_approved", "approve the video before running ads"
 	case ent.IsNotFound(err):

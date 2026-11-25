@@ -17,6 +17,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/publishjob"
 	"github.com/bengobox/marketflow-api/internal/integrations/google"
 	"github.com/bengobox/marketflow-api/internal/integrations/tiktok"
+	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/google/uuid"
 )
 
@@ -91,6 +92,12 @@ func (s *EntStore) load(ctx context.Context, row *ent.PublishJob) (*Job, error) 
 	}
 	if asset.PurgedAt != nil {
 		return nil, fmt.Errorf("the video for this post was removed")
+	}
+	// A post scheduled before the person's consent ended is stopped here; one already uploading ends.
+	if row.Status == StatusPending {
+		if err := brandimages.CheckUse(ctx, s.DB, row.TenantID, asset.VersionID); errors.Is(err, brandimages.ErrFaceUse) {
+			return nil, err
+		}
 	}
 	fps, _ := asset.Metadata["fps"].(float64)
 	j := &Job{

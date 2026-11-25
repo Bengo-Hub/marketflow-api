@@ -19,6 +19,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/ent/publishjob"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/publishing/postingplan"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -194,6 +195,10 @@ func (h *Handler) Schedule(w http.ResponseWriter, r *http.Request) {
 	}
 	if !approved {
 		httpapi.Error(w, http.StatusConflict, "not_approved", "approve the video before posting it", nil)
+		return
+	}
+	if err := brandimages.CheckUse(ctx, h.Store.DB, tid, asset.VersionID); err != nil {
+		h.useRefused(w, err)
 		return
 	}
 	// Posting any video makes sure its ad has a lead page (owner, 2026-11-25).
@@ -538,6 +543,15 @@ func tenantOf(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 		return uuid.Nil, false
 	}
 	return id, true
+}
+
+// useRefused answers brandimages.CheckUse.
+func (h *Handler) useRefused(w http.ResponseWriter, err error) {
+	if errors.Is(err, brandimages.ErrFaceUse) {
+		httpapi.Error(w, http.StatusConflict, "consent_ended", err.Error(), nil)
+		return
+	}
+	h.fail(w, err)
 }
 
 func userOf(r *http.Request) *uuid.UUID {

@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	enttenant "github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/modules/audit"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant/metastore"
@@ -171,6 +172,39 @@ func LiveFaces(meta map[string]any, tenantID uuid.UUID, rules FaceRules, now tim
 }
 
 // LiveFaceByID is one live face, or false.
+// ErrFaceUse is told to whoever would post or advertise a video whose person's consent ended. The
+// posts already out stay up (owner, 2026-11-25).
+var ErrFaceUse = errors.New("the consent of the person shown in this video has ended, so it can no longer be posted or advertised")
+
+// VersionFace is the face a version's presenter was drawn from, "" for none.
+func VersionFace(meta map[string]any) string {
+	sb, _ := meta["storyboard"].(map[string]any)
+	actor, _ := sb["actor"].(map[string]any)
+	id, _ := actor["face_id"].(string)
+	return id
+}
+
+// CheckUse refuses a new post or ad of a version whose person's consent is no longer live. A read
+// that fails refuses too.
+func CheckUse(ctx context.Context, db *ent.Client, tenantID, versionID uuid.UUID) error {
+	v, err := db.CreativeVersion.Query().Where(creativeversion.ID(versionID), creativeversion.TenantID(tenantID)).Only(ctx)
+	if err != nil {
+		return err
+	}
+	id := VersionFace(v.Metadata)
+	if id == "" {
+		return nil
+	}
+	t, err := db.Tenant.Get(ctx, tenantID)
+	if err != nil {
+		return err
+	}
+	if _, ok := LiveFaceByID(t.Metadata, tenantID, FaceRulesFor(ctx, db, tenantID), time.Now(), id); !ok {
+		return ErrFaceUse
+	}
+	return nil
+}
+
 func LiveFaceByID(meta map[string]any, tenantID uuid.UUID, rules FaceRules, now time.Time, id string) (LiveFace, bool) {
 	for _, f := range LiveFaces(meta, tenantID, rules, now) {
 		if id != "" && f.ID == id {

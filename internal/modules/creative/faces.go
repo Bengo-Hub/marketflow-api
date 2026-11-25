@@ -48,9 +48,7 @@ func liveFace(ctx context.Context, db *ent.Client, tenantID uuid.UUID, id string
 
 // actorFaceID is the face a version's storyboard actor was made from ("" for a synthetic one).
 func actorFaceID(v *ent.CreativeVersion) string {
-	sb, _ := v.Metadata["storyboard"].(map[string]any)
-	actor, _ := sb["actor"].(map[string]any)
-	return str(actor[metaFaceID])
+	return brandimages.VersionFace(v.Metadata)
 }
 
 // checkFace refuses a version whose actor was made from a face that is no longer live.

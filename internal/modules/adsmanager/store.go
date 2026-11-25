@@ -14,6 +14,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
+	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -167,6 +168,9 @@ func (w *Worker) plan(ctx context.Context, c *ent.Campaign, sp storedPlan) (Plan
 	if err != nil || asset.TenantID != c.TenantID || asset.PurgedAt != nil {
 		return Plan{}, fmt.Errorf("the video for this boost no longer exists")
 	}
+	if err := brandimages.CheckUse(ctx, w.DB, c.TenantID, asset.VersionID); errors.Is(err, brandimages.ErrFaceUse) {
+		return Plan{}, err
+	}
 	return Plan{Name: c.Name, AdAccountID: actID, Token: adTok, Currency: sp.Currency, Budget: sp.Budget,
 		Start: sp.Start, End: sp.End, Objective: sp.Objective, PageID: pageID, InstagramID: sp.InstagramID,
 		WhatsAppNumber: sp.WhatsAppNumber, Countries: sp.Countries, AgeMin: sp.AgeMin, AgeMax: sp.AgeMax,
@@ -238,6 +242,9 @@ func (w *Worker) extraVariants(ctx context.Context, tid uuid.UUID, ids []string)
 		}
 		a, err := w.DB.CreativeAsset.Get(ctx, id)
 		if err != nil || a.TenantID != tid || a.PurgedAt != nil {
+			continue
+		}
+		if brandimages.CheckUse(ctx, w.DB, tid, a.VersionID) != nil {
 			continue
 		}
 		out = append(out, Variant{VideoURL: a.URL})

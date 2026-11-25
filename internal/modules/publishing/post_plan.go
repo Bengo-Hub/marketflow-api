@@ -18,6 +18,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
+	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/publishing/postingplan"
 	"github.com/bengobox/marketflow-api/internal/platform/postcaption"
 	"github.com/bengobox/marketflow-api/internal/platform/svcconfig"
@@ -183,6 +184,11 @@ func (p *PostPlan) nothing() *planRefusal {
 func (h *Handler) whatsAppPlan(ctx context.Context, tid, vid uuid.UUID, now time.Time) (*PostPlan, error) {
 	p, err := h.BuildPostPlan(ctx, tid, vid, now)
 	if err != nil {
+		return nil, err
+	}
+	if err := brandimages.CheckUse(ctx, h.Store.DB, tid, vid); errors.Is(err, brandimages.ErrFaceUse) {
+		return nil, &planRefusal{"consent_ended", err.Error()}
+	} else if err != nil {
 		return nil, err
 	}
 	if h.WhatsApp.NeedsReview != nil {

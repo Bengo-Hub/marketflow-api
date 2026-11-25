@@ -19,6 +19,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
+	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/platform/adaccounts"
 	"github.com/go-chi/chi/v5"
@@ -373,6 +374,10 @@ func (h *Handler) Boost(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusConflict, "not_approved", "approve the video before boosting it", nil)
 		return
 	}
+	if err := brandimages.CheckUse(ctx, h.DB, tid, asset.VersionID); err != nil {
+		h.useRefused(w, err)
+		return
+	}
 	if !h.withinAgentCeiling(w, r, tid, asset.VersionID, q.Budget, q.Currency) {
 		return
 	}
@@ -395,6 +400,10 @@ func (h *Handler) Boost(w http.ResponseWriter, r *http.Request) {
 		}
 		if ok, _ := h.DB.CreativeVersion.Query().Where(creativeversion.IDEQ(x.VersionID), creativeversion.StatusEQ("approved")).Exist(ctx); !ok {
 			httpapi.Error(w, http.StatusConflict, "not_approved", "approve every video before boosting it", nil)
+			return
+		}
+		if err := brandimages.CheckUse(ctx, h.DB, tid, x.VersionID); err != nil {
+			h.useRefused(w, err)
 			return
 		}
 		extras = append(extras, x.ID.String())
@@ -726,6 +735,15 @@ func tenantOf(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 		return uuid.Nil, false
 	}
 	return id, true
+}
+
+// useRefused answers brandimages.CheckUse.
+func (h *Handler) useRefused(w http.ResponseWriter, err error) {
+	if errors.Is(err, brandimages.ErrFaceUse) {
+		httpapi.Error(w, http.StatusConflict, "consent_ended", err.Error(), nil)
+		return
+	}
+	h.fail(w, err)
 }
 
 func (h *Handler) fail(w http.ResponseWriter, err error) {
