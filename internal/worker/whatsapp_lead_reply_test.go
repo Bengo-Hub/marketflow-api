@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/activity"
 	"github.com/bengobox/marketflow-api/internal/notifications"
@@ -104,7 +105,7 @@ func TestHandleLeadReply(t *testing.T) {
 		t.Fatalf("lead reply: %v %v", ok, err)
 	}
 	mu.Lock()
-	if len(asked) != 1 || asked[0]["lead_id"] != l.ID.String() || asked[0]["handoff_value"] != 100000.0 || asked[0]["business_type"] != "flp" || fmt.Sprint(asked[0]["banned_claims"]) != "[cures eczema]" {
+	if len(asked) != 1 || asked[0]["lead_id"] != l.ID.String() || asked[0]["handoff_value"] != 100000.0 || asked[0]["business_type"] != "flp" || fmt.Sprint(asked[0]["banned_claims"]) != fmt.Sprint(append(shareddefaults.SharedClaims("flp"), "cures eczema")) {
 		t.Fatalf("the assistant is asked with the lead and hand-off value: %+v", asked)
 	}
 	if len(sent) != 1 || firstTo(sent[0]) != phone || !strings.Contains(dataBody(sent[0]), "5,000") {

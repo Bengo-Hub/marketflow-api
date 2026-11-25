@@ -3,7 +3,6 @@ package onboarding
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"sync"
 	"time"
