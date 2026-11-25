@@ -65,6 +65,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/tasks"
 	enttenant "github.com/bengobox/marketflow-api/internal/ent/tenant"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant"
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
 	"github.com/bengobox/marketflow-api/internal/modules/testimonials"
 	"github.com/bengobox/marketflow-api/internal/modules/webhooks"
 	"github.com/bengobox/marketflow-api/internal/notifications"
@@ -177,6 +178,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 
 	// ── Tenant Syncer ─────────────────────────────────────────────────────
 	tenantSyncer := tenant.NewSyncer(entClient, logger)
+	// The shared settings businesses inherit, kept in step with the platform rows.
+	shareddefaults.Watch(context.Background(), entClient, time.Minute, logger)
 	// Backfill the default Walk-in customer for all existing tenants (idempotent, one-shot at boot).
 	go func() {
 		bgCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -524,6 +527,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			DraftFAQ:      kbService.DraftFAQ,
 			TeamSetupDone: marketingOSService.TeamSetupDone,
 			SetupTeam:     marketingOSService.SetupTeamIfNew,
+			SyncAccount:   tenantSyncer.Refresh,
 		}), logger)
 	// Ad autopilot veto window: a job report settled here carries the agent's video on at once
 	// (the worker's sweep catches anything missed). It works through its own Studio service with

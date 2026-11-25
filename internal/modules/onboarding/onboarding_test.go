@@ -1,6 +1,8 @@
 package onboarding
 
 import (
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
+
 	"context"
 	"database/sql"
 	"fmt"
@@ -64,8 +66,8 @@ func TestComposeFillsOnlyEmptyFields(t *testing.T) {
 	if len(s.Proof) != 1 || !strings.Contains(s.Proof[0], "Always fresh.") || !strings.Contains(s.Proof[0], "Wanjiru") {
 		t.Fatalf("proof: %v", s.Proof)
 	}
-	if len(s.BannedClaims) != len(genericBannedClaims) {
-		t.Fatalf("generic tenant got %v", s.BannedClaims)
+	if len(s.BannedClaims) != 0 || len(s.SharedBannedClaims) != 1 {
+		t.Fatalf("a draft copies no shared claims: %v %v", s.BannedClaims, s.SharedBannedClaims)
 	}
 	if d.Offerings[0].Source != "pos" || d.Offerings[1].Source != "inventory" || d.Offerings[0].ImageURL != "https://x.co/s.png" {
 		t.Fatalf("offering suggestions: %+v", d.Offerings)
@@ -85,9 +87,9 @@ func TestComposeKeepsProfileValuesAndAddsFLPRules(t *testing.T) {
 	if d.Profile.ContactEmail != "" || d.Profile.WhatsApp != "" || d.Profile.LogoURL != "" {
 		t.Fatalf("auth values must not replace the profile's own: %+v", d.Profile)
 	}
-	flp, _ := tenant.LookupBusinessType(tenant.BusinessTypeFLP)
-	if len(flp.BannedClaims) == 0 || len(d.Suggested.BannedClaims) != len(genericBannedClaims)+len(flp.BannedClaims) {
-		t.Fatalf("FLP rules missing: %v", d.Suggested.BannedClaims)
+	flp := shareddefaults.TypeClaims(tenant.BusinessTypeFLP)
+	if len(flp) == 0 || len(d.Suggested.SharedBannedClaims) != 1+len(flp) {
+		t.Fatalf("FLP rules missing: %v", d.Suggested.SharedBannedClaims)
 	}
 }
 
@@ -96,8 +98,8 @@ func TestComposeKeepsProfileValuesAndAddsFLPRules(t *testing.T) {
 func TestComposeUsesBusinessTypeRules(t *testing.T) {
 	for _, bt := range tenant.BusinessTypes {
 		d := compose(composeInput{tenant: &ent.Tenant{Name: "Shop", BusinessType: bt.Key, Metadata: map[string]any{"bio": "We sell good things."}}})
-		got := d.Suggested.BannedClaims
-		if len(got) != len(genericBannedClaims)+len(bt.BannedClaims) {
+		got := d.Suggested.SharedBannedClaims
+		if len(got) != 1+len(shareddefaults.TypeClaims(bt.Key)) {
 			t.Fatalf("%s: banned claims %v", bt.Key, got)
 		}
 		if err := (&d.Suggested).Validate(); err != nil {
@@ -105,8 +107,8 @@ func TestComposeUsesBusinessTypeRules(t *testing.T) {
 		}
 	}
 	d := compose(composeInput{tenant: &ent.Tenant{Name: "Chemist", BusinessType: "pharmacy", Metadata: map[string]any{}}})
-	if !strings.Contains(strings.Join(d.Suggested.BannedClaims, "|"), "prescription-only") {
-		t.Fatalf("pharmacy draft misses its rules: %v", d.Suggested.BannedClaims)
+	if !strings.Contains(strings.Join(d.Suggested.SharedBannedClaims, "|"), "prescription-only") {
+		t.Fatalf("pharmacy draft misses its rules: %v", d.Suggested.SharedBannedClaims)
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
 	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant"
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -50,7 +51,7 @@ func (r *Renderer) adPhotos(ctx context.Context, v *ent.CreativeVersion) ([]stri
 		// place in the list, so the script's photo numbers hold, but is never a frame, like a logo.
 		never := brandimages.NeverFrame(img) || faces[img.ID]
 		photos = append(photos, links[0])
-		info = append(info, photoInfo{Library: true, Logo: never,Caption: img.Caption, Tags: img.Tags})
+		info = append(info, photoInfo{Library: true, Logo: never, Caption: img.Caption, Tags: img.Tags})
 	}
 	if missing > 0 {
 		r.logger.Warn("brand images not all linked; scenes are drawn without them",
@@ -66,9 +67,10 @@ func (r *Renderer) adPhotos(ctx context.Context, v *ent.CreativeVersion) ([]stri
 func brandLogo(ctx context.Context, db *ent.Client, tenantID uuid.UUID, brief *ent.CreativeBrief) string {
 	if t, err := db.Tenant.Get(ctx, tenantID); err == nil {
 		if strings.EqualFold(t.BusinessType, tenant.BusinessTypeFLP) {
-			return tenant.DefaultFBOLogo
+			logo, _ := shareddefaults.Forever("logo_url").(string)
+			return logo
 		}
-		if l := strings.TrimSpace(str(t.Metadata["logo_url"])); strings.HasPrefix(l, "https://") || strings.HasPrefix(l, "http://") {
+		if l := shareddefaults.Str(t, "logo_url"); strings.HasPrefix(l, "https://") || strings.HasPrefix(l, "http://") {
 			return l
 		}
 	}

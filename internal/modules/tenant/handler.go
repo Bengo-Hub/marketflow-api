@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/tenant/metastore"
 	"github.com/bengobox/marketflow-api/internal/platform/leadresponse"
 	"github.com/bengobox/marketflow-api/internal/platform/runads"
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -287,6 +288,8 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	patch := ProfileMetadataPatch(req.Metadata)
+	// A value equal to what the business inherits is not stored as a copy.
+	shareddefaults.StripInherited(t, patch)
 	if chosenAt != "" {
 		patch[marketingos.BusinessTypeChosenKey] = chosenAt
 	}
@@ -380,8 +383,8 @@ func serializeTenant(t *ent.Tenant) map[string]any {
 	if t.Country != nil {
 		out["country"] = *t.Country
 	}
-	if t.Metadata != nil {
-		out["metadata"] = t.Metadata
+	if meta := shareddefaults.Meta(t); len(meta) > 0 {
+		out["metadata"] = meta
 	}
 	// The currency every amount is shown and entered in, and where it came from (the tenant's
 	// choice, its SSO country, or the platform default).

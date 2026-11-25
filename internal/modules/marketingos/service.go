@@ -17,6 +17,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqljson"
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
 	"github.com/bengobox/marketflow-api/internal/ent/customagent"
 	"github.com/bengobox/marketflow-api/internal/ent/knowledgebaseentry"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
@@ -116,6 +117,9 @@ type BrandContext struct {
 	VoiceExamples []string `json:"voice_examples"`
 	BannedClaims  []string `json:"banned_claims"`
 	Learnings     []string `json:"learnings"`
+	// SharedBannedClaims are the platform's claims this business inherits, read only. BannedClaims
+	// are the ones it added itself; both apply (EffectiveContext).
+	SharedBannedClaims []string `json:"shared_banned_claims,omitempty"`
 	// ActorNameStyle is the naming tradition the names of on-screen actors follow (one of
 	// ActorNameStyles); empty leaves it to the writer. ActorNames are exact names the business
 	// likes; when there are any, the script writer uses only these (actor_names.go).
@@ -266,6 +270,8 @@ func (s *Service) GetBrandContext(ctx context.Context, tenantID uuid.UUID) (Bran
 		b, _ := json.Marshal(raw)
 		_ = json.Unmarshal(b, &bc)
 	}
+	bc.BannedClaims = shareddefaults.OwnClaims(t.BusinessType, bc.BannedClaims)
+	bc.SharedBannedClaims = shareddefaults.SharedClaims(t.BusinessType)
 	return bc, nil
 }
 
@@ -273,13 +279,36 @@ func (s *Service) GetBrandContext(ctx context.Context, tenantID uuid.UUID) (Bran
 // written (one atomic merge), so a profile or onboarding save running at the
 // same time keeps its keys.
 func (s *Service) SaveBrandContext(ctx context.Context, tenantID uuid.UUID, bc BrandContext) (BrandContext, error) {
+	t, err := s.db.Tenant.Get(ctx, tenantID)
+	if err != nil {
+		return bc, err
+	}
+	// The shared claims are inherited, so only the business's own are stored.
+	bc.SharedBannedClaims = nil
+	bc.BannedClaims = shareddefaults.OwnClaims(t.BusinessType, bc.BannedClaims)
 	if err := bc.Validate(); err != nil {
 		return bc, err
 	}
 	b, _ := json.Marshal(bc)
 	var asMap map[string]any
 	_ = json.Unmarshal(b, &asMap)
-	return bc, s.setKeys(ctx, tenantID, map[string]any{MetadataKey: asMap})
+	if err := s.setKeys(ctx, tenantID, map[string]any{MetadataKey: asMap}); err != nil {
+		return bc, err
+	}
+	bc.SharedBannedClaims = shareddefaults.SharedClaims(t.BusinessType)
+	return bc, nil
+}
+
+// EffectiveContext is the stored brand context (empty when none) with the banned claims that
+// apply: the shared ones and the business's own.
+func EffectiveContext(t *ent.Tenant) map[string]any {
+	stored, _ := t.Metadata[MetadataKey].(map[string]any)
+	out := make(map[string]any, len(stored)+1)
+	for k, v := range stored {
+		out[k] = v
+	}
+	out["banned_claims"] = shareddefaults.Union(shareddefaults.SharedClaims(t.BusinessType), readList(stored["banned_claims"]))
+	return out
 }
 
 // setKeys merges tenant metadata keys; an unknown tenant is a not-found error.
@@ -505,8 +534,8 @@ func (s *Service) Context(ctx context.Context, tenantID uuid.UUID) (OSContext, e
 	out.BusinessType = t.BusinessType
 	out.BusinessTypeChosen = BusinessTypeChosen(t.Metadata)
 	out.Exempt = s.platformSlug != "" && t.Slug == s.platformSlug
-	if raw, ok := t.Metadata[MetadataKey]; ok {
-		b, _ := json.Marshal(raw)
+	// Always present, since the shared banned claims apply before a brand context is saved.
+	if b, err := json.Marshal(EffectiveContext(t)); err == nil {
 		out.MarketingContext = string(b)
 	}
 	if sig := marketSignals(t.Metadata); !sig.Empty() {

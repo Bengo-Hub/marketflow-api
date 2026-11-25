@@ -20,6 +20,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/leads"
 	"github.com/bengobox/marketflow-api/internal/modules/meetings"
 	tenantmod "github.com/bengobox/marketflow-api/internal/modules/tenant"
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -181,7 +182,7 @@ func (h *PublicHandler) publicProfile(ctx context.Context, slug string) (map[str
 		profile["flp_language"] = b.Language
 	}
 	// Only allow-listed keys: metadata also holds private data such as the Marketing OS brand context.
-	profile["metadata"] = tenantmod.PublicMetadata(t.Metadata)
+	profile["metadata"] = tenantmod.PublicMetadata(shareddefaults.Meta(t))
 	// White label (owner, 2026-11-12: the Business plan's white_label feature): the public pages
 	// hide "Powered by Codevertex". Checked fail closed, so an outage keeps the badge.
 	profile["white_label"] = h.hasFeature != nil && h.hasFeature(ctx, t.ID.String(), "white_label")
@@ -431,7 +432,7 @@ type publicLeadInput struct {
 	GCLID      string `json:"gclid"`
 	WBRAID     string `json:"wbraid"` // Google's click ids for iPhone clicks without a gclid
 	GBRAID     string `json:"gbraid"`
-	TTCLID    string `json:"ttclid"`
+	TTCLID     string `json:"ttclid"`
 	FunnelSlug string `json:"funnel_slug"`
 	// FunnelVariant is the A/B version ("a" or "b") the visitor saw (Sprint 7 #53).
 	FunnelVariant string         `json:"funnel_variant"`

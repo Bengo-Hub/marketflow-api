@@ -1,6 +1,8 @@
 package tenant
 
 import (
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
+
 	"bufio"
 	"encoding/json"
 	"net/http"
@@ -26,7 +28,7 @@ func TestBusinessTypesList(t *testing.T) {
 		if bt.Key != strings.ToLower(bt.Key) || bt.Label == "" || bt.Description == "" {
 			t.Fatalf("%q needs a lower case key, a label and a description", bt.Key)
 		}
-		for _, c := range bt.BannedClaims {
+		for _, c := range shareddefaults.TypeClaims(bt.Key) {
 			if len(c) > 300 || strings.Contains(c, "—") {
 				t.Fatalf("%q banned claim too long or uses an em dash: %q", bt.Key, c)
 			}

@@ -33,6 +33,7 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/bengobox/marketflow-api/internal/encryption"
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
 	"github.com/Bengo-Hub/httpware/objectstore"
 	"github.com/bengobox/marketflow-api/internal/modules/adsmanager"
@@ -149,6 +150,7 @@ func main() {
 		} else {
 			drv := entsql.OpenDB(dialect.Postgres, db)
 			entClient = ent.NewClient(ent.Driver(drv))
+			shareddefaults.Watch(ctx, entClient, time.Minute, logger)
 			defer entClient.Close()
 			logger.Info("ent client ready")
 		}

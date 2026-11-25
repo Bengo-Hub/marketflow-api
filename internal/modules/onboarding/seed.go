@@ -15,6 +15,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant/metastore"
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
 )
 
 // Seed defaults (owner, 2026-11-19: "all active tenants, fill gaps only"). A platform owner run
@@ -44,6 +45,8 @@ type SeedDeps struct {
 	DraftFAQ      func(ctx context.Context, tenantID uuid.UUID, question, answer, source, sourceURL string) (bool, error)
 	TeamSetupDone func(ctx context.Context, tenantID uuid.UUID) (bool, error)
 	SetupTeam     func(ctx context.Context, tenantID uuid.UUID)
+	// SyncAccount reads the account again, so the logo and colour the business inherits are current.
+	SyncAccount func(ctx context.Context, slug string) error
 }
 
 // WithSeed wires the seed defaults run.
@@ -137,7 +140,7 @@ func (p *seedPlan) skip(area, field, reason string) {
 // planSeed decides every fill. A field that already holds a value is never in the plan.
 func planSeed(in seedInput) seedPlan {
 	t := in.tenant
-	meta := t.Metadata
+	meta := shareddefaults.Meta(t)
 	p := seedPlan{profile: map[string]any{}, report: SeedReport{TenantID: t.ID.String(), Slug: t.Slug, Name: t.Name, BusinessType: t.BusinessType}}
 	cur, sug := in.current, in.draft.Suggested
 	website := ""
@@ -186,12 +189,7 @@ func planSeed(in seedInput) seedPlan {
 		p.skip("brand_context", "proof", "no published testimonials")
 	}
 
-	if len(cur.BannedClaims) > 0 {
-		p.skip("brand_context", "banned_claims", "already set")
-	} else if len(sug.BannedClaims) > 0 {
-		p.brand.BannedClaims = cap20(sug.BannedClaims)
-		p.fill("brand_context", "banned_claims", "platform compliance rules for business type "+firstNonEmpty(t.BusinessType, tenant.BusinessTypeGeneric), "", strings.Join(p.brand.BannedClaims, "; "))
-	}
+	p.skip("brand_context", "banned_claims", "inherited from the shared list")
 
 	// No source says who buys or how the business speaks; the owner sets these.
 	if len(cur.Audience) == 0 {
@@ -203,7 +201,7 @@ func planSeed(in seedInput) seedPlan {
 	for _, f := range []struct {
 		name string
 		set  bool
-	}{{"positioning", p.brand.Positioning != ""}, {"offers", len(p.brand.Offers) > 0}, {"proof", len(p.brand.Proof) > 0}, {"banned_claims", len(p.brand.BannedClaims) > 0}} {
+	}{{"positioning", p.brand.Positioning != ""}, {"offers", len(p.brand.Offers) > 0}, {"proof", len(p.brand.Proof) > 0}} {
 		if f.set {
 			p.brandFields = append(p.brandFields, f.name)
 		}
@@ -211,27 +209,15 @@ func planSeed(in seedInput) seedPlan {
 
 	// Profile contact links from the account record (the draft only offers empty ones).
 	prof := in.draft.Profile
-	isFLP := strings.EqualFold(t.BusinessType, tenant.BusinessTypeFLP)
 	for _, f := range []struct{ key, value string }{
-		{"contact_email", prof.ContactEmail}, {"logo_url", prof.LogoURL}, {"brand_primary_color", prof.BrandColor},
+		{"contact_email", prof.ContactEmail},
 	} {
 		switch {
 		case str(meta, f.key) != "":
 			p.skip("profile", f.key, "already set")
-		case isFLP && f.key == "logo_url":
-			// A Forever tenant always uses the Forever Living logo (owner, 2026-11-19): the
-			// platform default below, never the account record's.
-			p.skip("profile", f.key, "a Forever tenant uses the Forever Living logo from the platform defaults")
-		case f.key == "logo_url" && strings.TrimSpace(f.value) != "" && !logoOwned(t, in.platformSlug, f.value):
-			// Never mix logos up (owner, 2026-11-19): only a logo stored under this tenant's own
-			// account, or named for it, is taken; anything else waits for the owner.
-			p.skip("profile", f.key, "the account logo cannot be confirmed as this business's own: "+clip(f.value, 100))
 		case strings.TrimSpace(f.value) != "":
 			p.profile[f.key] = strings.TrimSpace(f.value)
 			src := "account record (auth-api)"
-			if f.key == "logo_url" {
-				src = "account record logo (auth-api), " + logoWhy(t, f.value)
-			}
 			p.fill("profile", f.key, src, "", f.value)
 		default:
 			p.skip("profile", f.key, "the account record has none")
@@ -250,23 +236,6 @@ func planSeed(in seedInput) seedPlan {
 		p.skip("profile", "whatsapp_number", "the account phone is not confirmed as a WhatsApp number; left for the owner")
 	}
 
-	// Platform defaults a tenant synced before they existed may lack.
-	if isFLP {
-		// The old default lived on both Codevertex account domains over time.
-		if strings.HasSuffix(str(meta, "logo_url"), "/images/logo/codevertex.png") {
-			p.skip("defaults", "logo_url", "holds the Codevertex logo from the old Forever default; left as stored for the owner to review")
-		}
-		missing := tenant.MissingFBODefaults(meta)
-		keys := make([]string, 0, len(missing))
-		for k := range missing {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			p.profile[k] = missing[k]
-			p.fill("defaults", k, "platform Forever profile defaults", "", fmt.Sprint(missing[k]))
-		}
-	}
 	switch {
 	case !in.teamKnown:
 	case in.teamDone:
@@ -348,37 +317,6 @@ func (p *seedPlan) planFAQs(in seedInput) {
 		p.faqs = append(p.faqs, d)
 		p.fill("knowledge", field, d.source+" (pending suggestion for the owner)", d.url, d.question+" "+d.answer)
 	}
-}
-
-// logoOwned reports whether an account logo is clearly this tenant's own: an upload stored under
-// the tenant's own id in the media store, or a platform-hosted logo file named after its slug.
-// The Codevertex logo belongs to the platform tenant only. Anything else (another domain, a client
-// or partner logo, a shared default) is not taken.
-func logoOwned(t *ent.Tenant, platformSlug, logo string) bool {
-	return logoWhy(t, logo) != "" && (!isCodevertexLogo(logo) || (platformSlug != "" && t.Slug == platformSlug))
-}
-
-// logoWhy says why a logo is the tenant's own, or "" when it cannot tell.
-func logoWhy(t *ent.Tenant, logo string) string {
-	u := strings.ToLower(strings.TrimSpace(logo))
-	if strings.HasPrefix(u, "https://media.codevertexafrica.com/auth/"+t.ID.String()+"/") {
-		return "uploaded to this tenant's own account folder"
-	}
-	const hosted = "https://accounts.codevertexafrica.com/images/logo/"
-	if strings.HasPrefix(u, hosted) {
-		file := strings.TrimPrefix(u, hosted)
-		if i := strings.LastIndexByte(file, '.'); i > 0 {
-			file = file[:i]
-		}
-		if file != "" && file == strings.ToLower(t.Slug) {
-			return "platform-hosted logo file named for this tenant's slug"
-		}
-	}
-	return ""
-}
-
-func isCodevertexLogo(u string) bool {
-	return strings.HasSuffix(strings.ToLower(strings.TrimSpace(u)), "/images/logo/codevertex.png")
 }
 
 // storefrontTemplate are phrases of the shared ordering storefront's generated description; a page
@@ -473,8 +411,6 @@ func (p *seedPlan) exclude(slug string, list []string) {
 			p.brand.Offers = nil
 		case key == "brand_context/proof":
 			p.brand.Proof = nil
-		case key == "brand_context/banned_claims":
-			p.brand.BannedClaims = nil
 		case key == "defaults/team_setup":
 			p.runTeamSetup = false
 		case it.Area == "profile" || it.Area == "defaults":
@@ -542,6 +478,11 @@ func (s *Service) SeedDefaults(ctx context.Context, tenantID uuid.UUID, dryRun b
 		return rep, nil
 	}
 	rep.Errors = append(rep.Errors, s.applySeed(ctx, tenantID, plan)...)
+	if s.seed.SyncAccount != nil {
+		if err := s.seed.SyncAccount(ctx, t.Slug); err != nil {
+			rep.Errors = append(rep.Errors, "account: "+err.Error())
+		}
+	}
 	return rep, nil
 }
 
@@ -580,7 +521,7 @@ func (s *Service) fillBrand(ctx context.Context, tenantID uuid.UUID, add marketi
 		bc.Positioning, changed = add.Positioning, true
 	}
 	for _, f := range []struct{ dst, src *[]string }{
-		{&bc.Offers, &add.Offers}, {&bc.Proof, &add.Proof}, {&bc.BannedClaims, &add.BannedClaims},
+		{&bc.Offers, &add.Offers}, {&bc.Proof, &add.Proof},
 	} {
 		if len(*f.dst) == 0 && len(*f.src) > 0 {
 			*f.dst, changed = *f.src, true

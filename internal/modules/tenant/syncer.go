@@ -133,10 +133,10 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 			}
 		}
 
-		// FBO defaults fill only missing keys. The local row's metadata is the base, so a
+		// The account's metadata fills only missing keys. The local row's metadata is the base, so a
 		// slug rename never drops profile edits or the Marketing OS brand context.
 		if isFLPTenant(remote.Slug, remote.Metadata) {
-			meta := applyFBODefaults(mergeMissing(existingByID.Metadata, remote.Metadata))
+			meta := mergeMissing(existingByID.Metadata, remote.Metadata)
 			upd = upd.SetMetadata(meta)
 			if looksLikeDistribID(remote.Slug) {
 				upd = upd.SetFboDistribID(remote.Slug)
@@ -180,13 +180,12 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 		builder = builder.SetCountry(remote.Country)
 	}
 
-	// For FBO tenants, the slug IS the distrib_id. Apply defaults, including the
-	// featured Forever products.
+	// For FBO tenants, the slug IS the distrib_id. The Forever defaults are inherited
+	// when read (shareddefaults.Meta), never copied here.
 	if flp {
 		if looksLikeDistribID(remote.Slug) {
 			builder = builder.SetFboDistribID(remote.Slug)
 		}
-		meta = applyFBODefaults(meta)
 	}
 
 	builder = builder.SetMetadata(meta)
@@ -217,6 +216,10 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 	// (e.g. pos on-account) can be attributed to it. Idempotent; best-effort. pos-api/treasury also
 	// upsert/lookup this same contact by walkInPhone on demand, so existing tenants self-heal too.
 	s.createWalkInContactIfMissing(ctx, realID)
+
+	if err := s.mirrorBrand(ctx, remote); err != nil {
+		s.logger.Warn("account brand not mirrored", zap.String("tenant", realID.String()), zap.Error(err))
+	}
 
 	// The new tenant's own copy of the default lead follow-up (owner, 2026-11-24), unless it is
 	// switched off. Best-effort: the worker's hourly provisioner and the first lead retry it.
@@ -478,6 +481,9 @@ func (s *Syncer) Refresh(ctx context.Context, slug string) error {
 		return fmt.Errorf("invalid tenant UUID %q: %w", remote.ID, err)
 	}
 	s.profiles.Delete(slug)
+	if err := s.mirrorBrand(ctx, remote); err != nil {
+		return err
+	}
 	if remote.Status == "" {
 		return nil
 	}

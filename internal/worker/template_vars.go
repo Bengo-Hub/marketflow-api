@@ -9,6 +9,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/tenant"
 	tenantmod "github.com/bengobox/marketflow-api/internal/modules/tenant"
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
 	"github.com/google/uuid"
 )
 
@@ -86,10 +87,10 @@ func resolveNurtureVariables(
 		// goes under them as brand_note. The profile logo and colour only fill in where auth-api
 		// has none (its values win in the layout).
 		putIfEmpty(vars, "brand_note", tenantmod.EmailFooter(tn.Metadata))
-		if l, _ := tn.Metadata["logo_url"].(string); strings.HasPrefix(l, "https://") {
+		if l := shareddefaults.Str(tn, "logo_url"); strings.HasPrefix(l, "https://") {
 			putIfEmpty(vars, "brand_logo_url", l)
 		}
-		if c, _ := tn.Metadata["brand_primary_color"].(string); hexColorRe.MatchString(c) {
+		if c := shareddefaults.Str(tn, "brand_primary_color"); hexColorRe.MatchString(c) {
 			putIfEmpty(vars, "brand_primary_color", c)
 		}
 		// The public link follows the tenant type: FLP tenants have their MarketFlow page at

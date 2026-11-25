@@ -12,6 +12,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
 )
 
 // profileTimeout bounds the website read; the checklist works without it.
@@ -26,7 +27,7 @@ func loadProfile(ctx context.Context, t *ent.Tenant, facts func(context.Context)
 	if t.Country != nil {
 		p.Country = strings.ToUpper(*t.Country)
 	}
-	offers, _ := t.Metadata["offerings"].([]any)
+	offers, _ := shareddefaults.Meta(t)["offerings"].([]any)
 	var offerPages []Page
 	for _, o := range offers {
 		m, _ := o.(map[string]any)

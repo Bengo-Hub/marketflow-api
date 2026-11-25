@@ -5,6 +5,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
 )
 
 func TestPublicMetadataDropsPrivateKeys(t *testing.T) {
@@ -52,7 +53,7 @@ func TestValidateOfferings(t *testing.T) {
 	if err := ValidateOfferings(ok); err != nil {
 		t.Fatalf("valid list rejected: %v", err)
 	}
-	if err := ValidateOfferings(defaultOfferingsValue()); err != nil {
+	if err := ValidateOfferings(shareddefaults.Forever("offerings")); err != nil {
 		t.Fatalf("FLP defaults rejected: %v", err)
 	}
 	bad := map[string]any{
@@ -92,26 +93,6 @@ func TestIsFLPTenant(t *testing.T) {
 		if got := isFLPTenant(c.slug, c.meta); got != c.want {
 			t.Errorf("isFLPTenant(%q) = %v, want %v", c.slug, got, c.want)
 		}
-	}
-}
-
-func TestApplyFBODefaultsKeepsExistingValues(t *testing.T) {
-	custom := []any{map[string]any{"name": "My own product"}}
-	got := applyFBODefaults(map[string]any{"bio": "Mine", "offerings": custom})
-	if got["bio"] != "Mine" {
-		t.Fatal("existing bio replaced")
-	}
-	if list, _ := got["offerings"].([]any); len(list) != 1 {
-		t.Fatal("existing offerings replaced")
-	}
-	fresh := applyFBODefaults(nil)
-	list, _ := fresh["offerings"].([]any)
-	if len(list) != len(DefaultFLPOfferings) {
-		t.Fatalf("want %d default products, got %d", len(DefaultFLPOfferings), len(list))
-	}
-	first, _ := list[0].(map[string]any)
-	if first["flp_item_code"] != "015" || first["name"] != "Aloe Vera Gel" {
-		t.Fatalf("unexpected first product: %#v", first)
 	}
 }
 

@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/bengobox/marketflow-api/internal/platform/publicweb"
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
 )
 
 // Business facts: what the chat assistant may state as true about a business (its name, how to
@@ -87,8 +88,8 @@ func (s *Service) BusinessFacts(ctx context.Context, tenantID uuid.UUID) (Busine
 	if t.WhatsappNumber != nil {
 		out.WhatsApp = strings.TrimSpace(*t.WhatsappNumber)
 	}
-	out.Tagline = metaText(t.Metadata, "tagline", 160)
-	out.About = metaText(t.Metadata, "bio", 600)
+	out.Tagline = metaText(shareddefaults.Meta(t), "tagline", 160)
+	out.About = metaText(shareddefaults.Meta(t), "bio", 600)
 	out.Email = metaText(t.Metadata, "contact_email", 120)
 	if socials, ok := t.Metadata["socials"].(map[string]any); ok {
 		out.Website, _ = socials["website"].(string)

@@ -167,7 +167,7 @@ func (h *WhatsAppAssistantHandler) askLeadReply(ctx context.Context, t *ent.Tena
 		// The business's compliance rules apply to every reply (Sprint 23 L34).
 		"business_type": t.BusinessType,
 		// Claims the business never makes (brand context): an answer that makes one goes to the owner.
-		"banned_claims": tenantBannedClaims(t.Metadata),
+		"banned_claims": tenantBannedClaims(t),
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.aiURL+"/api/v1/internal/os/lead-reply", bytes.NewReader(body))
 	if err != nil {
@@ -243,15 +243,8 @@ func logWhatsAppActivity(ctx context.Context, db *ent.Client, l *ent.Lead, direc
 	return create.Exec(ctx)
 }
 
-// tenantBannedClaims reads the brand context's banned claims from tenant metadata.
-func tenantBannedClaims(meta map[string]any) []string {
-	bc, _ := meta[marketingos.MetadataKey].(map[string]any)
-	list, _ := bc["banned_claims"].([]any)
-	out := make([]string, 0, len(list))
-	for _, v := range list {
-		if s, ok := v.(string); ok && strings.TrimSpace(s) != "" {
-			out = append(out, strings.TrimSpace(s))
-		}
-	}
-	return out
+// tenantBannedClaims are the shared banned claims and the business's own.
+func tenantBannedClaims(t *ent.Tenant) []string {
+	claims, _ := marketingos.EffectiveContext(t)["banned_claims"].([]string)
+	return claims
 }

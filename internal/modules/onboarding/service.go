@@ -26,6 +26,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant/metastore"
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
 )
 
 // BrandStore reads the saved brand context (marketingos.Service is the only writer).
@@ -90,7 +91,7 @@ func (s *Service) Checklist(ctx context.Context, tenantID uuid.UUID) (Checklist,
 	if err != nil {
 		return Checklist{}, fmt.Errorf("load tenant: %w", err)
 	}
-	meta := t.Metadata
+	meta := shareddefaults.Meta(t)
 	bc, _ := s.brand.GetBrandContext(ctx, tenantID)
 
 	hasChannel := t.WhatsappNumber != nil && strings.TrimSpace(*t.WhatsappNumber) != ""

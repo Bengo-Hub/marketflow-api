@@ -33,6 +33,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/googleads"
 	"github.com/bengobox/marketflow-api/internal/platform/adaccounts"
 	"github.com/bengobox/marketflow-api/internal/platform/runads"
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
 )
 
 // Google Ads in Run ads: a Performance Max campaign on the business's own Google Ads account,
@@ -120,7 +121,7 @@ func (h *Handler) planGoogle(ctx context.Context, tid uuid.UUID, pc *planCtx, pp
 	if gt.finalURL == "" {
 		pp.Setup = append(pp.Setup, PlanStep{Label: "Add your website link to your business profile", Path: "/settings/profile"})
 	}
-	gt.logoURL = str(pc.tenant.Metadata["logo_url"])
+	gt.logoURL = shareddefaults.Str(pc.tenant, "logo_url")
 	if !strings.HasPrefix(gt.logoURL, "https://") && !strings.HasPrefix(gt.logoURL, "http://") {
 		gt.logoURL = ""
 		pp.Setup = append(pp.Setup, PlanStep{Label: "Add your logo to your business profile (Google needs a square logo)", Path: "/settings/profile"})
@@ -349,7 +350,7 @@ func googleTexts(pc *planCtx, finalURL string) (head, long, desc []string) {
 	if len(long) > 1 {
 		long = long[:1]
 	}
-	desc = add(nil, 90, str(c["subline"]), str(pc.tenant.Metadata["tagline"]), strings.Join(captions, " "), str(c["cta"]))
+	desc = add(nil, 90, str(c["subline"]), shareddefaults.Str(pc.tenant, "tagline"), strings.Join(captions, " "), str(c["cta"]))
 	if name != "" {
 		desc = add(desc, 90, "Contact "+name+" to find out more.")
 	}

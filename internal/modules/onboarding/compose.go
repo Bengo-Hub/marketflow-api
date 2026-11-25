@@ -9,6 +9,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
 	"github.com/bengobox/marketflow-api/internal/modules/marketingos"
 	"github.com/bengobox/marketflow-api/internal/modules/tenant"
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
 )
 
 type composeInput struct {
@@ -21,18 +22,12 @@ type composeInput struct {
 	testimonials []*ent.Testimonial
 }
 
-// Claims every business must avoid (Consumer Protection Act 2012). Each business type adds its
-// own (tenant.BusinessTypes, Sprint 7 #34; the Forever Living ones follow docs/compliance-rules.md).
-var genericBannedClaims = []string{
-	"False or misleading claims about price, quality or results",
-}
-
 // itemLen matches marketingos' per-item limit, so a draft always saves.
 const itemLen = 300
 
 // compose builds the draft without any I/O, so it is easy to test.
 func compose(in composeInput) Draft {
-	meta := in.tenant.Metadata
+	meta := shareddefaults.Meta(in.tenant)
 	d := Draft{Current: in.current, Sources: []string{"profile"}}
 
 	// Offerings to link: best sellers for ordinary tenants, the website for the platform tenant.
@@ -124,12 +119,8 @@ func compose(in composeInput) Draft {
 			}
 		}
 	}
-	if len(s.BannedClaims) == 0 {
-		s.BannedClaims = append(s.BannedClaims, genericBannedClaims...)
-		if bt, ok := tenant.LookupBusinessType(in.tenant.BusinessType); ok {
-			s.BannedClaims = append(s.BannedClaims, bt.BannedClaims...)
-		}
-	}
+	// The shared banned claims are inherited, so none are suggested to copy.
+	s.SharedBannedClaims = shareddefaults.SharedClaims(in.tenant.BusinessType)
 	s.Offers = cap20(s.Offers)
 	s.Proof = cap20(s.Proof)
 	d.Suggested = s

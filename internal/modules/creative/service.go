@@ -18,6 +18,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
 	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
+	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -209,7 +210,7 @@ func (s *Service) tenantBrand(ctx context.Context, tenantID uuid.UUID) map[strin
 		return nil
 	}
 	brand := map[string]any{}
-	if c := strings.TrimSpace(str(t.Metadata["brand_primary_color"])); hexColor.MatchString(c) {
+	if c := shareddefaults.Str(t, "brand_primary_color"); hexColor.MatchString(c) {
 		brand["accent"] = c
 		brand["palette"] = []any{c}
 	}
