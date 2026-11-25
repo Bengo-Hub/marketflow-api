@@ -37,8 +37,9 @@ func (a Ads) SetupAccount(ctx context.Context, customerID string) (SetupAccount,
 
 // ManagerLink is one manager account linked, or invited, to the customer.
 type ManagerLink struct {
-	ManagerID string // digits
-	Status    string // ACTIVE, PENDING, INACTIVE, REFUSED, CANCELED
+	ResourceName string
+	ManagerID    string // digits
+	Status       string // ACTIVE, PENDING, INACTIVE, REFUSED, CANCELED
 }
 
 // ManagerLinks lists the customer's manager links.
@@ -51,7 +52,7 @@ func (a Ads) ManagerLinks(ctx context.Context, customerID string) ([]ManagerLink
 	out := make([]ManagerLink, 0, len(rows))
 	for _, r := range rows {
 		l := obj(r, "customerManagerLink")
-		out = append(out, ManagerLink{ManagerID: strings.TrimPrefix(text(l, "managerCustomer"), "customers/"), Status: text(l, "status")})
+		out = append(out, ManagerLink{ResourceName: text(l, "resourceName"), ManagerID: strings.TrimPrefix(text(l, "managerCustomer"), "customers/"), Status: text(l, "status")})
 	}
 	return out, nil
 }

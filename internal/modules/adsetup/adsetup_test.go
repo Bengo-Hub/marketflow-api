@@ -251,7 +251,6 @@ func metaReads() map[string]string {
 		"/v27.0/act_77/adspixels":              `{"data":[]}`,
 		"/v27.0/act_77/promote_pages":          `{"data":[{"id":"p1"}]}`,
 		"/v27.0/act_77?business":               `{"business":{"id":"b1"}}`,
-		"/v27.0/b1/owned_domains":              `{"data":[{"domain_name":"other.example"}]}`,
 		"/v27.0/act_77/ads":                    `{"data":[{"name":"Ad","effective_status":"DISAPPROVED","issues_info":[{"error_summary":"Misleading"}]}]}`,
 		"/v27.0/p1/leadgen_forms":              `{"data":[{"id":"1","name":"Old","status":"ARCHIVED"}]}`,
 		"/v27.0/p1?leadgen_tos_accepted":       `{"leadgen_tos_accepted":true}`,
@@ -267,8 +266,8 @@ func TestMetaChecklistAndFixes(t *testing.T) {
 	want(t, items, map[string]string{
 		"meta.account": StatusOK, "meta.funding": StatusOK, "meta.spend_cap": StatusOK, "meta.pixel": StatusAction, "meta.conversions_api": StatusWarning,
 		"meta.page": StatusOK, "meta.lead_form:p1": StatusWarning, "meta.instagram:p1": StatusWarning,
-		// Fields Meta leaves out are unknown, not "no number".
-		"meta.whatsapp:p1": StatusUnknown, "meta.domain": StatusWarning, "meta.policy": StatusAction,
+		// Fields Meta leaves out are not "no number".
+		"meta.whatsapp:p1": StatusInfo, "meta.domain": StatusWarning, "meta.policy": StatusAction,
 	})
 	if d := find(t, items, "meta.spend_cap").Detail; !strings.Contains(d, "KES 1000.00") || !strings.Contains(d, "KES 750.00 left") {
 		t.Error(d)

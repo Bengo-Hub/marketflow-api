@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
+	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -27,6 +30,11 @@ type metaInput struct {
 	// StartSending stores the pixel MarketFlow sends conversions to.
 	StartSending func(ctx context.Context, pixelID string) error
 	Website      string
+	// ReconnectURL is the MarketFlow page to connect again on. Web reads public pages, TXT the
+	// domain's own DNS records; either may be nil.
+	ReconnectURL string
+	Web          *http.Client
+	TXT          func(ctx context.Context, host string) ([]string, error)
 	Business     string
 	Now          time.Time
 	Cfg          Config
@@ -59,8 +67,8 @@ func metaChecklist(ctx context.Context, in metaInput) []Item {
 		acc                                        *meta.AdAccount
 		pixels                                     []meta.Pixel
 		promote                                    []string
-		bizID                                      string
-		domains                                    []meta.OwnedDomain
+		bizID, privacy                             string
+		proven                                     bool
 		ads                                        []meta.ProblemAd
 		quality                                    []meta.MatchQuality
 		eAcc, ePix, ePromote, eDom, eAds, eQuality error
@@ -73,7 +81,9 @@ func metaChecklist(ctx context.Context, in metaInput) []Item {
 		func() { pixels, ePix = c.Pixels(ctx, in.Token, in.ActID) },
 		func() { promote, ePromote = c.PromotePages(ctx, in.Token, in.ActID) },
 		func() { tasks, eTasks = c.PageTasks(ctx, in.Token) },
-		func() { bizID, domains, eDom = c.BusinessDomains(ctx, in.Token, in.ActID) },
+		func() { bizID, eDom = c.AdAccountBusiness(ctx, in.Token, in.ActID) },
+		func() { proven = in.domainProven(ctx) },
+		func() { privacy = in.privacyPage(ctx) },
 		func() { ads, eAds = c.ProblemAds(ctx, in.Token, in.ActID) },
 		func() {
 			if in.SendingTo != "" {
@@ -92,13 +102,13 @@ func metaChecklist(ctx context.Context, in metaInput) []Item {
 	pageItems := make([][]Item, len(in.Pages))
 	reads := make([]func(), len(in.Pages))
 	for i, p := range in.Pages {
-		reads[i] = func() { pageItems[i] = in.pageItems(ctx, p) }
+		reads[i] = func() { pageItems[i] = in.pageItems(ctx, p, privacy) }
 	}
 	together(reads...)
 	for _, p := range pageItems {
 		items = append(items, p...)
 	}
-	items = append(items, in.domainItem(bizID, domains, eDom), in.policyItem(ads, eAds))
+	items = append(items, in.domainItem(bizID, proven, eDom), in.policyItem(ads, eAds))
 	return seal(items)
 }
 
@@ -267,7 +277,8 @@ func (in metaInput) pageLinkItem(promote []string, err error, tasks map[string][
 	it := Item{Key: "meta.page", Title: "Facebook Page linked"}
 	l := in.Cfg.link("meta_pages", "Open Page settings", in.ActID)
 	if len(in.Pages) == 0 {
-		it.Status, it.Detail = StatusAction, "No Facebook Page is connected to MarketFlow. Ads need one: connect Meta again in Settings, Integrations and tick your Page."
+		it.Status, it.Detail = StatusAction, "No Facebook Page is connected to MarketFlow. Ads need one: connect Meta again and tick your Page."
+		it.Link = &Link{Label: "Open Integrations", URL: in.ReconnectURL}
 		return it
 	}
 	if err != nil {
@@ -302,7 +313,7 @@ func (in metaInput) pageLinkItem(promote []string, err error, tasks map[string][
 	}
 	it.Status = StatusAction
 	it.Detail = "The Facebook login connected to MarketFlow may not advertise your Page."
-	it.Points = []string{
+	it.Steps = []string{
 		"Meta Business settings, Accounts, Pages: choose your Page, Assign people, pick the person who connected MarketFlow and turn on Ads.",
 		"Accounts, Ad accounts: choose this ad account, Assign people, and give the same person Manage campaigns.",
 		"In MarketFlow, Settings, Integrations: connect Meta again and tick this Page and this ad account.",
@@ -310,7 +321,7 @@ func (in metaInput) pageLinkItem(promote []string, err error, tasks map[string][
 	return it
 }
 
-func (in metaInput) pageItems(ctx context.Context, p metaPage) []Item {
+func (in metaInput) pageItems(ctx context.Context, p metaPage, privacy string) []Item {
 	var (
 		forms                    []meta.LeadForm
 		terms                    bool
@@ -328,7 +339,7 @@ func (in metaInput) pageItems(ctx context.Context, p metaPage) []Item {
 		func() { ig, eIG = c.PageInstagram(ctx, p.Token, p.ID) },
 		func() { wa, hasWA, eWA = c.PageWhatsApp(ctx, p.Token, p.ID) },
 	)
-	out := []Item{in.formItem(p, forms, terms, eForms, eTerms)}
+	out := []Item{in.formItem(p, forms, terms, privacy, eForms, eTerms)}
 
 	it := Item{Key: "meta.instagram:" + p.ID, Title: "Instagram linked to " + p.Name, Status: StatusOK, Detail: "An Instagram professional account is linked, so ads can run as it."}
 	l := cfg.link("meta_instagram", "Link Instagram", p.ID)
@@ -345,7 +356,8 @@ func (in metaInput) pageItems(ctx context.Context, p metaPage) []Item {
 	case eWA != nil:
 		it = unread(it.Key, it.Title, "Meta", eWA, l)
 	case hasWA == nil:
-		it = unread(it.Key, it.Title, "Meta", errors.New("the Page did not share its WhatsApp details"), l)
+		it.Status, it.Link = StatusInfo, l
+		it.Detail = "Meta does not tell MarketFlow whether a WhatsApp number is linked to this Page. Link one if you want ads that open a WhatsApp chat."
 	case !*hasWA:
 		it.Status, it.Link, it.Detail = StatusWarning, l, "No WhatsApp number is linked to this Page, so ads that open a WhatsApp chat cannot run."
 	default:
@@ -354,7 +366,7 @@ func (in metaInput) pageItems(ctx context.Context, p metaPage) []Item {
 	return append(out, it)
 }
 
-func (in metaInput) formItem(p metaPage, forms []meta.LeadForm, terms bool, eForms, eTerms error) Item {
+func (in metaInput) formItem(p metaPage, forms []meta.LeadForm, terms bool, privacy string, eForms, eTerms error) Item {
 	it := Item{Key: "meta.lead_form:" + p.ID, Title: "Lead form on " + p.Name}
 	l := in.Cfg.link("meta_forms", "Open lead forms", p.ID)
 	if eForms != nil {
@@ -382,10 +394,15 @@ func (in metaInput) formItem(p metaPage, forms []meta.LeadForm, terms bool, eFor
 		"No ad is created. Meta does not let a published form be edited.",
 	}, Fields: []Field{
 		{Key: "name", Label: "Form name", Value: clip(in.Business+" leads", 100), Max: 100, Required: true},
-		{Key: "privacy_url", Label: "Your privacy policy link", Max: 500, Required: true},
+		{Key: "privacy_url", Label: "Your privacy policy link", Value: privacy, Max: 500, Required: true},
 	}, run: func(ctx context.Context, v map[string]string) error {
 		if !httpsURL(v["privacy_url"]) {
 			return badInput("the privacy policy link starts with https://")
+		}
+		// Meta answers a wrong link with "Invalid parameter" only, so it is opened first (owner,
+		// 2026-11-25: /privay).
+		if in.Web != nil && !opens(ctx, in.Web, v["privacy_url"]) {
+			return badInput("the privacy policy link does not open; check its spelling")
 		}
 		_, err := in.Client.CreateLeadForm(ctx, p.Token, p.ID, meta.LeadFormInput{Name: v["name"], PrivacyURL: v["privacy_url"],
 			Questions: in.Cfg.FormQuestions, AskWhatsAppConsent: true})
@@ -394,7 +411,52 @@ func (in metaInput) formItem(p metaPage, forms []meta.LeadForm, terms bool, eFor
 	return in.guard(it, "pages_manage_ads")
 }
 
-func (in metaInput) domainItem(bizID string, domains []meta.OwnedDomain, err error) Item {
+// metaTag is the meta tag Meta asks a site to carry.
+var metaTag = regexp.MustCompile("(?i)<meta[^>]+facebook-domain-verification")
+
+// domainProven looks for Meta's verification code in the domain's DNS or on its home page. Meta has
+// no read for the verified domains of a portfolio ("nonexisting field owned_domains", 2026-11-25).
+func (in metaInput) domainProven(ctx context.Context) bool {
+	host := hostOf(in.Website)
+	if host == "" {
+		return false
+	}
+	if in.TXT != nil {
+		// A subdomain is covered by the code on its parent.
+		for h := host; strings.Contains(h, "."); _, h, _ = strings.Cut(h, ".") {
+			rows, _ := in.TXT(ctx, h)
+			for _, r := range rows {
+				if strings.HasPrefix(strings.ToLower(r), "facebook-domain-verification=") {
+					return true
+				}
+			}
+		}
+	}
+	return metaTag.MatchString(pageBody(ctx, in.Web, "https://"+host))
+}
+
+// privacyPage is the privacy policy the website links to, "" when it links to none.
+func (in metaInput) privacyPage(ctx context.Context) string {
+	host := hostOf(in.Website)
+	if host == "" {
+		return ""
+	}
+	site := "https://" + host
+	base, _ := url.Parse(site)
+	for _, m := range anchorRE.FindAllStringSubmatch(pageBody(ctx, in.Web, site), 400) {
+		if !strings.Contains(strings.ToLower(m[1]), "privacy") {
+			continue
+		}
+		if ref, err := url.Parse(strings.TrimSpace(html.UnescapeString(m[1]))); err == nil {
+			if u := base.ResolveReference(ref).String(); httpsURL(u) {
+				return u
+			}
+		}
+	}
+	return ""
+}
+
+func (in metaInput) domainItem(bizID string, proven bool, err error) Item {
 	it := Item{Key: "meta.domain", Title: "Website domain verified"}
 	l := in.Cfg.link("meta_domains", "Open domains", in.ActID)
 	host := hostOf(in.Website)
@@ -408,22 +470,13 @@ func (in metaInput) domainItem(bizID string, domains []meta.OwnedDomain, err err
 		it.Status, it.Link, it.Detail = StatusInfo, l, "This ad account is not in a Meta business portfolio, and domains are verified there."
 		return it
 	}
-	for _, d := range domains {
-		name := strings.ToLower(d.Name)
-		if name == "" || (host != name && !strings.HasSuffix(host, "."+name)) {
-			continue
-		}
-		if d.Status == "" || strings.EqualFold(d.Status, "verified") {
-			it.Status, it.Detail = StatusOK, d.Name+" is in your Meta business portfolio."
-			if d.Status == "" {
-				it.Detail += " Meta does not tell MarketFlow whether it is verified; a green dot on the domains page means it is."
-				it.Link = l
-			}
-			return it
-		}
+	if proven {
+		it.Status, it.Link = StatusInfo, l
+		it.Detail = host + " carries a Meta verification code. Meta does not tell MarketFlow whether it accepted it; a green dot on the domains page means it did."
+		return it
 	}
 	it.Status, it.Link = StatusWarning, l
-	it.Detail = host + " is not a verified domain in your Meta business portfolio. Add it there and place the code Meta gives you on your website; MarketFlow cannot do this for you."
+	it.Detail = host + " carries no Meta verification code, so it is not verified in your business portfolio. MarketFlow cannot do this for you."
 	return it
 }
 

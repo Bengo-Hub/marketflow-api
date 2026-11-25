@@ -3,6 +3,7 @@ package adsetup
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -23,6 +24,8 @@ type Profile struct {
 	Name, Website, Phone, City, Country string
 	Pages                               []Page
 	Services                            []string
+	// Descriptions are the services' own descriptions; Videos are YouTube ids of its posted ads.
+	Descriptions, Videos []string
 }
 
 // Page is a page on the business's website.
@@ -69,7 +72,9 @@ func googleChecklist(ctx context.Context, in googleInput) []Item {
 		consented                                       int
 		prof                                            Profile
 		eAcc, eSpend, eLink, eAct, eCamp, eGoal, eAsset error
-		eList, eAds, eCons                              error
+		eList, eAds, eCons, eGroups                     error
+		groups                                          []google.AssetGroup
+		managerMine                                     bool
 	)
 	a, id, cfg := in.Ads, in.CustomerID, in.Cfg
 	acc, eAcc = a.SetupAccount(ctx, id)
@@ -78,7 +83,12 @@ func googleChecklist(ctx context.Context, in googleInput) []Item {
 	}
 	together(
 		func() { spend, eSpend = a.SpendStatus(ctx, id) },
-		func() { links, eLink = a.ManagerLinks(ctx, id) },
+		func() {
+			if links, eLink = a.ManagerLinks(ctx, id); eLink == nil {
+				managerMine = in.mayUseManager(ctx, links)
+			}
+		},
+		func() { groups, eGroups = a.AssetGroups(ctx, id) },
 		func() { actions, eAct = a.SetupActions(ctx, id) },
 		func() { camps, eCamp = a.SetupCampaigns(ctx, id) },
 		func() { accGoals, campGoals, own, eGoal = a.SetupGoals(ctx, id) },
@@ -107,9 +117,10 @@ func googleChecklist(ctx context.Context, in googleInput) []Item {
 		in.goalItem(actions, camps, accGoals, campGoals, own, firstErr(eAct, eCamp, eGoal)),
 		in.taggingItem(acc),
 		in.statusItem(camps, ads, firstErr(eCamp, eAds)),
-		in.managerItem(links, eLink),
+		in.managerItem(links, managerMine, eLink),
 	}
 	items = append(items, in.assetItems(assets, camps, prof, firstErr(eAsset, eCamp))...)
+	items = append(items, in.materialItems(groups, prof, eGroups)...)
 	items = append(items, in.listItem(lists, consented, eList))
 	return seal(items)
 }
@@ -174,7 +185,22 @@ func (in googleInput) permissionItem() Item {
 	return it
 }
 
-func (in googleInput) managerItem(links []google.ManagerLink, err error) Item {
+// mayUseManager reports whether the connected person can act in MarketFlow's manager account, asked
+// only when no link exists yet.
+func (in googleInput) mayUseManager(ctx context.Context, links []google.ManagerLink) bool {
+	if in.ManagerID == "" {
+		return false
+	}
+	for _, x := range links {
+		if x.ManagerID == in.ManagerID && (x.Status == "ACTIVE" || x.Status == "PENDING") {
+			return false
+		}
+	}
+	ids, err := in.Ads.AccessibleCustomers(ctx)
+	return err == nil && slices.Contains(ids, google.CustomerDigits(in.ManagerID))
+}
+
+func (in googleInput) managerItem(links []google.ManagerLink, managerMine bool, err error) Item {
 	it := Item{Key: "google.manager", Title: "Linked to MarketFlow's manager account"}
 	l := in.Cfg.link("google_managers", "Open manager links", in.CustomerID)
 	if in.ManagerID == "" {
@@ -185,7 +211,15 @@ func (in googleInput) managerItem(links []google.ManagerLink, err error) Item {
 		return unread(it.Key, it.Title, "Google", err, l)
 	}
 	it.Status, it.Link = StatusWarning, l
-	it.Detail = "This account is not linked to MarketFlow's manager account (" + dashed(in.ManagerID) + "). Your connection still works. Ask MarketFlow support to send the link request, then accept it in Google Ads under Admin, Access and security, Managers."
+	it.Detail = "This account is not linked to MarketFlow's manager account (" + dashed(in.ManagerID) + "). Your connection still works without it."
+	if managerMine {
+		it.Fix = &Fix{Label: "Send the request", Changes: []string{
+			"Send a link request from MarketFlow's manager account " + dashed(in.ManagerID) + " to this account.",
+			"It does nothing until you accept it, which is the next fix here.",
+		}, run: func(ctx context.Context, _ map[string]string) error {
+			return in.Ads.RequestManagerLink(ctx, in.ManagerID, in.CustomerID)
+		}}
+	}
 	for _, x := range links {
 		if x.ManagerID != in.ManagerID {
 			continue
@@ -195,7 +229,13 @@ func (in googleInput) managerItem(links []google.ManagerLink, err error) Item {
 			it.Status, it.Link, it.Detail = StatusOK, nil, "Linked to MarketFlow's manager account "+dashed(in.ManagerID)+"."
 			return it
 		case "PENDING":
-			it.Detail = "MarketFlow's link request (" + dashed(in.ManagerID) + ") is waiting for you. Accept it in Google Ads under Admin, Access and security, Managers."
+			it.Detail = "MarketFlow's link request (" + dashed(in.ManagerID) + ") is waiting for you."
+			it.Fix = &Fix{Label: "Accept the request", Changes: []string{
+				"Link this account to MarketFlow's manager account " + dashed(in.ManagerID) + ". MarketFlow can then see and manage it.",
+				"You can remove the link in Google Ads at any time. Your own access and billing stay as they are.",
+			}, run: func(ctx context.Context, _ map[string]string) error {
+				return in.Ads.AcceptManagerLink(ctx, in.CustomerID, x)
+			}}
 		}
 	}
 	return it

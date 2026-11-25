@@ -59,13 +59,18 @@ type Item struct {
 	Status string   `json:"status"`
 	Detail string   `json:"detail"`
 	Points []string `json:"points,omitempty"`
-	Link   *Link    `json:"link,omitempty"`
-	Fix    *Fix     `json:"fix,omitempty"`
+	// Steps are what the owner does themselves, in order.
+	Steps []string `json:"steps,omitempty"`
+	// Support is the provider's own words, for MarketFlow support, not shown as an explanation.
+	Support string `json:"support,omitempty"`
+	Link    *Link  `json:"link,omitempty"`
+	Fix     *Fix   `json:"fix,omitempty"`
 }
 
 // seal gives every fix its token. The proposed field values are left out: the owner sends the
 // values they reviewed, so a slow website read must not make a fix look changed.
 func seal(items []Item) []Item {
+	items = withSteps(items)
 	for i := range items {
 		if f := items[i].Fix; f != nil {
 			b, _ := json.Marshal([]any{items[i].Key, f.Changes})
@@ -108,7 +113,8 @@ func httpsURL(s string) bool {
 // unread is the item for a check the provider refused or did not answer.
 func unread(key, title, provider string, err error, l *Link) Item {
 	return Item{Key: key, Title: title, Status: StatusUnknown, Link: l,
-		Detail: provider + " did not let MarketFlow read this. Check it yourself. What " + provider + " said: " + clip(safeErr(err), 200)}
+		Detail:  provider + " did not let MarketFlow read this, so check it yourself.",
+		Support: clip(safeErr(err), 200)}
 }
 
 // safeErr is an error's text without the request address: Graph calls carry the access token in

@@ -37,6 +37,9 @@ func loadProfile(ctx context.Context, t *ent.Tenant, facts func(context.Context)
 		}
 		p.Services = append(p.Services, name)
 		offerPages = append(offerPages, Page{Title: name, URL: u})
+		if d, _ := m["description"].(string); strings.TrimSpace(d) != "" {
+			p.Descriptions = append(p.Descriptions, strings.TrimSpace(d))
+		}
 	}
 	if facts != nil {
 		if f, err := facts(ctx); err == nil {
@@ -71,7 +74,35 @@ var (
 
 // sitePages reads the home page's own links.
 func sitePages(ctx context.Context, hc *http.Client, site string) []Page {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, site, nil)
+	return linksIn(site, pageBody(ctx, hc, site))
+}
+
+// pageBody is a public page's HTML, "" when it does not open.
+func pageBody(ctx context.Context, hc *http.Client, page string) string {
+	resp := getPage(ctx, hc, page)
+	if resp == nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	return string(body)
+}
+
+// opens reports whether a public page answers.
+func opens(ctx context.Context, hc *http.Client, page string) bool {
+	resp := getPage(ctx, hc, page)
+	if resp == nil {
+		return false
+	}
+	_ = resp.Body.Close()
+	return true
+}
+
+func getPage(ctx context.Context, hc *http.Client, page string) *http.Response {
+	if hc == nil {
+		return nil
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, page, nil)
 	if err != nil {
 		return nil
 	}
@@ -79,12 +110,11 @@ func sitePages(ctx context.Context, hc *http.Client, site string) []Page {
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
+		_ = resp.Body.Close()
 		return nil
 	}
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	return linksIn(site, string(body))
+	return resp
 }
 
 func linksIn(site, body string) []Page {

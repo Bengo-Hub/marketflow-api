@@ -158,27 +158,15 @@ func (c *Client) PageWhatsApp(ctx context.Context, pageToken, pageID string) (nu
 	return out.Number, &yes, nil
 }
 
-// OwnedDomain is a domain in the business portfolio that owns the ad account. Status is empty
-// when Meta leaves it out.
-type OwnedDomain struct {
-	Name   string `json:"domain_name"`
-	Status string `json:"status"`
-}
-
-// BusinessDomains returns the business portfolio that owns the ad account ("" when it is a
-// personal account) and the domains in it.
-func (c *Client) BusinessDomains(ctx context.Context, token, actID string) (businessID string, domains []OwnedDomain, err error) {
+// AdAccountBusiness is the business portfolio that owns the ad account, "" for a personal account.
+func (c *Client) AdAccountBusiness(ctx context.Context, token, actID string) (string, error) {
 	var acc struct {
 		Business struct {
 			ID string `json:"id"`
 		} `json:"business"`
 	}
-	if err = c.fieldsOf(ctx, token, actPrefix(actID), "business", &acc); err != nil || acc.Business.ID == "" {
-		return acc.Business.ID, nil, err
-	}
-	// No fields parameter: Meta documents the edge without naming the domain's own fields.
-	domains, err = listOf[OwnedDomain](ctx, c, token, "/"+url.PathEscape(acc.Business.ID)+"/owned_domains", "")
-	return acc.Business.ID, domains, err
+	err := c.fieldsOf(ctx, token, actPrefix(actID), "business", &acc)
+	return acc.Business.ID, err
 }
 
 // ProblemAd is an ad Meta rejected or flagged.

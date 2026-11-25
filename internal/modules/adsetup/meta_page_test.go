@@ -25,7 +25,7 @@ func TestPageLinkIsJudgedByTheLoginsTasks(t *testing.T) {
 		if it.Status != c.want {
 			t.Errorf("%s: %s", name, it.Status)
 		}
-		if it.Status == StatusAction && len(it.Points) != 3 {
+		if it.Status == StatusAction && len(it.Steps) != 3 {
 			t.Errorf("%s: no steps", name)
 		}
 	}

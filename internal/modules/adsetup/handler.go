@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -19,6 +20,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
 	"github.com/bengobox/marketflow-api/internal/ent/providersetting"
+	"github.com/bengobox/marketflow-api/internal/ent/publishjob"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/integrations/google"
 	"github.com/bengobox/marketflow-api/internal/integrations/meta"
@@ -330,13 +332,28 @@ func (h *Handler) google(ctx context.Context, t *ent.Tenant, a *ent.ConnectedAcc
 	return googleChecklist(ctx, googleInput{
 		MaySend: googleads.MaySendConversions(googleads.UploadAPI(ctx, h.DB), a.Scopes), LastUpload: googleads.LastUpload(a),
 		ReconnectURL: "/" + t.Slug + "/settings/integrations",
-		Ads: ads, CustomerID: a.ExternalID, ManagerID: manager, Mapping: googleads.MappingOf(a),
+		Ads:          ads, CustomerID: a.ExternalID, ManagerID: manager, Mapping: googleads.MappingOf(a),
 		SaveMapping: func(ctx context.Context, m map[string]string) error { return h.saveMapping(ctx, a, m) },
 		BillingURL:  runads.Platform(ctx, h.DB).GoogleBillingLink(a.ExternalID),
 		Consented:   func(ctx context.Context) (int, error) { return h.consented(ctx, t.ID) },
-		Profile:     func(ctx context.Context) Profile { return loadProfile(ctx, t, h.facts(t.ID), h.Web) },
-		Cfg:         cfg,
+		Profile: func(ctx context.Context) Profile {
+			p := loadProfile(ctx, t, h.facts(t.ID), h.Web)
+			p.Videos = h.videos(ctx, t.ID)
+			return p
+		},
+		Cfg: cfg,
 	}), nil
+}
+
+// videos are the YouTube ids of the tenant's latest posted videos.
+func (h *Handler) videos(ctx context.Context, tid uuid.UUID) []string {
+	ids, err := h.DB.PublishJob.Query().
+		Where(publishjob.TenantIDEQ(tid), publishjob.PlatformEQ("youtube"), publishjob.StatusEQ("published"), publishjob.ExternalIDNEQ("")).
+		Order(ent.Desc(publishjob.FieldCreatedAt)).Limit(5).Select(publishjob.FieldExternalID).Strings(ctx)
+	if err != nil {
+		return nil
+	}
+	return ids
 }
 
 func (h *Handler) facts(tid uuid.UUID) func(context.Context) (marketingos.BusinessFacts, error) {
@@ -396,6 +413,7 @@ func (h *Handler) meta(ctx context.Context, t *ent.Tenant, a *ent.ConnectedAccou
 		pages = append(pages, metaPage{ID: p.ExternalID, Name: p.DisplayName, Token: pt})
 	}
 	in := metaInput{Client: h.Meta, Token: tok, ActID: a.ExternalID, Scopes: a.Scopes, Pages: pages, Business: t.Name, Now: time.Now(), Cfg: cfg,
+		ReconnectURL: "/" + t.Slug + "/settings/integrations", Web: h.Web, TXT: net.DefaultResolver.LookupTXT,
 		StartSending: func(ctx context.Context, pixel string) error {
 			return h.saveSettings(ctx, t.ID, map[string]string{capiPixel: pixel, CAPIAccountKey: a.ExternalID})
 		}}
@@ -407,6 +425,11 @@ func (h *Handler) meta(ctx context.Context, t *ent.Tenant, a *ent.ConnectedAccou
 	}
 	if s, ok := t.Metadata["socials"].(map[string]any); ok {
 		in.Website, _ = s["website"].(string)
+	}
+	if in.Website == "" && h.Facts != nil {
+		if f, err := h.Facts(ctx, t.ID); err == nil {
+			in.Website = f.Website
+		}
 	}
 	return metaChecklist(ctx, in), nil
 }
