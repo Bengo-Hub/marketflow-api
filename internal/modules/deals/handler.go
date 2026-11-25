@@ -135,6 +135,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 // @Param pipeline_id query string false "Filter by pipeline UUID"
 // @Param stage_id query string false "Filter by stage UUID"
 // @Param contact_id query string false "Filter by contact UUID"
+// @Param lead_id query string false "Filter by lead UUID"
 // @Param limit query int false "Page size (default 20)"
 // @Param offset query int false "Offset"
 // @Success 200 {object} map[string]interface{}
@@ -170,6 +171,10 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		if id, err := uuid.Parse(s); err == nil {
 			in.ContactID = &id
 		}
+	}
+	if s := r.URL.Query().Get("lead_id"); s != "" {
+		id, _ := uuid.Parse(s) // a bad id matches no deal
+		in.LeadID = &id
 	}
 	if s := r.URL.Query().Get("account_id"); s != "" {
 		if id, err := uuid.Parse(s); err == nil {

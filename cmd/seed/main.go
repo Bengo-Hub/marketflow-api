@@ -19,6 +19,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/adsetup"
 	"github.com/bengobox/marketflow-api/internal/modules/googleads"
 	"github.com/bengobox/marketflow-api/internal/modules/knowledge"
+	"github.com/bengobox/marketflow-api/internal/modules/leads"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -121,6 +122,7 @@ func main() {
 		log.Printf("Lead response: %d platform defaults seeded", seedLeadResponseDefaults(ctx, client))
 		log.Printf("Run ads: %d platform defaults seeded", seedConfigDefaults(ctx, client, runAdsDefaults))
 		log.Printf("Ads setup: %d platform defaults seeded", seedConfigDefaults(ctx, client, adsSetupDefaults))
+		log.Printf("Lead deals: %d platform defaults seeded", seedConfigDefaults(ctx, client, leadDealDefaults))
 	}
 
 	// Phase 4: Default campaign templates — starter lead-gen / recruitment /
@@ -729,6 +731,12 @@ var adsSetupDefaults = []configDefault{
 	{adsetup.KeyFormQuestions, "FULL_NAME,PHONE,EMAIL", "string", "Questions on the Meta lead form the setup assistant creates."},
 	{adsetup.KeyCache, "5m", "string", "How long a setup checklist is kept before the ad account is read again."},
 	{googleads.KeyUploadAPI, googleads.UploadAPIDataManager, "string", "API that sends conversions to Google: data_manager, or google_ads (the older call, closed to new accounts since 2026-06-15)."},
+}
+
+// leadDealDefaults are the platform defaults of deals made from leads, written only when missing.
+var leadDealDefaults = []configDefault{
+	{leads.DealFromLeadKey, "on", "string", "Whether a qualified or converted customer lead gets a deal (on or off); a tenant's row wins."},
+	{leads.DealRepairKey, leads.DealRepairDefault.String(), "string", "How far back the worker looks for a qualified lead whose deal was not made."},
 }
 
 // configDefault is one platform service_config row.

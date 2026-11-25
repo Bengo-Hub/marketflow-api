@@ -70,6 +70,7 @@ type ListInput struct {
 	PipelineID *uuid.UUID
 	StageID    *uuid.UUID
 	ContactID  *uuid.UUID
+	LeadID     *uuid.UUID
 	AccountID  *uuid.UUID
 	OwnerID    *uuid.UUID
 	Limit      int
@@ -209,6 +210,9 @@ func (s *Service) List(ctx context.Context, in ListInput) ([]*ent.Deal, int, err
 	}
 	if in.ContactID != nil {
 		query = query.Where(deal.ContactID(*in.ContactID))
+	}
+	if in.LeadID != nil {
+		query = query.Where(deal.LeadID(*in.LeadID))
 	}
 	if in.AccountID != nil {
 		query = query.Where(deal.AccountID(*in.AccountID))

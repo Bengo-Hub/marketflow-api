@@ -272,6 +272,9 @@ func main() {
 
 		// Converted leads join the tenant's "lead.converted" sequence (e.g. Ask for a testimonial).
 		go worker.NewConvertedEnrol(entClient, logger).Run(ctx)
+		// Qualified leads whose deal was missed when they were saved.
+		tenant.PlatformCurrency = os.Getenv("MF_MONEY_DEFAULT_CURRENCY")
+		go worker.RunLeadDeals(ctx, entClient, logger)
 
 		// Lead response (owner, 2026-11-24): every tenant's copy of the default follow-up, the
 		// batched team alerts and the business-hours reminders for leads nobody contacted.

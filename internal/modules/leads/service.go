@@ -282,6 +282,10 @@ func (s *Service) Update(ctx context.Context, tenantID, leadID uuid.UUID, in Upd
 		if _, err := adconversions.QualifiedLead(ctx, s.client, result); err != nil {
 			s.logger.Warn("lead conversion not queued", zap.String("lead", result.ID.String()), zap.Error(err))
 		}
+		// The save stands here too; the worker makes a missed deal (RepairDeals).
+		if _, err := s.EnsureDeal(ctx, tenantID, result.ID); err != nil {
+			s.logger.Error("lead deal not made", zap.String("lead", result.ID.String()), zap.Error(err))
+		}
 	}
 
 	return result, nil

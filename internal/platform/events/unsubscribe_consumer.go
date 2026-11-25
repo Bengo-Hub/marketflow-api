@@ -13,6 +13,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/contact"
+	"github.com/bengobox/marketflow-api/internal/modules/contacts"
 )
 
 // UnsubscribeConsumer clears a contact's marketing consent when the person opts out from a
@@ -74,17 +75,29 @@ func (c *UnsubscribeConsumer) handle(msg *nats.Msg) {
 }
 
 // ApplyUnsubscribe sets the matching contacts' consent flag false: email by its normalised form,
-// sms and whatsapp by the phone's last nine digits (the platform's one-number key).
+// sms and whatsapp by the phone's last nine digits (the platform's one-number key). The opt-out is
+// also recorded on their contacts and leads, because an off flag may only mean never asked.
 func ApplyUnsubscribe(ctx context.Context, db *ent.Client, tenantID uuid.UUID, channel, address string) (int, error) {
+	now := time.Now().UTC().Format(time.RFC3339)
 	switch channel {
 	case "email":
+		email := strings.ToLower(strings.TrimSpace(address))
+		if email == "" {
+			return 0, nil
+		}
+		if err := contacts.MarkOptedOut(ctx, db, tenantID, "email", email, now); err != nil {
+			return 0, err
+		}
 		return db.Contact.Update().
-			Where(contact.TenantID(tenantID), contact.EmailNormalized(strings.ToLower(strings.TrimSpace(address)))).
+			Where(contact.TenantID(tenantID), contact.EmailNormalized(email)).
 			SetSubscribedEmail(false).Save(ctx)
 	case "sms", "whatsapp":
 		digits := lastNineDigits(address)
 		if len(digits) < 9 {
 			return 0, nil
+		}
+		if err := contacts.MarkOptedOut(ctx, db, tenantID, "phone", digits, now); err != nil {
+			return 0, err
 		}
 		return db.Contact.Update().
 			Where(contact.TenantID(tenantID), contact.PhoneSubscriberDigits(digits)).
