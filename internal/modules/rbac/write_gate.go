@@ -27,6 +27,8 @@ var adminWritePrefixes = []string{
 	"/agents/autopilot/auto-publish",
 	// Recording that a person agreed to be a brand face (owner approved 2026-11-24).
 	"/tenant/brand-faces",
+	// A fix saves integration settings and changes the ad account itself (item 74, the stricter side).
+	"/ads-setup",
 }
 
 var (
@@ -40,16 +42,20 @@ var (
 	// testimonialReview approves or rejects a customer's or website testimonial before anything
 	// is published: a tenant admin's call (owner 2026-11-24); platform owners pass the gate.
 	testimonialReview = regexp.MustCompile(`^/testimonials/[^/]+/(approve|reject)$`)
+	// conversionMapping is a Google Ads integration setting, so an admin's (item 74).
+	conversionMapping = regexp.MustCompile(`^/ads/google/accounts/[^/]+/conversion-actions$`)
 )
 
 // spendPaths are the writes that spend the business's money or post in its name: launching or
-// restarting a boost (and its confirmation code), every publishing write, and sending an SMS
-// campaign. A service key must name the person it acts for (X-Acting-User-ID) to make them.
+// restarting a boost or a Run ads plan (and their confirmation codes), every publishing write, a
+// comment or message reply, and sending an SMS campaign. A service key must name the person it acts for (X-Acting-User-ID) to make them.
 var spendPaths = []*regexp.Regexp{
 	regexp.MustCompile(`^/ads/boosts(/otp)?$`),
 	regexp.MustCompile(`^/ads/boosts/[^/]+/(paid|resume)$`),
 	regexp.MustCompile(`^/ads/boosts/[^/]+/ads/[^/]+/resume$`),
+	regexp.MustCompile(`^/ads/run(/otp|/[^/]+/done)?$`),
 	regexp.MustCompile(`^/publishing/jobs(/[^/]+/[^/]+)?$`),
+	regexp.MustCompile(`^/inbox/[^/]+/(reply|private-reply)$`),
 	smsSendPath,
 }
 
@@ -102,7 +108,7 @@ func requiredRoles(method, path string) []string {
 			return adminOnly
 		}
 	}
-	if autopilotPath.MatchString(p) || testimonialReview.MatchString(p) {
+	if autopilotPath.MatchString(p) || testimonialReview.MatchString(p) || conversionMapping.MatchString(p) {
 		return adminOnly
 	}
 	if method == http.MethodDelete && recordDelete.MatchString(p) {

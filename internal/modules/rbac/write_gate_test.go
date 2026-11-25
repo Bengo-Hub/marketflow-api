@@ -44,6 +44,12 @@ func TestRequiredRoles(t *testing.T) {
 		{"POST", "/api/v1/agents/autopilot/posts/9/veto", member},
 		{"POST", "/api/v1/custom-fields/defs", admin},
 		{"POST", "/api/v1/short-links", member},
+		// Item 74: ad account fixes and the conversion mapping are integration settings; Run ads is members' work.
+		{"POST", "/api/v1/ads-setup/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/fix", admin},
+		{"PUT", "/api/v1/ads/google/accounts/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/conversion-actions", admin},
+		{"POST", "/api/v1/ads/run", member},
+		{"GET", "/api/v1/ads-setup", nil},
+		{"PUT", "/api/v1/tenant/brand-faces", admin},
 		// Owner 2026-11-24: approving or rejecting a customer's testimonial is an admin's call.
 		{"POST", "/api/v1/testimonials/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/approve", admin},
 		{"POST", "/api/v1/testimonials/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/reject", admin},

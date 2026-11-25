@@ -9,9 +9,15 @@ import (
 	"go.uber.org/zap"
 )
 
+// RoleDef is one MarketFlow system role.
+type RoleDef struct{ Code, Name, Description string }
+
+// SystemRoles are the system roles, for the seed command.
+func SystemRoles() []RoleDef { return append([]RoleDef(nil), systemRoleDefs...) }
+
 // systemRoleDefs are the MarketFlow roles every tenant has. Created on first sync when missing
 // (the seed command only ever created them for the platform tenant).
-var systemRoleDefs = []struct{ code, name, desc string }{
+var systemRoleDefs = []RoleDef{
 	{RoleTenantAdmin, "MarketFlow Admin", "Settings, integrations, team, autopilot budgets, lead export and delete"},
 	{RoleMember, "Member", "Day-to-day marketing: create, approve, boost, post, reply, spend credits"},
 	{RoleViewer, "Viewer", "Read only"},
@@ -55,17 +61,17 @@ func mapGlobalRoleToMarketflowRole(roles []string) string {
 // ensureSystemRoles creates the tenant's missing system roles.
 func (s *Service) ensureSystemRoles(ctx context.Context, tenantID uuid.UUID) error {
 	for _, d := range systemRoleDefs {
-		if _, err := s.repo.GetRoleByCode(ctx, tenantID, d.code); err == nil {
+		if _, err := s.repo.GetRoleByCode(ctx, tenantID, d.Code); err == nil {
 			continue
 		}
-		desc := d.desc
+		desc := d.Description
 		if err := s.repo.CreateRole(ctx, tenantID, &MarketflowRole{
-			ID: uuid.New(), TenantID: tenantID, RoleCode: d.code, Name: d.name,
+			ID: uuid.New(), TenantID: tenantID, RoleCode: d.Code, Name: d.Name,
 			Description: &desc, IsSystemRole: true,
 		}); err != nil {
 			// A concurrent first request may have created it; only fail when it is still missing.
-			if _, again := s.repo.GetRoleByCode(ctx, tenantID, d.code); again != nil {
-				return fmt.Errorf("create role %s: %w", d.code, err)
+			if _, again := s.repo.GetRoleByCode(ctx, tenantID, d.Code); again != nil {
+				return fmt.Errorf("create role %s: %w", d.Code, err)
 			}
 		}
 	}

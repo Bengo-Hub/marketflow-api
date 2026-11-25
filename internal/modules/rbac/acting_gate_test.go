@@ -53,7 +53,12 @@ func TestWriteGateServiceActingUser(t *testing.T) {
 		{"no actor cannot post", "POST", "/api/v1/publishing/jobs", "", "", 403, "acting_user_required"},
 		{"no actor cannot retry a post", "POST", "/api/v1/publishing/jobs/" + job + "/retry", "", "", 403, "acting_user_required"},
 		{"no actor cannot send sms", "POST", "/api/v1/" + tenant.String() + "/campaigns/c1/send-sms", "", "", 403, "acting_user_required"},
-		{"an unknown origin is not enough", "POST", "/api/v1/ads/boosts", "", "worker", 403, "acting_user_required"},
+		{"no actor cannot run ads", "POST", "/api/v1/ads/run", "", "", 403, "acting_user_required"},
+		{"no actor cannot ask a run ads code", "POST", "/api/v1/ads/run/otp", "", "", 403, "acting_user_required"},
+		{"no actor cannot mark a run done", "POST", "/api/v1/ads/run/" + job + "/done", "", "", 403, "acting_user_required"},
+		{"no actor cannot reply", "POST", "/api/v1/inbox/" + job + "/reply", "", "", 403, "acting_user_required"},
+		{"member actor runs ads", "POST", "/api/v1/ads/run", member.String(), "", 200, ""},
+		{"an unknown origin is not enough","POST", "/api/v1/ads/boosts", "", "worker", 403, "acting_user_required"},
 		{"a bad actor id", "POST", "/api/v1/leads", "not-a-uuid", "", 400, "invalid_acting_user"},
 
 		{"member actor boosts", "POST", "/api/v1/ads/boosts", member.String(), "", 200, ""},
