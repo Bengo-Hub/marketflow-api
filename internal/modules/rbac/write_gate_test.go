@@ -54,10 +54,13 @@ func TestRequiredRoles(t *testing.T) {
 		{"POST", "/api/v1/testimonials/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/approve", admin},
 		{"POST", "/api/v1/testimonials/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/reject", admin},
 		{"PATCH", "/api/v1/testimonials/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b", member},
-		// Publishing writes pass the gate as members' work; the handler then keeps delete from
-		// platform to the approving roles and the app reviewer (owner 2026-11-14).
+		// Publishing writes are members' work; delete from platform, hiring an agent and a KES ad
+		// account are an admin's (owner 2026-11-25).
+		{"POST", "/api/v1/agents/templates/9/hire", admin},
+		{"POST", "/api/v1/agents/custom", member},
+		{"POST", "/api/v1/ads/accounts/kes", admin},
 		{"POST", "/api/v1/publishing/jobs/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/cancel", member},
-		{"POST", "/api/v1/publishing/jobs/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/delete-from-platform", member},
+		{"POST", "/api/v1/publishing/jobs/7f1c2e3a-0b4d-4e5f-8a6b-9c0d1e2f3a4b/delete-from-platform", admin},
 		{"POST", "/api/v1/tenant/onboarding/dismiss", nil},
 		{"OPTIONS", "/api/v1/leads", nil},
 		// Owner 2026-11-12: starting a connection is admin only, even though it is a GET.

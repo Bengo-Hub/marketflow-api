@@ -20,6 +20,27 @@ type Handler struct {
 	// CanApprove gates the Autopilot terms and choosing the veto-window mode to the approving
 	// roles (creative.ApprovalRoles); nil allows every caller the write gate let through.
 	CanApprove func(ctx context.Context, tenantID uuid.UUID) bool
+	// CanAdmin gates changing, switching or deleting an Autopilot agent (owner 2026-11-25); plain
+	// agents stay members' work. Nil allows every caller the write gate let through.
+	CanAdmin func(ctx context.Context, tenantID uuid.UUID) bool
+}
+
+// mayChange answers 403 when the agent is an ad autopilot and the caller is not an admin, and 404
+// when the agent cannot be read.
+func (h *Handler) mayChange(w http.ResponseWriter, r *http.Request, tenantID, id uuid.UUID) bool {
+	if h.CanAdmin == nil || h.CanAdmin(r.Context(), tenantID) {
+		return true
+	}
+	a, err := h.service.Get(r.Context(), tenantID, id)
+	if err != nil {
+		httpapi.Error(w, http.StatusNotFound, "not_found", "custom agent not found", nil)
+		return false
+	}
+	if isAutopilotAgent(a) {
+		httpapi.Error(w, http.StatusForbidden, "role_required", "only a MarketFlow admin can change this", nil)
+		return false
+	}
+	return true
 }
 
 // NewHandler creates a new custom agents handler.
@@ -175,6 +196,9 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid request body", nil)
 		return
 	}
+	if !h.mayChange(w, r, tenantID, id) {
+		return
+	}
 	result, err := h.service.Update(r.Context(), tenantID, id, UpdateInput{
 		Name:          req.Name,
 		Description:   req.Description,
@@ -218,6 +242,9 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		httpapi.Error(w, http.StatusBadRequest, "invalid_id", "invalid agent ID", nil)
+		return
+	}
+	if !h.mayChange(w, r, tenantID, id) {
 		return
 	}
 	if err := h.service.Delete(r.Context(), tenantID, id); err != nil {

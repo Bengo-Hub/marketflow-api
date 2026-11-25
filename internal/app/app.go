@@ -402,6 +402,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	}
 	customAgentService := custom_agents.NewService(entClient, logger, customAgentServiceOpts...)
 	customAgentHandler := custom_agents.NewHandler(customAgentService, logger)
+	// Changing, switching or deleting an Autopilot agent is an admin's (owner 2026-11-25).
+	customAgentHandler.CanAdmin = func(ctx context.Context, tenantID uuid.UUID) bool {
+		return rbacService.CallerHasAnyRole(ctx, tenantID, rbac.RoleTenantAdmin)
+	}
 	// Choosing the veto window and accepting its terms is for the roles that approve ads.
 	customAgentHandler.CanApprove = func(ctx context.Context, tenantID uuid.UUID) bool {
 		return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)
@@ -697,12 +701,12 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			return err
 		},
 	}
-	// Delete from platform (owner 2026-11-14): the approving roles (owner, admin) plus the app
-	// reviewer, who must show instagram_manage_contents in App Review; members cannot. Only where
-	// the platform's API allows it (TikTok has no delete, so it is left out and answers with its
-	// manual steps).
+	// Delete from platform: admins (owner 2026-11-25) plus the app reviewer, who must show
+	// instagram_manage_contents in App Review; members cannot. Only where the platform's API
+	// allows it (TikTok has no delete, so it is left out and answers with its manual steps).
+	deleteRoles := rbac.WithAppReviewer([]string{rbac.RoleTenantAdmin})
 	publishingHandler.CanDelete = func(ctx context.Context, tenantID uuid.UUID) bool {
-		return rbacService.CallerHasAnyRole(ctx, tenantID, reviewActionRoles...)
+		return rbacService.CallerHasAnyRole(ctx, tenantID, deleteRoles...)
 	}
 	{
 		pubSecret := meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret)

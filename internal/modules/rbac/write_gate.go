@@ -44,6 +44,10 @@ var (
 	testimonialReview = regexp.MustCompile(`^/testimonials/[^/]+/(approve|reject)$`)
 	// conversionMapping is a Google Ads integration setting, so an admin's (item 74).
 	conversionMapping = regexp.MustCompile(`^/ads/google/accounts/[^/]+/conversion-actions$`)
+	// adminAction (owner 2026-11-25): deleting a post from its platform, hiring a ready-made agent
+	// and opening a KES ad account. Changing an Autopilot agent is checked in its handler, since
+	// plain agents share the route. The app reviewer keeps its allow-list.
+	adminAction = regexp.MustCompile(`^/publishing/jobs/[^/]+/delete-from-platform$|^/agents/templates/[^/]+/hire$|^/ads/accounts/kes$`)
 )
 
 // spendPaths are the writes that spend the business's money or post in its name: launching or
@@ -108,7 +112,7 @@ func requiredRoles(method, path string) []string {
 			return adminOnly
 		}
 	}
-	if autopilotPath.MatchString(p) || testimonialReview.MatchString(p) || conversionMapping.MatchString(p) {
+	if autopilotPath.MatchString(p) || testimonialReview.MatchString(p) || conversionMapping.MatchString(p) || adminAction.MatchString(p) {
 		return adminOnly
 	}
 	if method == http.MethodDelete && recordDelete.MatchString(p) {
