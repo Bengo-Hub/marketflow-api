@@ -83,13 +83,13 @@ func (h *Handler) learnOwners(ctx context.Context, rows []*ent.ConnectedAccount)
 		asked++
 		patch := map[string]any{adaccounts.OwnerChecked: time.Now().UTC().Format(time.RFC3339)}
 		cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		b, err := h.Meta.AdAccountBusiness(cctx, tok, a.ExternalID)
+		id, err := h.Meta.AdAccountBusiness(cctx, tok, a.ExternalID)
 		cancel()
 		switch {
 		case err != nil:
 			h.Logger.Debug("ad account owner not read", zap.String("account", a.ExternalID), zap.Error(err))
-		case b.ID != "" || slices.Contains(a.Scopes, "business_management"):
-			patch[adaccounts.BusinessID], patch[adaccounts.BusinessName] = b.ID, b.Name
+		case id != "" || slices.Contains(a.Scopes, "business_management"):
+			patch[adaccounts.BusinessID] = id
 		}
 		raw, _ := json.Marshal(patch)
 		if err := h.DB.ConnectedAccount.Update().Where(connectedaccount.IDEQ(a.ID)).Modify(func(u *entsql.UpdateBuilder) {
