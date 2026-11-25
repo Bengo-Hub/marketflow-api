@@ -136,6 +136,10 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 			httpapi.Error(w, http.StatusBadRequest, "invalid_lead_response", err.Error(), nil)
 			return
 		}
+		if err := ValidatePostSettings(req.Metadata, t.Slug); err != nil {
+			httpapi.Error(w, http.StatusBadRequest, "invalid_post_settings", err.Error(), nil)
+			return
+		}
 		if err := runads.Validate(req.Metadata); err != nil {
 			httpapi.Error(w, http.StatusBadRequest, "invalid_run_ads", err.Error(), nil)
 			return

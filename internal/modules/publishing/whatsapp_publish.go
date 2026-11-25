@@ -13,9 +13,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
-	"github.com/bengobox/marketflow-api/internal/ent/connectedaccount"
-	"github.com/bengobox/marketflow-api/internal/ent/creativeasset"
-	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/ent/publishjob"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 )
@@ -53,6 +50,8 @@ type whatsAppPublishInput struct {
 	RunID     string `json:"run_id"`
 	// Sender is the verified number the approval came from; the post results go back to it.
 	Sender string `json:"sender"`
+	// Fingerprint is the post plan the approval's message showed (post_plan.go).
+	Fingerprint string `json:"fingerprint,omitempty"`
 }
 
 // PostedAccount and SkippedAccount are what the route reports back for the WhatsApp reply.
@@ -109,104 +108,54 @@ func pickTargets(accounts []*ent.ConnectedAccount, enabled func(platform string)
 }
 
 // OSTurnPublish handles the S2S POST /api/v1/internal/creative/os-turn/publish (internal service
-// key): approve the version and post it now to every connected account that can take it. 200
-// {posted, skipped}; 403 when the user may not post; 409 needs_review, ppb_approval_required,
-// no_video, no_accounts or nothing_postable, with the reason in error.
+// key): approve the version and post it as the plan the message showed (post_plan.go). 200
+// {posted, skipped}; 403 when the user may not post; 409 plan_changed (with the plan as it is now),
+// needs_review, no_video, no_accounts or nothing_postable, with the reason in error.
 func (h *Handler) OSTurnPublish(w http.ResponseWriter, r *http.Request) {
-	var in whatsAppPublishInput
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10)).Decode(&in); err != nil {
-		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
-		return
-	}
-	tid, err1 := uuid.Parse(in.TenantID)
-	vid, err2 := uuid.Parse(in.VersionID)
-	uid, err3 := uuid.Parse(in.UserID)
-	if err1 != nil || err2 != nil || err3 != nil {
-		httpapi.Error(w, http.StatusBadRequest, "invalid_request", "tenant_id, version_id and user_id are required", nil)
-		return
-	}
-	d := h.WhatsApp
-	if d.IsApprover == nil || d.Approve == nil {
-		httpapi.Error(w, http.StatusServiceUnavailable, "unavailable", "posting from WhatsApp is not configured", nil)
+	in, tid, vid, uid, ok := h.readOSTurn(w, r)
+	if !ok {
 		return
 	}
 	ctx := r.Context()
-	// The role is checked again now: it may have been removed since the message was sent.
-	if !d.IsApprover(ctx, tid, uid) {
-		httpapi.Error(w, http.StatusForbidden, "forbidden", "only the account owner or an admin can post", nil)
-		return
-	}
-	v, err := h.Store.DB.CreativeVersion.Query().Where(creativeversion.IDEQ(vid), creativeversion.TenantIDEQ(tid)).Only(ctx)
+	now := time.Now().UTC()
+	plan, err := h.whatsAppPlan(ctx, tid, vid, now)
 	if err != nil {
-		h.fail(w, err)
+		h.planFailed(w, err)
 		return
 	}
-	if d.NeedsReview != nil {
-		if reasons := d.NeedsReview(v); len(reasons) > 0 {
-			httpapi.Error(w, http.StatusConflict, "needs_review", strings.Join(reasons, "; "), map[string]any{"reasons": reasons})
-			return
-		}
-	}
-	asset, err := h.Store.DB.CreativeAsset.Query().
-		Where(creativeasset.VersionIDEQ(vid), creativeasset.TenantIDEQ(tid), creativeasset.KindEQ("video"), creativeasset.PurgedAtIsNil()).
-		First(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			httpapi.Error(w, http.StatusConflict, "no_video", "the video file is not available any more", nil)
-			return
-		}
-		h.fail(w, err)
-		return
-	}
-	types := make([]string, 0, len(accountPlatforms))
-	for t := range accountPlatforms {
-		types = append(types, t)
-	}
-	accounts, err := h.Store.DB.ConnectedAccount.Query().
-		Where(connectedaccount.TenantIDEQ(tid), connectedaccount.StatusEQ("active"), connectedaccount.AccountTypeIn(types...)).
-		Order(ent.Asc(connectedaccount.FieldAccountType), ent.Asc(connectedaccount.FieldDisplayName)).
-		Limit(50).
-		All(ctx)
-	if err != nil {
-		h.fail(w, err)
-		return
-	}
-	if len(accounts) == 0 {
-		httpapi.Error(w, http.StatusConflict, "no_accounts", "no connected account can take an organic post", nil)
-		return
-	}
-	fps, _ := asset.Metadata["fps"].(float64)
-	video := Video{URL: asset.URL, Bytes: asset.Bytes, DurationMS: asset.DurationMs, Width: asset.Width, Height: asset.Height, FPS: fps}
-	post := Post{Caption: whatsAppCaption(v), AIGenerated: aiLabelOn(ctx, h.Store.DB, tid)}
-	targets, skipped := pickTargets(accounts, func(p string) bool { return h.Store.Enabled(ctx, p) }, video, post)
-	if len(targets) == 0 {
-		reasons := make([]string, 0, len(skipped))
-		for _, s := range skipped {
-			reasons = append(reasons, s.DisplayName+": "+s.Reason)
-		}
-		httpapi.Error(w, http.StatusConflict, "nothing_postable", "no account can take it now ("+strings.Join(reasons, "; ")+")", nil)
+	// The approval covers what its message showed; anything else asks again. Fingerprint is empty
+	// only for a code issued before plans were shown.
+	if in.Fingerprint != "" && in.Fingerprint != plan.Fingerprint {
+		httpapi.Error(w, http.StatusConflict, "plan_changed", "the post changed since it was shown", map[string]any{
+			"text": PostPlanText(plan), "caption": plan.Caption, "fingerprint": plan.Fingerprint})
 		return
 	}
 	// Approve only once something can be posted, so a refusal above leaves the draft as it was.
-	if v.Status != "approved" {
-		if err := d.Approve(ctx, tid, vid, uid); err != nil {
+	if plan.version.Status != "approved" {
+		if err := h.WhatsApp.Approve(ctx, tid, vid, uid); err != nil {
 			h.approveFailed(w, err)
 			return
 		}
 	}
-	now := time.Now().UTC()
 	ref := in.RunID + ":" + vid.String()
-	posted := make([]PostedAccount, 0, len(targets))
-	for _, t := range targets {
-		key := asset.ID.String() + ":" + t.acc.ID.String()
-		meta := map[string]any{"ai_generated": post.AIGenerated, "made_for_kids": false, "planned_at": now.Format(time.RFC3339),
+	posted := make([]PostedAccount, 0, len(plan.targets))
+	for i, t := range plan.targets {
+		key := plan.asset.ID.String() + ":" + t.acc.ID.String()
+		at := now
+		if x := plan.Posts[i].At; x != nil {
+			at = *x
+		}
+		meta := map[string]any{"ai_generated": plan.AIGenerated, "made_for_kids": false, "planned_at": at.Format(time.RFC3339),
 			"requested_via": "whatsapp"}
+		if plan.BestTime {
+			meta["best_time"] = true
+		}
 		if strings.TrimSpace(in.Sender) != "" {
 			meta[MetaWhatsApp] = map[string]any{"to": strings.TrimSpace(in.Sender), "ref": ref, "user_id": uid.String()}
 		}
 		row, err := h.Store.DB.PublishJob.Create().
-			SetTenantID(tid).SetAssetID(asset.ID).SetConnectedAccountID(t.acc.ID).SetPlatform(t.platform).
-			SetCaption(post.Caption).SetScheduledAt(now).SetDedupeKey(key).SetMetadata(meta).SetCreatedBy(uid).
+			SetTenantID(tid).SetAssetID(plan.asset.ID).SetConnectedAccountID(t.acc.ID).SetPlatform(t.platform).
+			SetCaption(plan.Caption).SetScheduledAt(at).SetDedupeKey(key).SetMetadata(meta).SetCreatedBy(uid).
 			Save(ctx)
 		if ent.IsConstraintError(err) {
 			// Already scheduled from the Studio or an earlier tap: one post per account, never two.
@@ -220,12 +169,38 @@ func (h *Handler) OSTurnPublish(w http.ResponseWriter, r *http.Request) {
 	}
 	if h.Logger != nil {
 		h.Logger.Info("whatsapp approve and post", zap.String("tenant_id", tid.String()), zap.String("version_id", vid.String()),
-			zap.Int("accounts", len(posted)), zap.Int("skipped", len(skipped)))
+			zap.Int("accounts", len(posted)), zap.Int("skipped", len(plan.Skipped)))
 	}
 	if h.Kick != nil {
 		h.Kick()
 	}
-	httpapi.JSON(w, http.StatusOK, map[string]any{"posted": posted, "skipped": skipped})
+	httpapi.JSON(w, http.StatusOK, map[string]any{"posted": posted, "skipped": plan.Skipped})
+}
+
+// readOSTurn reads an internal WhatsApp route's body and checks the person may post, writing the
+// refusal. The role is checked on every call: it may have been removed since the message was sent.
+func (h *Handler) readOSTurn(w http.ResponseWriter, r *http.Request) (in whatsAppPublishInput, tid, vid, uid uuid.UUID, ok bool) {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10)).Decode(&in); err != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_body", "invalid json", nil)
+		return in, tid, vid, uid, false
+	}
+	var err1, err2, err3 error
+	tid, err1 = uuid.Parse(in.TenantID)
+	vid, err2 = uuid.Parse(in.VersionID)
+	uid, err3 = uuid.Parse(in.UserID)
+	if err1 != nil || err2 != nil || err3 != nil {
+		httpapi.Error(w, http.StatusBadRequest, "invalid_request", "tenant_id, version_id and user_id are required", nil)
+		return in, tid, vid, uid, false
+	}
+	if h.WhatsApp.IsApprover == nil || h.WhatsApp.Approve == nil {
+		httpapi.Error(w, http.StatusServiceUnavailable, "unavailable", "posting from WhatsApp is not configured", nil)
+		return in, tid, vid, uid, false
+	}
+	if !h.WhatsApp.IsApprover(r.Context(), tid, uid) {
+		httpapi.Error(w, http.StatusForbidden, "forbidden", "only the account owner or an admin can post", nil)
+		return in, tid, vid, uid, false
+	}
+	return in, tid, vid, uid, true
 }
 
 // ErrPPBHold is how app.go reports creative.ErrPPBApprovalRequired to this package.
@@ -241,22 +216,4 @@ func (h *Handler) approveFailed(w http.ResponseWriter, err error) {
 		return
 	}
 	httpapi.Error(w, http.StatusConflict, "not_approvable", "the video can no longer be approved from WhatsApp: "+err.Error(), nil)
-}
-
-// whatsAppCaption is the post's caption: the copy the Studio made for the video, if any.
-func whatsAppCaption(v *ent.CreativeVersion) string {
-	for _, k := range []string{"caption", "primary_text", "body"} {
-		if s, ok := v.Copy[k].(string); ok && strings.TrimSpace(s) != "" {
-			return strings.TrimSpace(s)
-		}
-	}
-	// A video ad keeps its words on the end card.
-	card, _ := v.Copy["end_card"].(map[string]any)
-	var lines []string
-	for _, k := range []string{"headline", "subline", "cta"} {
-		if s, _ := card[k].(string); strings.TrimSpace(s) != "" {
-			lines = append(lines, strings.TrimSpace(s))
-		}
-	}
-	return strings.Join(lines, "\n")
 }

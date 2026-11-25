@@ -400,7 +400,12 @@ func main() {
 				WithFacts(placeFacts.BusinessFacts, crawlerReader),
 			Publish: pubStore, Gate: worker.AutopilotGate(cfg, entClient), Notif: tokenNotif,
 			Links:    autopublish.NewVetoLinks(encryption.KeyFromEnv(os.Getenv("MF_SECURITY_ENCRYPTION_KEY"))),
-			AfterUse: afterUse, AppURL: cfg.API.PortalURL, Config: cfg.Autopilot, Logger: logger})
+			AfterUse: afterUse, AppURL: cfg.API.PortalURL, Config: cfg.Autopilot, Logger: logger,
+			// Captions carry the contacts and the lead page link, like the Studio's and WhatsApp's.
+			Kit: &creative.PostKit{Svc: creative.NewService(entClient, logger).WithLeadFunnels(funnels.NewService(entClient, logger).ForAds()),
+				Jobs: creative.NewRenderer(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).
+					WithFacts(placeFacts.BusinessFacts, crawlerReader),
+				Base: cfg.API.PortalURL}})
 		// A run that finds the plan lapsed or new terms unaccepted cancels the waiting posts now.
 		reg.AutopilotLapsed().Set(autopilotPipeline.AutoPublishLapsed)
 		go autopilotPipeline.Run(ctx)

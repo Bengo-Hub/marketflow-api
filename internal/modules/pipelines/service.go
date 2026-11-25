@@ -77,6 +77,44 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*ent.Pipeline, er
 	return result, nil
 }
 
+// defaultStages are a new tenant's stages, the same ones the Deals page sets up.
+var defaultStages = []StageInput{
+	{Name: "New", StageOrder: 1}, {Name: "Talking", StageOrder: 2}, {Name: "Offer sent", StageOrder: 3},
+	{Name: "Won", StageOrder: 4, IsWonStage: true}, {Name: "Lost", StageOrder: 5, IsLostStage: true},
+}
+
+var defaultWin = []float64{10, 30, 60, 100, 0}
+
+// EnsureDefault gives a tenant with no pipeline its Sales pipeline and stages (owner, 2026-11-25).
+// It reports whether it made one; two calls at once make one pipeline.
+func (s *Service) EnsureDefault(ctx context.Context, tenantID uuid.UUID) (bool, error) {
+	if ok, err := s.client.Pipeline.Query().Where(entpipeline.TenantID(tenantID)).Exist(ctx); err != nil || ok {
+		return false, err
+	}
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", "pipeline:"+tenantID.String()); err != nil {
+		return false, fmt.Errorf("lock pipeline: %w", err)
+	}
+	if ok, err := tx.Pipeline.Query().Where(entpipeline.TenantID(tenantID)).Exist(ctx); err != nil || ok {
+		return false, err
+	}
+	p, err := tx.Pipeline.Create().SetTenantID(tenantID).SetName("Sales").SetIsDefault(true).Save(ctx)
+	if err != nil {
+		return false, fmt.Errorf("create pipeline: %w", err)
+	}
+	for i, st := range defaultStages {
+		if err := tx.PipelineStage.Create().SetTenantID(tenantID).SetPipelineID(p.ID).SetName(st.Name).SetStageOrder(st.StageOrder).
+			SetWinProbability(defaultWin[i]).SetIsWonStage(st.IsWonStage).SetIsLostStage(st.IsLostStage).Exec(ctx); err != nil {
+			return false, fmt.Errorf("create pipeline stage: %w", err)
+		}
+	}
+	return true, tx.Commit()
+}
+
 // Get retrieves a pipeline by ID within a tenant.
 func (s *Service) Get(ctx context.Context, tenantID, pipelineID uuid.UUID) (*ent.Pipeline, error) {
 	result, err := s.client.Pipeline.Query().

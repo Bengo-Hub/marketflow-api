@@ -51,6 +51,10 @@ type Handler struct {
 	WABoost WABoostDefaults
 	// RunAds is the unified Run ads plan (runads.go); nil switches it off.
 	RunAds *RunAdsDeps
+	// AdLink is an ad's lead page link for paid ads (creative.PostKit.AdLink, which makes the page
+	// when there is none); PrivacyURL is the business's own privacy policy link. nil for none.
+	AdLink     func(ctx context.Context, v *ent.CreativeVersion, source string) string
+	PrivacyURL func(t *ent.Tenant) string
 	Logger *zap.Logger
 }
 

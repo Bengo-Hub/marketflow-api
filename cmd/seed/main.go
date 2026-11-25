@@ -699,6 +699,7 @@ var runAdsDefaults = []configDefault{
 	{runads.KeyPlatforms, "meta,google,tiktok", "string", "Platforms switched on in a new Run ads plan."},
 	{runads.KeyTier, "recommended", "string", "Budget tier a new Run ads plan picks: low, recommended or high."},
 	{runads.KeyDays, "7", "int", "Days a new Run ads plan runs."},
+	{"publishing.post_at_best_time", "on", "string", "Whether a post starts at each platform's best time (on) or now (off); tenants may choose their own."},
 	{runads.KeyCurrency, runads.DefaultCurrency, "string", "Currency Run ads plans are shown in; tenants may choose their own. Each ad platform is sent its account's own currency."},
 	{runads.KeyTotalCapKES, "0", "int", "Default total spend cap of a Run ads plan in KES (0 for none); tenants set their own."},
 	{runads.KeyRuleOfThumbKES,

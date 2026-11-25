@@ -16,6 +16,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/custom_agents"
 	"github.com/bengobox/marketflow-api/internal/modules/publishing"
 	"github.com/bengobox/marketflow-api/internal/notifications"
+	"github.com/bengobox/marketflow-api/internal/platform/postcaption"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -31,7 +32,9 @@ type Deps struct {
 	Notif    *notifications.Client
 	Links    *VetoLinks
 	AfterUse *creative.AfterUse
-	AppURL   string
+	// Kit writes the post's caption with its contacts and lead page link; nil keeps the words only.
+	Kit    *creative.PostKit
+	AppURL string
 	Config   config.AutopilotConfig
 	Logger   *zap.Logger
 }
@@ -297,7 +300,7 @@ func (p *Pipeline) schedule(ctx context.Context, v *ent.CreativeVersion, st *Sta
 	st = readState(v)
 	out, err := p.Publish.ScheduleForVeto(ctx, publishing.VetoRequest{
 		TenantID: v.TenantID, AssetID: asset.ID, VersionID: v.ID, AgentID: agent.ID,
-		AccountIDs: cfg.AccountIDs, Platforms: platforms, PlatformAt: platformAt, Caption: Caption(v, brief), At: at,
+		AccountIDs: cfg.AccountIDs, Platforms: platforms, PlatformAt: platformAt, Caption: p.postCaption(ctx, v, brief), At: at,
 		// The owner's AI label choice (owner 2026-11-14): off leaves out the platforms' AI flag.
 		NoAILabel: !creative.TenantAILabel(ctx, p.DB, v.TenantID),
 	})
@@ -823,9 +826,9 @@ func autopilotStateIn(states ...string) func(*entsql.Selector) {
 	}
 }
 
-// Caption is the post's text: the script's first hook, then the end card's headline and call to
-// action. It is the reviewed script's own words, nothing new.
-func Caption(v *ent.CreativeVersion, brief *ent.CreativeBrief) string {
+// captionWords are the post's own words: the script's first hook, then the end card's headline and
+// call to action. They are the reviewed script's own words, nothing new.
+func captionWords(v *ent.CreativeVersion, brief *ent.CreativeBrief) string {
 	var parts []string
 	if script, ok := v.Copy["script"].(map[string]any); ok {
 		if hooks, ok := script["hooks"].([]any); ok && len(hooks) > 0 {
@@ -844,35 +847,33 @@ func Caption(v *ent.CreativeVersion, brief *ent.CreativeBrief) string {
 	if len(parts) == 0 && brief != nil {
 		parts = append(parts, brief.Title)
 	}
-	out := strings.Join(parts, "\n\n")
-	// A pharmacy's medicine ad always shows its PPB approval reference (pharmacy hand-off
-	// 2026-11-14): the approved version's metadata.ppb_approval.caption_line ends the caption and
-	// is never cut by the length limit.
-	line := ppbCaptionLine(v)
-	limit := 2000
-	if line != "" {
-		limit -= len([]rune(line)) + 2
-	}
-	if r := []rune(out); len(r) > limit {
-		out = string(r[:limit])
-	}
-	if line != "" && !strings.Contains(out, line) {
-		if out != "" {
-			out += "\n\n"
-		}
-		out += line
-	}
-	return out
+	return strings.Join(parts, "\n\n")
 }
 
-// ppbCaptionLine is the version's "PPB approval ref. ..." line, or "".
-func ppbCaptionLine(v *ent.CreativeVersion) string {
-	if v == nil {
-		return ""
+// Caption is the caption without the contacts and the link, for a post not scheduled yet. A
+// pharmacy's medicine ad always shows its PPB approval reference (pharmacy hand-off 2026-11-14).
+func Caption(v *ent.CreativeVersion, brief *ent.CreativeBrief) string {
+	return postcaption.Compose(postcaption.Parts{Words: captionWords(v, brief), PPB: postcaption.PPBLine(v.Metadata)})
+}
+
+// postCaption is the whole caption: the words, the end card's contacts, the ad's lead page link and
+// the PPB line, through the same kit as the Studio and WhatsApp. It makes the lead page when the
+// ad has none.
+func (p *Pipeline) postCaption(ctx context.Context, v *ent.CreativeVersion, brief *ent.CreativeBrief) string {
+	if p.Kit == nil {
+		return Caption(v, brief)
 	}
-	ppb, _ := v.Metadata[creative.MetaPPBApproval].(map[string]any)
-	s, _ := ppb["caption_line"].(string)
-	return strings.TrimSpace(s)
+	return p.Kit.Compose(ctx, v, captionWords(v, brief)).Caption
+}
+
+// captionOf is the caption of the jobs already scheduled, else fallback.
+func captionOf(jobs []publishing.JobView, fallback string) string {
+	for _, j := range jobs {
+		if j.Caption != "" {
+			return j.Caption
+		}
+	}
+	return fallback
 }
 
 func skippedText(skipped map[string]string) string {

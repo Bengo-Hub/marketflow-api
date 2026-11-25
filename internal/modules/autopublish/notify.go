@@ -93,7 +93,7 @@ func (p *Pipeline) tellScheduled(ctx context.Context, v *ent.CreativeVersion, br
 	}
 	t, _ := p.DB.Tenant.Get(ctx, v.TenantID)
 	token := p.Links.Sign(v.ID, at.Add(p.Config.VetoLinkGrace))
-	hu := BuildHeadsUp(agent.Name, offeringName(brief), Caption(v, brief), placeNames(ctx, p.DB, out.Jobs), at, tenantZone(t),
+	hu := BuildHeadsUp(agent.Name, offeringName(brief), captionOf(out.Jobs, Caption(v, brief)), placeNames(ctx, p.DB, out.Jobs), at, tenantZone(t),
 		p.portalLink(t, "/studio/"+v.BriefID.String()), p.VetoURL(token), cfg.Paid)
 	for _, email := range emails {
 		if err := p.Notif.Send(ctx, v.TenantID.String(), notifications.Message{

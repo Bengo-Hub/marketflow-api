@@ -6,6 +6,8 @@ import (
 	"fmt"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/funnel"
+	"github.com/bengobox/marketflow-api/internal/modules/pipelines"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -47,11 +49,18 @@ func (s *Service) EnsureLeadFunnel(ctx context.Context, tenantID, id uuid.UUID) 
 }
 
 func (s *Service) ensureLeadFunnel(ctx context.Context, b *ent.CreativeBrief) (*ent.CreativeBrief, error) {
-	if id, _ := b.Metadata["funnel_id"].(string); id != "" {
-		return b, nil
-	}
 	if s.leadFunnels == nil {
 		return nil, ErrNoLeadFunnels
+	}
+	// The pipeline the leads are sold through; a failure never stops the ad.
+	if _, err := pipelines.NewService(s.db, s.logger).EnsureDefault(ctx, b.TenantID); err != nil {
+		s.logger.Warn("default pipeline not made", zap.String("tenant_id", b.TenantID.String()), zap.Error(err))
+	}
+	// A page the owner deleted is made again; an archived one is the owner's choice and stays.
+	if id, err := uuid.Parse(str(b.Metadata["funnel_id"])); err == nil {
+		if ok, err := s.db.Funnel.Query().Where(funnel.ID(id), funnel.TenantID(b.TenantID)).Exist(ctx); err != nil || ok {
+			return b, err
+		}
 	}
 	language := "en"
 	if b.Language != "" {

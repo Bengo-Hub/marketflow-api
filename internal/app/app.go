@@ -256,6 +256,13 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 	adminTenantsHandler := admin.NewTenantsHandler(entClient, logger)
 	// The platform default currency a tenant gets with no choice and no mapped SSO country.
 	tenant.PlatformCurrency = cfg.Money.DefaultCurrency
+	// MarketFlow's own pages are never a business's privacy policy.
+	tenant.PlatformTenantSlug = cfg.Security.PlatformTenant
+	for _, raw := range []string{cfg.CrossService.PortalURL, cfg.Security.AuthServiceURL, cfg.Autopilot.TermsPageURL} {
+		if u, err := url.Parse(raw); err == nil && u.Hostname() != "" {
+			tenant.PlatformHosts = append(tenant.PlatformHosts, u.Hostname())
+		}
+	}
 	// One exchange-rate helper for the whole API: treasury's platform rates over S2S in the shared
 	// Redis cache (MF_MONEY_FX_CACHE_TTL), the last treasury rate while it is down
 	// (MF_MONEY_FX_STALE_FOR), and the configured default for reports only.
@@ -529,6 +536,13 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		AppURL:  cfg.CrossService.PortalURL, Config: cfg.Autopilot, Logger: logger})
 	// Review links are signed with the env encryption key (stable, like the OAuth
 	// state), separated from it by the token's own HMAC domain.
+	// One kit prepares every post and ad (owner 2026-11-25): the ad's lead page, its links, the
+	// caption and the contacts, for the Studio, WhatsApp, Run ads, Boost and the autopilot.
+	postKit := &creative.PostKit{Svc: creative.NewService(entClient, logger).WithLeadFunnels(funnelService.ForAds()),
+		Jobs: creative.NewRenderer(entClient, cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey, logger).
+			WithFacts(marketingOSService.BusinessFacts, crawlerReader),
+		Base: cfg.CrossService.PortalURL}
+	autopilotPipeline.Kit = postKit
 	creativeHandler := creative.NewHandler(creative.NewService(entClient, logger).WithQuota(ratelimit.NewQuota(redisClient)).
 		// A version deleted permanently loses its stored files at once (delete_version.go).
 		WithFiles(creativeFiles(mediaStore)).
@@ -560,7 +574,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 					WithRich(redisClient, whatsAppRichConfig(logger)).
 					// Outside the window: the approved mf_video_ready template, or nothing.
 					WithTemplates(whatsAppTemplateConfig(logger), logger), logger)).
-			WithAutopilot(autopilotPipeline))
+			WithAutopilot(autopilotPipeline)).
+		WithPostKit(postKit)
 	// Boost, post and reply are also open to the Meta App Review account (owner 2026-11-12); the
 	// role gate keeps it to exactly those routes. Approving an ad stays with the approving roles.
 	reviewActionRoles := rbac.WithAppReviewer(creative.ApprovalRoles)
@@ -589,7 +604,9 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		},
 		// A non-KES boost is sized in KES with treasury's platform rate (shared cache, or its last
 		// rate); never the configured default. No rate means the code is required.
-		KESPer: fxRates.KESPer,
+		KESPer:     fxRates.KESPer,
+		AdLink:     postKit.AdLink,
+		PrivacyURL: creative.TenantPrivacyURL,
 	}
 	// Run ads (item 64): one plan for Meta, Google Ads and TikTok after a video is approved. Meta
 	// runs through the boost above; Google Ads is created with the platform Google Ads client;
@@ -659,6 +676,11 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		return rbacService.CallerHasAnyRole(ctx, tenantID, reviewActionRoles...)
 	}
 	publishingHandler.OnJobDone = afterUse.CheckJob
+	publishingHandler.LeadPage = postKit.LeadPageOf
+	publishingHandler.Caption = func(ctx context.Context, tenantID, versionID uuid.UUID) (string, error) {
+		p, err := postKit.Preset(ctx, tenantID, versionID)
+		return p.Caption, err
+	}
 	// Approve and post from WhatsApp (Sprint 17): marketflow-ai redeems the code, this route does
 	// the Studio's approve and organic post with the same checks; never paid ads.
 	waApprover := creative.NewService(entClient, logger)
@@ -1138,6 +1160,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			ReviseVideoAd:     creativeHandler.ReviseVideoAd,
 			QuoteVideoAd:      creativeHandler.QuoteVideoAd,
 			CaptionContacts:   creativeHandler.CaptionContacts,
+			PostPreset:        creativeHandler.PostPresetFor,
 			RecomposeEndCard:  creativeHandler.RecomposeEndCardPreview,
 			ResetSettings:     creativeHandler.ResetSettings,
 			JobCallback:       creativeHandler.JobCallback,
@@ -1150,6 +1173,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			BriefPPBApproval:  creativeHandler.BriefPPBApproval,
 		},
 		AdsHandlers: httpapi.AdsHandlers{
+			BoostPreset: adsHandler.BoostPresetFor,
 			AdAccounts: adsHandler.AdAccounts, SetAdAccount: adsHandler.SetAdAccount,
 			Accounts: adsHandler.Accounts, CreateKES: adsHandler.CreateKESAccount, Quote: adsHandler.Quote, Boost: adsHandler.Boost,
 			Get: adsHandler.Get, ConfirmPaid: adsHandler.ConfirmPaid, Pause: adsHandler.Pause, Resume: adsHandler.Resume, ResumeAd: adsHandler.ResumeAd,
@@ -1181,6 +1205,8 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			Move:               publishingHandler.Move,
 			DeleteFromPlatform: publishingHandler.DeleteFromPlatform,
 			OSTurnPublish:      publishingHandler.OSTurnPublish,
+			OSTurnPostPlan:     publishingHandler.OSTurnPostPlan,
+			PostPlan:           publishingHandler.PostPlanFor,
 			TikTokCreatorInfo:  publishingHandler.TikTokCreatorInfo,
 			TikTokWebhook:      publishingHandler.TikTokWebhook,
 			BestTimes:          publishingHandler.BestTimes,

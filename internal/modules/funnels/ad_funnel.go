@@ -9,6 +9,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+
+	"github.com/bengobox/marketflow-api/internal/ent"
+	"github.com/bengobox/marketflow-api/internal/ent/funnel"
 )
 
 // AdFunnelInput is what an ad knows about itself. Only these facts reach the page, so it never
@@ -48,14 +51,19 @@ func (s *Service) CreateForAd(ctx context.Context, in AdFunnelInput) (AdFunnel, 
 	if strings.TrimSpace(in.Offering) != "" {
 		kind = "product_inquiry"
 	}
+	slug := adSlug(headline, in.BriefID)
 	f, err := s.Create(ctx, CreateInput{
 		TenantID:   in.TenantID,
 		Name:       clipRunes("Ad: "+firstNonEmpty(in.Title, headline), 120),
-		Slug:       adSlug(headline, in.BriefID),
+		Slug:       slug,
 		FunnelType: &kind,
 		Steps:      []map[string]any{leadForm(in.Language)},
 		Metadata:   meta,
 	})
+	if ent.IsConstraintError(err) {
+		// The slug carries the ad's id, so this is the same ad's page made by a post at the same time.
+		f, err = s.client.Funnel.Query().Where(funnel.TenantID(in.TenantID), funnel.SlugEQ(slug)).Only(ctx)
+	}
 	if err != nil {
 		return AdFunnel{}, err
 	}

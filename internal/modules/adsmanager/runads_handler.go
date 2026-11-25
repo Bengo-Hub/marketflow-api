@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -545,6 +546,24 @@ type osRunInput struct {
 	Fingerprint string `json:"fingerprint,omitempty"`
 	OTPID       string `json:"otp_id,omitempty"`
 	OTPCode     string `json:"otp_code,omitempty"`
+	// Draft plans a finished video that still waits for approval (the plan route only).
+	Draft bool `json:"draft,omitempty"`
+	// Platforms are the ones the message showed. Posting the video can make another platform ready
+	// (Google needs the YouTube post), which must not join a plan already approved.
+	Platforms []string `json:"platforms,omitempty"`
+}
+
+// choice is the tenant's default plan, on exactly the platforms the message showed.
+func (in osRunInput) choice() Choice {
+	if len(in.Platforms) == 0 {
+		return Choice{}
+	}
+	c := Choice{}
+	for _, p := range runads.AllPlatforms {
+		on := slices.Contains(in.Platforms, p)
+		c.Platforms = append(c.Platforms, PlatformChoice{Platform: p, Enabled: &on})
+	}
+	return c
 }
 
 // readOSRun reads the body and acts as the person who tapped; their own role decides.
@@ -570,19 +589,27 @@ func (h *Handler) readOSRun(w http.ResponseWriter, r *http.Request) (osRunInput,
 }
 
 // OSTurnRunPlan handles S2S POST /api/v1/internal/ads/os-turn/run-ads-plan: the tenant's default
-// plan for an approved video, with the WhatsApp message. 200 {plan, text}.
+// plan for an approved video (or, with draft, a finished one waiting for approval), with the
+// WhatsApp message. 200 {plan, text, summary, ready, fingerprint, platforms}. Nothing is spent.
 func (h *Handler) OSTurnRunPlan(w http.ResponseWriter, r *http.Request) {
-	_, tid, vid, r2, ok := h.readOSRun(w, r)
+	in, tid, vid, r2, ok := h.readOSRun(w, r)
 	if !ok {
 		return
 	}
 	extendDeadline(w, planDeadline)
-	plan, _, err := h.BuildPlan(r2.Context(), tid, vid, Choice{})
+	plan, _, err := h.buildPlan(r2.Context(), tid, vid, in.choice(), in.Draft)
 	if err != nil {
 		h.planFailed(w, err)
 		return
 	}
-	httpapi.JSON(w, http.StatusOK, map[string]any{"plan": plan, "text": PlanText(plan), "ready": plan.Ready, "fingerprint": plan.Fingerprint})
+	on := []string{}
+	for _, pp := range plan.Platforms {
+		if pp.Enabled {
+			on = append(on, pp.Platform)
+		}
+	}
+	httpapi.JSON(w, http.StatusOK, map[string]any{"plan": plan, "text": PlanText(plan), "summary": PlanSummary(plan), "ready": plan.Ready,
+		"fingerprint": plan.Fingerprint, "platforms": on})
 }
 
 // OSTurnRun handles S2S POST /api/v1/internal/ads/os-turn/run-ads: confirms the default plan the
@@ -592,7 +619,7 @@ func (h *Handler) OSTurnRun(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if out, status, ok := h.run(w, r2, tid, vid, RunInput{VersionID: vid.String(), Fingerprint: in.Fingerprint,
+	if out, status, ok := h.run(w, r2, tid, vid, RunInput{VersionID: vid.String(), Choice: in.choice(), Fingerprint: in.Fingerprint,
 		OTPID: in.OTPID, OTPCode: in.OTPCode}); ok {
 		httpapi.JSON(w, status, out)
 	}
@@ -605,7 +632,56 @@ func (h *Handler) OSTurnRunOTP(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	h.runOTP(w, r2, tid, vid, RunInput{VersionID: vid.String(), Fingerprint: in.Fingerprint})
+	h.runOTP(w, r2, tid, vid, RunInput{VersionID: vid.String(), Choice: in.choice(), Fingerprint: in.Fingerprint})
+}
+
+// PlanSummary is the plan in a few lines, for the one message that approves the post and the ads:
+// days, total, cap, and per platform the account, daily amount, goal and any funding warning.
+func PlanSummary(p *RunPlan) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Ads: %d days, total %s %s", p.Days, p.Currency, thousands(p.Total))
+	if p.LocalCurrency != "" {
+		fmt.Fprintf(&b, " (about %s %s)", p.LocalCurrency, thousands(p.LocalTotal))
+	}
+	if p.TotalCap > 0 {
+		fmt.Fprintf(&b, ", cap %s %s", p.Currency, thousands(p.TotalCap))
+	} else {
+		b.WriteString(", no cap beyond the total")
+	}
+	for _, pp := range p.Platforms {
+		if !pp.Enabled {
+			if len(pp.Setup) > 0 {
+				fmt.Fprintf(&b, "\n- Not %s: %s", platformName(pp.Platform), pp.Setup[0].Label)
+			}
+			continue
+		}
+		fmt.Fprintf(&b, "\n- %s", platformName(pp.Platform))
+		if pp.Account != nil {
+			b.WriteString(" (" + clip(pp.Account.Name, 40) + ")")
+		}
+		fmt.Fprintf(&b, ": %s %s a day", p.Currency, thousands(pp.Daily))
+		if pp.Goal != "" {
+			b.WriteString(", for " + pp.Goal)
+		}
+		if pp.LaunchCredits > 0 {
+			fmt.Fprintf(&b, ", launch %d AI credits", pp.LaunchCredits)
+		}
+		if pp.Funding.CanSpend == nil || !*pp.Funding.CanSpend {
+			if pp.Funding.Detail != "" {
+				b.WriteString(". Funding: " + pp.Funding.Detail)
+			}
+			if pp.Funding.Link != "" {
+				b.WriteString(" " + pp.Funding.Link)
+			}
+		}
+		for _, x := range pp.Blockers {
+			b.WriteString(". Cannot run yet: " + x)
+		}
+	}
+	for _, x := range p.Blockers {
+		b.WriteString("\nCannot run yet: " + x)
+	}
+	return b.String()
 }
 
 // PlanText is the plan as a WhatsApp message (no MarketFlow links; marketflow-ai adds the Studio).

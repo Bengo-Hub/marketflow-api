@@ -595,6 +595,7 @@ type CreativeHandlers struct {
 	ReviseVideoAd     http.HandlerFunc
 	QuoteVideoAd      http.HandlerFunc
 	CaptionContacts   http.HandlerFunc
+	PostPreset        http.HandlerFunc // POST /creative/versions/{id}/post-preset: caption, links, privacy link
 	RecomposeEndCard  http.HandlerFunc
 	ResetSettings     http.HandlerFunc
 	JobCallback       http.HandlerFunc // S2S: POST /internal/creative/jobs/{id} from marketflow-ai
@@ -622,14 +623,16 @@ type AdsHandlers struct {
 	// AdAccounts and SetAdAccount: which ad account each platform's ads run on (item 70).
 	AdAccounts   http.HandlerFunc
 	SetAdAccount http.HandlerFunc
-	Accounts     http.HandlerFunc
-	CreateKES    http.HandlerFunc
-	Quote        http.HandlerFunc
-	Boost        http.HandlerFunc
-	Get          http.HandlerFunc
-	ConfirmPaid  http.HandlerFunc
-	Pause        http.HandlerFunc
-	Resume       http.HandlerFunc
+	// BoostPreset is GET /ads/boost-preset: what the Boost dialog starts with (item 72).
+	BoostPreset http.HandlerFunc
+	Accounts    http.HandlerFunc
+	CreateKES   http.HandlerFunc
+	Quote       http.HandlerFunc
+	Boost       http.HandlerFunc
+	Get         http.HandlerFunc
+	ConfirmPaid http.HandlerFunc
+	Pause       http.HandlerFunc
+	Resume      http.HandlerFunc
 	// ResumeAd switches back on one ad the budget optimiser paused.
 	ResumeAd http.HandlerFunc
 	// BoostOTP sends the WhatsApp confirmation code a large boost needs.
@@ -681,6 +684,10 @@ type PublishingHandlers struct {
 	// OSTurnPublish is S2S POST /internal/creative/os-turn/publish: approve and post a finished
 	// ad from WhatsApp (Sprint 17), organic only.
 	OSTurnPublish http.HandlerFunc
+	// OSTurnPostPlan is S2S POST /internal/creative/os-turn/post-plan and PostPlan is GET
+	// /publishing/post-plan: what a finished video is posted with, one rule for both.
+	OSTurnPostPlan http.HandlerFunc
+	PostPlan       http.HandlerFunc
 	// TikTokCreatorInfo reads creator_info for the publish dialog's TikTok options.
 	TikTokCreatorInfo http.HandlerFunc
 	// TikTokWebhook is the TikTok developer app webhook (public, signature verified).
@@ -1296,6 +1303,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Post("/versions/{id}/revision", deps.CreativeHandlers.ReviseVideoAd)
 					r.Get("/versions/{id}/quote", deps.CreativeHandlers.QuoteVideoAd)
 					r.Get("/versions/{id}/caption-contacts", deps.CreativeHandlers.CaptionContacts)
+					if deps.CreativeHandlers.PostPreset != nil {
+						r.Post("/versions/{id}/post-preset", deps.CreativeHandlers.PostPreset)
+					}
 					r.Post("/versions/{id}/end-card-preview", deps.CreativeHandlers.RecomposeEndCard)
 					r.Post("/versions/{id}/settings", deps.CreativeHandlers.ResetSettings)
 					r.Post("/versions/{id}/review-link", deps.CreativeHandlers.CreateReviewLink)
@@ -1312,6 +1322,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 			if deps.AdsHandlers.Quote != nil {
 				r.Route("/ads", func(r chi.Router) {
 					r.Get("/accounts", deps.AdsHandlers.Accounts)
+					if deps.AdsHandlers.BoostPreset != nil {
+						r.Get("/boost-preset", deps.AdsHandlers.BoostPreset)
+					}
 					if deps.AdsHandlers.AdAccounts != nil {
 						r.Get("/ad-accounts", deps.AdsHandlers.AdAccounts)
 						r.Put("/ad-accounts/{id}", deps.AdsHandlers.SetAdAccount)
@@ -1385,6 +1398,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 					r.Post("/jobs/{id}/cancel", deps.PublishingHandlers.Cancel)
 					r.Post("/jobs/{id}/retry", deps.PublishingHandlers.Retry)
 					r.Post("/jobs/{id}/move", deps.PublishingHandlers.Move)
+					if deps.PublishingHandlers.PostPlan != nil {
+						r.Get("/post-plan", deps.PublishingHandlers.PostPlan)
+					}
 					if deps.PublishingHandlers.BestTimes != nil {
 						r.Get("/best-times", deps.PublishingHandlers.BestTimes)
 						r.Put("/best-times", deps.PublishingHandlers.SaveBestTimes)
@@ -1544,6 +1560,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 					}
 					if deps.PublishingHandlers.OSTurnPublish != nil {
 						r.Post("/creative/os-turn/publish", deps.PublishingHandlers.OSTurnPublish)
+						r.Post("/creative/os-turn/post-plan", deps.PublishingHandlers.OSTurnPostPlan)
 					}
 					if deps.AdsHandlers.OSTurnBoost != nil {
 						r.Post("/ads/os-turn/boost-quote", deps.AdsHandlers.OSTurnBoostQuote)

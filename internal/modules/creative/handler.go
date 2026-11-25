@@ -27,6 +27,8 @@ type Handler struct {
 	canApprove func(ctx context.Context, tenantID uuid.UUID) bool
 	// jobs settles the media jobs (motion posters, video ads) marketflow-ai pushes.
 	jobs *Renderer
+	// postKit prepares posts (post_kit.go); nil leaves the post preset route off.
+	postKit *PostKit
 	// AfterUse starts an approved video's removal countdown once it is downloaded; nil skips it.
 	AfterUse *AfterUse
 }

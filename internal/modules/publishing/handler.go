@@ -45,6 +45,11 @@ type Handler struct {
 	Tokens Accounts
 	// WhatsApp holds the checks the WhatsApp approve and post route needs (whatsapp_publish.go).
 	WhatsApp WhatsAppPublishDeps
+	// Caption is the version's whole post caption (creative.PostKit: words, contacts, lead page link
+	// and PPB line); nil keeps the words only. It makes the ad's lead page when it has none.
+	Caption func(ctx context.Context, tenantID, versionID uuid.UUID) (string, error)
+	// LeadPage makes the ad's lead page when it has none, before any post; nil skips it.
+	LeadPage func(ctx context.Context, tenantID, versionID uuid.UUID)
 	// Kick asks the worker to run now; nil leaves it to its next tick.
 	Kick func()
 	// TikTokInfo reads creator_info for the publish dialog; nil calls TikTok's own API.
@@ -190,6 +195,10 @@ func (h *Handler) Schedule(w http.ResponseWriter, r *http.Request) {
 	if !approved {
 		httpapi.Error(w, http.StatusConflict, "not_approved", "approve the video before posting it", nil)
 		return
+	}
+	// Posting any video makes sure its ad has a lead page (owner, 2026-11-25).
+	if h.LeadPage != nil {
+		h.LeadPage(ctx, tid, asset.VersionID)
 	}
 	fps, _ := asset.Metadata["fps"].(float64)
 	video := Video{URL: asset.URL, Bytes: asset.Bytes, DurationMS: asset.DurationMs, Width: asset.Width, Height: asset.Height, FPS: fps}

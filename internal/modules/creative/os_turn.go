@@ -44,8 +44,9 @@ const (
 	OSTurnRenderFailed    = "render_failed"
 )
 
-// osTurnNotifyTimeout bounds one message: marketflow-ai's reply plus the send.
-const osTurnNotifyTimeout = 30 * time.Second
+// osTurnNotifyTimeout bounds one message: marketflow-ai's reply plus the send. The finished ad's
+// message shows the post and ad plans, which ask Meta and Google.
+const osTurnNotifyTimeout = 110 * time.Second
 
 // insertScriptedVideoAd stores a video ad whose script was written by the Marketing Manager's
 // team. The script gets the same checks as an owner's edit (scenes, photos, footage, the kind)
@@ -280,7 +281,7 @@ type WhatsAppTurnNotifier struct {
 
 // NewWhatsAppTurnNotifier builds the notifier; aiURL is marketflow-ai and aiKey its internal key.
 func NewWhatsAppTurnNotifier(aiURL, aiKey string, send *PlatformWhatsApp, logger *zap.Logger) *WhatsAppTurnNotifier {
-	return &WhatsAppTurnNotifier{aiURL: strings.TrimSuffix(aiURL, "/"), aiKey: aiKey, hc: &http.Client{Timeout: 20 * time.Second},
+	return &WhatsAppTurnNotifier{aiURL: strings.TrimSuffix(aiURL, "/"), aiKey: aiKey, hc: &http.Client{Timeout: 90 * time.Second},
 		send: send, logger: logger.Named("creative.os-turn")}
 }
 

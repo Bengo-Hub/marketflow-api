@@ -115,7 +115,8 @@ func (h *Handler) planGoogle(ctx context.Context, tid uuid.UUID, pc *planCtx, pp
 			pp.Setup = append(pp.Setup, PlanStep{Label: "Connect your YouTube channel and post this video to it; Google Ads plays it from there", Path: "/settings/integrations"})
 		}
 	}
-	gt.finalURL = h.landingURL(pc)
+	gt.finalURL = h.landingURL(ctx, pc)
+	pp.Goal, pp.Link = "your account's conversion goals", gt.finalURL
 	if gt.finalURL == "" {
 		pp.Setup = append(pp.Setup, PlanStep{Label: "Add your website link to your business profile", Path: "/settings/profile"})
 	}
@@ -279,10 +280,10 @@ func (h *Handler) youtubeIDs(ctx context.Context, tid, vid uuid.UUID) []string {
 	return out
 }
 
-// landingURL is the ad's link: the ad copy's own link, else the business website, else the
-// tenant's MarketFlow public page.
-func (h *Handler) landingURL(pc *planCtx) string {
-	for _, u := range []string{str(pc.version.Copy["link"]), str(pc.tenant.Metadata["website"]), str(pc.tenant.Metadata["website_url"])} {
+// landingURL is the ad's link: the ad copy's own link, else the ad's lead page, else the business
+// website, else the tenant's MarketFlow public page.
+func (h *Handler) landingURL(ctx context.Context, pc *planCtx) string {
+	for _, u := range []string{str(pc.version.Copy["link"]), h.adLink(ctx, pc.version, "google"), str(pc.tenant.Metadata["website"]), str(pc.tenant.Metadata["website_url"])} {
 		if p, err := url.Parse(u); err == nil && (p.Scheme == "https" || p.Scheme == "http") && p.Host != "" {
 			return u
 		}

@@ -122,6 +122,9 @@ type PlatformPlan struct {
 	Steps       []PlanStep        `json:"steps"`
 	Blockers    []string          `json:"blockers"`
 	Notes       []string          `json:"notes"`
+	// Goal is what the ads are aimed at and Link where they lead ("" for WhatsApp messages).
+	Goal string `json:"goal,omitempty"`
+	Link string `json:"link,omitempty"`
 	// LaunchCredits is MarketFlow's charge for a Meta launch (0 on a plan that includes it).
 	LaunchCredits int `json:"launch_credits,omitempty"`
 }
@@ -364,7 +367,7 @@ func (h *Handler) buildPlan(ctx context.Context, tid, vid uuid.UUID, ch Choice, 
 }
 
 // planFingerprint binds a confirmation to what the owner saw: the video, the days, the cap and,
-// for every platform on, its account, amounts and mode. ended counts the video's runs that are
+// for every platform on, its account, amounts, goal, link and mode. ended counts the video's runs that are
 // over, so the same plan can be confirmed again later as a new run.
 func planFingerprint(p *RunPlan, ended int) string {
 	parts := []string{p.VersionID, strconv.Itoa(ended), strconv.Itoa(p.Days), strconv.FormatInt(p.TotalCap, 10), p.Currency}
@@ -376,7 +379,7 @@ func planFingerprint(p *RunPlan, ended int) string {
 		if pp.Account != nil {
 			acc = pp.Account.ConnectedID
 		}
-		parts = append(parts, pp.Platform, pp.Mode, acc, strconv.FormatInt(pp.Daily, 10), strconv.FormatInt(pp.AccountTotal, 10))
+		parts = append(parts, pp.Platform, pp.Mode, acc, pp.Goal, pp.Link, strconv.FormatInt(pp.Daily, 10), strconv.FormatInt(pp.AccountTotal, 10))
 	}
 	sum := sha256.Sum256([]byte(strings.Join(parts, "|")))
 	return hex.EncodeToString(sum[:])[:32]
@@ -636,6 +639,10 @@ func (h *Handler) planMeta(ctx context.Context, tid uuid.UUID, pc *planCtx, pp *
 	wp, err := h.waPlan(ctx, tid, pc.version.ID, pp.AccountTotal, pp.Days)
 	if err == nil {
 		pc.meta = wp
+		pp.Goal, pp.Link = metaGoalText(wp.Objective), wp.Input.Link
+		if wp.Objective == "traffic" && !strings.HasPrefix(wp.Input.Link, "https://") {
+			pp.Blockers = append(pp.Blockers, "the ad has no link to send people to")
+		}
 		pp.Notes = append(pp.Notes, "Runs as "+wp.PageName+", aimed at "+metaGoalText(wp.Objective)+"; starts paused and goes live once Meta approves it.")
 	}
 }

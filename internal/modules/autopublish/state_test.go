@@ -7,6 +7,7 @@ import (
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/modules/creative"
+	"github.com/bengobox/marketflow-api/internal/platform/postcaption"
 	"github.com/google/uuid"
 )
 
@@ -95,7 +96,7 @@ func TestCaptionCarriesThePPBLine(t *testing.T) {
 	}
 	long := &ent.CreativeVersion{Metadata: ppb, Copy: map[string]any{"end_card": map[string]any{"headline": strings.Repeat("a", 2500)}}}
 	got := Caption(long, nil)
-	if len([]rune(got)) > 2000 || !strings.HasSuffix(got, "PPB approval ref. PPB/ADV/123") {
+	if len([]rune(got)) > postcaption.Limit || !strings.HasSuffix(got, "PPB approval ref. PPB/ADV/123") {
 		t.Fatalf("the line survives the limit: %d %q", len([]rune(got)), got[len(got)-40:])
 	}
 }

@@ -160,6 +160,32 @@ func TestRunAdsInUSD(t *testing.T) {
 	}
 }
 
+// A finished video waiting for approval can be planned (never run), and a plan pinned to the
+// platforms its message showed is the same plan.
+func TestRunAdsDraftPlanAndPinnedPlatforms(t *testing.T) {
+	db := runAdsDB(t)
+	tid, vid := runAdsFixture(t, db, map[string]any{"daily_budget": map[string]any{"tiktok": float64(4000)}})
+	withAdvertiser(t, db, tid, "KES")
+	ctx := context.Background()
+	db.CreativeVersion.UpdateOneID(vid).SetStatus("ready").ExecX(ctx)
+	h := runAdsHandler(db)
+	draft, _, err := h.BuildDraftPlan(ctx, tid, vid, Choice{})
+	if err != nil || !draft.Ready {
+		t.Fatalf("draft plan %+v %v", draft, err)
+	}
+	if w := postJSON(h.Run, tid, RunInput{VersionID: vid.String(), Fingerprint: draft.Fingerprint}, ""); w.Code != http.StatusConflict {
+		t.Fatalf("an unapproved video ran: %d", w.Code)
+	}
+	db.CreativeVersion.UpdateOneID(vid).SetStatus("approved").ExecX(ctx)
+	pinned, _, err := h.BuildPlan(ctx, tid, vid, osRunInput{Platforms: []string{"tiktok"}}.choice())
+	if err != nil || pinned.Fingerprint != draft.Fingerprint {
+		t.Fatalf("the approved plan is not the one shown: %v", err)
+	}
+	if s := PlanSummary(draft); !strings.Contains(s, "7 days, total KES 28,000") || !strings.Contains(s, "TikTok (Shop): KES 4,000 a day") || !strings.Contains(s, "Not Google Ads:") {
+		t.Fatalf("summary: %s", s)
+	}
+}
+
 // A TikTok-only plan is guided: the owner's amount, the run days, steps with links, nothing spent
 // until the run; the run records one guided campaign and a second confirm replays it.
 func TestRunAdsTikTokGuidedOnce(t *testing.T) {

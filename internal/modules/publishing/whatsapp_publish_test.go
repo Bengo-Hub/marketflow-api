@@ -68,7 +68,8 @@ func seedVideo(t *testing.T, db *ent.Client) (tenant, version uuid.UUID) {
 	t.Helper()
 	ctx := context.Background()
 	tenant = uuid.New()
-	db.Tenant.Create().SetID(tenant).SetName("wa " + tenant.String()).SetSlug("wa-" + tenant.String()).SaveX(ctx)
+	db.Tenant.Create().SetID(tenant).SetName("wa " + tenant.String()).SetSlug("wa-" + tenant.String()).
+		SetMetadata(map[string]any{BestTimeTenantKey: "off"}).SaveX(ctx)
 	brief := db.CreativeBrief.Create().SetTenantID(tenant).SetTitle("Weekend offer").SaveX(ctx)
 	v := db.CreativeVersion.Create().SetTenantID(tenant).SetBriefID(brief.ID).SetVersionNo(1).SetKind("video").
 		SetFormat("1080x1920").SetStatus("ready").SetCopy(map[string]any{"caption": "Shea butter, 20% off this weekend"}).SaveX(ctx)
@@ -136,6 +137,55 @@ func TestOSTurnPublishDB(t *testing.T) {
 	}
 	if code, _ := osTurnPublish(h, body); code != http.StatusOK || db.PublishJob.Query().Where(publishjob.TenantIDEQ(tenant)).CountX(ctx) != 1 {
 		t.Fatal("a repeat must not post twice")
+	}
+}
+
+// The approval covers exactly the plan its message showed: the caption with the contacts and the
+// link, the accounts and their best times. A plan that changed is shown again and posts nothing.
+func TestPostPlanIsWhatIsPosted(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	tenant, version := seedVideo(t, db)
+	db.Tenant.UpdateOneID(tenant).SetMetadata(map[string]any{"ai_label": "off"}).ExecX(ctx)
+	caption := "Shea butter\n\nWhatsApp: +254700000001\n\nhttps://app.example/f/shea"
+	h := &Handler{Store: &EntStore{DB: db}, Logger: zap.NewNop(),
+		Caption: func(context.Context, uuid.UUID, uuid.UUID) (string, error) { return caption, nil },
+		WhatsApp: WhatsAppPublishDeps{
+			IsApprover: func(context.Context, uuid.UUID, uuid.UUID) bool { return true },
+			Approve: func(ctx context.Context, _, vid, _ uuid.UUID) error {
+				return db.CreativeVersion.UpdateOneID(vid).SetStatus("approved").Exec(ctx)
+			},
+		}}
+	// A Sunday night, so the best time is later.
+	now := time.Date(2026, 11, 22, 22, 0, 0, 0, time.UTC)
+	p, err := h.BuildPostPlan(ctx, tenant, version, now)
+	if err != nil || len(p.Posts) != 1 || p.Posts[0].At == nil || p.AIGenerated || !p.BestTime || p.Caption != caption {
+		t.Fatalf("plan %+v %v", p, err)
+	}
+	text := PostPlanText(p)
+	if !strings.Contains(text, "Boi Page (Facebook), ") || !strings.Contains(text, "AI label: off") {
+		t.Fatalf("text %q", text)
+	}
+	again, _ := h.BuildPostPlan(ctx, tenant, version, now.Add(5*time.Minute))
+	if again.Fingerprint != p.Fingerprint {
+		t.Fatal("the same plan a few minutes later must keep its fingerprint")
+	}
+	body := map[string]any{"tenant_id": tenant.String(), "version_id": version.String(), "user_id": uuid.NewString(), "run_id": "r", "fingerprint": "stale"}
+	code, out := osTurnPublish(h, body)
+	details, _ := out["details"].(map[string]any)
+	if code != http.StatusConflict || out["code"] != "plan_changed" || details["fingerprint"] == "" {
+		t.Fatalf("stale plan: %d %v", code, out)
+	}
+	if n := db.PublishJob.Query().Where(publishjob.TenantIDEQ(tenant)).CountX(ctx); n != 0 {
+		t.Fatalf("a stale plan posted %d", n)
+	}
+	body["fingerprint"] = details["fingerprint"]
+	if code, out := osTurnPublish(h, body); code != http.StatusOK {
+		t.Fatalf("publish %d %v", code, out)
+	}
+	j := db.PublishJob.Query().Where(publishjob.TenantIDEQ(tenant)).OnlyX(ctx)
+	if j.Caption != caption || j.Metadata["ai_generated"] != false || j.Metadata["best_time"] != true {
+		t.Fatalf("job %+v", j)
 	}
 }
 

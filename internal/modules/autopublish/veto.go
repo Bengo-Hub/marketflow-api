@@ -302,6 +302,7 @@ func (p *Pipeline) Posts(ctx context.Context, tenantID uuid.UUID, agentID *uuid.
 		}
 		if len(st.JobIDs) > 0 {
 			view.Jobs, _ = p.Publish.JobsByID(ctx, tenantID, parseIDs(st.JobIDs))
+			view.Caption = captionOf(view.Jobs, view.Caption)
 		}
 		out = append(out, view)
 	}
@@ -342,6 +343,7 @@ func (p *Pipeline) PublicView(ctx context.Context, versionID uuid.UUID) (PublicP
 	}
 	if jobs, err := p.Publish.JobsByID(ctx, v.TenantID, parseIDs(st.JobIDs)); err == nil {
 		out.Places = placeNames(ctx, p.DB, jobs)
+		out.Caption = captionOf(jobs, out.Caption)
 	}
 	if out.Places == nil {
 		out.Places = []string{}

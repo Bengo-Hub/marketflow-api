@@ -17,6 +17,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/httpapi"
 	"github.com/bengobox/marketflow-api/internal/platform/adaccounts"
+	"github.com/bengobox/marketflow-api/internal/platform/postcaption"
 )
 
 // Boost from WhatsApp (Sprint 17 step 6, owner 2026-11-19). After an ad is approved and posted
@@ -205,19 +206,18 @@ func (h *Handler) waPlan(ctx context.Context, tid, vid uuid.UUID, budget int64, 
 	if days <= 0 {
 		days = d.Days
 	}
-	msg := ""
-	for _, k := range []string{"caption", "primary_text", "body"} {
-		if s, ok := v.Copy[k].(string); ok && strings.TrimSpace(s) != "" {
-			msg = strings.TrimSpace(s)
-			break
+	// A video ad keeps its words on its end card; without any the business name stands in, as Meta
+	// needs a text.
+	msg := postcaption.Words(v.Copy)
+	if msg == "" {
+		if t, err := h.DB.Tenant.Get(ctx, tid); err == nil {
+			msg = t.Name
 		}
 	}
 	in := BoostInput{QuoteInput: QuoteInput{AdAccountConnID: acc.ID.String(), Budget: budget, Days: days},
 		PageConnID: page.ID.String(), AssetID: asset.ID.String(), Objective: d.Objective, Message: msg}
 	if d.Objective == "traffic" {
-		if s, ok := v.Copy["link"].(string); ok {
-			in.Link = strings.TrimSpace(s)
-		}
+		in.Link = h.boostLink(ctx, v)
 	}
 	return &waBoostPlan{Input: in, AccountName: acc.DisplayName, PageName: page.DisplayName, Objective: d.Objective}, nil
 }
