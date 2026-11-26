@@ -30,6 +30,8 @@ import (
 // Defined here to avoid import cycles.
 type TenantSyncer interface {
 	SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
+	// Refresh brings a known tenant's status in line with auth-api.
+	Refresh(ctx context.Context, slug string) error
 }
 
 // PublicHandler handles public endpoints that require no authentication.
@@ -138,6 +140,10 @@ func (h *PublicHandler) publicProfile(ctx context.Context, slug string) (map[str
 			if h.tenantSyncer != nil {
 				h.logger.Info("tenant not found locally, attempting JIT sync", zap.String("slug", slug))
 				_, syncErr := h.tenantSyncer.SyncTenant(ctx, slug)
+				if syncErr == nil {
+					// A tenant kept here as pending takes auth-api's status now (a missed approval).
+					syncErr = h.tenantSyncer.Refresh(ctx, slug)
+				}
 				if syncErr == nil {
 					// Retry lookup after sync
 					t, err = h.entClient.Tenant.Query().

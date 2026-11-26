@@ -28,7 +28,7 @@ const itemLen = 300
 // compose builds the draft without any I/O, so it is easy to test.
 func compose(in composeInput) Draft {
 	meta := shareddefaults.Meta(in.tenant)
-	d := Draft{Current: in.current, Sources: []string{"profile"}}
+	d := Draft{Current: in.current, Sources: []string{"profile"}, Offerings: []Suggestion{}}
 
 	// Offerings to link: best sellers for ordinary tenants, the website for the platform tenant.
 	if len(in.top) > 0 {

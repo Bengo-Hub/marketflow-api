@@ -193,7 +193,7 @@ type Suggestion struct {
 type Draft struct {
 	Current   marketingos.BrandContext `json:"current"`
 	Suggested marketingos.BrandContext `json:"suggested"`
-	Offerings []Suggestion             `json:"offerings"`
+	Offerings []Suggestion             `json:"offerings"` // never null (compose)
 	Profile   ProfileDefaults          `json:"profile"`
 	Sources   []string                 `json:"sources"`
 }

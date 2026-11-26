@@ -29,7 +29,8 @@ func NewTenantConsumer(conn *nats.Conn, syncer *tenant.Syncer, logger *zap.Logge
 
 // Start subscribes to tenant events.
 func (c *TenantConsumer) Start() error {
-	subjects := []string{"auth.tenant.created", "auth.tenant.updated"}
+	// approved too: an approved tenant otherwise stayed pending here (2026-11-25).
+	subjects := []string{"auth.tenant.created", "auth.tenant.updated", "auth.tenant.approved"}
 	for _, subject := range subjects {
 		// QueueSubscribe: one replica handles each tenant-sync event (no DB upsert races).
 		sub, err := eventslib.QueueSubscribe(c.logger, c.conn, subject, "marketflow-tenant-sync", c.handleTenantEvent)

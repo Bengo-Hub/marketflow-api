@@ -127,6 +127,19 @@ type BrandContext struct {
 	ActorNames     []string `json:"actor_names,omitempty"`
 }
 
+// MarshalJSON writes every list as a JSON list, never null: a business with no brief yet has no
+// lists, and the screens read their length (2026-11-25, a new tenant's setup page crashed).
+func (b BrandContext) MarshalJSON() ([]byte, error) {
+	type plain BrandContext
+	p := plain(b)
+	for _, l := range []*[]string{&p.Audience, &p.Offers, &p.Proof, &p.VoiceExamples, &p.BannedClaims, &p.Learnings} {
+		if *l == nil {
+			*l = []string{}
+		}
+	}
+	return json.Marshal(p)
+}
+
 // Limits keep the context small enough to sit in every prompt.
 const (
 	maxTextLen  = 1200
