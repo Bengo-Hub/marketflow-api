@@ -38,7 +38,12 @@ type Syncer struct {
 	// profiles caches AuthProfile per slug for authProfileTTL. auth-api stays the owner; this is
 	// a short reuse so prefilling forms does not call it on every page load.
 	profiles sync.Map // slug -> cachedProfile
+	// rechecked is when a tenant that is not active here was last checked with auth-api.
+	rechecked sync.Map // slug -> time.Time
 }
+
+// recheckEvery bounds how often a non-active tenant is read again from auth-api.
+const recheckEvery = time.Minute
 
 type cachedProfile struct {
 	p  *AuthProfile
@@ -99,6 +104,13 @@ func (s *Syncer) SyncTenant(ctx context.Context, slug string) (uuid.UUID, error)
 	// Fast path: check if tenant already exists locally by slug
 	existing, err := s.client.Tenant.Query().Where(enttenant.SlugEQ(slug)).Only(ctx)
 	if err == nil {
+		// A tenant kept here as not active (a missed approval, 2026-11-25) is read again from
+		// auth-api, at most once a minute per tenant; a failure leaves it as it was.
+		if existing.Status != "active" && s.dueRecheck(slug) {
+			if rerr := s.Refresh(ctx, slug); rerr != nil {
+				s.logger.Debug("tenant status recheck failed", zap.String("slug", slug), zap.Error(rerr))
+			}
+		}
 		return existing.ID, nil
 	}
 
@@ -524,6 +536,16 @@ func (s *Syncer) fetchAuthProfile(ctx context.Context, slug string) (*AuthProfil
 	}
 	p.Address, p.City = s.hqOutlet(ctx, slug)
 	return p, nil
+}
+
+// dueRecheck reports whether a non-active tenant may be read again now, and records it.
+func (s *Syncer) dueRecheck(slug string) bool {
+	now := time.Now()
+	if v, ok := s.rechecked.Load(slug); ok && now.Sub(v.(time.Time)) < recheckEvery {
+		return false
+	}
+	s.rechecked.Store(slug, now)
+	return true
 }
 
 // GetOrSync returns a tenant by ID, syncing by slug if not found locally.
