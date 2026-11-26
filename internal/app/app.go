@@ -570,7 +570,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		// instance does not poll the queue.
 		WithJobs(creative.NewRenderer(entClient, cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey, logger).WithBrandImages(brandLinks).
 			// The address, contacts and website pages for the setting brief and the end card (place.go).
-			WithFacts(marketingOSService.BusinessFacts, crawlerReader).
+			WithFacts(marketingOSService.BusinessFacts, crawlerReader).WithCardLink(postKit).
 			// A video made from a WhatsApp turn: marketflow-ai writes the storyboard and finished-ad
 			// messages (with the render code); they go out from the platform number.
 			WithOSTurn(creative.NewWhatsAppTurnNotifier(cfg.CrossService.AIURL, cfg.CrossService.InternalServiceKey,

@@ -110,7 +110,9 @@ func TestNoDealForNonCustomersOrOptOuts(t *testing.T) {
 		return b.SaveX(ctx)
 	}
 	recruit := mk("recruit@example.com", func(b *ent.LeadCreate) { b.SetLeadType("recruit") })
-	job := mk("job@example.com", func(b *ent.LeadCreate) { b.SetMetadata(map[string]any{"message": "Please find my CV, I am looking for a job"}) })
+	job := mk("job@example.com", func(b *ent.LeadCreate) {
+		b.SetMetadata(map[string]any{"message": "Please find my CV, I am looking for a job"})
+	})
 	out := mk("Out@Example.com", nil)
 	if err := contacts.MarkOptedOut(ctx, db, tid, "email", "out@example.com", "2026-11-25T00:00:00Z"); err != nil {
 		t.Fatal(err)
