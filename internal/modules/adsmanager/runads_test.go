@@ -27,6 +27,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/ent/creativebrief"
 	"github.com/bengobox/marketflow-api/internal/ent/creativeversion"
 	"github.com/bengobox/marketflow-api/internal/integrations/google"
+	"github.com/bengobox/marketflow-api/internal/platform/adimage"
 	"github.com/bengobox/marketflow-api/internal/platform/runads"
 )
 
@@ -433,7 +434,7 @@ func TestLaunchGoogleOnce(t *testing.T) {
 }
 
 func TestCropJPEG(t *testing.T) {
-	b, err := cropJPEG(image.NewRGBA(image.Rect(0, 0, 2000, 1500)), 1.91, 600, 314)
+	b, err := adimage.CropJPEG(image.NewRGBA(image.Rect(0, 0, 2000, 1500)), 1.91, 600, 314)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -441,7 +442,7 @@ func TestCropJPEG(t *testing.T) {
 	if err != nil || out.Bounds().Dx() != 1200 || out.Bounds().Dy() != 628 {
 		t.Fatalf("landscape = %v %v", out.Bounds(), err)
 	}
-	if _, err := cropJPEG(image.NewRGBA(image.Rect(0, 0, 100, 100)), 1, 128, 128); err == nil {
+	if _, err := adimage.CropJPEG(image.NewRGBA(image.Rect(0, 0, 100, 100)), 1, 128, 128); err == nil {
 		t.Fatal("a 100 pixel logo was accepted")
 	}
 }

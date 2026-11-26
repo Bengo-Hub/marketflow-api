@@ -39,6 +39,8 @@ type Field struct {
 	Value    string `json:"value"`
 	Max      int    `json:"max,omitempty"` // characters, 0 for no limit of its own
 	Required bool   `json:"required,omitempty"`
+	// Picture makes the field a tick: "yes" sends the picture.
+	Picture *PictureChoice `json:"picture,omitempty"`
 }
 
 // Fix is a change the provider's API allows. Changes is the exact list shown to the owner.

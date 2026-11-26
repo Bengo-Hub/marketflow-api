@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -25,16 +26,20 @@ type materialKind struct {
 	Field, Name string
 	Want, Max   int
 	Limit       int // characters, 0 for pictures and videos
+	// A picture's shape, its ratio (width over height) and Google's smallest size.
+	Shape      string
+	Ratio      float64
+	MinW, MinH int
 }
 
 var materialKinds = []materialKind{
-	{"HEADLINE", "headline", 5, 15, maxHeadline},
-	{"LONG_HEADLINE", "long headline", 2, 5, maxLongText},
-	{"DESCRIPTION", "description", 4, 5, maxLongText},
-	{"MARKETING_IMAGE", "landscape picture", 2, 20, 0},
-	{"SQUARE_MARKETING_IMAGE", "square picture", 2, 20, 0},
-	{"PORTRAIT_MARKETING_IMAGE", "tall picture", 1, 20, 0},
-	{"YOUTUBE_VIDEO", "video", 1, 5, 0},
+	{Field: "HEADLINE", Name: "headline", Want: 5, Max: 15, Limit: maxHeadline},
+	{Field: "LONG_HEADLINE", Name: "long headline", Want: 2, Max: 5, Limit: maxLongText},
+	{Field: "DESCRIPTION", Name: "description", Want: 4, Max: 5, Limit: maxLongText},
+	{Field: "MARKETING_IMAGE", Name: "landscape picture", Want: 2, Max: 20, Shape: "landscape", Ratio: 1.91, MinW: 600, MinH: 314},
+	{Field: "SQUARE_MARKETING_IMAGE", Name: "square picture", Want: 2, Max: 20, Shape: "square", Ratio: 1, MinW: 300, MinH: 300},
+	{Field: "PORTRAIT_MARKETING_IMAGE", Name: "tall picture", Want: 1, Max: 20, Shape: "tall", Ratio: 0.8, MinW: 480, MinH: 600},
+	{Field: "YOUTUBE_VIDEO", Name: "video", Want: 1, Max: 5},
 }
 
 var youtubeID = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
@@ -94,12 +99,16 @@ func (in googleInput) materialItems(groups []google.AssetGroup, p Profile, err e
 		it.Fix = in.materialFix(g, low, p)
 		if it.Fix == nil {
 			it.Steps = []string{"Open this campaign in Google Ads and go to Asset groups.", "Press Edit on the ad group named here.", "Add the pictures listed above from your brand library and save."}
-		} else if low["MARKETING_IMAGE"]+low["SQUARE_MARKETING_IMAGE"]+low["PORTRAIT_MARKETING_IMAGE"] > 0 {
-			it.Detail += " Add pictures in Google Ads (Asset groups, Edit); MarketFlow adds the texts and the video."
+		} else if low["MARKETING_IMAGE"]+low["SQUARE_MARKETING_IMAGE"]+low["PORTRAIT_MARKETING_IMAGE"] > 0 && !it.Fix.hasPictures() {
+			it.Detail += " MarketFlow has no picture of yours in the right size: add photos under Settings, Brand, or add them in Google Ads (Asset groups, Edit)."
 		}
 		out = append(out, it)
 	}
 	return out
+}
+
+func (f *Fix) hasPictures() bool {
+	return slices.ContainsFunc(f.Fields, func(x Field) bool { return x.Picture != nil })
 }
 
 func (in googleInput) materialFix(g google.AssetGroup, low map[string]int, p Profile) *Fix {
@@ -123,7 +132,8 @@ func (in googleInput) materialFix(g google.AssetGroup, low map[string]int, p Pro
 			fx.Fields = append(fx.Fields, Field{Key: "video_1", Label: "YouTube video link", Value: v, Max: 200})
 			continue
 		}
-		if k.Limit == 0 {
+		if k.Ratio > 0 {
+			fx.Fields = append(fx.Fields, pictureFields(k, g, p.Pictures)...)
 			continue
 		}
 		texts := materialTexts(k, p, g.Texts)
@@ -139,6 +149,10 @@ func (in googleInput) materialFix(g google.AssetGroup, low map[string]int, p Pro
 	}
 	if len(fx.Fields) == 0 {
 		return nil
+	}
+	if fx.hasPictures() {
+		fx.Label = "Add texts, pictures and video"
+		fx.Changes = append(fx.Changes, "Only the pictures you tick are sent, cut as shown. Tick only pictures you may use in ads, with nobody in them who has not agreed to it.")
 	}
 	fx.run = func(ctx context.Context, v map[string]string) error {
 		var add []google.GroupAsset
@@ -163,8 +177,12 @@ func (in googleInput) materialFix(g google.AssetGroup, low map[string]int, p Pro
 			}
 			add = append(add, google.GroupAsset{FieldType: "YOUTUBE_VIDEO", YouTubeID: id})
 		}
-		if len(add) == 0 {
-			return badInput("fill in at least one row")
+		pics, err := pickedPictures(ctx, v, g, p.Pictures)
+		if err != nil {
+			return err
+		}
+		if add = append(add, pics...); len(add) == 0 {
+			return badInput("fill in at least one row, or tick a picture")
 		}
 		return in.Ads.AddGroupAssets(ctx, in.CustomerID, g.ID, add)
 	}

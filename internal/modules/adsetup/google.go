@@ -26,6 +26,7 @@ type Profile struct {
 	Services                            []string
 	// Descriptions are the services' own descriptions; Videos are YouTube ids of its posted ads.
 	Descriptions, Videos []string
+	Pictures             []Picture
 }
 
 // Page is a page on the business's website.

@@ -1,13 +1,8 @@
 package adsmanager
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"fmt"
-	"image"
-	"image/jpeg"
-	"io"
 	"math"
 	"net/http"
 	"net/url"
@@ -15,13 +10,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	_ "image/gif"
-	_ "image/png"
-
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	xdraw "golang.org/x/image/draw"
-	_ "golang.org/x/image/webp"
 
 	"github.com/bengobox/marketflow-api/internal/ent"
 	"github.com/bengobox/marketflow-api/internal/ent/campaign"
@@ -32,6 +22,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/modules/brandimages"
 	"github.com/bengobox/marketflow-api/internal/modules/googleads"
 	"github.com/bengobox/marketflow-api/internal/platform/adaccounts"
+	"github.com/bengobox/marketflow-api/internal/platform/adimage"
 	"github.com/bengobox/marketflow-api/internal/platform/runads"
 	"github.com/bengobox/marketflow-api/internal/platform/shareddefaults"
 )
@@ -532,54 +523,9 @@ func (h *Handler) saveRunRow(ctx context.Context, id uuid.UUID, status string, d
 // fetchImage downloads a public image, crops its centre to ratio (width/height), checks the
 // minimum size, scales it down to at most 1200 pixels wide and returns a JPEG.
 func (h *Handler) fetchImage(ctx context.Context, src string, ratio float64, minW, minH int) ([]byte, error) {
-	if src == "" {
-		return nil, fmt.Errorf("no image")
-	}
-	hc := h.RunAds.Fetch
-	if hc == nil {
-		return nil, fmt.Errorf("images cannot be fetched on this server")
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, src, nil)
+	img, err := adimage.Fetch(ctx, h.RunAds.Fetch, src)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := hc.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("the image could not be downloaded")
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("the image could not be downloaded")
-	}
-	img, _, err := image.Decode(io.LimitReader(resp.Body, 12<<20))
-	if err != nil {
-		return nil, fmt.Errorf("the image format is not readable")
-	}
-	return cropJPEG(img, ratio, minW, minH)
-}
-
-// cropJPEG is the centre crop of img at ratio, scaled to at most 1200 wide, as JPEG.
-func cropJPEG(img image.Image, ratio float64, minW, minH int) ([]byte, error) {
-	b := img.Bounds()
-	w, hgt := b.Dx(), b.Dy()
-	cw, ch := w, int(float64(w)/ratio)
-	if ch > hgt {
-		ch, cw = hgt, int(float64(hgt)*ratio)
-	}
-	if cw < minW || ch < minH {
-		return nil, fmt.Errorf("the image is too small (needs %d by %d pixels)", minW, minH)
-	}
-	x0, y0 := b.Min.X+(w-cw)/2, b.Min.Y+(hgt-ch)/2
-	crop := image.Rect(x0, y0, x0+cw, y0+ch)
-	outW, outH := cw, ch
-	if outW > 1200 {
-		outW, outH = 1200, int(1200/ratio)
-	}
-	dst := image.NewRGBA(image.Rect(0, 0, outW, outH))
-	xdraw.CatmullRom.Scale(dst, dst.Bounds(), img, crop, xdraw.Src, nil)
-	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 88}); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return adimage.CropJPEG(img, ratio, minW, minH)
 }

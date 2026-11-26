@@ -59,7 +59,10 @@ type Handler struct {
 	Meta   *meta.Client
 	TikTok *tiktok.Client
 	// Web reads the business's own website (public addresses only).
-	Web    *http.Client
+	Web *http.Client
+	// Links signs the tenant's own brand pictures and Fetch reads pictures; nil offers none.
+	Links  func(tenantID uuid.UUID, keys []string) []string
+	Fetch  *http.Client
 	Facts  func(ctx context.Context, tenantID uuid.UUID) (marketingos.BusinessFacts, error)
 	Logger *zap.Logger
 	// CanManage gates the fixes (the approving roles); nil allows nobody.
@@ -265,6 +268,9 @@ func runFix(ctx context.Context, items []Item, in fixRequest) error {
 		if it.Fix.Token != in.Token {
 			return &errStop{http.StatusConflict, "changed", "the account changed since you opened this; look at the fix again"}
 		}
+		if err := lostPicture(it.Fix.Fields, in.Input); err != nil {
+			return err
+		}
 		v, err := cleanInput(it.Fix.Fields, in.Input)
 		if err != nil {
 			return err
@@ -347,7 +353,7 @@ func (h *Handler) google(ctx context.Context, t *ent.Tenant, a *ent.ConnectedAcc
 		Consented:   func(ctx context.Context) (int, error) { return h.consented(ctx, t.ID) },
 		Profile: func(ctx context.Context) Profile {
 			p := loadProfile(ctx, t, h.facts(t.ID), h.Web)
-			p.Videos = h.videos(ctx, t.ID)
+			p.Videos, p.Pictures = h.videos(ctx, t.ID), h.pictures(ctx, t)
 			return p
 		},
 		Cfg: cfg,

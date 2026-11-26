@@ -651,6 +651,7 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 		HTTP:   &http.Client{Timeout: 30 * time.Second},
 		Meta:   meta.NewClient("").WithSecret(meta.PlatformSecret(entClient, keyProvider, cfg.Meta.AppSecret)),
 		TikTok: tiktok.NewClient(), Web: publicweb.Client(8*time.Second, 3),
+		Links: brandLinks.Links, Fetch: publicweb.Client(30*time.Second, 3),
 		Facts: marketingOSService.BusinessFacts, Logger: logger.Named("ads-setup"),
 		CanManage: func(ctx context.Context, tenantID uuid.UUID) bool {
 			return rbacService.CallerHasAnyRole(ctx, tenantID, creative.ApprovalRoles...)

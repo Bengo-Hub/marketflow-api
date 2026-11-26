@@ -16,6 +16,7 @@ type AssetGroup struct {
 	Count              map[string]int  // by field type
 	Texts              map[string]bool // lower case
 	Videos             map[string]bool // YouTube ids
+	Names              map[string]bool // asset names
 }
 
 // AssetGroups lists the asset groups of running Performance Max campaigns.
@@ -32,10 +33,10 @@ func (a Ads) AssetGroups(ctx context.Context, customerID string) ([]AssetGroup, 
 		id := idText(g["id"])
 		at[id] = len(out)
 		out = append(out, AssetGroup{ID: id, Name: text(g, "name"), Strength: text(g, "adStrength"),
-			Count: map[string]int{}, Texts: map[string]bool{}, Videos: map[string]bool{}})
+			Count: map[string]int{}, Texts: map[string]bool{}, Videos: map[string]bool{}, Names: map[string]bool{}})
 	}
 	rows, err = a.search(ctx, customerID, "SELECT asset_group.id, asset_group.status, campaign.status, asset_group_asset.field_type, asset_group_asset.status, "+
-		"asset.text_asset.text, asset.youtube_video_asset.youtube_video_id FROM asset_group_asset "+
+		"asset.name, asset.text_asset.text, asset.youtube_video_asset.youtube_video_id FROM asset_group_asset "+
 		"WHERE asset_group.status = 'ENABLED' AND campaign.status = 'ENABLED' AND asset_group_asset.status = 'ENABLED' LIMIT 2000")
 	if err != nil {
 		return nil, err
@@ -53,12 +54,18 @@ func (a Ads) AssetGroups(ctx context.Context, customerID string) ([]AssetGroup, 
 		if v := text(obj(as, "youtubeVideoAsset"), "youtubeVideoId"); v != "" {
 			g.Videos[v] = true
 		}
+		g.Names[text(as, "name")] = true
 	}
 	return out, nil
 }
 
-// GroupAsset is a text (headline, long headline, description) or a YouTube video to add.
-type GroupAsset struct{ FieldType, Text, YouTubeID string }
+// GroupAsset is a text (headline, long headline, description), a YouTube video or a named JPEG picture
+// to add.
+type GroupAsset struct {
+	FieldType, Text, YouTubeID string
+	Name                       string
+	Image                      []byte
+}
 
 // AddGroupAssets creates the assets and puts them in the asset group, all or nothing.
 func (a Ads) AddGroupAssets(ctx context.Context, customerID, groupID string, add []GroupAsset) error {
@@ -67,9 +74,12 @@ func (a Ads) AddGroupAssets(ctx context.Context, customerID, groupID string, add
 	for i, x := range add {
 		rn := "customers/" + cid + "/assets/" + strconv.Itoa(-1-i)
 		c := map[string]any{"resourceName": rn}
-		if x.YouTubeID != "" {
+		switch {
+		case len(x.Image) > 0:
+			c["name"], c["type"], c["imageAsset"] = x.Name, "IMAGE", map[string]any{"data": x.Image}
+		case x.YouTubeID != "":
 			c["youtubeVideoAsset"] = map[string]any{"youtubeVideoId": x.YouTubeID}
-		} else {
+		default:
 			c["textAsset"] = map[string]any{"text": x.Text}
 		}
 		assets = append(assets, map[string]any{"assetOperation": map[string]any{"create": c}})
