@@ -55,6 +55,8 @@ type Renderer struct {
 	// autopilot carries an autopilot agent's video on after each step in veto-window mode
 	// (autopilot_hook.go); nil leaves every video for a person.
 	autopilot AutopilotHook
+	// cardKit resolves the lead page an end card shows (card_link.go); nil shows none.
+	cardKit *PostKit
 }
 
 // WithBrandImages lets renders use the tenant's brand images next to an offering's photos.

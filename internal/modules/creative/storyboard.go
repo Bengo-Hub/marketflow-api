@@ -287,7 +287,7 @@ type endCardWords struct {
 func (r *Renderer) endCardWordsFor(ctx context.Context, v *ent.CreativeVersion, b *ent.CreativeBrief, place placeInfo) endCardWords {
 	card, _ := v.Copy["end_card"].(map[string]any)
 	w := endCardWords{Headline: str(card["headline"]), Subline: str(card["subline"]), Price: str(card["price"]), CTA: str(card["cta"]),
-		Contacts: place.Contacts, LogoURL: brandLogo(ctx, r.db, v.TenantID, b), LogoPlate: logoPlateFor(ctx, r.db, v.TenantID, b)}
+		Contacts: r.cardContacts(ctx, v, place), LogoURL: brandLogo(ctx, r.db, v.TenantID, b), LogoPlate: logoPlateFor(ctx, r.db, v.TenantID, b)}
 	if b != nil {
 		if brand, ok := b.Metadata["brand"].(map[string]any); ok {
 			w.Accent = str(brand["accent"])

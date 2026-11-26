@@ -826,7 +826,7 @@ func (r *Renderer) adCallFor(ctx context.Context, v *ent.CreativeVersion, script
 		offering = b.Offering
 	}
 	place := r.resolvePlace(ctx, v.TenantID, offering, false)
-	call.Contacts, call.Brand, call.Place = place.Contacts, place.Brand, place.Line()
+	call.Contacts, call.Brand, call.Place = r.cardContacts(ctx, v, place), place.Brand, place.Line()
 	call.LogoURL = brandLogo(ctx, r.db, v.TenantID, b)
 	call.LogoPlate, call.LogoEveryScene = logoPlateFor(ctx, r.db, v.TenantID, b), logoEveryScene(ctx, r.db, v.TenantID)
 	// Every kind sends its generated stills: a scene with no matching picture starts from one

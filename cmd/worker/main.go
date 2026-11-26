@@ -400,23 +400,25 @@ func main() {
 		if rdb != nil {
 			autopilotStudio = autopilotStudio.WithQuota(ratelimit.NewQuota(rdb))
 		}
+		// Captions carry the contacts and the lead page link, like the Studio's and WhatsApp's; end
+		// cards show the link too.
+		postKit := &creative.PostKit{Svc: creative.NewService(entClient, logger).WithLeadFunnels(funnels.NewService(entClient, logger).ForAds()),
+			Jobs: creative.NewRenderer(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).
+				WithFacts(placeFacts.BusinessFacts, crawlerReader),
+			Base: cfg.API.PortalURL}
 		autopilotPipeline := autopublish.New(autopublish.Deps{DB: entClient, Studio: autopilotStudio,
 			Quoter: creative.NewRenderer(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).WithBrandImages(renderLinks).
 				WithFacts(placeFacts.BusinessFacts, crawlerReader),
 			Publish: pubStore, Gate: worker.AutopilotGate(cfg, entClient), Notif: tokenNotif,
 			Links:    autopublish.NewVetoLinks(encryption.KeyFromEnv(os.Getenv("MF_SECURITY_ENCRYPTION_KEY"))),
 			AfterUse: afterUse, AppURL: cfg.API.PortalURL, Config: cfg.Autopilot, Logger: logger,
-			// Captions carry the contacts and the lead page link, like the Studio's and WhatsApp's.
-			Kit: &creative.PostKit{Svc: creative.NewService(entClient, logger).WithLeadFunnels(funnels.NewService(entClient, logger).ForAds()),
-				Jobs: creative.NewRenderer(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).
-					WithFacts(placeFacts.BusinessFacts, crawlerReader),
-				Base: cfg.API.PortalURL}})
+			Kit: postKit})
 		// A run that finds the plan lapsed or new terms unaccepted cancels the waiting posts now.
 		reg.AutopilotLapsed().Set(autopilotPipeline.AutoPublishLapsed)
 		go autopilotPipeline.Run(ctx)
 
 		go creative.NewRenderer(entClient, cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey, logger).
-			WithBrandImages(renderLinks).WithFacts(placeFacts.BusinessFacts, crawlerReader).
+			WithBrandImages(renderLinks).WithFacts(placeFacts.BusinessFacts, crawlerReader).WithCardLink(postKit).
 			// The fallback poll settles jobs too, so it sends a WhatsApp turn's messages as well.
 			WithOSTurn(creative.NewWhatsAppTurnNotifier(cfg.API.MarketFlowAIURL, cfg.API.InternalServiceKey,
 				creative.NewPlatformWhatsApp(entClient,
