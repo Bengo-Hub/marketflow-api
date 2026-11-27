@@ -47,6 +47,9 @@ type Model struct {
 	Free bool `json:"free,omitempty"`
 	// Vision is true when it accepts images, so it can serve the media review.
 	Vision bool `json:"vision,omitempty"`
+	// Category is the list's own kind for the model (fal: text-to-image, image-to-video,
+	// text-to-speech, ...), so the media route pickers show only models that fit a tier.
+	Category string `json:"category,omitempty"`
 }
 
 func bearer(req *http.Request, key string) { req.Header.Set("Authorization", "Bearer "+key) }
@@ -66,9 +69,10 @@ var Sources = map[string]Source{
 	"elevenlabs": {Provider: "elevenlabs", Type: "media", Name: "elevenlabs", DefaultBase: "https://api.elevenlabs.io/v1", Path: "/models",
 		Auth: func(req *http.Request, key string) { req.Header.Set("xi-api-key", key) }, Parse: ParseElevenLabs},
 	"fal": {Provider: "fal", Type: "media", Name: "fal", DefaultBase: "https://api.fal.ai/v1", Path: "/models", Query: "limit=100",
-		Auth:  func(req *http.Request, key string) { req.Header.Set("Authorization", "Key "+key) },
-		Parse: ParseFal,
-		Page:  func(first, next string) string { return first + "&cursor=" + url.QueryEscape(next) }},
+		Auth:     func(req *http.Request, key string) { req.Header.Set("Authorization", "Key "+key) },
+		Parse:    ParseFal,
+		Describe: DescribeFal,
+		Page:     func(first, next string) string { return first + "&cursor=" + url.QueryEscape(next) }},
 	// The free-tier fallbacks use OpenAI-compatible endpoints: GET {base_url}/models with the
 	// saved key. OpenRouter's list also carries prices and input modalities.
 	"openrouter": {Provider: "openrouter", Type: "ai_llm", Name: "openrouter", DefaultBase: "https://openrouter.ai/api/v1", Path: "/models",
@@ -344,6 +348,44 @@ func ParseFal(b []byte) ([]string, string) {
 		if id := firstNonEmpty(m.EndpointID, m.ID); id != "" {
 			out = append(out, id)
 		}
+	}
+	if !v.HasMore {
+		return out, ""
+	}
+	return out, v.NextCursor
+}
+
+// DescribeFal reads fal's paged catalogue with each model's category and release date
+// ({models: [{endpoint_id, metadata: {category, status, date}}], has_more, next_cursor}, checked
+// against the live list 2026-11-28). Deprecated models are left out, so no picker offers one.
+func DescribeFal(b []byte) ([]Model, string) {
+	var v struct {
+		Models []struct {
+			EndpointID string `json:"endpoint_id"`
+			ID         string `json:"id"`
+			Metadata   struct {
+				Category string `json:"category"`
+				Status   string `json:"status"`
+				Date     string `json:"date"`
+			} `json:"metadata"`
+		} `json:"models"`
+		HasMore    bool   `json:"has_more"`
+		NextCursor string `json:"next_cursor"`
+	}
+	if json.Unmarshal(b, &v) != nil {
+		return nil, ""
+	}
+	var out []Model
+	for _, m := range v.Models {
+		id := firstNonEmpty(m.EndpointID, m.ID)
+		if id == "" || strings.EqualFold(m.Metadata.Status, "deprecated") {
+			continue
+		}
+		var created int64
+		if t, err := time.Parse(time.RFC3339, m.Metadata.Date); err == nil {
+			created = t.Unix()
+		}
+		out = append(out, Model{ID: id, Created: created, Category: m.Metadata.Category})
 	}
 	if !v.HasMore {
 		return out, ""

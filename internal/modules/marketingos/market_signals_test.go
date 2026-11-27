@@ -2,6 +2,7 @@ package marketingos
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -71,6 +72,14 @@ func TestMarketSignalsShapeOnly(t *testing.T) {
 	}
 	if !marketSignals(map[string]any{}).Empty() {
 		t.Fatal("no data means no signals")
+	}
+	// Configured competitor names pass through, capped, for the "What has worked before" suggestion.
+	names := make([]any, maxSignalCompetitors+3)
+	for i := range names {
+		names[i] = fmt.Sprintf("Rival %d", i)
+	}
+	if c := marketSignals(map[string]any{CompetitorsKey: names}); len(c.Competitors) != maxSignalCompetitors || c.Empty() {
+		t.Fatalf("competitor names: %+v", c.Competitors)
 	}
 }
 

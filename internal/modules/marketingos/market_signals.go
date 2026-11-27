@@ -131,11 +131,18 @@ type MarketSignals struct {
 	Summary    string        `json:"summary,omitempty"`
 	References []ReferenceAd `json:"references,omitempty"`
 	Complaints []string      `json:"complaints,omitempty"`
+	// Competitors are the names the owner configured. Only the "What has worked before"
+	// suggestion reads them, to recall what is known to work for those businesses; the ad
+	// writers' market block never does, so no ad names a rival.
+	Competitors []string `json:"competitors,omitempty"`
 }
+
+// maxSignalCompetitors caps the competitor names sent to the AI.
+const maxSignalCompetitors = 10
 
 // Empty reports whether there is nothing to learn from yet.
 func (m MarketSignals) Empty() bool {
-	return len(m.Patterns) == 0 && len(m.References) == 0 && len(m.Complaints) == 0
+	return len(m.Patterns) == 0 && len(m.References) == 0 && len(m.Complaints) == 0 && len(m.Competitors) == 0
 }
 
 // marketSignals builds the capped block from the tenant's metadata.
@@ -166,6 +173,10 @@ func marketSignals(meta map[string]any) MarketSignals {
 	}
 	out.References = refs
 	out.Complaints = readStrings(meta, CustomerComplaintsKey)
+	out.Competitors = readStrings(meta, CompetitorsKey)
+	if len(out.Competitors) > maxSignalCompetitors {
+		out.Competitors = out.Competitors[:maxSignalCompetitors]
+	}
 	if len(out.Patterns) == 0 {
 		out.Summary = "" // a summary only explains winners the writer can see
 	}

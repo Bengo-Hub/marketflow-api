@@ -73,6 +73,7 @@ import (
 	"github.com/bengobox/marketflow-api/internal/platform/fxrate"
 	"github.com/bengobox/marketflow-api/internal/platform/subscriptions"
 	"github.com/bengobox/marketflow-api/internal/providers"
+	"github.com/bengobox/marketflow-api/internal/worker"
 	"github.com/nats-io/nats.go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
@@ -247,7 +248,12 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 
 	// ── Platform Provider Admin Handler ────────────────────────────────────
 	platformProviderHandler := admin.NewPlatformProviderHandler(entClient, keyProvider, logger).
-		WithBalances(redisClient, cfg.AI.ProviderBalancesKey)
+		WithBalances(redisClient, cfg.AI.ProviderBalancesKey).
+		// Automatic media route upgrades on Sync models go through the model watch's alert path
+		// (auth-api's Slack channel and email to the platform admins).
+		WithAlerts(worker.NewPlatformAlert(entClient,
+			notifications.New(notifications.Config{BaseURL: cfg.CrossService.NotificationsURL, APIKey: cfg.CrossService.InternalServiceKey}),
+			cfg.Security.AuthServiceURL, cfg.CrossService.InternalServiceKey, cfg.Security.PlatformTenant, logger))
 	encryptionKeyHandler := admin.NewEncryptionKeyHandler(entClient, keyProvider, logger)
 	endpointStore := endpoints.EntStore{DB: entClient}
 	scanServices, err := endpoints.ServicesFromConfig(cfg.EndpointScan.Services)
@@ -989,6 +995,10 @@ func New(ctx context.Context, cfg *config.Config, logger *zap.Logger) (*App, err
 			SetDefault:  platformProviderHandler.SetProviderDefault,
 			Balances:    platformProviderHandler.ProviderBalances,
 			Billing:     platformProviderHandler.ProviderBilling,
+			// The model behind each media tier (media_routes.go).
+			MediaRoutes:      platformProviderHandler.GetMediaRoutes,
+			PatchMediaRoutes: platformProviderHandler.PatchMediaRoutes,
+			FalPricing:       platformProviderHandler.FalPricing,
 		},
 		AdminServiceConfigHandlers: httpapi.AdminServiceConfigHandlers{
 			ListPlatform:   serviceConfigHandler.ListPlatformSettings,

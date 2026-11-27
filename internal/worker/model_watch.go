@@ -25,7 +25,10 @@ import (
 // family MarketFlow uses is reported to the platform on Slack (auth-api's platform alert channels)
 // and by email, for review: what it is and a recommendation to compare it with the current
 // default. Switching stays a reviewed config change (platform providers and routing settings),
-// never automatic. The first run records what exists without alerting.
+// never automatic here. The one automatic switch is the owner's own Sync models on the fal.ai or
+// ElevenLabs card, which moves a media route to a newer version of its own family and reports it
+// through the same alert path (admin/media_routes.go). The first run records what exists without
+// alerting.
 
 // modelSource is one provider's model list.
 type modelSource struct {

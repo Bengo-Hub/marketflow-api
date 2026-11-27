@@ -27,6 +27,8 @@ type ModelEntry struct {
 	// Free and Vision come from lists that say so (OpenRouter; Gemini reads images).
 	Free   bool `json:"free,omitempty"`
 	Vision bool `json:"vision,omitempty"`
+	// Category is fal's kind for the model (text-to-image, image-to-video, text-to-speech, ...).
+	Category string `json:"category,omitempty"`
 }
 
 // SyncModels fetches the provider's live model list with the platform credentials and recommends
@@ -36,7 +38,10 @@ type ModelEntry struct {
 // Flash for Gemini and the largest general model for Cerebras; standard and premium voice for
 // ElevenLabs; and, for information, the
 // newest fal model per media tier. The portal preselects the recommendations; nothing is saved
-// until the owner saves the form.
+// until the owner saves the form. The exception is the media routes of the fal.ai and ElevenLabs
+// cards (owner, 2026-11-28): a tier moves on its own to a newer version of the same family and
+// variant (never a preview), the replaced model is kept for revert, and the platform admins are
+// told (auto_switched in the reply).
 //
 // @Summary Sync AI models
 // @Description Lists the provider's live models with the stored key and recommends the newest stable model for each role it fills.
@@ -87,7 +92,16 @@ func (h *PlatformProviderHandler) SyncModels(w http.ResponseWriter, r *http.Requ
 	sort.Slice(listed, func(i, j int) bool { return listed[i].ID < listed[j].ID })
 	models := make([]ModelEntry, len(listed))
 	for i, m := range listed {
-		models[i] = ModelEntry{ID: m.ID, Object: "model", OwnedBy: req.ProviderName, Free: m.Free, Vision: m.Vision}
+		models[i] = ModelEntry{ID: m.ID, Object: "model", OwnedBy: req.ProviderName, Free: m.Free, Vision: m.Vision, Category: m.Category}
+	}
+	// The media routes (media_routes.go): fal's list is kept for the route checks, and each tier of
+	// the card moves to a newer model of its own family when the list has one.
+	if req.ProviderName == "fal" {
+		h.falCache.put(listed)
+	}
+	var switched []RouteSwitch
+	if req.ProviderName == "fal" || req.ProviderName == "elevenlabs" {
+		switched = h.autoPickRoutes(r.Context(), req.ProviderName, req.Environment, listed)
 	}
 	recs := modelcatalog.RecommendModels(listed, modelcatalog.RolesFor(req.ProviderName, h.roleOverrides(r.Context())), settings)
 	recommended := map[string]string{}
@@ -103,6 +117,7 @@ func (h *PlatformProviderHandler) SyncModels(w http.ResponseWriter, r *http.Requ
 		"models":          models,
 		"recommended":     recommended,
 		"recommendations": recs,
+		"auto_switched":   switched,
 	})
 }
 

@@ -202,6 +202,12 @@ type AdminProviderHandlers struct {
 	// Billing is a provider's own billing page (public GET /public/provider-billing/{provider}),
 	// where the platform owner's WhatsApp balance alert forwards.
 	Billing http.HandlerFunc
+	// MediaRoutes and PatchMediaRoutes read and merge the model behind each media tier (GET and
+	// PATCH /admin/providers/media-routes); FalPricing reads fal's prices (GET
+	// /admin/providers/fal-pricing).
+	MediaRoutes      http.HandlerFunc
+	PatchMediaRoutes http.HandlerFunc
+	FalPricing       http.HandlerFunc
 }
 
 // AdminTenantsHandlers groups platform tenant-directory HTTP handlers.
@@ -1455,6 +1461,11 @@ func NewRouter(deps RouterDeps) http.Handler {
 					}
 					if deps.AdminProviderHandlers.Balances != nil {
 						r.Get("/balances", deps.AdminProviderHandlers.Balances)
+					}
+					if deps.AdminProviderHandlers.MediaRoutes != nil {
+						r.Get("/media-routes", deps.AdminProviderHandlers.MediaRoutes)
+						r.Patch("/media-routes", deps.AdminProviderHandlers.PatchMediaRoutes)
+						r.Get("/fal-pricing", deps.AdminProviderHandlers.FalPricing)
 					}
 					r.Delete("/{id}", deps.AdminProviderHandlers.Deactivate)
 				})

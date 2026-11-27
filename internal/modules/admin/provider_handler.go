@@ -25,6 +25,11 @@ type PlatformProviderHandler struct {
 	// balances and balancesKey reach marketflow-ai's provider balance readings (WithBalances).
 	balances    redis.UniversalClient
 	balancesKey string
+	// falCache and falPrices keep fal's model list and prices for the media route pickers
+	// (media_routes.go); alerts reports automatic route upgrades (WithAlerts).
+	falCache  falModelCache
+	falPrices falPriceCache
+	alerts    Alerter
 }
 
 // NewPlatformProviderHandler creates a new handler.
@@ -70,6 +75,11 @@ func (h *PlatformProviderHandler) ConfigureProvider(w http.ResponseWriter, r *ht
 	}
 	if req.Environment == "" {
 		req.Environment = "production"
+	}
+	// This endpoint replaces every key, which would wipe the other media tiers; the routes merge.
+	if req.ProviderType == mediaRoutesType && req.ProviderName == mediaRoutesName {
+		httpapi.Error(w, http.StatusBadRequest, "use_media_routes", "media/routes is changed with PATCH /admin/providers/media-routes, which keeps the other keys", nil)
+		return
 	}
 	if !checkBillingURL(w, req.Settings, h.logger) {
 		return

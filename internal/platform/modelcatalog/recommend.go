@@ -19,8 +19,9 @@ type Role struct {
 	// KeepCurrent keeps the configured model when the provider still lists it (Ollama: an
 	// installed model is a deliberate choice, and a newer tag may be a smaller model).
 	KeepCurrent bool `json:"keep_current,omitempty"`
-	// Informational roles are shown as the newest model per family but are not a setting:
-	// the media routes that use them are fixed in marketflow-ai.
+	// Informational roles are shown as the newest model per family but are not a provider
+	// field: the media tiers they describe are the media/routes settings (admin/media_routes.go),
+	// set from the card's route pickers, and Sync models upgrades those within a family itself.
 	Informational bool `json:"informational,omitempty"`
 	// FreeOnly keeps models the list marks free (OpenRouter's :free models).
 	FreeOnly bool `json:"free_only,omitempty"`
