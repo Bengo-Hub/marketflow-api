@@ -48,8 +48,28 @@ type Offerings struct {
 type ExtraSource func(ctx context.Context, tenantID uuid.UUID) ([]Offering, error)
 
 // WithSource adds an ExtraSource to the picker.
+// Several sources chain in the order added: each one's list comes after the earlier ones', and
+// one that fails is skipped while the others still answer (nil when every one has nothing).
 func (o *Offerings) WithSource(src ExtraSource) *Offerings {
-	o.extra = src
+	if src == nil {
+		return o
+	}
+	prev := o.extra
+	if prev == nil {
+		o.extra = src
+		return o
+	}
+	o.extra = func(ctx context.Context, tenantID uuid.UUID) ([]Offering, error) {
+		a, errA := prev(ctx, tenantID)
+		b, errB := src(ctx, tenantID)
+		if errA != nil && errB != nil {
+			return nil, errA
+		}
+		if a == nil && b == nil {
+			return nil, nil
+		}
+		return append(append([]Offering{}, a...), b...), nil
+	}
 	return o
 }
 
